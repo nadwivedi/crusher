@@ -3,6 +3,10 @@ const dotenv = require("dotenv");
 const path = require("path");
 const connectDB = require("./config/mongodb");
 const upload = require("./config/multer");
+const boulderRoutes = require("./routes/boulderRoutes");
+const partyRoutes = require("./routes/partyRoutes");
+const salesRoutes = require("./routes/salesRoutes");
+const vehicleRoutes = require("./routes/vehicleRoutes");
 
 dotenv.config({ path: path.join(__dirname, ".env") });
 
@@ -26,6 +30,11 @@ app.post("/upload", upload.single("file"), (req, res) => {
     filename: req.file.filename,
   });
 });
+
+app.use("/api/boulders", boulderRoutes);
+app.use("/api/parties", partyRoutes);
+app.use("/api/sales", salesRoutes);
+app.use("/api/vehicles", vehicleRoutes);
 
 const startServer = async () => {
   try {
