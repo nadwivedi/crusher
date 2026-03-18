@@ -195,7 +195,6 @@ const HOME_SECTION_ORDER = ['Masters', 'Vouchers', 'Expense', 'Reports'];
 const homeQuickShortcuts = [
   { label: 'New Sale', hint: '', combo: 'Alt + 1', accent: 'from-emerald-500 to-teal-500', stateKey: 'homeQuickSale' },
   { label: 'New Boulder Entry', hint: '', combo: 'Alt + 2', accent: 'from-slate-700 to-slate-900', stateKey: 'homeQuickBoulder' },
-  { label: 'New Purchase', hint: '', combo: 'Alt + 3', accent: 'from-blue-500 to-cyan-500', stateKey: 'homeQuickPurchase' },
   { label: 'New Receipt', hint: 'Money Received', combo: 'Alt + 4', accent: 'from-fuchsia-500 to-pink-500', stateKey: 'homeQuickReceipt' },
   { label: 'New Expense', hint: '', combo: 'Alt + 5', accent: 'from-emerald-500 to-lime-500', stateKey: 'homeQuickExpense' }
 ];
@@ -248,14 +247,13 @@ export default function Home() {
 
     navigate('/', {
       replace: true,
-        state: {
-          ...currentState,
-          homeQuickSale: stateKey === 'homeQuickSale',
-          homeQuickBoulder: stateKey === 'homeQuickBoulder',
-          homeQuickPurchase: stateKey === 'homeQuickPurchase',
-          homeQuickReceipt: stateKey === 'homeQuickReceipt',
-          homeQuickExpense: stateKey === 'homeQuickExpense'
-        }
+          state: {
+            ...currentState,
+            homeQuickSale: stateKey === 'homeQuickSale',
+            homeQuickBoulder: stateKey === 'homeQuickBoulder',
+            homeQuickReceipt: stateKey === 'homeQuickReceipt',
+            homeQuickExpense: stateKey === 'homeQuickExpense'
+          }
     });
   };
 
@@ -302,7 +300,6 @@ export default function Home() {
       const quickShortcutMap = {
         '1': 'homeQuickSale',
         '2': 'homeQuickBoulder',
-        '3': 'homeQuickPurchase',
         '4': 'homeQuickReceipt',
         '5': 'homeQuickExpense'
       };

@@ -18,6 +18,11 @@ const vehicleSchema = new mongoose.Schema(
       required: true,
       min: 0,
     },
+    vehicleType: {
+      type: String,
+      enum: ["boulder", "sales"],
+      default: "sales",
+    },
   },
   {
     timestamps: true,

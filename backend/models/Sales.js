@@ -25,6 +25,21 @@ const salesSchema = new mongoose.Schema(
       required: true,
       min: 0,
     },
+    vehicleWeight: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    netWeight: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    materialWeight: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
     slipImg: {
       type: String,
       trim: true,

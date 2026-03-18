@@ -55,11 +55,12 @@ const getInitialFormData = () => ({
   customerName: '',
   customerPhone: '',
   customerAddress: '',
-  items: [],
-  saleDate: formatDateForInput(),
-  dueDate: '',
-  subtotal: 0,
-  taxAmount: 0,
+  vehicleNo: '',
+  materialType: '',
+  vehicleWeight: '',
+  netWeight: '',
+  materialWeight: '',
+  rate: '',
   totalAmount: 0,
   paidAmount: 0,
   notes: ''
@@ -74,7 +75,13 @@ const getInitialPartyFormData = (type = 'customer') => ({
   state: '',
   pincode: '',
   openingBalance: '',
-  openingBalanceType: type === 'supplier' ? 'payable' : 'receivable'
+  openingBalanceType: type === 'supplier' ? 'payable' : 'receivable',
+  tenMmRate: '',
+  twentyMmRate: '',
+  fortyMmRate: '',
+  wmmRate: '',
+  gsbRate: '',
+  dustRate: ''
 });
 
 const toTitleCase = (value) => String(value || '')
@@ -506,6 +513,10 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
       setPartyFormData((prev) => ({ ...prev, [name]: value }));
       return;
     }
+    if (['tenMmRate', 'twentyMmRate', 'fortyMmRate', 'wmmRate', 'gsbRate', 'dustRate'].includes(name)) {
+      setPartyFormData((prev) => ({ ...prev, [name]: value }));
+      return;
+    }
     if (name === 'type') {
       setPartyFormData((prev) => ({
         ...prev,
@@ -862,6 +873,13 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
       setFormData({ ...formData, saleDate: value });
       return;
     }
+    if (name === 'vehicleWeight' || name === 'netWeight') {
+      const vehicleWeight = name === 'vehicleWeight' ? Number(value || 0) : Number(formData.vehicleWeight || 0);
+      const netWeight = name === 'netWeight' ? Number(value || 0) : Number(formData.netWeight || 0);
+      const materialWeight = vehicleWeight - netWeight;
+      setFormData({ ...formData, [name]: value, materialWeight });
+      return;
+    }
     setFormData({ ...formData, [name]: value });
   };
 
@@ -903,12 +921,18 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
         name: String(partyFormData.name || '').trim(),
         mobile: String(partyFormData.mobile || '').trim(),
         email: String(partyFormData.email || '').trim(),
-        address: String(partyFormData.address || '').trim(),
-        state: String(partyFormData.state || '').trim(),
-        pincode: String(partyFormData.pincode || '').trim(),
-        openingBalance: Number(partyFormData.openingBalance || 0),
-        openingBalanceType: String(partyFormData.openingBalanceType || 'receivable')
-      };
+          address: String(partyFormData.address || '').trim(),
+          state: String(partyFormData.state || '').trim(),
+          pincode: String(partyFormData.pincode || '').trim(),
+          openingBalance: Number(partyFormData.openingBalance || 0),
+          openingBalanceType: String(partyFormData.openingBalanceType || 'receivable'),
+          tenMmRate: Number(partyFormData.tenMmRate || 0),
+          twentyMmRate: Number(partyFormData.twentyMmRate || 0),
+          fortyMmRate: Number(partyFormData.fortyMmRate || 0),
+          wmmRate: Number(partyFormData.wmmRate || 0),
+          gsbRate: Number(partyFormData.gsbRate || 0),
+          dustRate: Number(partyFormData.dustRate || 0)
+        };
 
       const response = await apiClient.post('/parties', payload);
       const createdParty = response?.data || null;
@@ -944,6 +968,14 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
       setError('Party name is required');
       return;
     }
+    if (!formData.vehicleNo) {
+      setError('Vehicle number is required');
+      return;
+    }
+    if (!formData.materialType) {
+      setError('Material type is required');
+      return;
+    }
     const parsedSaleDate = parseSaleDate(formData.saleDate);
     if (!parsedSaleDate) {
       setError('Please select a valid sale date');
@@ -959,9 +991,9 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
       const isEditMode = Boolean(editingId);
       const submitData = {
         ...formData,
+        stoneSize: formData.materialType,
         paidAmount: !isEditMode && isCashParty ? Number(formData.totalAmount || 0) : formData.paidAmount,
-        saleDate: parsedSaleDate,
-        dueDate: formData.dueDate ? new Date(formData.dueDate) : null
+        saleDate: parsedSaleDate
       };
 
       if (editingId) {
@@ -1010,7 +1042,12 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
       saleDate: formatDateForInput(sale.saleDate),
       customerName: resolvedLeadgerName,
       customerPhone: String(sale.customerPhone || '').replace(/\D/g, '').slice(0, 10),
-      customerAddress: sale.customerAddress || ''
+      customerAddress: sale.customerAddress || '',
+      materialType: sale.materialType || sale.stoneSize || '',
+      vehicleNo: sale.vehicleNo || '',
+      vehicleWeight: sale.vehicleWeight || '',
+      netWeight: sale.netWeight || '',
+      materialWeight: sale.materialWeight || ''
     });
     setLeadgerQuery(resolvedLeadgerName);
     setLeadgerListIndex(resolvedLeadgerName ? 0 : -1);
@@ -1410,6 +1447,11 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
                 <tr>
                   <th className="border-y-2 border-l-2 border-r border-black px-4 py-3.5 text-center text-sm font-semibold">Invoice</th>
                   <th className="border-y-2 border-r border-black px-4 py-3.5 text-center text-sm font-semibold">Party Name</th>
+                  <th className="border-y-2 border-r border-black px-4 py-3.5 text-center text-sm font-semibold">Vehicle No</th>
+                  <th className="border-y-2 border-r border-black px-4 py-3.5 text-center text-sm font-semibold">Material</th>
+                  <th className="border-y-2 border-r border-black px-4 py-3.5 text-center text-sm font-semibold">Vehicle Wt</th>
+                  <th className="border-y-2 border-r border-black px-4 py-3.5 text-center text-sm font-semibold">Net Wt</th>
+                  <th className="border-y-2 border-r border-black px-4 py-3.5 text-center text-sm font-semibold">Mat. Wt</th>
                   <th className="border-y-2 border-r border-black px-4 py-3.5 text-sm font-semibold">Products</th>
                   <th className="border-y-2 border-r border-black px-4 py-3.5 text-center text-sm font-semibold">Date</th>
                   <th className="border-y-2 border-r border-black px-4 py-3.5 text-center text-sm font-semibold">Total</th>
@@ -1430,6 +1472,17 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
                       </button>
                     </td>
                     <td className="border border-slate-400 px-4 py-3 text-center font-medium text-slate-700">{resolveLeadgerNameById(sale.party) || sale.customerName || '-'}</td>
+                    <td className="border border-slate-400 px-4 py-3 text-center font-medium text-slate-700">{sale.vehicleNo || '-'}</td>
+                    <td className="border border-slate-400 px-4 py-3 text-center">
+                      {sale.materialType ? (
+                        <span className="bg-amber-50 text-amber-700 px-2 py-1 rounded-full text-xs font-medium border border-amber-200">
+                          {sale.materialType.toUpperCase()}
+                        </span>
+                      ) : '-'}
+                    </td>
+                    <td className="border border-slate-400 px-4 py-3 text-center text-slate-600">{sale.vehicleWeight ? `${sale.vehicleWeight} kg` : '-'}</td>
+                    <td className="border border-slate-400 px-4 py-3 text-center text-slate-600">{sale.netWeight ? `${sale.netWeight} kg` : '-'}</td>
+                    <td className="border border-slate-400 px-4 py-3 text-center font-semibold text-emerald-600">{sale.materialWeight ? `${sale.materialWeight} kg` : '-'}</td>
                     <td className="border border-slate-400 px-4 py-3 text-slate-600">
                       {sale.items?.length
                         ? (

@@ -96,7 +96,13 @@ export default function Purchases({ modalOnly = false, onModalFinish = null }) {
     state: '',
     pincode: '',
     openingBalance: '',
-    openingBalanceType: type === 'supplier' ? 'payable' : 'receivable'
+    openingBalanceType: type === 'supplier' ? 'payable' : 'receivable',
+    tenMmRate: '',
+    twentyMmRate: '',
+    fortyMmRate: '',
+    wmmRate: '',
+    gsbRate: '',
+    dustRate: ''
   });
 
   const toTitleCase = (value) => String(value || '')
@@ -464,6 +470,10 @@ export default function Purchases({ modalOnly = false, onModalFinish = null }) {
       return;
     }
     if (name === 'openingBalance') {
+      setPartyFormData((prev) => ({ ...prev, [name]: value }));
+      return;
+    }
+    if (['tenMmRate', 'twentyMmRate', 'fortyMmRate', 'wmmRate', 'gsbRate', 'dustRate'].includes(name)) {
       setPartyFormData((prev) => ({ ...prev, [name]: value }));
       return;
     }
@@ -854,12 +864,18 @@ export default function Purchases({ modalOnly = false, onModalFinish = null }) {
         name: String(partyFormData.name || '').trim(),
         mobile: String(partyFormData.mobile || '').trim(),
         email: String(partyFormData.email || '').trim(),
-        address: String(partyFormData.address || '').trim(),
-        state: String(partyFormData.state || '').trim(),
-        pincode: String(partyFormData.pincode || '').trim(),
-        openingBalance: Number(partyFormData.openingBalance || 0),
-        openingBalanceType: String(partyFormData.openingBalanceType || 'payable')
-      };
+          address: String(partyFormData.address || '').trim(),
+          state: String(partyFormData.state || '').trim(),
+          pincode: String(partyFormData.pincode || '').trim(),
+          openingBalance: Number(partyFormData.openingBalance || 0),
+          openingBalanceType: String(partyFormData.openingBalanceType || 'payable'),
+          tenMmRate: Number(partyFormData.tenMmRate || 0),
+          twentyMmRate: Number(partyFormData.twentyMmRate || 0),
+          fortyMmRate: Number(partyFormData.fortyMmRate || 0),
+          wmmRate: Number(partyFormData.wmmRate || 0),
+          gsbRate: Number(partyFormData.gsbRate || 0),
+          dustRate: Number(partyFormData.dustRate || 0)
+        };
 
       const response = await apiClient.post('/parties', payload);
       const createdParty = response?.data || null;

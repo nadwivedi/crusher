@@ -1,7 +1,15 @@
 import { useEffect, useRef, useState } from 'react';
-import { Building2, CalendarDays, Package } from 'lucide-react';
+import { Building2, CalendarDays, Package, Truck } from 'lucide-react';
 import { handlePopupFormKeyDown } from '../../../utils/popupFormKeyboard';
 import { useFloatingDropdownPosition } from '../../../utils/useFloatingDropdownPosition';
+
+const MATERIAL_TYPES = [
+  { value: '10mm', label: '10mm' },
+  { value: '20mm', label: '20mm' },
+  { value: '40mm', label: '40mm' },
+  { value: 'gsb', label: 'GSB' },
+  { value: 'wmm', label: 'WMM' },
+];
 
 export default function AddSalePopup({
   showForm,
@@ -157,6 +165,22 @@ export default function AddSalePopup({
                     </div>
                   </div>
 
+                  <div>
+                    <label className={labelClass}>Vehicle No</label>
+                    <div className="relative">
+                      <Truck className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-indigo-400 pointer-events-none" />
+                      <input
+                        type="text"
+                        name="vehicleNo"
+                        value={formData.vehicleNo || ''}
+                        onChange={handleInputChange}
+                        onKeyDown={handleSelectEnterMoveNext}
+                        className={`${inputClass} pl-9 focus:ring-indigo-500`}
+                        placeholder="Enter vehicle number"
+                      />
+                    </div>
+                  </div>
+
                   <div className="relative">
                     <div className="relative mb-1 min-h-[16px]">
                       <label className="block pr-24 text-[11px] font-semibold text-gray-700 md:text-xs">Party Name</label>
@@ -258,13 +282,66 @@ export default function AddSalePopup({
                   </div>
 
                   <div>
-                    <label className={labelClass}>Due Date</label>
-                    <input
-                      type="date"
-                      name="dueDate"
-                      value={formData.dueDate}
+                    <label className={labelClass}>Material Type</label>
+                    <select
+                      name="materialType"
+                      value={formData.materialType || ''}
                       onChange={handleInputChange}
+                      onKeyDown={handleSelectEnterMoveNext}
                       className={`${inputClass} focus:ring-indigo-500`}
+                    >
+                      <option value="">Select Material</option>
+                      {MATERIAL_TYPES.map((type) => (
+                        <option key={type.value} value={type.value}>
+                          {type.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className={labelClass}>Vehicle Weight (KG)</label>
+                    <input
+                      type="number"
+                      name="vehicleWeight"
+                      value={formData.vehicleWeight || ''}
+                      onChange={handleInputChange}
+                      onKeyDown={handleSelectEnterMoveNext}
+                      className={`${inputClass} focus:ring-indigo-500`}
+                      placeholder="0"
+                      step="0.01"
+                      min="0"
+                    />
+                  </div>
+
+                  <div>
+                    <label className={labelClass}>Net Weight (KG)</label>
+                    <input
+                      type="number"
+                      name="netWeight"
+                      value={formData.netWeight || ''}
+                      onChange={handleInputChange}
+                      onKeyDown={handleSelectEnterMoveNext}
+                      className={`${inputClass} focus:ring-indigo-500`}
+                      placeholder="0"
+                      step="0.01"
+                      min="0"
+                    />
+                  </div>
+
+                  <div>
+                    <label className={labelClass}>Material Weight (KG)</label>
+                    <input
+                      type="number"
+                      name="materialWeight"
+                      value={formData.materialWeight || ''}
+                      onChange={handleInputChange}
+                      onKeyDown={handleSelectEnterMoveNext}
+                      className={`${inputClass} focus:ring-indigo-500 bg-gray-50`}
+                      placeholder="0"
+                      step="0.01"
+                      min="0"
+                      readOnly
                     />
                   </div>
                 </div>

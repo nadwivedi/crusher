@@ -53,7 +53,6 @@ function App() {
     const {
       homeQuickSale,
       homeQuickBoulder,
-      homeQuickPurchase,
       homeQuickPayment,
       homeQuickReceipt,
       homeQuickExpense,
@@ -421,12 +420,6 @@ function App() {
       {location.pathname === '/' && location.state?.homeQuickBoulder && (
         <ProtectedRoute>
           <BoulderEntry modalOnly onModalFinish={clearHomeQuickShortcutState} />
-        </ProtectedRoute>
-      )}
-
-      {location.pathname === '/' && location.state?.homeQuickPurchase && (
-        <ProtectedRoute>
-          <Purchases modalOnly onModalFinish={clearHomeQuickShortcutState} />
         </ProtectedRoute>
       )}
 

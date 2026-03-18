@@ -14,7 +14,13 @@ const getInitialForm = () => ({
   state: '',
   pincode: '',
   openingBalance: '',
-  openingBalanceType: 'receivable'
+  openingBalanceType: 'receivable',
+  tenMmRate: '',
+  twentyMmRate: '',
+  fortyMmRate: '',
+  wmmRate: '',
+  gsbRate: '',
+  dustRate: ''
 });
 
 const TOAST_OPTIONS = { autoClose: 1200 };
@@ -120,6 +126,10 @@ export default function Party() {
       setFormData((prev) => ({ ...prev, [name]: value }));
       return;
     }
+    if (['tenMmRate', 'twentyMmRate', 'fortyMmRate', 'wmmRate', 'gsbRate', 'dustRate'].includes(name)) {
+      setFormData((prev) => ({ ...prev, [name]: value }));
+      return;
+    }
     if (name === 'type') {
       setFormData((prev) => ({
         ...prev,
@@ -155,7 +165,13 @@ export default function Party() {
       state: String(party.state || ''),
       pincode: String(party.pincode || '').replace(/\D/g, '').slice(0, 6),
       openingBalance: Math.abs(Number(party.openingBalance || 0)) || '',
-      openingBalanceType: resolveOpeningBalanceType(party)
+      openingBalanceType: resolveOpeningBalanceType(party),
+      tenMmRate: Number(party.tenMmRate || 0) || '',
+      twentyMmRate: Number(party.twentyMmRate || 0) || '',
+      fortyMmRate: Number(party.fortyMmRate || 0) || '',
+      wmmRate: Number(party.wmmRate || 0) || '',
+      gsbRate: Number(party.gsbRate || 0) || '',
+      dustRate: Number(party.dustRate || 0) || ''
     });
     setError('');
     setShowForm(true);
@@ -190,7 +206,13 @@ export default function Party() {
         state: String(formData.state || '').trim(),
         pincode: String(formData.pincode || '').trim(),
         openingBalance: Number(formData.openingBalance || 0),
-        openingBalanceType: String(formData.openingBalanceType || getDefaultOpeningBalanceType(formData.type))
+        openingBalanceType: String(formData.openingBalanceType || getDefaultOpeningBalanceType(formData.type)),
+        tenMmRate: Number(formData.tenMmRate || 0),
+        twentyMmRate: Number(formData.twentyMmRate || 0),
+        fortyMmRate: Number(formData.fortyMmRate || 0),
+        wmmRate: Number(formData.wmmRate || 0),
+        gsbRate: Number(formData.gsbRate || 0),
+        dustRate: Number(formData.dustRate || 0)
       };
 
       if (editingId) {

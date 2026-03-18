@@ -21,6 +21,15 @@ const OPENING_BALANCE_OPTIONS = [
   { value: 'payable', label: 'Payable (Cr)' }
 ];
 
+const SALE_RATE_FIELDS = [
+  { name: 'tenMmRate', label: '10mm Rate' },
+  { name: 'twentyMmRate', label: '20mm Rate' },
+  { name: 'fortyMmRate', label: '40mm Rate' },
+  { name: 'wmmRate', label: 'WMM Rate' },
+  { name: 'gsbRate', label: 'GSB Rate' },
+  { name: 'dustRate', label: 'Dust Rate' }
+];
+
 const FIELD_SELECTOR = [
   'input:not([type="hidden"]):not([disabled]):not([readonly])',
   'select:not([disabled]):not([readonly])',
@@ -777,6 +786,37 @@ export default function AddPartyPopup({
                     />
                   </div>
                 </div>
+              </div>
+
+              <div className="rounded-xl border-2 border-amber-200 bg-gradient-to-r from-amber-50 to-orange-50 p-2.5 md:p-4">
+                <h3 className="text-base md:text-lg font-bold text-gray-800 mb-3 md:mb-4 flex items-center gap-2">
+                  <span className="bg-amber-600 text-white w-6 h-6 md:w-8 md:h-8 rounded-full flex items-center justify-center text-xs md:text-sm">3</span>
+                  Sale Rate Per Ton
+                </h3>
+
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                  {SALE_RATE_FIELDS.map((field) => (
+                    <div key={field.name} className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:gap-2">
+                      <label htmlFor={field.name} className="shrink-0 text-xs font-semibold text-gray-700 sm:w-28 sm:text-sm">
+                        {field.label}
+                      </label>
+                      <input
+                        id={field.name}
+                        type="number"
+                        name={field.name}
+                        value={formData[field.name] ?? ''}
+                        onChange={handleChange}
+                        min="0"
+                        step="0.01"
+                        className={getInlineFieldClass('emerald')}
+                        placeholder="0.00"
+                      />
+                    </div>
+                  ))}
+                </div>
+                <p className="mt-3 text-xs font-medium text-amber-700">
+                  Set party-wise selling rate in Rs per ton for each material.
+                </p>
               </div>
             </div>
           </div>
