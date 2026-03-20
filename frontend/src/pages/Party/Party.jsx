@@ -9,10 +9,6 @@ const getInitialForm = () => ({
   type: '',
   name: '',
   mobile: '',
-  email: '',
-  address: '',
-  state: '',
-  pincode: '',
   openingBalance: '',
   openingBalanceType: 'receivable',
   tenMmRate: '',
@@ -117,11 +113,6 @@ export default function Party() {
       setFormData((prev) => ({ ...prev, [name]: normalized }));
       return;
     }
-    if (name === 'pincode') {
-      const normalized = String(value || '').replace(/\D/g, '').slice(0, 6);
-      setFormData((prev) => ({ ...prev, [name]: normalized }));
-      return;
-    }
     if (name === 'openingBalance') {
       setFormData((prev) => ({ ...prev, [name]: value }));
       return;
@@ -160,10 +151,6 @@ export default function Party() {
       type: ['supplier', 'customer', 'cash-in-hand'].includes(party.type) ? party.type : 'supplier',
       name: String(party.name || ''),
       mobile: String(party.mobile || '').replace(/\D/g, '').slice(0, 10),
-      email: String(party.email || ''),
-      address: String(party.address || ''),
-      state: String(party.state || ''),
-      pincode: String(party.pincode || '').replace(/\D/g, '').slice(0, 6),
       openingBalance: Math.abs(Number(party.openingBalance || 0)) || '',
       openingBalanceType: resolveOpeningBalanceType(party),
       tenMmRate: Number(party.tenMmRate || 0) || '',
@@ -201,10 +188,6 @@ export default function Party() {
         type: formData.type,
         name: String(formData.name || '').trim(),
         mobile: String(formData.mobile || '').trim(),
-        email: String(formData.email || '').trim(),
-        address: String(formData.address || '').trim(),
-        state: String(formData.state || '').trim(),
-        pincode: String(formData.pincode || '').trim(),
         openingBalance: Number(formData.openingBalance || 0),
         openingBalanceType: String(formData.openingBalanceType || getDefaultOpeningBalanceType(formData.type)),
         tenMmRate: Number(formData.tenMmRate || 0),

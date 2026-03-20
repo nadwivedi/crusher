@@ -18,7 +18,7 @@ const buildSearchQuery = (search) => {
 const createStock = async (req, res) => {
   try {
     const stock = await Stock.create(req.body);
-    return res.status(201).json(stock);
+    return res.status(201).json({ data: stock });
   } catch (error) {
     return res.status(400).json({
       message: "Failed to create stock item",
@@ -30,7 +30,7 @@ const createStock = async (req, res) => {
 const getAllStocks = async (req, res) => {
   try {
     const stocks = await Stock.find(buildSearchQuery(req.query.search)).sort({ createdAt: -1 });
-    return res.json(stocks);
+    return res.json({ data: stocks });
   } catch (error) {
     return res.status(500).json({
       message: "Failed to fetch stock items",
@@ -53,7 +53,7 @@ const getStockById = async (req, res) => {
       return res.status(404).json({ message: "Stock item not found" });
     }
 
-    return res.json(stock);
+    return res.json({ data: stock });
   } catch (error) {
     return res.status(500).json({
       message: "Failed to fetch stock item",
@@ -79,7 +79,7 @@ const editStock = async (req, res) => {
       return res.status(404).json({ message: "Stock item not found" });
     }
 
-    return res.json(stock);
+    return res.json({ data: stock });
   } catch (error) {
     return res.status(400).json({
       message: "Failed to update stock item",

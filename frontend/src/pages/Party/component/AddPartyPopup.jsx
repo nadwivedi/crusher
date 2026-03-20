@@ -44,14 +44,6 @@ const getInlineFieldClass = (tone = 'indigo') => {
   return `flex-1 min-w-0 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-bold text-gray-900 transition-all placeholder:font-normal placeholder:text-gray-400 focus:outline-none ${focusTone}`;
 };
 
-const getInlineTextareaClass = (tone = 'emerald') => {
-  const focusTone = tone === 'emerald'
-    ? 'focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200'
-    : 'focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200';
-
-  return `flex-1 min-w-0 resize-none rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-bold text-gray-900 transition-all placeholder:font-normal placeholder:text-gray-400 focus:outline-none ${focusTone}`;
-};
-
 const isVisibleField = (element) => {
   if (!element) return false;
   if (element.tabIndex === -1) return false;
@@ -81,14 +73,6 @@ const focusNextField = (currentElement) => {
   if (nextField instanceof HTMLInputElement && typeof nextField.select === 'function') {
     nextField.select();
   }
-};
-
-const submitFormFromField = (currentElement) => {
-  if (!(currentElement instanceof HTMLElement)) return;
-
-  const form = currentElement.closest('form');
-  if (!(form instanceof HTMLFormElement)) return;
-  form.requestSubmit();
 };
 
 const getTypeLabel = (typeValue) => (
@@ -470,9 +454,9 @@ export default function AddPartyPopup({
                   Party Details
                 </h3>
 
-                <div className="flex flex-col gap-3 md:gap-4">
-                  <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
-                    <label htmlFor="party-name-input" className="shrink-0 text-xs font-semibold text-gray-700 sm:w-28 sm:text-sm">
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-[minmax(0,1fr)_minmax(200px,0.72fr)] md:gap-x-2 md:gap-y-4">
+                  <div className="min-w-0">
+                    <label htmlFor="party-name-input" className="mb-1.5 block text-xs font-semibold text-gray-700 sm:text-sm">
                       Party Name <span className="text-red-500">*</span>
                     </label>
                     <input
@@ -488,13 +472,13 @@ export default function AddPartyPopup({
                     />
                   </div>
 
-                  <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-start sm:gap-3">
-                    <label htmlFor="party-type-input" className="shrink-0 text-xs font-semibold text-gray-700 sm:w-28 sm:pt-2 sm:text-sm">
+                  <div className="min-w-0">
+                    <label htmlFor="party-type-input" className="mb-1.5 block text-xs font-semibold text-gray-700 sm:text-sm">
                       Type <span className="text-red-500">*</span>
                     </label>
                     <div
                       ref={typeSectionRef}
-                      className="relative min-w-0 flex-1"
+                      className="relative min-w-0 w-full"
                       onBlurCapture={(event) => {
                         const nextFocused = event.relatedTarget;
                         if (
@@ -583,7 +567,6 @@ export default function AddPartyPopup({
                       )}
                     </div>
                   </div>
-
                 </div>
               </div>
 
@@ -609,54 +592,6 @@ export default function AddPartyPopup({
                       maxLength={10}
                       className={getInlineFieldClass('emerald')}
                       placeholder="10-digit mobile number"
-                    />
-                  </div>
-
-                  <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:gap-2">
-                    <label htmlFor="party-email-input" className="shrink-0 text-xs font-semibold text-gray-700 sm:w-32 sm:text-sm">
-                      Email Address
-                    </label>
-                    <input
-                      id="party-email-input"
-                      type="email"
-                      name="email"
-                      value={formData.email}
-                      onChange={handleChange}
-                      className={getInlineFieldClass('emerald')}
-                      placeholder="email@example.com"
-                    />
-                  </div>
-
-                  <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:gap-2">
-                    <label htmlFor="party-state-input" className="shrink-0 text-xs font-semibold text-gray-700 sm:w-32 sm:text-sm">
-                      State
-                    </label>
-                    <input
-                      id="party-state-input"
-                      type="text"
-                      name="state"
-                      value={formData.state}
-                      onChange={handleChange}
-                      className={getInlineFieldClass('emerald')}
-                      placeholder="Enter state"
-                    />
-                  </div>
-
-                  <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:gap-2">
-                    <label htmlFor="party-pincode-input" className="shrink-0 text-xs font-semibold text-gray-700 sm:w-32 sm:text-sm">
-                      Pincode
-                    </label>
-                    <input
-                      id="party-pincode-input"
-                      type="text"
-                      name="pincode"
-                      value={formData.pincode}
-                      onChange={handleChange}
-                      inputMode="numeric"
-                      pattern="[0-9]{6}"
-                      maxLength={6}
-                      className={getInlineFieldClass('emerald')}
-                      placeholder="6-digit pincode"
                     />
                   </div>
 
@@ -764,27 +699,6 @@ export default function AddPartyPopup({
                     </div>
                   </div>
 
-                  <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-start sm:gap-2">
-                    <label htmlFor="party-address-input" className="shrink-0 text-xs font-semibold text-gray-700 sm:mt-2 sm:w-32 sm:text-sm">
-                      Address
-                    </label>
-                    <textarea
-                      id="party-address-input"
-                      name="address"
-                      value={formData.address}
-                      onChange={handleChange}
-                      onKeyDown={(event) => {
-                        if (event.key === 'Enter' && !event.shiftKey) {
-                          event.preventDefault();
-                          event.stopPropagation();
-                          submitFormFromField(event.currentTarget);
-                        }
-                      }}
-                      className={getInlineTextareaClass('emerald')}
-                      placeholder="Enter full address"
-                      rows={1}
-                    />
-                  </div>
                 </div>
               </div>
 
