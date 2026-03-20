@@ -386,7 +386,7 @@ export default function Home() {
                 </svg>
               </div>
               <div>
-                <p className="text-[12px] font-bold tracking-[0.16em] text-slate-800 sm:text-[15px] sm:tracking-[0.18em]">BILLHUB</p>
+                <p className="text-[12px] font-bold tracking-[0.16em] text-slate-800 sm:text-[15px] sm:tracking-[0.18em]">CRUSHER MANAGEMENT</p>
                 <p className="text-[9px] font-bold uppercase tracking-[0.14em] text-slate-500 sm:text-[10px] sm:tracking-[0.18em]">Business Console</p>
               </div>
             </div>
