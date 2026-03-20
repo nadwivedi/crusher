@@ -79,9 +79,7 @@ export default function Products() {
   };
 
   const totalProducts = products.length;
-  const lowStockProducts = products.filter(
-    (product) => Number(product.currentStock || 0) <= Number(product.minStockLevel || 0)
-  ).length;
+  const lowStockProducts = products.filter((product) => Number(product.currentStock || 0) <= 0).length;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-purple-50">
@@ -162,10 +160,10 @@ export default function Products() {
                 <table className="w-full min-w-[760px] overflow-hidden whitespace-nowrap border-separate border-spacing-0 text-left text-sm">
                   <thead className="bg-[linear-gradient(135deg,#0f766e_0%,#0d9488_38%,#0891b2_72%,#0284c7_100%)] text-white">
                     <tr>
-                      <th className="border border-slate-200 px-4 py-3.5 text-center text-sm font-semibold">Name</th>
-                      <th className="border border-slate-200 px-4 py-3.5 text-center text-sm font-semibold">Stock Group</th>
-                      <th className="border border-slate-200 px-4 py-3.5 text-center text-sm font-semibold">Unit</th>
-                      <th className="border border-slate-200 px-4 py-3.5 text-center text-sm font-semibold">Stock</th>
+                      <th className="border border-slate-200 px-4 py-3.5 text-center text-sm font-semibold">Stock Name</th>
+                      <th className="border border-slate-200 px-4 py-3.5 text-center text-sm font-semibold">Units</th>
+                      <th className="border border-slate-200 px-4 py-3.5 text-center text-sm font-semibold">Current Stock</th>
+                      <th className="border border-slate-200 px-4 py-3.5 text-center text-sm font-semibold">Tax Rate</th>
                       <th className="border border-slate-200 px-4 py-3.5 text-center text-sm font-semibold">Actions</th>
                     </tr>
                   </thead>
@@ -182,17 +180,17 @@ export default function Products() {
                             <span className="text-[10px] font-medium text-sky-600 underline underline-offset-2">Open ledger</span>
                           </div>
                         </td>
-                        <td className="border border-slate-200 px-4 py-3 text-center">{product.stockGroup?.name || '-'}</td>
                         <td className="border border-slate-200 px-4 py-3 text-center">{product.unit || '-'}</td>
                         <td className="border border-slate-200 px-4 py-3 text-center">
                           <span className={`inline-flex min-w-14 items-center justify-center rounded-md px-2.5 py-1 text-xs font-semibold ${
-                            Number(product.currentStock || 0) > Number(product.minStockLevel || 0)
+                            Number(product.currentStock || 0) > 0
                               ? 'bg-emerald-50 text-emerald-700'
                               : 'bg-amber-50 text-amber-700'
                           }`}>
                             {product.currentStock}
                           </span>
                         </td>
+                        <td className="border border-slate-200 px-4 py-3 text-center">{Number(product.taxRate || 0)}%</td>
                         <td className="border border-slate-200 px-4 py-3" onClick={(e) => e.stopPropagation()}>
                           <div className="flex items-center justify-center gap-2">
                             <button

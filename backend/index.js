@@ -1,4 +1,5 @@
 const express = require("express");
+const cookieParser = require("cookie-parser");
 const cors = require("cors");
 const dotenv = require("dotenv");
 const path = require("path");
@@ -6,8 +7,13 @@ const connectDB = require("./config/mongodb");
 const upload = require("./config/multer");
 const authRoutes = require("./routes/authRoutes");
 const boulderRoutes = require("./routes/boulderRoutes");
+const expenseGroupRoutes = require("./routes/expenseGroupRoutes");
+const expenseRoutes = require("./routes/expenseRoutes");
+const paymentRoutes = require("./routes/paymentRoutes");
 const partyRoutes = require("./routes/partyRoutes");
+const purchaseRoutes = require("./routes/purchaseRoutes");
 const salesRoutes = require("./routes/salesRoutes");
+const stockRoutes = require("./routes/stockRoutes");
 const vehicleRoutes = require("./routes/vehicleRoutes");
 
 dotenv.config({ path: path.join(__dirname, ".env") });
@@ -21,6 +27,7 @@ const corsOptions = {
 };
 
 app.use(cors(corsOptions));
+app.use(cookieParser());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -41,7 +48,12 @@ app.post("/upload", upload.single("file"), (req, res) => {
 
 app.use("/api/users", authRoutes);
 app.use("/api/boulders", boulderRoutes);
+app.use("/api/expense-groups", expenseGroupRoutes);
+app.use("/api/expenses", expenseRoutes);
+app.use("/api/payments", paymentRoutes);
 app.use("/api/parties", partyRoutes);
+app.use("/api/purchases", purchaseRoutes);
+app.use("/api/products", stockRoutes);
 app.use("/api/sales", salesRoutes);
 app.use("/api/vehicles", vehicleRoutes);
 

@@ -1,7 +1,9 @@
 const bcrypt = require("bcryptjs");
+const jwt = require("jsonwebtoken");
 const User = require("../models/User");
 
 const saltRounds = 10;
+const AUTH_COOKIE_NAME = process.env.AUTH_COOKIE_NAME || "auth_token";
 
 const hashPassword = async (password) => {
   return await bcrypt.hash(password, saltRounds);
@@ -19,6 +21,35 @@ const sanitizeUser = (user) => ({
   state: user.state,
   district: user.district,
 });
+
+const generateToken = (id) => (
+  jwt.sign({ id }, process.env.JWT_SECRET || "your_jwt_secret", {
+    expiresIn: "7d",
+  })
+);
+
+const getCookieOptions = () => {
+  const isProduction = process.env.NODE_ENV === "production";
+
+  return {
+    httpOnly: true,
+    secure: isProduction,
+    sameSite: isProduction ? "none" : "lax",
+    maxAge: 7 * 24 * 60 * 60 * 1000,
+    path: "/",
+  };
+};
+
+const setAuthCookie = (res, token) => {
+  res.cookie(AUTH_COOKIE_NAME, token, getCookieOptions());
+};
+
+const clearAuthCookie = (res) => {
+  res.clearCookie(AUTH_COOKIE_NAME, {
+    ...getCookieOptions(),
+    maxAge: undefined,
+  });
+};
 
 const signupUser = async (req, res) => {
   try {
@@ -51,6 +82,9 @@ const signupUser = async (req, res) => {
       mobile: mobile.trim(),
       password: hashedPassword,
     });
+
+    const token = generateToken(user._id);
+    setAuthCookie(res, token);
 
     return res.status(201).json({
       success: true,
@@ -86,6 +120,9 @@ const loginUser = async (req, res) => {
       return res.status(401).json({ message: "Invalid mobile number or password" });
     }
 
+    const token = generateToken(user._id);
+    setAuthCookie(res, token);
+
     return res.json({
       success: true,
       message: "Login successful",
@@ -101,13 +138,25 @@ module.exports = {
   loginUser,
   getCurrentUser: async (req, res) => {
     try {
-      return res.json({ user: null });
+      const user = await User.findById(req.userId);
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message: "User not found",
+        });
+      }
+
+      return res.json({
+        success: true,
+        data: sanitizeUser(user),
+      });
     } catch (error) {
       return res.status(500).json({ message: "Failed to get current user" });
     }
   },
   logoutUser: async (req, res) => {
     try {
+      clearAuthCookie(res);
       return res.json({ message: "Logout successful" });
     } catch (error) {
       return res.status(500).json({ message: "Failed to logout" });

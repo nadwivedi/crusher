@@ -13,6 +13,10 @@ function PartyIcon() {
   return <AssetIcon src="/party_converted.avif" />;
 }
 
+function StockItemIcon() {
+  return <AssetIcon src="/stock item_converted.avif" />;
+}
+
 function PurchaseIcon() {
   return <AssetIcon src="/purchase_converted.avif" />;
 }
@@ -111,6 +115,7 @@ const menuItems = [
     Icon: MasterIcon,
     subItems: [
       { name: 'Manage Party', path: '/party', Icon: PartyIcon },
+      { name: 'Stock Item', path: '/stock', Icon: StockItemIcon },
       { name: 'Vehicle', path: '/vehicle', Icon: VehicleIcon, dividerBefore: true }
     ]
   },

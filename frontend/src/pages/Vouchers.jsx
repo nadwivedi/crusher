@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { getSectionConfig } from '../navigation/sectionMenu';
 import Sales from './Sales/Sales';
 import Purchases from './Purchases/Purchases';
+import Payments from './Payments/Payments';
 import Receipts from './Receipts/Receipts';
 import SaleReturn from './SaleReturn/SaleReturn';
 import StockAdjustment from './StockAdjustment';
@@ -13,6 +14,7 @@ const POPUP_VOUCHER_PATHS = new Set([
   '/purchases',
   '/sale-return',
   '/stock-adjustment',
+  '/payments',
   '/receipts',
   '/boulder-entry'
 ]);
@@ -169,6 +171,10 @@ export default function Vouchers() {
 
       {openVoucherPath === '/purchases' && (
         <Purchases modalOnly onModalFinish={() => setOpenVoucherPath('')} />
+      )}
+
+      {openVoucherPath === '/payments' && (
+        <Payments modalOnly onModalFinish={() => setOpenVoucherPath('')} />
       )}
 
       {openVoucherPath === '/receipts' && (

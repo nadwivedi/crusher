@@ -32,6 +32,10 @@ function VehicleIcon() {
   );
 }
 
+function StockItemIcon() {
+  return <AssetIcon src="/stock item_converted.avif" />;
+}
+
 function PurchaseIcon() {
   return <AssetIcon src="/purchase_converted.avif" />;
 }
@@ -130,10 +134,10 @@ function DayBookIcon() {
 export const SECTION_CONFIG = {
   Masters: {
     name: 'Masters',
-    subtitle: 'Manage Party, Vehicle, Banks',
+    subtitle: 'Manage Party, Stock, Vehicle, Banks',
     hubPath: '/masters',
     Icon: MasterIcon,
-    description: 'Parties, vehicles, and bank accounts',
+    description: 'Parties, stock items, stock groups, units, vehicles, and bank accounts',
     theme: {
       card: 'from-indigo-500 via-blue-500 to-cyan-500',
       soft: 'from-indigo-50 via-blue-50 to-cyan-50',
@@ -143,16 +147,17 @@ export const SECTION_CONFIG = {
     },
     items: [
       { name: 'Manage Party', path: '/party', Icon: PartyIcon },
+      { name: 'Stock Item', path: '/stock', Icon: StockItemIcon },
       { name: 'Manage Vehicle', path: '/vehicle', Icon: VehicleIcon },
       { name: 'Bank', path: '/banks', Icon: BankIcon }
     ]
   },
   Vouchers: {
     name: 'Vouchers',
-    subtitle: 'Add sales, boulder entry and return item',
+    subtitle: 'Add sales, purchases, payments and returns',
     hubPath: '/vouchers',
     Icon: VoucherIcon,
-    description: 'Sales, boulder entry, returns, receipts, and stock flow',
+    description: 'Sales, purchases, payments, receipts, returns, and stock flow',
     theme: {
       card: 'from-violet-500 via-fuchsia-500 to-pink-500',
       soft: 'from-violet-50 via-fuchsia-50 to-pink-50',
@@ -162,9 +167,11 @@ export const SECTION_CONFIG = {
     },
     items: [
       { name: 'Sales', path: '/sales', Icon: SaleIcon },
+      { name: 'Purchase', path: '/purchases', Icon: PurchaseIcon },
       { name: 'Boulder Entry', path: '/boulder-entry', Icon: BoulderIcon },
       { name: 'Sale Return', path: '/sale-return', Icon: SaleReturnIcon },
       { name: 'Stock Adjustment', path: '/stock-adjustment', Icon: StockAdjustmentIcon },
+      { name: 'Payment', hint: 'Money paid to supplier', path: '/payments', Icon: PaymentIcon },
       { name: 'Receipt', hint: 'Money received from customer', path: '/receipts', Icon: ReceiptIcon }
     ]
   },

@@ -9,7 +9,7 @@ const TYPE_OF_SUPPLY_OPTIONS = [
   { value: 'services', label: 'Services' }
 ];
 
-const DEFAULT_UNIT_OPTIONS = ['pcs', 'kg', 'g', 'ltr', 'ml', 'box', 'hrs', 'minutes'];
+const DEFAULT_UNIT_OPTIONS = ['pcs', 'ton', 'ltr', 'ml', 'kg', 'gram'];
 
 const getNormalizedTypeOfSupply = (value) => (
   String(value || '').trim().toLowerCase() === 'services' ? 'services' : 'goods'
@@ -31,14 +31,11 @@ const getPopupInitialState = (initialName = '', product = null) => {
   return {
     formData: {
       name: product ? String(product.name || '').trim() : String(initialName || '').trim(),
-      stockGroup: normalizedStockGroupId,
       unit: resolvedUnit,
+      currentStock: product?.currentStock ?? '',
       typeOfSupply: resolvedTypeOfSupply,
-      minStockLevel: product?.minStockLevel ?? '',
-      salePrice: product?.salePrice ?? '',
       taxRate: product?.taxRate ?? 0
     },
-    stockGroupQuery: resolvedStockGroupName,
     unitQuery: resolvedUnit,
     typeOfSupplyQuery,
     typeOfSupplyListIndex: Math.max(
@@ -66,13 +63,8 @@ export default function AddProductPopup({
 }) {
   const initialPopupState = getPopupInitialState(initialName, product);
   const [formData, setFormData] = useState(initialPopupState.formData);
-  const [stockGroups, setStockGroups] = useState([]);
-  const [units, setUnits] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [stockGroupQuery, setStockGroupQuery] = useState(initialPopupState.stockGroupQuery);
-  const [stockGroupListIndex, setStockGroupListIndex] = useState(-1);
-  const [isStockGroupSectionActive, setIsStockGroupSectionActive] = useState(false);
   const [unitQuery, setUnitQuery] = useState(initialPopupState.unitQuery);
   const [unitListIndex, setUnitListIndex] = useState(-1);
   const [isUnitSectionActive, setIsUnitSectionActive] = useState(false);
@@ -80,10 +72,9 @@ export default function AddProductPopup({
   const [typeOfSupplyListIndex, setTypeOfSupplyListIndex] = useState(initialPopupState.typeOfSupplyListIndex);
   const [isTypeOfSupplyOpen, setIsTypeOfSupplyOpen] = useState(false);
   const nameInputRef = useRef(null);
-  const stockGroupSectionRef = useRef(null);
   const unitSectionRef = useRef(null);
   const unitInputRef = useRef(null);
-  const minStockInputRef = useRef(null);
+  const currentStockInputRef = useRef(null);
   const typeOfSupplyRef = useRef(null);
   const typeOfSupplySectionRef = useRef(null);
   const editingId = product?._id || null;
@@ -92,31 +83,14 @@ export default function AddProductPopup({
   const normalizeText = (value) => String(value || '').trim().toLowerCase();
 
   const unitOptions = useMemo(() => {
-    const fetchedUnits = units
-      .map((unit) => String(unit?.name || '').trim())
-      .filter(Boolean);
-    const merged = fetchedUnits.length > 0 ? fetchedUnits : DEFAULT_UNIT_OPTIONS;
-    const unique = Array.from(new Set(merged));
+    const unique = Array.from(new Set(DEFAULT_UNIT_OPTIONS));
 
     if (formData.unit && !unique.includes(formData.unit)) {
       return [formData.unit, ...unique];
     }
 
     return unique;
-  }, [formData.unit, units]);
-
-  const getMatchingStockGroups = (queryValue) => {
-    const normalized = normalizeText(queryValue);
-    if (!normalized) return stockGroups;
-
-    const startsWith = stockGroups.filter((group) => normalizeText(group?.name).startsWith(normalized));
-    const includes = stockGroups.filter((group) => (
-      !normalizeText(group?.name).startsWith(normalized)
-      && normalizeText(group?.name).includes(normalized)
-    ));
-
-    return [...startsWith, ...includes];
-  };
+  }, [formData.unit]);
 
   const getMatchingUnits = (queryValue) => {
     const normalized = normalizeText(queryValue);
@@ -130,33 +104,6 @@ export default function AddProductPopup({
 
     return [...startsWith, ...includes];
   };
-
-  const selectedStockGroupName = useMemo(() => {
-    const selectedGroup = stockGroups.find(
-      (group) => String(group?._id || '') === String(formData.stockGroup || '')
-    );
-    return selectedGroup?.name || '';
-  }, [formData.stockGroup, stockGroups]);
-
-  const filteredStockGroups = useMemo(
-    () => getMatchingStockGroups(stockGroupQuery),
-    [stockGroups, stockGroupQuery]
-  );
-
-  const stockGroupOptions = useMemo(() => {
-    const normalizedQuery = normalizeText(stockGroupQuery);
-    const normalizedSelected = normalizeText(selectedStockGroupName);
-
-    if (
-      isStockGroupSectionActive
-      && normalizedQuery
-      && normalizedQuery === normalizedSelected
-    ) {
-      return stockGroups;
-    }
-
-    return filteredStockGroups;
-  }, [filteredStockGroups, isStockGroupSectionActive, selectedStockGroupName, stockGroupQuery, stockGroups]);
 
   const filteredUnits = useMemo(
     () => getMatchingUnits(unitQuery),
@@ -208,12 +155,6 @@ export default function AddProductPopup({
     return [...startsWith, ...includes];
   }, [isTypeOfSupplyOpen, selectedTypeOfSupplyLabel, typeOfSupplyQuery]);
 
-  const stockGroupDropdownStyle = useFloatingDropdownPosition(
-    stockGroupSectionRef,
-    isStockGroupSectionActive,
-    [stockGroupOptions.length, stockGroupListIndex]
-  );
-
   const unitDropdownStyle = useFloatingDropdownPosition(
     unitSectionRef,
     isUnitSectionActive,
@@ -235,9 +176,6 @@ export default function AddProductPopup({
       const nextState = getPopupInitialState(initialName, product);
       setFormData(nextState.formData);
       setError('');
-      setStockGroupQuery(nextState.stockGroupQuery);
-      setStockGroupListIndex(-1);
-      setIsStockGroupSectionActive(false);
       setUnitQuery(nextState.unitQuery);
       setUnitListIndex(-1);
       setIsUnitSectionActive(false);
@@ -250,33 +188,12 @@ export default function AddProductPopup({
     const nextState = getPopupInitialState(initialName, product);
     setFormData(nextState.formData);
     setError('');
-    setStockGroupQuery(nextState.stockGroupQuery);
-    setStockGroupListIndex(-1);
-    setIsStockGroupSectionActive(false);
     setUnitQuery(nextState.unitQuery);
     setUnitListIndex(-1);
     setIsUnitSectionActive(false);
     setTypeOfSupplyQuery(nextState.typeOfSupplyQuery);
     setTypeOfSupplyListIndex(nextState.typeOfSupplyListIndex);
     setIsTypeOfSupplyOpen(false);
-
-    const loadOptions = async () => {
-      try {
-        const [stockGroupResponse, unitResponse] = await Promise.all([
-          apiClient.get('/stock-groups'),
-          apiClient.get('/units', { params: { isActive: true } })
-        ]);
-
-        setStockGroups(stockGroupResponse?.data || []);
-        setUnits(unitResponse?.data || []);
-      } catch (err) {
-        setError(err.message || 'Error loading stock popup options');
-        setStockGroups([]);
-        setUnits([]);
-      }
-    };
-
-    loadOptions();
   }, [initialName, product, showForm]);
 
   useEffect(() => {
@@ -288,21 +205,6 @@ export default function AddProductPopup({
 
     return () => clearTimeout(timer);
   }, [showForm]);
-
-  useEffect(() => {
-    if (!showForm) return;
-
-    if (stockGroupOptions.length === 0) {
-      setStockGroupListIndex(-1);
-      return;
-    }
-
-    setStockGroupListIndex((prev) => {
-      if (prev < 0) return isStockGroupSectionActive ? 0 : -1;
-      if (prev >= stockGroupOptions.length) return stockGroupOptions.length - 1;
-      return prev;
-    });
-  }, [showForm, stockGroupOptions, isStockGroupSectionActive]);
 
   useEffect(() => {
     if (!showForm) return;
@@ -336,20 +238,6 @@ export default function AddProductPopup({
 
   if (!showForm) return null;
 
-  const findExactStockGroup = (value) => {
-    const normalized = normalizeText(value);
-    if (!normalized) return null;
-    return stockGroups.find((group) => normalizeText(group?.name) === normalized) || null;
-  };
-
-  const findBestStockGroupMatch = (value) => {
-    const normalized = normalizeText(value);
-    if (!normalized) return null;
-    return stockGroups.find((group) => normalizeText(group?.name).startsWith(normalized))
-      || stockGroups.find((group) => normalizeText(group?.name).includes(normalized))
-      || null;
-  };
-
   const findExactUnit = (value) => {
     const normalized = normalizeText(value);
     if (!normalized) return '';
@@ -364,28 +252,7 @@ export default function AddProductPopup({
       || '';
   };
 
-  const selectStockGroup = (group, focusUnit = true) => {
-    if (!group) {
-      setStockGroupQuery('');
-      setFormData((prev) => ({ ...prev, stockGroup: '' }));
-      setStockGroupListIndex(-1);
-      return;
-    }
-
-    setStockGroupQuery(group.name);
-    setFormData((prev) => ({ ...prev, stockGroup: group._id }));
-    const selectedIndex = getMatchingStockGroups(group.name).findIndex((item) => String(item._id) === String(group._id));
-    setStockGroupListIndex(selectedIndex >= 0 ? selectedIndex : -1);
-    setIsStockGroupSectionActive(false);
-
-    if (focusUnit) {
-      requestAnimationFrame(() => {
-        unitInputRef.current?.focus();
-      });
-    }
-  };
-
-  const selectUnit = (unitName, focusMinStock = false) => {
+  const selectUnit = (unitName, focusCurrentStock = false) => {
     if (!unitName) return;
 
     setUnitQuery(unitName);
@@ -394,9 +261,9 @@ export default function AddProductPopup({
     setUnitListIndex(selectedIndex >= 0 ? selectedIndex : -1);
     setIsUnitSectionActive(false);
 
-    if (focusMinStock) {
+    if (focusCurrentStock) {
       requestAnimationFrame(() => {
-        minStockInputRef.current?.focus();
+        currentStockInputRef.current?.focus();
       });
     }
   };
@@ -404,74 +271,12 @@ export default function AddProductPopup({
   const handleChange = (event) => {
     const { name, value } = event.target;
 
-    if (name === 'minStockLevel' || name === 'salePrice' || name === 'taxRate') {
+    if (name === 'currentStock' || name === 'taxRate') {
       setFormData((prev) => ({ ...prev, [name]: value }));
       return;
     }
 
     setFormData((prev) => ({ ...prev, [name]: value }));
-  };
-
-  const handleStockGroupInputChange = (event) => {
-    const value = event.target.value;
-    setStockGroupQuery(value);
-
-    if (!normalizeText(value)) {
-      setFormData((prev) => ({ ...prev, stockGroup: '' }));
-      setStockGroupListIndex(-1);
-      return;
-    }
-
-    const exactGroup = findExactStockGroup(value);
-    if (exactGroup) {
-      setFormData((prev) => ({ ...prev, stockGroup: exactGroup._id }));
-      const exactIndex = getMatchingStockGroups(value).findIndex((item) => String(item._id) === String(exactGroup._id));
-      setStockGroupListIndex(exactIndex >= 0 ? exactIndex : 0);
-      return;
-    }
-
-    const matches = getMatchingStockGroups(value);
-    const firstMatch = matches[0] || null;
-    setFormData((prev) => ({ ...prev, stockGroup: firstMatch?._id || '' }));
-    setStockGroupListIndex(firstMatch ? 0 : -1);
-  };
-
-  const handleStockGroupInputKeyDown = (event) => {
-    if (event.key === 'ArrowDown') {
-      event.preventDefault();
-      event.stopPropagation();
-      if (stockGroupOptions.length === 0) return;
-      setStockGroupListIndex((prev) => {
-        if (prev < 0) return 0;
-        return Math.min(prev + 1, stockGroupOptions.length - 1);
-      });
-      return;
-    }
-
-    if (event.key === 'ArrowUp') {
-      event.preventDefault();
-      event.stopPropagation();
-      if (stockGroupOptions.length === 0) return;
-      setStockGroupListIndex((prev) => {
-        if (prev < 0) return 0;
-        return Math.max(prev - 1, 0);
-      });
-      return;
-    }
-
-    if (event.key === 'Enter') {
-      event.preventDefault();
-      event.stopPropagation();
-
-      const activeGroup = stockGroupListIndex >= 0 ? stockGroupOptions[stockGroupListIndex] : null;
-      const matchedGroup = activeGroup || findExactStockGroup(stockGroupQuery) || findBestStockGroupMatch(stockGroupQuery);
-      if (matchedGroup) {
-        selectStockGroup(matchedGroup, true);
-        return;
-      }
-
-      unitInputRef.current?.focus();
-    }
   };
 
   const handleUnitInputChange = (event) => {
@@ -646,8 +451,6 @@ export default function AddProductPopup({
       return;
     }
 
-    const matchedStockGroup = findExactStockGroup(stockGroupQuery) || findBestStockGroupMatch(stockGroupQuery);
-    const selectedStockGroupId = formData.stockGroup || matchedStockGroup?._id || '';
     const matchedUnit = findExactUnit(unitQuery) || findBestUnitMatch(unitQuery) || formData.unit;
 
     if (!String(matchedUnit || '').trim()) {
@@ -661,11 +464,9 @@ export default function AddProductPopup({
 
       const payload = {
         name: String(formData.name || '').trim(),
-        stockGroup: selectedStockGroupId || null,
         unit: String(matchedUnit || '').trim(),
+        currentStock: Number(formData.currentStock || 0),
         typeOfSupply: getNormalizedTypeOfSupply(formData.typeOfSupply),
-        minStockLevel: Number(formData.minStockLevel || 0),
-        salePrice: Number(formData.salePrice || 0),
         taxRate: Number(formData.taxRate || 0)
       };
 
@@ -690,9 +491,6 @@ export default function AddProductPopup({
       if (!onProductSaved && !isEditMode) {
         const resetState = getPopupInitialState('', null);
         setFormData(resetState.formData);
-        setStockGroupQuery(resetState.stockGroupQuery);
-        setStockGroupListIndex(-1);
-        setIsStockGroupSectionActive(false);
         setUnitQuery(resetState.unitQuery);
         setUnitListIndex(-1);
         setIsUnitSectionActive(false);
@@ -754,7 +552,7 @@ export default function AddProductPopup({
 
                 <div className="space-y-3 md:space-y-4">
                   <div className="flex items-center gap-2">
-                    <label className="w-32 shrink-0 text-xs font-semibold text-gray-700 md:text-sm">Item Name *</label>
+                    <label className="w-32 shrink-0 text-xs font-semibold text-gray-700 md:text-sm">Stock Name *</label>
                     <input
                       ref={nameInputRef}
                       type="text"
@@ -769,93 +567,6 @@ export default function AddProductPopup({
                   </div>
 
                   <div className="flex items-center gap-2">
-                    <label className="w-32 shrink-0 text-xs font-semibold text-gray-700 md:text-sm">Stock Group</label>
-                    <div
-                      ref={stockGroupSectionRef}
-                      className="relative min-w-0 flex-1"
-                      onFocusCapture={() => {
-                        const selectedIndex = stockGroupOptions.findIndex(
-                          (group) => String(group?._id || '') === String(formData.stockGroup || '')
-                        );
-                        setIsUnitSectionActive(false);
-                        setIsStockGroupSectionActive(true);
-                        setStockGroupListIndex(selectedIndex >= 0 ? selectedIndex : (stockGroupOptions.length > 0 ? 0 : -1));
-                      }}
-                      onBlurCapture={(event) => {
-                        const nextFocused = event.relatedTarget;
-                        if (
-                          stockGroupSectionRef.current
-                          && nextFocused instanceof Node
-                          && stockGroupSectionRef.current.contains(nextFocused)
-                        ) {
-                          return;
-                        }
-                        setIsStockGroupSectionActive(false);
-                      }}
-                    >
-                      <input
-                        type="text"
-                        value={stockGroupQuery}
-                        onChange={handleStockGroupInputChange}
-                        onKeyDown={handleStockGroupInputKeyDown}
-                        className={getInlineFieldClass('indigo')}
-                        placeholder="Select or type stock group..."
-                      />
-
-                      {isStockGroupSectionActive && stockGroupDropdownStyle && (
-                        <div
-                          className="fixed z-[80] overflow-hidden rounded-xl border border-amber-200 bg-white shadow-[0_18px_40px_rgba(15,23,42,0.18)]"
-                          style={stockGroupDropdownStyle}
-                          onClick={(event) => event.stopPropagation()}
-                        >
-                          <div className="flex items-center justify-between border-b border-amber-100 bg-gradient-to-r from-amber-50 to-yellow-50 px-3 py-2">
-                            <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-amber-700">Stock Group List</span>
-                            <span className="rounded-full bg-white px-2 py-0.5 text-[10px] font-semibold text-amber-700 shadow-sm">
-                              {stockGroupOptions.length}
-                            </span>
-                          </div>
-                          <div className="overflow-y-auto py-1" style={{ maxHeight: stockGroupDropdownStyle.maxHeight }}>
-                            {stockGroupOptions.length === 0 ? (
-                              <div className="px-3 py-3 text-center text-[13px] text-slate-500">
-                                No stock groups found.
-                              </div>
-                            ) : (
-                              stockGroupOptions.map((group, index) => {
-                                const isActive = index === stockGroupListIndex;
-                                const isSelected = String(formData.stockGroup || '') === String(group._id);
-
-                                return (
-                                  <button
-                                    key={group._id}
-                                    type="button"
-                                    onMouseDown={(event) => event.preventDefault()}
-                                    onMouseEnter={() => setStockGroupListIndex(index)}
-                                    onClick={() => selectStockGroup(group, true)}
-                                    className={`flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-[13px] transition ${
-                                      isActive
-                                        ? 'bg-yellow-200 text-amber-950'
-                                        : isSelected
-                                        ? 'bg-yellow-50 text-amber-800'
-                                        : 'text-slate-700 hover:bg-amber-50'
-                                    }`}
-                                  >
-                                    <span className="truncate font-medium">{group.name}</span>
-                                    {isSelected && (
-                                      <span className="shrink-0 rounded-full border border-amber-200 bg-white px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700">
-                                        Selected
-                                      </span>
-                                    )}
-                                  </button>
-                                );
-                              })
-                            )}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-2">
                     <label className="w-32 shrink-0 text-xs font-semibold text-gray-700 md:text-sm">Unit *</label>
                     <div
                       ref={unitSectionRef}
@@ -866,7 +577,6 @@ export default function AddProductPopup({
                         const selectedIndex = unitOptions.findIndex(
                           (unitName) => normalizeText(unitName) === normalizeText(selectedUnit)
                         );
-                        setIsStockGroupSectionActive(false);
                         setUnitQuery(selectedUnit);
                         setIsUnitSectionActive(true);
                         setUnitListIndex(selectedIndex >= 0 ? selectedIndex : (unitOptions.length > 0 ? 0 : -1));
@@ -950,12 +660,12 @@ export default function AddProductPopup({
 
                   <div className="space-y-3 md:space-y-4">
                     <div className="flex items-center gap-2">
-                      <label className="w-32 shrink-0 text-xs font-semibold text-gray-700 md:text-sm">Min Stock Level</label>
+                      <label className="w-32 shrink-0 text-xs font-semibold text-gray-700 md:text-sm">Current Stock</label>
                       <input
-                        ref={minStockInputRef}
+                        ref={currentStockInputRef}
                         type="number"
-                        name="minStockLevel"
-                        value={formData.minStockLevel}
+                        name="currentStock"
+                        value={formData.currentStock}
                         onChange={handleChange}
                         min="0"
                         className={getInlineFieldClass('emerald')}
@@ -975,20 +685,6 @@ export default function AddProductPopup({
                         step="0.01"
                         className={getInlineFieldClass('emerald')}
                         placeholder="0"
-                      />
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      <label className="w-32 shrink-0 text-xs font-semibold text-gray-700 md:text-sm">Selling Price</label>
-                      <input
-                        type="number"
-                        name="salePrice"
-                        value={formData.salePrice}
-                        onChange={handleChange}
-                        min="0"
-                        step="0.01"
-                        className={getInlineFieldClass('emerald')}
-                        placeholder="0.00"
                       />
                     </div>
 

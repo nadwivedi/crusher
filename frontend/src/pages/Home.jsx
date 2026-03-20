@@ -24,6 +24,10 @@ function PartyIcon() {
   return <AssetIcon src="/party_converted.avif" />;
 }
 
+function StockItemIcon() {
+  return <AssetIcon src="/stock item_converted.avif" />;
+}
+
 function VehicleIcon() {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-5 w-5">
@@ -124,23 +128,25 @@ function DayBookIcon() {
 const menuItems = [
   {
     name: 'Masters',
-    subtitle: 'Manage Party, Vehicle, Banks',
+    subtitle: 'Manage Party, Stock, Vehicle, Banks',
     Icon: MasterIcon,
     subItems: [
       { name: 'Manage Party', path: '/party', Icon: PartyIcon },
+      { name: 'Stock Item', path: '/stock', Icon: StockItemIcon },
       { name: 'Manage Vehicle', path: '/vehicle', Icon: VehicleIcon },
       { name: 'Bank', path: '/banks', Icon: BankIcon }
     ]
   },
   {
     name: 'Vouchers',
-    subtitle: 'Add sales, purchase and return item',
+    subtitle: 'Add sales, purchases, payments and returns',
     Icon: VoucherIcon,
     subItems: [
       { name: 'Sale', path: '/sales', Icon: SaleIcon },
       { name: 'Purchase', path: '/purchases', Icon: PurchaseIcon },
       { name: 'Sale Return', path: '/sale-return', Icon: SaleReturnIcon },
       { name: 'Stock Adjustment', path: '/stock-adjustment', Icon: StockAdjustmentIcon },
+      { name: 'Payment', path: '/payments', Icon: PaymentIcon },
       { name: 'Receipt', path: '/receipts', Icon: ReceiptIcon }
     ]
   },
@@ -194,7 +200,8 @@ const sectionStyles = {
 const HOME_SECTION_ORDER = ['Masters', 'Vouchers', 'Expense', 'Reports'];
 const homeQuickShortcuts = [
   { label: 'New Sale', hint: '', combo: 'Alt + 1', accent: 'from-emerald-500 to-teal-500', stateKey: 'homeQuickSale' },
-  { label: 'New Boulder Entry', hint: '', combo: 'Alt + 2', accent: 'from-slate-700 to-slate-900', stateKey: 'homeQuickBoulder' },
+  { label: 'New Purchase', hint: '', combo: 'Alt + 2', accent: 'from-blue-500 to-cyan-500', stateKey: 'homeQuickPurchase' },
+  { label: 'New Payment', hint: 'Money Paid', combo: 'Alt + 3', accent: 'from-amber-500 to-orange-500', stateKey: 'homeQuickPayment' },
   { label: 'New Receipt', hint: 'Money Received', combo: 'Alt + 4', accent: 'from-fuchsia-500 to-pink-500', stateKey: 'homeQuickReceipt' },
   { label: 'New Expense', hint: '', combo: 'Alt + 5', accent: 'from-emerald-500 to-lime-500', stateKey: 'homeQuickExpense' }
 ];
@@ -250,7 +257,8 @@ export default function Home() {
           state: {
             ...currentState,
             homeQuickSale: stateKey === 'homeQuickSale',
-            homeQuickBoulder: stateKey === 'homeQuickBoulder',
+            homeQuickPurchase: stateKey === 'homeQuickPurchase',
+            homeQuickPayment: stateKey === 'homeQuickPayment',
             homeQuickReceipt: stateKey === 'homeQuickReceipt',
             homeQuickExpense: stateKey === 'homeQuickExpense'
           }
@@ -299,7 +307,8 @@ export default function Home() {
       const isMoveUpKey = key === 'arrowup' && !event.altKey && !event.metaKey;
       const quickShortcutMap = {
         '1': 'homeQuickSale',
-        '2': 'homeQuickBoulder',
+        '2': 'homeQuickPurchase',
+        '3': 'homeQuickPayment',
         '4': 'homeQuickReceipt',
         '5': 'homeQuickExpense'
       };

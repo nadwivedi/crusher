@@ -4,12 +4,14 @@ import { useAuth } from '../context/AuthContext';
 
 const homeNavigationEntries = [
   { section: 'Masters', path: '/party' },
+  { section: 'Masters', path: '/stock' },
   { section: 'Masters', path: '/vehicle' },
   { section: 'Masters', path: '/banks' },
   { section: 'Vouchers', path: '/sales' },
   { section: 'Vouchers', path: '/purchases' },
   { section: 'Vouchers', path: '/sale-return' },
   { section: 'Vouchers', path: '/stock-adjustment' },
+  { section: 'Vouchers', path: '/payments' },
   { section: 'Vouchers', path: '/receipts' },
   { section: 'Expense', path: '/expense-hub' },
   { section: 'Expense', path: '/expenses' },
