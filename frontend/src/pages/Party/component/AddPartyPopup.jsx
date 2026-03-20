@@ -41,7 +41,7 @@ const getInlineFieldClass = (tone = 'indigo') => {
     ? 'focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200'
     : 'focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200';
 
-  return `flex-1 min-w-0 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-bold text-gray-900 transition-all placeholder:font-normal placeholder:text-gray-400 focus:outline-none ${focusTone}`;
+  return `w-full flex-1 min-w-0 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-bold text-gray-900 transition-all placeholder:font-normal placeholder:text-gray-400 focus:outline-none ${focusTone}`;
 };
 
 const isVisibleField = (element) => {
