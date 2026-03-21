@@ -13,6 +13,17 @@ const salesSchema = new mongoose.Schema(
       trim: true,
       uppercase: true,
     },
+    invoiceNumber: {
+      type: String,
+      unique: true,
+      sparse: true,
+      trim: true,
+      uppercase: true,
+    },
+    saleDate: {
+      type: Date,
+      default: Date.now,
+    },
     stoneSize: {
       type: String,
       required: true,
@@ -31,6 +42,16 @@ const salesSchema = new mongoose.Schema(
       min: 0,
     },
     materialWeight: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    rate: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    totalAmount: {
       type: Number,
       default: 0,
       min: 0,
@@ -62,6 +83,11 @@ salesSchema.virtual("materialType")
   })
   .set(function materialTypeSetter(value) {
     this.stoneSize = value;
+  });
+
+salesSchema.virtual("invoice")
+  .get(function invoiceGetter() {
+    return this.invoiceNumber;
   });
 
 module.exports = mongoose.models.Sales || mongoose.model("Sales", salesSchema);

@@ -60,6 +60,7 @@ const parseSaleDate = (value) => {
 };
 
 const getInitialFormData = () => ({
+  saleDate: formatDateForInput(),
   party: '',
   customerName: '',
   customerPhone: '',
@@ -99,6 +100,12 @@ const toTitleCase = (value) => String(value || '')
   .replace(/\b[a-z]/g, (char) => char.toUpperCase());
 
 const getSalePriceInputValue = (product) => String(Number(product?.salePrice || 0));
+const calculateSaleTotalAmount = (netWeight, ratePerTon) => {
+  const numericNetWeight = Number(netWeight || 0);
+  const numericRate = Number(ratePerTon || 0);
+  if (!Number.isFinite(numericNetWeight) || !Number.isFinite(numericRate)) return 0;
+  return (numericNetWeight / 1000) * numericRate;
+};
 
 export default function Sales({ modalOnly = false, onModalFinish = null }) {
   const toastOptions = { autoClose: 1200 };
@@ -253,7 +260,7 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
           fromDate: fromDate || undefined
         }
       });
-      setSales(response.data || []);
+      setSales(Array.isArray(response) ? response : []);
       setError('');
     } catch (err) {
       setError(err.message || 'Error fetching sales');
@@ -621,7 +628,8 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
         ...prev,
         vehicleNo: '',
         vehicleWeight: '',
-        materialWeight: prev.netWeight ? Number(prev.netWeight || 0) : ''
+        materialWeight: prev.netWeight ? Number(prev.netWeight || 0) : '',
+        totalAmount: calculateSaleTotalAmount(prev.netWeight ? Number(prev.netWeight || 0) : '', prev.rate)
       }));
       setVehicleListIndex(-1);
       return;
@@ -644,6 +652,7 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
       const numericTareWeight = Number(unladenWeight || 0);
       const numericGrossWeight = Number(prev.netWeight || 0);
       nextState.materialWeight = numericGrossWeight - numericTareWeight;
+      nextState.totalAmount = calculateSaleTotalAmount(nextState.materialWeight, prev.rate);
 
       if (linkedParty) {
         const partyName = getLeadgerDisplayName(linkedParty);
@@ -1307,7 +1316,13 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
       const tareWeight = name === 'vehicleWeight' ? Number(value || 0) : Number(formData.vehicleWeight || 0);
       const grossWeight = name === 'netWeight' ? Number(value || 0) : Number(formData.netWeight || 0);
       const materialWeight = grossWeight - tareWeight;
-      setFormData({ ...formData, [name]: value, materialWeight });
+      const totalAmount = calculateSaleTotalAmount(materialWeight, formData.rate);
+      setFormData({ ...formData, [name]: value, materialWeight, totalAmount });
+      return;
+    }
+    if (name === 'rate') {
+      const totalAmount = calculateSaleTotalAmount(formData.materialWeight, value);
+      setFormData({ ...formData, rate: value, totalAmount });
       return;
     }
     setFormData({ ...formData, [name]: value });
@@ -1421,6 +1436,8 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
         vehicleWeight: Number(formData.vehicleWeight || 0),
         netWeight: Number(formData.netWeight || 0),
         materialWeight: Number(formData.materialWeight || 0),
+        rate: Number(formData.rate || 0),
+        totalAmount: Number(formData.totalAmount || 0),
         saleDate: parsedSaleDate.toISOString()
       };
 
@@ -1471,11 +1488,13 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
       customerName: resolvedLeadgerName,
       customerPhone: String(sale.customerPhone || '').replace(/\D/g, '').slice(0, 10),
       customerAddress: sale.customerAddress || '',
-      materialType: sale.materialType || sale.stoneSize || '',
-      vehicleNo: sale.vehicleNo || '',
-      vehicleWeight: sale.vehicleWeight || '',
-      netWeight: sale.netWeight || '',
-        materialWeight: sale.materialWeight || ''
+        materialType: sale.materialType || sale.stoneSize || '',
+        vehicleNo: sale.vehicleNo || '',
+        vehicleWeight: sale.vehicleWeight || '',
+        netWeight: sale.netWeight || '',
+          materialWeight: sale.materialWeight || '',
+        rate: sale.rate || '',
+        totalAmount: sale.totalAmount || 0
       });
       setLeadgerQuery(resolvedLeadgerName);
       setLeadgerListIndex(resolvedLeadgerName ? 0 : -1);

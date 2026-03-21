@@ -474,34 +474,36 @@ export default function AddSalePopup({
                     </div>
                   </div>
 
-                  <div className="space-y-1">
-                    <label className={labelClass}>Gross Weight (KG)</label>
-                    <input
-                      type="number"
-                      name="netWeight"
-                      value={formData.netWeight || ''}
-                      onChange={handleInputChange}
-                      onKeyDown={handleSelectEnterMoveNext}
-                      className={`${inputClass} focus:ring-indigo-500`}
-                      placeholder="0"
-                      step="0.01"
-                      min="0"
-                    />
-                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <label className={labelClass}>Gross Weight (KG)</label>
+                      <input
+                        type="number"
+                        name="netWeight"
+                        value={formData.netWeight || ''}
+                        onChange={handleInputChange}
+                        onKeyDown={handleSelectEnterMoveNext}
+                        className={`${inputClass} focus:ring-indigo-500`}
+                        placeholder="0"
+                        step="0.01"
+                        min="0"
+                      />
+                    </div>
 
-                  <div className="space-y-1">
-                    <label className={labelClass}>Tare Weight (KG)</label>
-                    <input
-                      type="number"
-                      name="vehicleWeight"
-                      value={formData.vehicleWeight || ''}
-                      onChange={handleInputChange}
-                      onKeyDown={handleSelectEnterMoveNext}
-                      className={`${inputClass} focus:ring-indigo-500`}
-                      placeholder="0"
-                      step="0.01"
-                      min="0"
-                    />
+                    <div className="space-y-1">
+                      <label className={labelClass}>Tare Weight (KG)</label>
+                      <input
+                        type="number"
+                        name="vehicleWeight"
+                        value={formData.vehicleWeight || ''}
+                        onChange={handleInputChange}
+                        onKeyDown={handleSelectEnterMoveNext}
+                        className={`${inputClass} focus:ring-indigo-500`}
+                        placeholder="0"
+                        step="0.01"
+                        min="0"
+                      />
+                    </div>
                   </div>
 
                   <div className="space-y-1">
@@ -517,6 +519,32 @@ export default function AddSalePopup({
                       step="0.01"
                       min="0"
                       readOnly
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className={labelClass}>Rate Per Ton</label>
+                    <input
+                      type="number"
+                      name="rate"
+                      value={formData.rate || ''}
+                      onChange={handleInputChange}
+                      onKeyDown={handleSelectEnterMoveNext}
+                      className={`${inputClass} focus:ring-indigo-500`}
+                      placeholder="0.00"
+                      step="0.01"
+                      min="0"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className={labelClass}>Total Amount</label>
+                    <input
+                      type="number"
+                      name="totalAmount"
+                      value={formData.totalAmount || 0}
+                      readOnly
+                      className={`${inputClass} bg-slate-100 font-semibold text-emerald-700 focus:ring-indigo-500`}
                     />
                   </div>
                 </div>

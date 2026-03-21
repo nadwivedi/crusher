@@ -1,9 +1,40 @@
 const mongoose = require("mongoose");
 const Sales = require("../models/Sales");
+const Counter = require("../models/Counter");
+
+const getInvoiceYear = (saleDateValue) => {
+  const saleDate = saleDateValue ? new Date(saleDateValue) : new Date();
+  if (Number.isNaN(saleDate.getTime())) {
+    return new Date().getFullYear();
+  }
+  return saleDate.getFullYear();
+};
+
+const createInvoiceNumber = async (saleDateValue) => {
+  const invoiceYear = getInvoiceYear(saleDateValue);
+  const counterKey = `sales:${invoiceYear}`;
+  const counter = await Counter.findOneAndUpdate(
+    { key: counterKey },
+    { $inc: { seq: 1 } },
+    {
+      new: true,
+      upsert: true,
+      setDefaultsOnInsert: true,
+    }
+  );
+
+  return `INV-${invoiceYear}-${String(counter.seq).padStart(4, "0")}`;
+};
 
 const createSales = async (req, res) => {
   try {
-    const sales = await Sales.create(req.body);
+    const payload = {
+      ...req.body,
+      saleDate: req.body.saleDate || new Date(),
+      invoiceNumber: await createInvoiceNumber(req.body.saleDate),
+    };
+
+    const sales = await Sales.create(payload);
     return res.status(201).json(sales);
   } catch (error) {
     return res.status(400).json({
@@ -56,7 +87,10 @@ const editSales = async (req, res) => {
   }
 
   try {
-    const sales = await Sales.findByIdAndUpdate(id, req.body, {
+    const updatePayload = { ...req.body };
+    delete updatePayload.invoiceNumber;
+
+    const sales = await Sales.findByIdAndUpdate(id, updatePayload, {
       new: true,
       runValidators: true,
     });
