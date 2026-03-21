@@ -13,7 +13,12 @@ const boulderSchema = new mongoose.Schema(
       trim: true,
       uppercase: true,
     },
-    vehicleWeight: {
+    grossWeight: {
+      type: Number,
+      required: true,
+      min: 0,
+    },
+    tareWeight: {
       type: Number,
       required: true,
       min: 0,
@@ -23,10 +28,9 @@ const boulderSchema = new mongoose.Schema(
       required: true,
       min: 0,
     },
-    boulderWeight: {
-      type: Number,
-      required: true,
-      min: 0,
+    boulderDate: {
+      type: Date,
+      default: Date.now,
     },
     slipImg: {
       type: String,
@@ -38,16 +42,5 @@ const boulderSchema = new mongoose.Schema(
     timestamps: true,
   }
 );
-
-boulderSchema.virtual("weight")
-  .get(function getWeight() {
-    return this.boulderWeight;
-  })
-  .set(function setWeight(value) {
-    this.boulderWeight = value;
-  });
-
-boulderSchema.set("toJSON", { virtuals: true });
-boulderSchema.set("toObject", { virtuals: true });
 
 module.exports = mongoose.models.Boulder || mongoose.model("Boulder", boulderSchema);

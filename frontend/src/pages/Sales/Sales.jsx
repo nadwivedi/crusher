@@ -72,7 +72,7 @@ const getInitialFormData = () => ({
   materialWeight: '',
   rate: '',
   totalAmount: 0,
-  paidAmount: 0,
+  paidAmount: '',
   notes: '',
   items: []
 });
@@ -1421,6 +1421,14 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
       setError('Material type is required');
       return;
     }
+    if (Number(formData.paidAmount || 0) < 0) {
+      setError('Paid amount cannot be negative');
+      return;
+    }
+    if (Number(formData.paidAmount || 0) > Number(formData.totalAmount || 0)) {
+      setError('Paid amount cannot exceed total amount');
+      return;
+    }
     const parsedSaleDate = parseSaleDate(formData.saleDate);
     if (!parsedSaleDate) {
       setError('Please select a valid sale date');
@@ -1441,10 +1449,23 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
         saleDate: parsedSaleDate.toISOString()
       };
 
+      let savedSale;
       if (editingId) {
-        await apiClient.put(`/sales/${editingId}`, submitData);
+        savedSale = await apiClient.put(`/sales/${editingId}`, submitData);
       } else {
-        await apiClient.post('/sales', submitData);
+        savedSale = await apiClient.post('/sales', submitData);
+        const paidAmount = Number(formData.paidAmount || 0);
+        if (paidAmount > 0) {
+          await apiClient.post('/receipts', {
+            party: formData.party || null,
+            amount: paidAmount,
+            method: 'Cash Account',
+            receiptDate: parsedSaleDate.toISOString(),
+            notes: `Auto receipt for ${savedSale?.invoiceNumber || 'sale payment'}`,
+            refType: 'sale',
+            refId: savedSale?._id || null
+          });
+        }
       }
       toast.success(
         editingId ? 'Sale updated successfully' : 'Sale added successfully',
@@ -2003,9 +2024,9 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
                   <th className="border-y-2 border-r border-black px-4 py-3.5 text-center text-sm font-semibold">Party Name</th>
                   <th className="border-y-2 border-r border-black px-4 py-3.5 text-center text-sm font-semibold">Vehicle No</th>
                   <th className="border-y-2 border-r border-black px-4 py-3.5 text-center text-sm font-semibold">Material</th>
-                  <th className="border-y-2 border-r border-black px-4 py-3.5 text-center text-sm font-semibold">Vehicle Wt</th>
+                  <th className="border-y-2 border-r border-black px-4 py-3.5 text-center text-sm font-semibold">Gross Wt</th>
+                  <th className="border-y-2 border-r border-black px-4 py-3.5 text-center text-sm font-semibold">Tare Wt</th>
                   <th className="border-y-2 border-r border-black px-4 py-3.5 text-center text-sm font-semibold">Net Wt</th>
-                  <th className="border-y-2 border-r border-black px-4 py-3.5 text-center text-sm font-semibold">Mat. Wt</th>
                   <th className="border-y-2 border-r border-black px-4 py-3.5 text-sm font-semibold">Products</th>
                   <th className="border-y-2 border-r border-black px-4 py-3.5 text-center text-sm font-semibold">Date</th>
                   <th className="border-y-2 border-r border-black px-4 py-3.5 text-center text-sm font-semibold">Total</th>
@@ -2034,8 +2055,8 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
                         </span>
                       ) : '-'}
                     </td>
-                    <td className="border border-slate-400 px-4 py-3 text-center text-slate-600">{sale.vehicleWeight ? `${sale.vehicleWeight} kg` : '-'}</td>
                     <td className="border border-slate-400 px-4 py-3 text-center text-slate-600">{sale.netWeight ? `${sale.netWeight} kg` : '-'}</td>
+                    <td className="border border-slate-400 px-4 py-3 text-center text-slate-600">{sale.vehicleWeight ? `${sale.vehicleWeight} kg` : '-'}</td>
                     <td className="border border-slate-400 px-4 py-3 text-center font-semibold text-emerald-600">{sale.materialWeight ? `${sale.materialWeight} kg` : '-'}</td>
                     <td className="border border-slate-400 px-4 py-3 text-slate-600">
                       {sale.items?.length

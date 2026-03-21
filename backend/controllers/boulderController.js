@@ -13,27 +13,46 @@ const normalizeBoulderPayload = async (payload) => {
     normalizedPayload.vehicleNo.trim() !== "";
 
   if (
-    normalizedPayload.weight !== undefined &&
-    normalizedPayload.boulderWeight === undefined
+    normalizedPayload.tareWeight === undefined &&
+    normalizedPayload.vehicleWeight !== undefined
   ) {
-    normalizedPayload.boulderWeight = normalizedPayload.weight;
+    normalizedPayload.tareWeight = normalizedPayload.vehicleWeight;
   }
 
   if (
-    normalizedPayload.boulderWeight !== undefined &&
-    normalizedPayload.netWeight === undefined
+    normalizedPayload.grossWeight === undefined &&
+    normalizedPayload.netWeight !== undefined &&
+    (
+      normalizedPayload.boulderWeight !== undefined ||
+      normalizedPayload.vehicleWeight !== undefined
+    )
+  ) {
+    normalizedPayload.grossWeight = normalizedPayload.netWeight;
+  }
+
+  if (
+    normalizedPayload.netWeight === undefined &&
+    normalizedPayload.boulderWeight !== undefined
   ) {
     normalizedPayload.netWeight = normalizedPayload.boulderWeight;
   }
 
   if (
-    normalizedPayload.netWeight !== undefined &&
-    normalizedPayload.boulderWeight === undefined
+    normalizedPayload.netWeight === undefined &&
+    normalizedPayload.grossWeight !== undefined &&
+    normalizedPayload.tareWeight !== undefined
   ) {
-    normalizedPayload.boulderWeight = normalizedPayload.netWeight;
+    normalizedPayload.netWeight =
+      Number(normalizedPayload.grossWeight) - Number(normalizedPayload.tareWeight);
   }
 
   delete normalizedPayload.weight;
+  delete normalizedPayload.vehicleWeight;
+  delete normalizedPayload.boulderWeight;
+
+  if (normalizedPayload.boulderDate !== undefined) {
+    normalizedPayload.boulderDate = new Date(normalizedPayload.boulderDate);
+  }
 
   let vehicle = null;
 
@@ -61,8 +80,17 @@ const normalizeBoulderPayload = async (payload) => {
     normalizedPayload.vehicleId = vehicle._id;
     normalizedPayload.vehicleNo = vehicle.vehicleNo;
 
-    if (normalizedPayload.vehicleWeight === undefined) {
-      normalizedPayload.vehicleWeight = vehicle.unladenWeight;
+    if (normalizedPayload.tareWeight === undefined) {
+      normalizedPayload.tareWeight = vehicle.unladenWeight;
+    }
+
+    if (
+      normalizedPayload.netWeight === undefined &&
+      normalizedPayload.grossWeight !== undefined &&
+      normalizedPayload.tareWeight !== undefined
+    ) {
+      normalizedPayload.netWeight =
+        Number(normalizedPayload.grossWeight) - Number(normalizedPayload.tareWeight);
     }
   }
 
@@ -86,7 +114,7 @@ const getAllBoulders = async (_req, res) => {
   try {
     const boulders = await Boulder.find()
       .populate("vehicleId")
-      .sort({ createdAt: -1 });
+      .sort({ boulderDate: -1, createdAt: -1 });
     return res.json(boulders);
   } catch (error) {
     return res.status(500).json({

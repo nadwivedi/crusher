@@ -547,6 +547,21 @@ export default function AddSalePopup({
                       className={`${inputClass} bg-slate-100 font-semibold text-emerald-700 focus:ring-indigo-500`}
                     />
                   </div>
+
+                  <div className="space-y-1">
+                    <label className={labelClass}>Paid Amount</label>
+                    <input
+                      type="number"
+                      name="paidAmount"
+                      value={formData.paidAmount || ''}
+                      onChange={handleInputChange}
+                      onKeyDown={handleSelectEnterMoveNext}
+                      className={`${inputClass} focus:ring-indigo-500`}
+                      placeholder="0.00"
+                      step="0.01"
+                      min="0"
+                    />
+                  </div>
                 </div>
             </div>
           </div>

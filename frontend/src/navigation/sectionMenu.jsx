@@ -112,6 +112,16 @@ function SaleReturnIcon() {
   return <AssetIcon src="/sales return_converted.avif" />;
 }
 
+function PurchaseReturnIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-6 w-6">
+      <path d="M8 7H4v4" />
+      <path d="M4 11a8 8 0 1 0 2.3-5.6L4 7" />
+      <path d="M12 8v4l3 2" />
+    </svg>
+  );
+}
+
 function BoulderIcon() {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-6 w-6">
@@ -177,6 +187,7 @@ export const SECTION_CONFIG = {
     items: [
       { name: 'Sales', path: '/sales', Icon: SaleIcon },
       { name: 'Purchase', path: '/purchases', Icon: PurchaseIcon },
+      { name: 'Purchase Return', path: '/purchase-return', Icon: PurchaseReturnIcon },
       { name: 'Material Used', path: '/material-used', Icon: MaterialUsedIcon },
       { name: 'Boulder Entry', path: '/boulder-entry', Icon: BoulderIcon },
       { name: 'Sale Return', path: '/sale-return', Icon: SaleReturnIcon },

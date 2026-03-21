@@ -29,6 +29,16 @@ function PaymentIcon() {
   return <AssetIcon src="/payment_converted.avif" />;
 }
 
+function PurchaseReturnIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-5 w-5">
+      <path d="M8 7H4v4" />
+      <path d="M4 11a8 8 0 1 0 2.3-5.6L4 7" />
+      <path d="M12 8v4l3 2" />
+    </svg>
+  );
+}
+
 function MaterialUsedIcon() {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-5 w-5">
@@ -134,6 +144,7 @@ const menuItems = [
     subItems: [
       { name: 'Boulder', path: '/boulder', Icon: BoulderIcon },
       { name: 'Sale', path: '/sales', Icon: SaleIcon },
+      { name: 'Purchase Return', path: '/purchase-return', Icon: PurchaseReturnIcon },
       { name: 'Material Used', path: '/material-used', Icon: MaterialUsedIcon },
       { name: 'Payment', path: '/payments', Icon: PaymentIcon },
       { name: 'Receipt', path: '/receipts', Icon: ReceiptIcon }
