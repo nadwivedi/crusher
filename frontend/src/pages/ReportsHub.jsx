@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { BookOpen, Boxes, FileBarChart, ReceiptText, RefreshCw, ShoppingCart, Truck, Users } from 'lucide-react';
+import { BookOpen, Boxes, FileBarChart, Package, ReceiptText, RefreshCw, ShoppingCart, Truck, Users } from 'lucide-react';
 import { getSectionConfig } from '../navigation/sectionMenu';
 
 const REPORT_ITEMS = [
@@ -8,6 +8,7 @@ const REPORT_ITEMS = [
   { name: 'Party Ledger', path: '/reports/party-ledger', Icon: Users },
   { name: 'Stock Ledger', path: '/reports/stock-ledger', Icon: Boxes },
   { name: 'Boulder Ledger', path: '/reports/boulder-ledger', Icon: Truck },
+  { name: 'Material Used Ledger', path: '/reports/material-used-ledger', Icon: Package },
   { name: 'Sales Report', path: '/reports/sales-report', Icon: ShoppingCart },
   { name: 'Sale Return Report', path: '/reports/sale-return-report', Icon: RefreshCw },
   { name: 'Stock Adjustment Report', path: '/reports/stock-adjustment-report', Icon: Boxes },

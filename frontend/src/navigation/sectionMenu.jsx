@@ -160,6 +160,15 @@ function BoulderLedgerIcon() {
   );
 }
 
+function MaterialUsedLedgerIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-6 w-6">
+      <path d="M6 6h12v12H6z" />
+      <path d="M9 9h6M9 12h6M9 15h3" />
+    </svg>
+  );
+}
+
 export const SECTION_CONFIG = {
   Masters: {
     name: 'Masters',
@@ -238,6 +247,7 @@ export const SECTION_CONFIG = {
     items: [
       { name: 'Reports', path: '/reports', Icon: ReportIcon },
       { name: 'Boulder Ledger', path: '/reports/boulder-ledger', Icon: BoulderLedgerIcon },
+      { name: 'Material Used Ledger', path: '/reports/material-used-ledger', Icon: MaterialUsedLedgerIcon },
       { name: 'Day Book', path: '/day-book', Icon: DayBookIcon },
       { name: 'Settings', path: '/settings', Icon: SettingsIcon }
     ]

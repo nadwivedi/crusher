@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { BookText, CalendarRange, RefreshCw, TrendingUp, TrendingDown, ArrowRightLeft, Receipt, CreditCard, Banknote, Package, Search, ArrowDownCircle, ArrowUpCircle, Calculator } from 'lucide-react';
+import { BookText, Banknote, Package, Search, ArrowDownCircle, ArrowUpCircle, TrendingUp } from 'lucide-react';
 import apiClient from '../utils/api';
 
 const DEFAULT_SUMMARY = {
@@ -11,6 +11,8 @@ const DEFAULT_SUMMARY = {
   receipts: 0,
   payments: 0,
   expenses: 0,
+  boulder: 0,
+  materialUsed: 0,
   purchaseReturns: 0,
   saleReturns: 0
 };
@@ -53,12 +55,6 @@ const formatTime = (value) => {
   return date.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
 };
 
-const getDateKey = (value) => {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return 'unknown';
-  return toInputDate(date);
-};
-
 const buildSummary = (entries) => entries.reduce((acc, entry) => {
   const amount = Number(entry.amount || 0);
   const inward = Number(entry.inAmount || 0);
@@ -66,15 +62,15 @@ const buildSummary = (entries) => entries.reduce((acc, entry) => {
 
   acc.entryCount += 1;
   acc.totalInward += inward;
-  if (entry.type !== 'purchase') {
-    acc.totalOutward += outward;
-  }
+  acc.totalOutward += outward;
 
   if (entry.type === 'sale') acc.sales += amount;
   if (entry.type === 'purchase') acc.purchases += amount;
   if (entry.type === 'receipt') acc.receipts += amount;
   if (entry.type === 'payment') acc.payments += amount;
   if (entry.type === 'expense') acc.expenses += amount;
+  if (entry.type === 'boulder') acc.boulder += 1;
+  if (entry.type === 'materialUsed') acc.materialUsed += 1;
   if (entry.type === 'purchaseReturn') acc.purchaseReturns += amount;
   if (entry.type === 'saleReturn') acc.saleReturns += amount;
 
@@ -125,7 +121,7 @@ export default function DayBook() {
           toDate: nextToDate || undefined
         }
       });
-      setDayBook(response.data || { summary: DEFAULT_SUMMARY, entries: [] });
+      setDayBook(response || { summary: DEFAULT_SUMMARY, entries: [] });
       setError('');
     } catch (err) {
       setError(err.message || 'Error loading day book');
@@ -148,7 +144,8 @@ export default function DayBook() {
       filtered = filtered.filter(entry =>
         (entry.partyName || '').toLowerCase().includes(term) ||
         (entry.type || '').toLowerCase().includes(term) ||
-        (entry.voucherNumber || '').toLowerCase().includes(term)
+        (entry.voucherNumber || '').toLowerCase().includes(term) ||
+        (entry.method || '').toLowerCase().includes(term)
       );
     }
     return filtered.sort((a, b) => {
@@ -159,26 +156,6 @@ export default function DayBook() {
   }, [entries, typeFilter, searchTerm]);
 
   const visibleSummary = useMemo(() => buildSummary(filteredEntries), [filteredEntries]);
-
-  const groupedEntries = useMemo(() => {
-    const groups = filteredEntries.reduce((acc, entry) => {
-      const key = getDateKey(entry.date);
-      if (!acc[key]) {
-        acc[key] = {
-          key,
-          dateLabel: formatDate(entry.date),
-          entries: [],
-          inward: 0,
-          outward: 0
-        };
-      }
-      acc[key].entries.push(entry);
-      acc[key].inward += Number(entry.inAmount || 0);
-      acc[key].outward += Number(entry.outAmount || 0);
-      return acc;
-    }, {});
-    return Object.values(groups).sort((a, b) => b.key.localeCompare(a.key));
-  }, [filteredEntries]);
 
   const typeCounts = useMemo(() => entries.reduce((acc, entry) => {
     acc[entry.type] = (acc[entry.type] || 0) + 1;
@@ -241,13 +218,18 @@ export default function DayBook() {
           </div>
           <div className="px-6 py-5">
             <div className="flex flex-wrap gap-2">
-              {[
-                { value: 'all', label: 'All', count: entries.length },
-                { value: 'sale', label: 'Sales', count: typeCounts.sale || 0 },
-                { value: 'purchase', label: 'Purchases', count: typeCounts.purchase || 0 },
-                { value: 'receipt', label: 'Receipts', count: typeCounts.receipt || 0 },
-                { value: 'payment', label: 'Payments', count: typeCounts.payment || 0 },
-                { value: 'expense', label: 'Expenses', count: typeCounts.expense || 0 }
+                {[
+                  { value: 'all', label: 'All', count: entries.length },
+                  { value: 'boulder', label: 'Boulder', count: typeCounts.boulder || 0 },
+                  { value: 'sale', label: 'Sales', count: typeCounts.sale || 0 },
+                  { value: 'purchase', label: 'Purchases', count: typeCounts.purchase || 0 },
+                  { value: 'materialUsed', label: 'Material Used', count: typeCounts.materialUsed || 0 },
+                  { value: 'receipt', label: 'Receipts', count: typeCounts.receipt || 0 },
+                  { value: 'payment', label: 'Payments', count: typeCounts.payment || 0 },
+                  { value: 'expense', label: 'Expenses', count: typeCounts.expense || 0 },
+                  { value: 'purchaseReturn', label: 'Purchase Return', count: typeCounts.purchaseReturn || 0 },
+                  { value: 'saleReturn', label: 'Sale Return', count: typeCounts.saleReturn || 0 },
+                  { value: 'stockAdjustment', label: 'Stock Adjustment', count: typeCounts.stockAdjustment || 0 }
               ].map((filter) => (
                 <button
                   key={filter.value}
@@ -308,8 +290,11 @@ export default function DayBook() {
                       receipt: { bg: 'bg-sky-100', text: 'text-sky-700' },
                       payment: { bg: 'bg-amber-100', text: 'text-amber-700' },
                       expense: { bg: 'bg-fuchsia-100', text: 'text-fuchsia-700' },
+                      boulder: { bg: 'bg-cyan-100', text: 'text-cyan-700' },
+                      materialUsed: { bg: 'bg-lime-100', text: 'text-lime-700' },
                       purchaseReturn: { bg: 'bg-teal-100', text: 'text-teal-700' },
-                      saleReturn: { bg: 'bg-orange-100', text: 'text-orange-700' }
+                      saleReturn: { bg: 'bg-orange-100', text: 'text-orange-700' },
+                      stockAdjustment: { bg: 'bg-violet-100', text: 'text-violet-700' }
                     };
                     const colors = typeColors[entry.type] || typeColors.sale;
                     
@@ -341,9 +326,7 @@ export default function DayBook() {
                           ) : <span className="text-slate-300">-</span>}
                         </td>
                         <td className="px-6 py-4 text-right">
-                          {entry.type === 'purchase' ? (
-                            <p className="text-sm text-slate-300">-</p>
-                          ) : outAmount > 0 ? (
+                          {outAmount > 0 ? (
                             <p className="text-sm font-bold text-rose-600">-{formatCurrency(outAmount)}</p>
                           ) : <span className="text-slate-300">-</span>}
                         </td>

@@ -32,6 +32,7 @@ import ReportsDashboard from './pages/ReportsDashboard';
 import StockLedger from './pages/StockLedger';
 import PartyLedger from './pages/PartyLedger';
 import BoulderLedger from './pages/BoulderLedger';
+import MaterialUsedLedger from './pages/MaterialUsedLedger';
 import ReportsPlaceholder from './pages/ReportsPlaceholder';
 import DayBook from './pages/DayBook';
 import Settings from './pages/Settings';
@@ -250,6 +251,15 @@ function App() {
           element={
             <ProtectedRoute>
               <BoulderLedger />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/reports/material-used-ledger"
+          element={
+            <ProtectedRoute>
+              <MaterialUsedLedger />
             </ProtectedRoute>
           }
         />

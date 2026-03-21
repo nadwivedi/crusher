@@ -209,11 +209,12 @@ const sectionStyles = {
 
 const HOME_SECTION_ORDER = ['Masters', 'Vouchers', 'Expense', 'Reports'];
 const homeQuickShortcuts = [
-  { label: 'New Sale', hint: '', combo: 'Alt + 1', accent: 'from-emerald-500 to-teal-500', stateKey: 'homeQuickSale' },
-  { label: 'New Purchase', hint: '', combo: 'Alt + 2', accent: 'from-blue-500 to-cyan-500', stateKey: 'homeQuickPurchase' },
-  { label: 'New Payment', hint: 'Money Paid', combo: 'Alt + 3', accent: 'from-amber-500 to-orange-500', stateKey: 'homeQuickPayment' },
-  { label: 'New Receipt', hint: 'Money Received', combo: 'Alt + 4', accent: 'from-fuchsia-500 to-pink-500', stateKey: 'homeQuickReceipt' },
-  { label: 'New Expense', hint: '', combo: 'Alt + 5', accent: 'from-emerald-500 to-lime-500', stateKey: 'homeQuickExpense' }
+  { label: 'Boulder Entry', hint: '', combo: 'Alt + 1', accent: 'from-cyan-500 to-sky-500', stateKey: 'homeQuickBoulder' },
+  { label: 'New Sale', hint: '', combo: 'Alt + 2', accent: 'from-emerald-500 to-teal-500', stateKey: 'homeQuickSale' },
+  { label: 'New Purchase', hint: '', combo: 'Alt + 3', accent: 'from-blue-500 to-cyan-500', stateKey: 'homeQuickPurchase' },
+  { label: 'New Payment', hint: 'Money Paid', combo: 'Alt + 4', accent: 'from-amber-500 to-orange-500', stateKey: 'homeQuickPayment' },
+  { label: 'New Receipt', hint: 'Money Received', combo: 'Alt + 5', accent: 'from-fuchsia-500 to-pink-500', stateKey: 'homeQuickReceipt' },
+  { label: 'New Expense', hint: '', combo: 'Alt + 6', accent: 'from-emerald-500 to-lime-500', stateKey: 'homeQuickExpense' }
 ];
 
 const getSectionItems = (sectionName) => {
@@ -266,6 +267,7 @@ export default function Home() {
       replace: true,
           state: {
             ...currentState,
+            homeQuickBoulder: stateKey === 'homeQuickBoulder',
             homeQuickSale: stateKey === 'homeQuickSale',
             homeQuickPurchase: stateKey === 'homeQuickPurchase',
             homeQuickPayment: stateKey === 'homeQuickPayment',
@@ -316,11 +318,12 @@ export default function Home() {
       const isMoveDownKey = key === 'arrowdown' && !event.altKey && !event.metaKey;
       const isMoveUpKey = key === 'arrowup' && !event.altKey && !event.metaKey;
       const quickShortcutMap = {
-        '1': 'homeQuickSale',
-        '2': 'homeQuickPurchase',
-        '3': 'homeQuickPayment',
-        '4': 'homeQuickReceipt',
-        '5': 'homeQuickExpense'
+        '1': 'homeQuickBoulder',
+        '2': 'homeQuickSale',
+        '3': 'homeQuickPurchase',
+        '4': 'homeQuickPayment',
+        '5': 'homeQuickReceipt',
+        '6': 'homeQuickExpense'
       };
 
       if (event.defaultPrevented || event.metaKey) return;

@@ -1,6 +1,9 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'react-toastify';
+import { CalendarDays, Package, Truck } from 'lucide-react';
 import apiClient from '../utils/api';
+import { handlePopupFormKeyDown } from '../utils/popupFormKeyboard';
+import { useFloatingDropdownPosition } from '../utils/useFloatingDropdownPosition';
 
 const TOAST_OPTIONS = {
   position: 'top-right',
@@ -23,115 +26,279 @@ function MaterialUsedForm({
   loading,
   editingId,
   onSave,
-  onClose
+  onClose,
+  vehicleQuery,
+  materialQuery,
+  vehicleSectionRef,
+  materialSectionRef,
+  vehicleInputRef,
+  materialInputRef,
+  filteredVehicles,
+  filteredMaterials,
+  vehicleListIndex,
+  materialListIndex,
+  isVehicleSectionActive,
+  isMaterialSectionActive,
+  setVehicleListIndex,
+  setMaterialListIndex,
+  setIsVehicleSectionActive,
+  setIsMaterialSectionActive,
+  handleVehicleFocus,
+  handleMaterialFocus,
+  handleVehicleInputChange,
+  handleMaterialInputChange,
+  handleVehicleInputKeyDown,
+  handleMaterialInputKeyDown,
+  getVehicleDisplayName,
+  getMaterialDisplayName,
+  getMaterialStockText,
+  selectVehicle,
+  selectMaterial
 }) {
+  const inputClass = 'w-full rounded-lg border border-slate-400 bg-white px-2.5 py-1.5 text-[13px] text-gray-800 transition placeholder:text-slate-400 focus:border-transparent focus:outline-none focus:ring-2';
+  const labelClass = 'mb-1 block text-[11px] font-semibold text-gray-700 md:text-xs';
+  const vehicleDropdownStyle = useFloatingDropdownPosition(vehicleSectionRef, isVehicleSectionActive, [filteredVehicles.length, vehicleListIndex]);
+  const materialDropdownStyle = useFloatingDropdownPosition(materialSectionRef, isMaterialSectionActive, [filteredMaterials.length, materialListIndex]);
+  const handleCancel = typeof onClose === 'function' ? onClose : () => {};
+
   return (
-    <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-[0_24px_60px_rgba(15,23,42,0.08)]">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <p className="text-lg font-bold text-slate-900">{editingId ? 'Edit Material Used' : 'Add Material Used'}</p>
-          <p className="mt-1 text-sm text-slate-500">Track purchased material consumption and reduce stock automatically.</p>
+    <div className="flex max-h-[88vh] w-full max-w-[30rem] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_30px_80px_rgba(15,23,42,0.28)]">
+      <div className="bg-[linear-gradient(135deg,#2563eb_0%,#4338ca_55%,#7c3aed_100%)] px-4 py-3 text-white">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-base font-bold md:text-lg">{editingId ? 'Edit Material Used' : 'Add Material Used'}</h2>
+            <p className="text-[11px] text-white/80 md:text-xs">Track material consumption and reduce stock automatically.</p>
+          </div>
+          {onClose && (
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-lg p-1.5 text-white transition hover:bg-white/20"
+              aria-label="Close popup"
+            >
+              <svg className="h-5 w-5 md:h-6 md:w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          )}
         </div>
-        {onClose && (
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Close popup"
-            className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 text-slate-500 transition hover:bg-slate-50"
-          >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-5 w-5">
-              <path strokeLinecap="round" strokeLinejoin="round" d="m18 6-12 12M6 6l12 12" />
-            </svg>
-          </button>
-        )}
       </div>
 
-      <div className="mt-5 grid gap-4 md:grid-cols-2">
-        <label className="block">
-          <span className="mb-1 block text-sm font-semibold text-slate-700">Vehicle No</span>
-          <select
-            value={formData.vehicle}
-            onChange={(event) => setFormData((prev) => ({ ...prev, vehicle: event.target.value }))}
-            className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none transition focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
-          >
-            <option value="">Select vehicle (optional)</option>
-            {vehicles.map((vehicle) => (
-              <option key={vehicle._id} value={vehicle._id}>
-                {vehicle.vehicleNo}
-              </option>
-            ))}
-          </select>
-        </label>
+      <div className="flex-1 overflow-y-auto px-4 py-4">
+        <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-3">
+          <h3 className="mb-3 flex items-center gap-2 text-sm font-bold text-gray-800 md:text-base">
+            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-indigo-600 text-[11px] font-bold text-white">1</span>
+            Material Details
+          </h3>
+          <div className="grid grid-cols-1 gap-3">
+            <div className="space-y-1">
+              <label className={labelClass}>Used Date</label>
+              <div className="relative">
+                <CalendarDays className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-indigo-400" />
+                <input
+                  type="date"
+                  value={formData.usedDate}
+                  onChange={(event) => setFormData((prev) => ({ ...prev, usedDate: event.target.value }))}
+                  className={`${inputClass} pl-9 focus:ring-indigo-500`}
+                />
+              </div>
+            </div>
 
-        <label className="block">
-          <span className="mb-1 block text-sm font-semibold text-slate-700">Material Type</span>
-          <select
-            value={formData.materialType}
-            onChange={(event) => setFormData((prev) => ({ ...prev, materialType: event.target.value }))}
-            className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none transition focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
-          >
-            <option value="">Select material</option>
-            {materials.map((material) => (
-              <option key={material._id} value={material._id}>
-                {material.name}{material.unit ? ` (${material.unit})` : ''}
-              </option>
-            ))}
-          </select>
-        </label>
+            <div className="space-y-1">
+              <label className={labelClass}>Vehicle No</label>
+              <div
+                ref={vehicleSectionRef}
+                className="relative"
+                onFocusCapture={handleVehicleFocus}
+                onBlurCapture={(event) => {
+                  const nextFocused = event.relatedTarget;
+                  if (vehicleSectionRef.current && nextFocused instanceof Node && vehicleSectionRef.current.contains(nextFocused)) return;
+                  setIsVehicleSectionActive(false);
+                }}
+              >
+                <div className="relative">
+                  <Truck className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-indigo-400" />
+                  <input
+                    ref={vehicleInputRef}
+                    type="text"
+                    value={vehicleQuery}
+                    onChange={handleVehicleInputChange}
+                    onKeyDown={handleVehicleInputKeyDown}
+                    className={`${inputClass} pl-9 focus:ring-indigo-500`}
+                    placeholder="Type to search vehicle..."
+                    autoComplete="off"
+                    autoFocus
+                  />
+                </div>
 
-        <label className="block">
-          <span className="mb-1 block text-sm font-semibold text-slate-700">Used Qty</span>
-          <input
-            type="number"
-            min="0.01"
-            step="0.01"
-            value={formData.usedQty}
-            onChange={(event) => setFormData((prev) => ({ ...prev, usedQty: event.target.value }))}
-            placeholder="Enter used quantity"
-            className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none transition focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
-          />
-        </label>
+                {isVehicleSectionActive && vehicleDropdownStyle && (
+                  <div
+                    className="fixed z-[80] overflow-hidden rounded-xl border border-amber-200 bg-white shadow-[0_18px_40px_rgba(15,23,42,0.18)]"
+                    style={vehicleDropdownStyle}
+                    onClick={(event) => event.stopPropagation()}
+                  >
+                    <div className="flex items-center justify-between border-b border-amber-100 bg-gradient-to-r from-amber-50 to-yellow-50 px-3 py-2">
+                      <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-amber-700">Vehicle List</span>
+                      <span className="rounded-full bg-white px-2 py-0.5 text-[10px] font-semibold text-amber-700 shadow-sm">
+                        {filteredVehicles.length}
+                      </span>
+                    </div>
+                    <div className="overflow-y-auto py-1" style={{ maxHeight: vehicleDropdownStyle.maxHeight }}>
+                      {filteredVehicles.length === 0 ? (
+                        <div className="px-3 py-3 text-center text-[13px] text-slate-500">No matching vehicles found.</div>
+                      ) : (
+                        filteredVehicles.map((vehicle, index) => {
+                          const isActive = index === vehicleListIndex;
+                          const isSelected = String(formData.vehicle || '') === String(vehicle._id);
+                          return (
+                            <button
+                              key={vehicle._id}
+                              type="button"
+                              onMouseDown={(event) => event.preventDefault()}
+                              onMouseEnter={() => setVehicleListIndex(index)}
+                              onClick={() => selectVehicle(vehicle)}
+                              className={`flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-[13px] transition ${
+                                isActive
+                                  ? 'bg-yellow-200 text-amber-950'
+                                  : isSelected
+                                  ? 'bg-yellow-50 text-amber-800'
+                                  : 'text-slate-700 hover:bg-amber-50'
+                              }`}
+                            >
+                              <span className="truncate font-medium">{getVehicleDisplayName(vehicle)}</span>
+                            </button>
+                          );
+                        })
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
 
-        <label className="block">
-          <span className="mb-1 block text-sm font-semibold text-slate-700">Used Date</span>
-          <input
-            type="date"
-            value={formData.usedDate}
-            onChange={(event) => setFormData((prev) => ({ ...prev, usedDate: event.target.value }))}
-            className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none transition focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
-          />
-        </label>
+            <div className="space-y-1">
+              <label className={labelClass}>Material Type</label>
+              <div
+                ref={materialSectionRef}
+                className="relative"
+                onFocusCapture={handleMaterialFocus}
+                onBlurCapture={(event) => {
+                  const nextFocused = event.relatedTarget;
+                  if (materialSectionRef.current && nextFocused instanceof Node && materialSectionRef.current.contains(nextFocused)) return;
+                  setIsMaterialSectionActive(false);
+                }}
+              >
+                <div className="relative">
+                  <Package className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-indigo-400" />
+                  <input
+                    ref={materialInputRef}
+                    type="text"
+                    value={materialQuery}
+                    onChange={handleMaterialInputChange}
+                    onKeyDown={handleMaterialInputKeyDown}
+                    className={`${inputClass} pl-9 focus:ring-indigo-500`}
+                    placeholder="Type to search material..."
+                    autoComplete="off"
+                  />
+                </div>
+
+                {isMaterialSectionActive && materialDropdownStyle && (
+                  <div
+                    className="fixed z-[80] overflow-hidden rounded-xl border border-amber-200 bg-white shadow-[0_18px_40px_rgba(15,23,42,0.18)]"
+                    style={materialDropdownStyle}
+                    onClick={(event) => event.stopPropagation()}
+                  >
+                    <div className="flex items-center justify-between border-b border-amber-100 bg-gradient-to-r from-amber-50 to-yellow-50 px-3 py-2">
+                      <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-amber-700">Material List</span>
+                      <span className="rounded-full bg-white px-2 py-0.5 text-[10px] font-semibold text-amber-700 shadow-sm">
+                        {filteredMaterials.length}
+                      </span>
+                    </div>
+                    <div className="overflow-y-auto py-1" style={{ maxHeight: materialDropdownStyle.maxHeight }}>
+                      {filteredMaterials.length === 0 ? (
+                        <div className="px-3 py-3 text-center text-[13px] text-slate-500">No matching materials found.</div>
+                      ) : (
+                        filteredMaterials.map((material, index) => {
+                          const isActive = index === materialListIndex;
+                          const isSelected = String(formData.materialType || '') === String(material._id);
+                          return (
+                            <button
+                              key={material._id}
+                              type="button"
+                              onMouseDown={(event) => event.preventDefault()}
+                              onMouseEnter={() => setMaterialListIndex(index)}
+                              onClick={() => selectMaterial(material)}
+                              className={`flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-[13px] transition ${
+                                isActive
+                                  ? 'bg-yellow-200 text-amber-950'
+                                  : isSelected
+                                  ? 'bg-yellow-50 text-amber-800'
+                                  : 'text-slate-700 hover:bg-amber-50'
+                              }`}
+                            >
+                              <span className="truncate font-medium">{getMaterialDisplayName(material)}</span>
+                              <span className="shrink-0 rounded-full border border-amber-200 bg-white px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700">
+                                {getMaterialStockText(material)}
+                              </span>
+                            </button>
+                          );
+                        })
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <label className={labelClass}>Used Qty</label>
+              <input
+                type="number"
+                min="0.01"
+                step="0.01"
+                value={formData.usedQty}
+                onChange={(event) => setFormData((prev) => ({ ...prev, usedQty: event.target.value }))}
+                placeholder="Enter used quantity"
+                className={`${inputClass} focus:ring-indigo-500`}
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label className={labelClass}>Notes</label>
+              <textarea
+                rows="3"
+                value={formData.notes}
+                onChange={(event) => setFormData((prev) => ({ ...prev, notes: event.target.value }))}
+                placeholder="Optional notes"
+                className={`${inputClass} min-h-[84px] resize-none py-2.5 focus:ring-indigo-500`}
+              />
+            </div>
+          </div>
+        </div>
       </div>
 
-      <label className="mt-4 block">
-        <span className="mb-1 block text-sm font-semibold text-slate-700">Notes</span>
-        <textarea
-          rows="3"
-          value={formData.notes}
-          onChange={(event) => setFormData((prev) => ({ ...prev, notes: event.target.value }))}
-          placeholder="Optional notes"
-          className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none transition focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
-        />
-      </label>
+      <div className="flex flex-col items-center justify-between gap-2 border-t border-slate-200 bg-white px-4 py-3 md:flex-row">
+        <div className="hidden text-[11px] text-gray-600 md:block md:text-xs">
+          <kbd className="rounded bg-gray-200 px-1.5 py-0.5 font-mono text-[10px]">Esc</kbd> to close
+        </div>
 
-      <div className="mt-5 flex flex-wrap justify-end gap-3">
-        {editingId && (
+        <div className="flex w-full gap-2 md:w-auto">
           <button
             type="button"
-            onClick={() => setFormData(initialFormData)}
-            className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+            onClick={handleCancel}
+            className="flex-1 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-slate-50 md:flex-none md:px-5"
           >
-            Clear
+            Cancel
           </button>
-        )}
-        <button
-          type="button"
-          onClick={onSave}
-          disabled={loading}
-          className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-70"
-        >
-          {loading ? 'Saving...' : editingId ? 'Update Material Used' : 'Save Material Used'}
-        </button>
+          <button
+            type="button"
+            onClick={onSave}
+            disabled={loading}
+            className="flex-1 rounded-lg bg-[linear-gradient(135deg,#2563eb_0%,#4338ca_100%)] px-5 py-2 text-sm font-semibold text-white transition hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-50 md:flex-none md:px-6"
+          >
+            {loading ? 'Saving...' : editingId ? 'Update Material Used' : 'Save Material Used'}
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -147,15 +314,56 @@ export default function MaterialUsed({ modalOnly = false, onModalFinish = null }
   const [fetching, setFetching] = useState(true);
   const [editingId, setEditingId] = useState('');
   const [error, setError] = useState('');
+  const [vehicleQuery, setVehicleQuery] = useState('');
+  const [materialQuery, setMaterialQuery] = useState('');
+  const [isVehicleSectionActive, setIsVehicleSectionActive] = useState(false);
+  const [isMaterialSectionActive, setIsMaterialSectionActive] = useState(false);
+  const [vehicleListIndex, setVehicleListIndex] = useState(-1);
+  const [materialListIndex, setMaterialListIndex] = useState(-1);
+  const vehicleSectionRef = useRef(null);
+  const materialSectionRef = useRef(null);
+  const vehicleInputRef = useRef(null);
+  const materialInputRef = useRef(null);
 
   const selectedMaterial = useMemo(
     () => materials.find((material) => material._id === formData.materialType) || null,
     [formData.materialType, materials]
   );
 
+  const getVehicleDisplayName = (vehicle) => String(vehicle?.vehicleNumber || vehicle?.vehicleNo || '').trim();
+  const getMaterialDisplayName = (material) => {
+    const name = String(material?.name || material?.materialTypeName || '').trim();
+    const unit = String(material?.unit || '').trim();
+    return unit ? `${name} (${unit})` : name;
+  };
+
+  const getMaterialStockText = (material) => {
+    const quantity = Number(material?.currentStock ?? material?.stock ?? 0);
+    const unit = String(material?.unit || '').trim();
+    return `${quantity.toLocaleString('en-IN', { maximumFractionDigits: 2 })}${unit ? ` ${unit}` : ''}`;
+  };
+
+  const filteredVehicles = useMemo(() => {
+    const searchValue = String(vehicleQuery || '').trim().toLowerCase();
+    if (!searchValue) return vehicles;
+    return vehicles.filter((vehicle) => getVehicleDisplayName(vehicle).toLowerCase().includes(searchValue));
+  }, [vehicles, vehicleQuery]);
+
+  const filteredMaterials = useMemo(() => {
+    const searchValue = String(materialQuery || '').trim().toLowerCase();
+    if (!searchValue) return materials;
+    return materials.filter((material) => getMaterialDisplayName(material).toLowerCase().includes(searchValue));
+  }, [materials, materialQuery]);
+
   const resetForm = () => {
     setFormData(initialFormData);
     setEditingId('');
+    setVehicleQuery('');
+    setMaterialQuery('');
+    setVehicleListIndex(-1);
+    setMaterialListIndex(-1);
+    setIsVehicleSectionActive(false);
+    setIsMaterialSectionActive(false);
   };
 
   const fetchEntries = async (searchValue = search) => {
@@ -163,7 +371,7 @@ export default function MaterialUsed({ modalOnly = false, onModalFinish = null }
       setFetching(true);
       setError('');
       const response = await apiClient.get('/material-used', { params: { search: searchValue } });
-      setEntries(response.data || []);
+      setEntries(Array.isArray(response) ? response : []);
     } catch (err) {
       setError(err.message || 'Error fetching material used entries');
     } finally {
@@ -177,8 +385,14 @@ export default function MaterialUsed({ modalOnly = false, onModalFinish = null }
         apiClient.get('/vehicles'),
         apiClient.get('/products')
       ]);
-      setVehicles(vehicleResponse || []);
-      setMaterials(materialResponse.data || materialResponse || []);
+      setVehicles(Array.isArray(vehicleResponse) ? vehicleResponse : []);
+      setMaterials(
+        Array.isArray(materialResponse?.data)
+          ? materialResponse.data
+          : Array.isArray(materialResponse)
+          ? materialResponse
+          : []
+      );
     } catch (err) {
       setError(err.message || 'Error loading material options');
     }
@@ -247,6 +461,92 @@ export default function MaterialUsed({ modalOnly = false, onModalFinish = null }
       usedDate: entry.usedDate ? new Date(entry.usedDate).toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10),
       notes: entry.notes || ''
     });
+    setVehicleQuery(entry.vehicleNo || '');
+    setMaterialQuery(entry.materialTypeName || entry.materialType?.name || '');
+  };
+
+  const handleVehicleFocus = () => {
+    setIsVehicleSectionActive(true);
+    setVehicleListIndex(filteredVehicles.length > 0 ? 0 : -1);
+  };
+
+  const handleMaterialFocus = () => {
+    setIsMaterialSectionActive(true);
+    setMaterialListIndex(filteredMaterials.length > 0 ? 0 : -1);
+  };
+
+  const selectVehicle = (vehicle) => {
+    setFormData((prev) => ({ ...prev, vehicle: vehicle?._id || '' }));
+    setVehicleQuery(vehicle ? getVehicleDisplayName(vehicle) : '');
+    setIsVehicleSectionActive(false);
+  };
+
+  const selectMaterial = (material) => {
+    setFormData((prev) => ({ ...prev, materialType: material?._id || '' }));
+    setMaterialQuery(material ? getMaterialDisplayName(material) : '');
+    setIsMaterialSectionActive(false);
+  };
+
+  const handleVehicleInputChange = (event) => {
+    const value = event.target.value;
+    setVehicleQuery(value);
+    setIsVehicleSectionActive(true);
+    if (!value.trim()) {
+      setFormData((prev) => ({ ...prev, vehicle: '' }));
+      return;
+    }
+    const exactMatch = vehicles.find((vehicle) => getVehicleDisplayName(vehicle).toLowerCase() === value.trim().toLowerCase());
+    setFormData((prev) => ({ ...prev, vehicle: exactMatch?._id || '' }));
+  };
+
+  const handleMaterialInputChange = (event) => {
+    const value = event.target.value;
+    setMaterialQuery(value);
+    setIsMaterialSectionActive(true);
+    if (!value.trim()) {
+      setFormData((prev) => ({ ...prev, materialType: '' }));
+      return;
+    }
+    const exactMatch = materials.find((material) => getMaterialDisplayName(material).toLowerCase() === value.trim().toLowerCase());
+    setFormData((prev) => ({ ...prev, materialType: exactMatch?._id || '' }));
+  };
+
+  const handleVehicleInputKeyDown = (event) => {
+    if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      setIsVehicleSectionActive(true);
+      setVehicleListIndex((prev) => (filteredVehicles.length === 0 ? -1 : prev < filteredVehicles.length - 1 ? prev + 1 : 0));
+      return;
+    }
+    if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      setIsVehicleSectionActive(true);
+      setVehicleListIndex((prev) => (filteredVehicles.length === 0 ? -1 : prev > 0 ? prev - 1 : filteredVehicles.length - 1));
+      return;
+    }
+    if (event.key === 'Enter' && isVehicleSectionActive && filteredVehicles.length > 0) {
+      event.preventDefault();
+      selectVehicle(filteredVehicles[vehicleListIndex] || filteredVehicles[0]);
+    }
+  };
+
+  const handleMaterialInputKeyDown = (event) => {
+    if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      setIsMaterialSectionActive(true);
+      setMaterialListIndex((prev) => (filteredMaterials.length === 0 ? -1 : prev < filteredMaterials.length - 1 ? prev + 1 : 0));
+      return;
+    }
+    if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      setIsMaterialSectionActive(true);
+      setMaterialListIndex((prev) => (filteredMaterials.length === 0 ? -1 : prev > 0 ? prev - 1 : filteredMaterials.length - 1));
+      return;
+    }
+    if (event.key === 'Enter' && isMaterialSectionActive && filteredMaterials.length > 0) {
+      event.preventDefault();
+      selectMaterial(filteredMaterials[materialListIndex] || filteredMaterials[0]);
+    }
   };
 
   const handleDelete = async (id) => {
@@ -298,7 +598,34 @@ export default function MaterialUsed({ modalOnly = false, onModalFinish = null }
         loading={loading}
         editingId={editingId}
         onSave={handleSave}
-        onClose={modalOnly ? onModalFinish : null}
+        onClose={resetForm}
+        vehicleQuery={vehicleQuery}
+        materialQuery={materialQuery}
+        vehicleSectionRef={vehicleSectionRef}
+        materialSectionRef={materialSectionRef}
+        vehicleInputRef={vehicleInputRef}
+        materialInputRef={materialInputRef}
+        filteredVehicles={filteredVehicles}
+        filteredMaterials={filteredMaterials}
+        vehicleListIndex={vehicleListIndex}
+        materialListIndex={materialListIndex}
+        isVehicleSectionActive={isVehicleSectionActive}
+        isMaterialSectionActive={isMaterialSectionActive}
+        setVehicleListIndex={setVehicleListIndex}
+        setMaterialListIndex={setMaterialListIndex}
+        setIsVehicleSectionActive={setIsVehicleSectionActive}
+        setIsMaterialSectionActive={setIsMaterialSectionActive}
+        handleVehicleFocus={handleVehicleFocus}
+        handleMaterialFocus={handleMaterialFocus}
+        handleVehicleInputChange={handleVehicleInputChange}
+        handleMaterialInputChange={handleMaterialInputChange}
+        handleVehicleInputKeyDown={handleVehicleInputKeyDown}
+        handleMaterialInputKeyDown={handleMaterialInputKeyDown}
+        getVehicleDisplayName={getVehicleDisplayName}
+        getMaterialDisplayName={getMaterialDisplayName}
+        getMaterialStockText={getMaterialStockText}
+        selectVehicle={selectVehicle}
+        selectMaterial={selectMaterial}
       />
 
       <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-[0_24px_60px_rgba(15,23,42,0.08)]">
@@ -383,9 +710,47 @@ export default function MaterialUsed({ modalOnly = false, onModalFinish = null }
 
   if (modalOnly) {
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 p-4 backdrop-blur-sm">
-        <div className="max-h-[92vh] w-full max-w-6xl overflow-y-auto rounded-[32px] bg-slate-100 p-4 md:p-6">
-          {pageContent}
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 p-3 backdrop-blur-[2px] md:p-6" onClick={onModalFinish}>
+        <div onClick={(event) => event.stopPropagation()}>
+          <form onSubmit={(event) => { event.preventDefault(); handleSave(); }} onKeyDown={(e) => handlePopupFormKeyDown(e, onModalFinish)}>
+            <MaterialUsedForm
+              formData={formData}
+              setFormData={setFormData}
+              vehicles={vehicles}
+              materials={materials}
+              loading={loading}
+              editingId={editingId}
+              onSave={handleSave}
+              onClose={onModalFinish}
+              vehicleQuery={vehicleQuery}
+              materialQuery={materialQuery}
+              vehicleSectionRef={vehicleSectionRef}
+              materialSectionRef={materialSectionRef}
+              vehicleInputRef={vehicleInputRef}
+              materialInputRef={materialInputRef}
+              filteredVehicles={filteredVehicles}
+              filteredMaterials={filteredMaterials}
+              vehicleListIndex={vehicleListIndex}
+              materialListIndex={materialListIndex}
+              isVehicleSectionActive={isVehicleSectionActive}
+              isMaterialSectionActive={isMaterialSectionActive}
+              setVehicleListIndex={setVehicleListIndex}
+              setMaterialListIndex={setMaterialListIndex}
+              setIsVehicleSectionActive={setIsVehicleSectionActive}
+              setIsMaterialSectionActive={setIsMaterialSectionActive}
+              handleVehicleFocus={handleVehicleFocus}
+              handleMaterialFocus={handleMaterialFocus}
+              handleVehicleInputChange={handleVehicleInputChange}
+              handleMaterialInputChange={handleMaterialInputChange}
+              handleVehicleInputKeyDown={handleVehicleInputKeyDown}
+              handleMaterialInputKeyDown={handleMaterialInputKeyDown}
+              getVehicleDisplayName={getVehicleDisplayName}
+              getMaterialDisplayName={getMaterialDisplayName}
+              getMaterialStockText={getMaterialStockText}
+              selectVehicle={selectVehicle}
+              selectMaterial={selectMaterial}
+            />
+          </form>
         </div>
       </div>
     );

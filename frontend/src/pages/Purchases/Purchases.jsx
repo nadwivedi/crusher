@@ -227,7 +227,7 @@ export default function Purchases({ modalOnly = false, onModalFinish = null }) {
   const fetchLeadgers = async () => {
     try {
       const response = await apiClient.get('/parties');
-      setLeadgers(response.data || []);
+      setLeadgers(Array.isArray(response) ? response : []);
     } catch (err) {
       console.error('Error fetching leadgers:', err);
     }
@@ -877,8 +877,8 @@ export default function Purchases({ modalOnly = false, onModalFinish = null }) {
           dustRate: Number(partyFormData.dustRate || 0)
         };
 
-      const response = await apiClient.post('/parties', payload);
-      const createdParty = response?.data || null;
+        const response = await apiClient.post('/parties', payload);
+        const createdParty = response || null;
 
       if (!createdParty?._id) {
         throw new Error('Party created but response was incomplete');
