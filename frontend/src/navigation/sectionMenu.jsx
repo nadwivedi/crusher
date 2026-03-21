@@ -195,12 +195,12 @@ export const SECTION_CONFIG = {
       accent: 'bg-violet-500'
     },
     items: [
+      { name: 'Boulder Entry', path: '/boulder-entry', Icon: BoulderIcon },
       { name: 'Sales', path: '/sales', Icon: SaleIcon },
       { name: 'Purchase', path: '/purchases', Icon: PurchaseIcon },
+      { name: 'Sale Return', path: '/sale-return', Icon: SaleReturnIcon },
       { name: 'Purchase Return', path: '/purchase-return', Icon: PurchaseReturnIcon },
       { name: 'Material Used', path: '/material-used', Icon: MaterialUsedIcon },
-      { name: 'Boulder Entry', path: '/boulder-entry', Icon: BoulderIcon },
-      { name: 'Sale Return', path: '/sale-return', Icon: SaleReturnIcon },
       { name: 'Stock Adjustment', path: '/stock-adjustment', Icon: StockAdjustmentIcon },
       { name: 'Payment', hint: 'Money paid to supplier', path: '/payments', Icon: PaymentIcon },
       { name: 'Receipt', hint: 'Money received from customer', path: '/receipts', Icon: ReceiptIcon }
