@@ -23,22 +23,31 @@ export default function AddSalePopup({
   popupLabelClass,
   leadgerSectionRef,
   leadgerInputRef,
+  vehicleSectionRef,
+  vehicleInputRef,
   productSectionRef,
   productInputRef,
   leadgerQuery,
+  vehicleQuery,
   productQuery,
   leadgerListIndex,
+  vehicleListIndex,
   productListIndex,
   filteredLeadgers,
+  filteredVehicles,
   filteredProducts,
   isLeadgerSectionActive,
+  isVehicleSectionActive,
   isProductSectionActive,
   setCurrentItem,
   setIsLeadgerSectionActive,
+  setIsVehicleSectionActive,
   setIsProductSectionActive,
   setLeadgerListIndex,
+  setVehicleListIndex,
   setProductListIndex,
   getLeadgerDisplayName,
+  getVehicleDisplayName,
   getProductDisplayName,
   handleCancel,
   handleSubmit,
@@ -46,6 +55,9 @@ export default function AddSalePopup({
   handleLeadgerFocus,
   handleLeadgerInputChange,
   handleLeadgerInputKeyDown,
+  handleVehicleFocus,
+  handleVehicleInputChange,
+  handleVehicleInputKeyDown,
   onOpenNewParty,
   handleProductFocus,
   handleProductInputChange,
@@ -55,6 +67,7 @@ export default function AddSalePopup({
   handleAddItem,
   handleRemoveItem,
   selectLeadger,
+  selectVehicle,
   selectProduct
 }) {
   const localProductInputRef = useRef(null);
@@ -65,6 +78,7 @@ export default function AddSalePopup({
   const currentItemTotal = Math.max(0, Number(currentItem.quantity || 0) * Number(currentItem.unitPrice || 0));
   const resolvedProductInputRef = productInputRef || localProductInputRef;
   const leadgerDropdownStyle = useFloatingDropdownPosition(leadgerSectionRef, isLeadgerSectionActive, [filteredLeadgers.length, leadgerListIndex]);
+  const vehicleDropdownStyle = useFloatingDropdownPosition(vehicleSectionRef, isVehicleSectionActive, [filteredVehicles.length, vehicleListIndex]);
   const productDropdownStyle = useFloatingDropdownPosition(productSectionRef, isProductSectionActive, [filteredProducts.length, productListIndex]);
   const resolveItemUnit = (item) => {
     const itemUnit = String(item?.unit || '').trim();
@@ -167,17 +181,84 @@ export default function AddSalePopup({
 
                   <div>
                     <label className={labelClass}>Vehicle No</label>
-                    <div className="relative">
-                      <Truck className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-indigo-400 pointer-events-none" />
-                      <input
-                        type="text"
-                        name="vehicleNo"
-                        value={formData.vehicleNo || ''}
-                        onChange={handleInputChange}
-                        onKeyDown={handleSelectEnterMoveNext}
-                        className={`${inputClass} pl-9 focus:ring-indigo-500`}
-                        placeholder="Enter vehicle number"
-                      />
+                    <div
+                      ref={vehicleSectionRef}
+                      className="relative"
+                      onFocusCapture={handleVehicleFocus}
+                      onBlurCapture={(event) => {
+                        const nextFocused = event.relatedTarget;
+                        if (vehicleSectionRef.current && nextFocused instanceof Node && vehicleSectionRef.current.contains(nextFocused)) return;
+                        setIsVehicleSectionActive(false);
+                      }}
+                    >
+                      <div className="relative">
+                        <Truck className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-indigo-400 pointer-events-none" />
+                        <input
+                          ref={vehicleInputRef}
+                          type="text"
+                          name="vehicleNo"
+                          value={vehicleQuery}
+                          onChange={handleVehicleInputChange}
+                          onKeyDown={handleVehicleInputKeyDown}
+                          className={`${inputClass} pl-9 focus:ring-indigo-500`}
+                          placeholder="Type to search vehicle..."
+                          autoComplete="off"
+                        />
+                      </div>
+
+                      {isVehicleSectionActive && vehicleDropdownStyle && (
+                        <div
+                          className="fixed z-[80] overflow-hidden rounded-xl border border-amber-200 bg-white shadow-[0_18px_40px_rgba(15,23,42,0.18)]"
+                          style={vehicleDropdownStyle}
+                          onClick={(event) => event.stopPropagation()}
+                        >
+                          <div className="flex items-center justify-between border-b border-amber-100 bg-gradient-to-r from-amber-50 to-yellow-50 px-3 py-2">
+                            <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-amber-700">Vehicle List</span>
+                            <span className="rounded-full bg-white px-2 py-0.5 text-[10px] font-semibold text-amber-700 shadow-sm">
+                              {filteredVehicles.length}
+                            </span>
+                          </div>
+                          <div className="overflow-y-auto py-1" style={{ maxHeight: vehicleDropdownStyle.maxHeight }}>
+                            {filteredVehicles.length === 0 ? (
+                              <div className="px-3 py-3 text-center text-[13px] text-slate-500">
+                                No matching vehicles found.
+                              </div>
+                            ) : (
+                              filteredVehicles.map((vehicle, index) => {
+                                const isActive = index === vehicleListIndex;
+                                const isSelected = String(formData.vehicleNo || '') === String(getVehicleDisplayName(vehicle));
+
+                                return (
+                                  <button
+                                    key={vehicle._id}
+                                    type="button"
+                                    onMouseDown={(event) => event.preventDefault()}
+                                    onMouseEnter={() => setVehicleListIndex(index)}
+                                    onClick={() => {
+                                      selectVehicle(vehicle);
+                                      setIsVehicleSectionActive(false);
+                                    }}
+                                    className={`flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-[13px] transition ${
+                                      isActive
+                                        ? 'bg-yellow-200 text-amber-950'
+                                        : isSelected
+                                        ? 'bg-yellow-50 text-amber-800'
+                                        : 'text-slate-700 hover:bg-amber-50'
+                                    }`}
+                                  >
+                                    <span className="truncate font-medium">{getVehicleDisplayName(vehicle)}</span>
+                                    {isSelected && (
+                                      <span className="shrink-0 rounded-full border border-amber-200 bg-white px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700">
+                                        Selected
+                                      </span>
+                                    )}
+                                  </button>
+                                );
+                              })
+                            )}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
 

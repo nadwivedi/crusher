@@ -106,6 +106,7 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
 
   const [sales, setSales] = useState([]);
   const [leadgers, setLeadgers] = useState([]);
+  const [vehicles, setVehicles] = useState([]);
   const [products, setProducts] = useState([
     { _id: '1', name: '10mm', unit: 'ton', salePrice: 0 },
     { _id: '2', name: '20mm', unit: 'ton', salePrice: 0 },
@@ -130,17 +131,23 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
   const [leadgerQuery, setLeadgerQuery] = useState('');
   const [leadgerListIndex, setLeadgerListIndex] = useState(-1);
   const [isLeadgerSectionActive, setIsLeadgerSectionActive] = useState(false);
+  const [vehicleQuery, setVehicleQuery] = useState('');
+  const [vehicleListIndex, setVehicleListIndex] = useState(-1);
+  const [isVehicleSectionActive, setIsVehicleSectionActive] = useState(false);
   const [productQuery, setProductQuery] = useState('');
   const [productListIndex, setProductListIndex] = useState(-1);
   const [isProductSectionActive, setIsProductSectionActive] = useState(false);
   const leadgerSectionRef = useRef(null);
   const leadgerInputRef = useRef(null);
+  const vehicleSectionRef = useRef(null);
+  const vehicleInputRef = useRef(null);
   const productSectionRef = useRef(null);
   const productInputRef = useRef(null);
 
   useEffect(() => {
     fetchSales();
     fetchLeadgers();
+    fetchVehicles();
   }, [search, dateFilter]);
 
   useEffect(() => {
@@ -261,6 +268,15 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
     }
   };
 
+  const fetchVehicles = async () => {
+    try {
+      const response = await apiClient.get('/vehicles');
+      setVehicles(Array.isArray(response) ? response : []);
+    } catch (err) {
+      console.error('Error fetching vehicles:', err);
+    }
+  };
+
   const getLeadgerDisplayName = (leadger) => {
     const name = String(leadger?.name || '').trim();
 
@@ -276,6 +292,8 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
   };
 
   const normalizeText = (value) => String(value || '').trim().toLowerCase();
+
+  const getVehicleDisplayName = (vehicle) => String(vehicle?.vehicleNo || '').trim();
 
   const getMatchingLeadgers = (queryValue) => {
     const normalized = normalizeText(queryValue);
@@ -311,6 +329,28 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
     () => leadgers.find((leadger) => String(leadger._id) === String(formData.party || '')) || null,
     [leadgers, formData.party]
   );
+  const filteredVehicles = useMemo(() => {
+    const normalizedQuery = normalizeText(vehicleQuery);
+    const normalizedSelectedVehicle = normalizeText(formData.vehicleNo);
+
+    if (
+      isVehicleSectionActive
+      && normalizedQuery
+      && normalizedQuery === normalizedSelectedVehicle
+    ) {
+      return vehicles;
+    }
+
+    if (!normalizedQuery) return vehicles;
+
+    const startsWith = vehicles.filter((vehicle) => normalizeText(getVehicleDisplayName(vehicle)).startsWith(normalizedQuery));
+    const includes = vehicles.filter((vehicle) => (
+      !normalizeText(getVehicleDisplayName(vehicle)).startsWith(normalizedQuery)
+      && normalizeText(getVehicleDisplayName(vehicle)).includes(normalizedQuery)
+    ));
+
+    return [...startsWith, ...includes];
+  }, [vehicles, vehicleQuery, isVehicleSectionActive, formData.vehicleNo]);
   const isCashParty = String(selectedLeadger?.type || '').trim().toLowerCase() === 'cash-in-hand';
 
   useEffect(() => {
@@ -341,8 +381,40 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
     });
   }, [showForm, filteredLeadgers, isLeadgerSectionActive, leadgerQuery, selectedLeadgerName, formData.party]);
 
+  useEffect(() => {
+    if (!showForm) return;
+
+    if (filteredVehicles.length === 0) {
+      setVehicleListIndex(-1);
+      return;
+    }
+
+    const shouldHighlightSelectedVehicle = (
+      isVehicleSectionActive
+      && normalizeText(vehicleQuery)
+      && normalizeText(vehicleQuery) === normalizeText(formData.vehicleNo)
+      && formData.vehicleNo
+    );
+
+    if (shouldHighlightSelectedVehicle) {
+      const selectedIndex = filteredVehicles.findIndex((item) => normalizeText(getVehicleDisplayName(item)) === normalizeText(formData.vehicleNo));
+      setVehicleListIndex(selectedIndex >= 0 ? selectedIndex : 0);
+      return;
+    }
+
+    setVehicleListIndex((prev) => {
+      if (prev < 0) return 0;
+      if (prev >= filteredVehicles.length) return filteredVehicles.length - 1;
+      return prev;
+    });
+  }, [showForm, filteredVehicles, isVehicleSectionActive, vehicleQuery, formData.vehicleNo]);
+
   const handleLeadgerFocus = () => {
     setIsLeadgerSectionActive(true);
+  };
+
+  const handleVehicleFocus = () => {
+    setIsVehicleSectionActive(true);
   };
 
   useEffect(() => {
@@ -376,6 +448,20 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
     if (!normalized) return null;
     return leadgers.find((leadger) => normalizeText(getLeadgerDisplayName(leadger)).startsWith(normalized))
       || leadgers.find((leadger) => normalizeText(getLeadgerDisplayName(leadger)).includes(normalized))
+      || null;
+  };
+
+  const findExactVehicle = (value) => {
+    const normalized = normalizeText(value);
+    if (!normalized) return null;
+    return vehicles.find((vehicle) => normalizeText(getVehicleDisplayName(vehicle)) === normalized) || null;
+  };
+
+  const findBestVehicleMatch = (value) => {
+    const normalized = normalizeText(value);
+    if (!normalized) return null;
+    return vehicles.find((vehicle) => normalizeText(getVehicleDisplayName(vehicle)).startsWith(normalized))
+      || vehicles.find((vehicle) => normalizeText(getVehicleDisplayName(vehicle)).includes(normalized))
       || null;
   };
 
@@ -440,6 +526,57 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
       customerAddress: ''
     }));
     setLeadgerListIndex(firstMatch ? 0 : -1);
+  };
+
+  const selectVehicle = (vehicle) => {
+    if (!vehicle) {
+      setVehicleQuery('');
+      setFormData((prev) => ({
+        ...prev,
+        vehicleNo: ''
+      }));
+      setVehicleListIndex(-1);
+      return;
+    }
+
+    const vehicleNumber = getVehicleDisplayName(vehicle);
+    setVehicleQuery(vehicleNumber);
+    setFormData((prev) => ({
+      ...prev,
+      vehicleNo: vehicleNumber
+    }));
+
+    const selectedIndex = filteredVehicles.findIndex((item) => String(item._id) === String(vehicle._id));
+    setVehicleListIndex(selectedIndex >= 0 ? selectedIndex : 0);
+  };
+
+  const handleVehicleInputChange = (e) => {
+    const value = String(e.target.value || '').toUpperCase();
+    setVehicleQuery(value);
+
+    if (!normalizeText(value)) {
+      selectVehicle(null);
+      return;
+    }
+
+    const exactVehicle = findExactVehicle(value);
+    if (exactVehicle) {
+      const vehicleNumber = getVehicleDisplayName(exactVehicle);
+      setFormData((prev) => ({
+        ...prev,
+        vehicleNo: vehicleNumber
+      }));
+      const exactIndex = filteredVehicles.findIndex((item) => String(item._id) === String(exactVehicle._id));
+      setVehicleListIndex(exactIndex >= 0 ? exactIndex : 0);
+      return;
+    }
+
+    const firstMatch = findBestVehicleMatch(value);
+    setFormData((prev) => ({
+      ...prev,
+      vehicleNo: firstMatch ? getVehicleDisplayName(firstMatch) : value
+    }));
+    setVehicleListIndex(firstMatch ? 0 : -1);
   };
 
   const focusNextPopupField = (element) => {
@@ -596,6 +733,50 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
         selectLeadger(matchedLeadger);
       }
       setIsLeadgerSectionActive(false);
+      focusNextPopupField(e.currentTarget);
+    }
+  };
+
+  const handleVehicleInputKeyDown = (e) => {
+    const key = e.key?.toLowerCase();
+
+    if (key === 'arrowdown') {
+      e.preventDefault();
+      e.stopPropagation();
+      if (filteredVehicles.length === 0) return;
+      setVehicleListIndex((prev) => {
+        if (prev < 0) return 0;
+        return Math.min(prev + 1, filteredVehicles.length - 1);
+      });
+      return;
+    }
+
+    if (key === 'arrowup') {
+      e.preventDefault();
+      e.stopPropagation();
+      if (filteredVehicles.length === 0) return;
+      setVehicleListIndex((prev) => {
+        if (prev < 0) return 0;
+        return Math.max(prev - 1, 0);
+      });
+      return;
+    }
+
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      e.stopPropagation();
+
+      const activeVehicle = vehicleListIndex >= 0 ? filteredVehicles[vehicleListIndex] : null;
+      const matchedVehicle = activeVehicle || findExactVehicle(vehicleQuery) || findBestVehicleMatch(vehicleQuery);
+      if (matchedVehicle) {
+        selectVehicle(matchedVehicle);
+      } else {
+        setFormData((prev) => ({
+          ...prev,
+          vehicleNo: String(vehicleQuery || '').toUpperCase()
+        }));
+      }
+      setIsVehicleSectionActive(false);
       focusNextPopupField(e.currentTarget);
     }
   };
@@ -871,11 +1052,15 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    if (name === 'customerPhone') {
-      const normalizedPhone = String(value || '').replace(/\D/g, '').slice(0, 10);
-      setFormData({ ...formData, customerPhone: normalizedPhone });
-      return;
-    }
+      if (name === 'customerPhone') {
+        const normalizedPhone = String(value || '').replace(/\D/g, '').slice(0, 10);
+        setFormData({ ...formData, customerPhone: normalizedPhone });
+        return;
+      }
+      if (name === 'vehicleNo') {
+        setFormData({ ...formData, vehicleNo: String(value || '').toUpperCase() });
+        return;
+      }
     if (name === 'saleDate') {
       setFormData({ ...formData, saleDate: value });
       return;
@@ -1042,9 +1227,9 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
       : (sale.party || '');
     const resolvedLeadgerName = resolveLeadgerNameById(normalizedPartyId) || sale.customerName || '';
 
-    setFormData({
-      ...getInitialFormData(),
-      ...sale,
+      setFormData({
+        ...getInitialFormData(),
+        ...sale,
       party: normalizedPartyId,
       saleDate: formatDateForInput(sale.saleDate),
       customerName: resolvedLeadgerName,
@@ -1054,14 +1239,17 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
       vehicleNo: sale.vehicleNo || '',
       vehicleWeight: sale.vehicleWeight || '',
       netWeight: sale.netWeight || '',
-      materialWeight: sale.materialWeight || ''
-    });
-    setLeadgerQuery(resolvedLeadgerName);
-    setLeadgerListIndex(resolvedLeadgerName ? 0 : -1);
-    setIsLeadgerSectionActive(false);
-    setProductQuery('');
-    setProductListIndex(-1);
-    setIsProductSectionActive(false);
+        materialWeight: sale.materialWeight || ''
+      });
+      setLeadgerQuery(resolvedLeadgerName);
+      setLeadgerListIndex(resolvedLeadgerName ? 0 : -1);
+      setIsLeadgerSectionActive(false);
+      setVehicleQuery(sale.vehicleNo || '');
+      setVehicleListIndex(sale.vehicleNo ? 0 : -1);
+      setIsVehicleSectionActive(false);
+      setProductQuery('');
+      setProductListIndex(-1);
+      setIsProductSectionActive(false);
     setEditingId(sale._id);
     setShowForm(true);
   };
@@ -1091,14 +1279,17 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
     setPartyPopupError('');
     setShowForm(false);
     setEditingId(null);
-    setFormData(getInitialFormData());
-    setCurrentItem(initialCurrentItem);
-    setLeadgerQuery('');
-    setLeadgerListIndex(-1);
-    setIsLeadgerSectionActive(false);
-    setProductQuery('');
-    setProductListIndex(-1);
-    setIsProductSectionActive(false);
+      setFormData(getInitialFormData());
+      setCurrentItem(initialCurrentItem);
+      setLeadgerQuery('');
+      setLeadgerListIndex(-1);
+      setIsLeadgerSectionActive(false);
+      setVehicleQuery('');
+      setVehicleListIndex(-1);
+      setIsVehicleSectionActive(false);
+      setProductQuery('');
+      setProductListIndex(-1);
+      setIsProductSectionActive(false);
   };
 
   const handleOpenForm = () => {
@@ -1107,14 +1298,17 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
     setShowProductForm(false);
     setPartyFormData(getInitialPartyFormData('customer'));
     setPartyPopupError('');
-    setFormData(getInitialFormData());
-    setCurrentItem(initialCurrentItem);
-    setLeadgerQuery('');
-    setLeadgerListIndex(0);
-    setIsLeadgerSectionActive(false);
-    setProductQuery('');
-    setProductListIndex(0);
-    setIsProductSectionActive(false);
+      setFormData(getInitialFormData());
+      setCurrentItem(initialCurrentItem);
+      setLeadgerQuery('');
+      setLeadgerListIndex(0);
+      setIsLeadgerSectionActive(false);
+      setVehicleQuery('');
+      setVehicleListIndex(0);
+      setIsVehicleSectionActive(false);
+      setProductQuery('');
+      setProductListIndex(0);
+      setIsProductSectionActive(false);
     setShowForm(true);
   };
 
@@ -1176,22 +1370,31 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
           popupLabelClass={popupLabelClass}
           leadgerSectionRef={leadgerSectionRef}
           leadgerInputRef={leadgerInputRef}
+          vehicleSectionRef={vehicleSectionRef}
+          vehicleInputRef={vehicleInputRef}
           productSectionRef={productSectionRef}
           productInputRef={productInputRef}
           leadgerQuery={leadgerQuery}
+          vehicleQuery={vehicleQuery}
           productQuery={productQuery}
           leadgerListIndex={leadgerListIndex}
+          vehicleListIndex={vehicleListIndex}
           productListIndex={productListIndex}
           filteredLeadgers={filteredLeadgers}
+          filteredVehicles={filteredVehicles}
           filteredProducts={filteredProducts}
           isLeadgerSectionActive={isLeadgerSectionActive}
+          isVehicleSectionActive={isVehicleSectionActive}
           isProductSectionActive={isProductSectionActive}
           setCurrentItem={setCurrentItem}
           setIsLeadgerSectionActive={setIsLeadgerSectionActive}
+          setIsVehicleSectionActive={setIsVehicleSectionActive}
           setIsProductSectionActive={setIsProductSectionActive}
           setLeadgerListIndex={setLeadgerListIndex}
+          setVehicleListIndex={setVehicleListIndex}
           setProductListIndex={setProductListIndex}
           getLeadgerDisplayName={getLeadgerDisplayName}
+          getVehicleDisplayName={getVehicleDisplayName}
           getProductDisplayName={getProductDisplayName}
           handleCancel={handleCancel}
           handleSubmit={handleSubmit}
@@ -1199,6 +1402,9 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
           handleLeadgerFocus={handleLeadgerFocus}
           handleLeadgerInputChange={handleLeadgerInputChange}
           handleLeadgerInputKeyDown={handleLeadgerInputKeyDown}
+          handleVehicleFocus={handleVehicleFocus}
+          handleVehicleInputChange={handleVehicleInputChange}
+          handleVehicleInputKeyDown={handleVehicleInputKeyDown}
           onOpenNewParty={openInlinePartyForm}
           handleProductFocus={handleProductFocus}
           handleProductInputChange={handleProductInputChange}
@@ -1208,6 +1414,7 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
           handleAddItem={handleAddItem}
           handleRemoveItem={handleRemoveItem}
           selectLeadger={selectLeadger}
+          selectVehicle={selectVehicle}
           selectProduct={selectProduct}
         />
         <AddPartyPopup
@@ -1283,22 +1490,31 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
         popupSectionClass={popupSectionClass}
         leadgerSectionRef={leadgerSectionRef}
         leadgerInputRef={leadgerInputRef}
+        vehicleSectionRef={vehicleSectionRef}
+        vehicleInputRef={vehicleInputRef}
         productSectionRef={productSectionRef}
         productInputRef={productInputRef}
         leadgerQuery={leadgerQuery}
+        vehicleQuery={vehicleQuery}
         productQuery={productQuery}
         leadgerListIndex={leadgerListIndex}
+        vehicleListIndex={vehicleListIndex}
         productListIndex={productListIndex}
         filteredLeadgers={filteredLeadgers}
+        filteredVehicles={filteredVehicles}
         filteredProducts={filteredProducts}
         isLeadgerSectionActive={isLeadgerSectionActive}
+        isVehicleSectionActive={isVehicleSectionActive}
         isProductSectionActive={isProductSectionActive}
         setCurrentItem={setCurrentItem}
         setIsLeadgerSectionActive={setIsLeadgerSectionActive}
+        setIsVehicleSectionActive={setIsVehicleSectionActive}
         setIsProductSectionActive={setIsProductSectionActive}
         setLeadgerListIndex={setLeadgerListIndex}
+        setVehicleListIndex={setVehicleListIndex}
         setProductListIndex={setProductListIndex}
         getLeadgerDisplayName={getLeadgerDisplayName}
+        getVehicleDisplayName={getVehicleDisplayName}
         getProductDisplayName={getProductDisplayName}
         handleCancel={handleCancel}
         handleSubmit={handleSubmit}
@@ -1306,6 +1522,9 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
         handleLeadgerFocus={handleLeadgerFocus}
         handleLeadgerInputChange={handleLeadgerInputChange}
         handleLeadgerInputKeyDown={handleLeadgerInputKeyDown}
+        handleVehicleFocus={handleVehicleFocus}
+        handleVehicleInputChange={handleVehicleInputChange}
+        handleVehicleInputKeyDown={handleVehicleInputKeyDown}
         onOpenNewParty={openInlinePartyForm}
         handleProductFocus={handleProductFocus}
         handleProductInputChange={handleProductInputChange}
@@ -1315,6 +1534,7 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
         handleAddItem={handleAddItem}
         handleRemoveItem={handleRemoveItem}
         selectLeadger={selectLeadger}
+        selectVehicle={selectVehicle}
         selectProduct={selectProduct}
       />
       <AddPartyPopup

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronDown, Scale, Truck } from 'lucide-react';
 import { toast } from 'react-toastify';
 import apiClient from '../../../utils/api';
+import AddPartyPopup from '../../Party/component/AddPartyPopup';
 import { handlePopupFormKeyDown } from '../../../utils/popupFormKeyboard';
 import { useFloatingDropdownPosition } from '../../../utils/useFloatingDropdownPosition';
 
@@ -76,6 +77,28 @@ const getVehicleTypeLabel = (typeValue) => (
   VEHICLE_TYPE_OPTIONS.find((option) => option.value === typeValue)?.label || ''
 );
 
+const getInitialPartyFormData = () => ({
+  type: 'customer',
+  name: '',
+  mobile: '',
+  email: '',
+  address: '',
+  state: '',
+  pincode: '',
+  openingBalance: '',
+  openingBalanceType: 'receivable',
+  tenMmRate: '',
+  twentyMmRate: '',
+  fortyMmRate: '',
+  wmmRate: '',
+  gsbRate: '',
+  dustRate: ''
+});
+
+const toTitleCase = (value) => String(value || '')
+  .toLowerCase()
+  .replace(/\b[a-z]/g, (char) => char.toUpperCase());
+
 export default function AddVehiclePopup({ vehicle, onClose, onSave }) {
   const [formData, setFormData] = useState(vehicle || initialFormData);
   const [parties, setParties] = useState([]);
@@ -84,6 +107,10 @@ export default function AddVehiclePopup({ vehicle, onClose, onSave }) {
   const [partyQuery, setPartyQuery] = useState('');
   const [partyListIndex, setPartyListIndex] = useState(0);
   const [isPartyDropdownOpen, setIsPartyDropdownOpen] = useState(false);
+  const [showPartyForm, setShowPartyForm] = useState(false);
+  const [partyFormData, setPartyFormData] = useState(getInitialPartyFormData());
+  const [partyPopupLoading, setPartyPopupLoading] = useState(false);
+  const [partyPopupError, setPartyPopupError] = useState('');
   const [vehicleTypeQuery, setVehicleTypeQuery] = useState('');
   const [vehicleTypeListIndex, setVehicleTypeListIndex] = useState(0);
   const [isVehicleTypeDropdownOpen, setIsVehicleTypeDropdownOpen] = useState(false);
@@ -245,7 +272,128 @@ export default function AddVehiclePopup({ vehicle, onClose, onSave }) {
     }
   };
 
+  const openInlinePartyForm = () => {
+    setPartyFormData((prev) => ({
+      ...getInitialPartyFormData(),
+      name: toTitleCase(partyQuery || prev.name || '')
+    }));
+    setPartyPopupError('');
+    setIsPartyDropdownOpen(false);
+    setShowPartyForm(true);
+  };
+
+  const closeInlinePartyForm = (shouldRefocusParty = true) => {
+    setShowPartyForm(false);
+    setPartyFormData(getInitialPartyFormData());
+    setPartyPopupError('');
+
+    if (!shouldRefocusParty) return;
+
+    requestAnimationFrame(() => {
+      partyInputRef.current?.focus();
+      partyInputRef.current?.select?.();
+      setIsPartyDropdownOpen(true);
+    });
+  };
+
+  const handlePartyPopupChange = (event) => {
+    const { name, value } = event.target;
+
+    if (name === 'name') {
+      setPartyFormData((prev) => ({ ...prev, [name]: toTitleCase(value) }));
+      return;
+    }
+
+    if (name === 'mobile') {
+      const normalized = String(value || '').replace(/\D/g, '').slice(0, 10);
+      setPartyFormData((prev) => ({ ...prev, [name]: normalized }));
+      return;
+    }
+
+    if (name === 'pincode') {
+      const normalized = String(value || '').replace(/\D/g, '').slice(0, 6);
+      setPartyFormData((prev) => ({ ...prev, [name]: normalized }));
+      return;
+    }
+
+    if (name === 'openingBalance') {
+      setPartyFormData((prev) => ({ ...prev, [name]: value }));
+      return;
+    }
+
+    if (['tenMmRate', 'twentyMmRate', 'fortyMmRate', 'wmmRate', 'gsbRate', 'dustRate'].includes(name)) {
+      setPartyFormData((prev) => ({ ...prev, [name]: value }));
+      return;
+    }
+
+    if (name === 'type') {
+      setPartyFormData((prev) => ({
+        ...prev,
+        [name]: value,
+        openingBalanceType: prev.openingBalance ? prev.openingBalanceType : (value === 'supplier' ? 'payable' : 'receivable')
+      }));
+      return;
+    }
+
+    setPartyFormData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handlePartyPopupSubmit = async (event) => {
+    event.preventDefault();
+
+    if (!String(partyFormData.name || '').trim()) {
+      setPartyPopupError('Party name is required');
+      return;
+    }
+
+    if (!['supplier', 'customer', 'cash-in-hand'].includes(partyFormData.type)) {
+      setPartyPopupError('Party type is required');
+      return;
+    }
+
+    setPartyPopupLoading(true);
+    try {
+      const payload = {
+        type: String(partyFormData.type || '').trim(),
+        name: String(partyFormData.name || '').trim(),
+        mobile: String(partyFormData.mobile || '').trim(),
+        email: String(partyFormData.email || '').trim(),
+        address: String(partyFormData.address || '').trim(),
+        state: String(partyFormData.state || '').trim(),
+        pincode: String(partyFormData.pincode || '').trim(),
+        openingBalance: Number(partyFormData.openingBalance || 0),
+        openingBalanceType: String(partyFormData.openingBalanceType || 'receivable'),
+        tenMmRate: Number(partyFormData.tenMmRate || 0),
+        twentyMmRate: Number(partyFormData.twentyMmRate || 0),
+        fortyMmRate: Number(partyFormData.fortyMmRate || 0),
+        wmmRate: Number(partyFormData.wmmRate || 0),
+        gsbRate: Number(partyFormData.gsbRate || 0),
+        dustRate: Number(partyFormData.dustRate || 0)
+      };
+
+      const createdParty = await apiClient.post('/parties', payload);
+      setParties((prev) => [
+        createdParty,
+        ...prev.filter((item) => String(item._id) !== String(createdParty._id))
+      ]);
+      selectParty(createdParty);
+      toast.success('Party created successfully');
+      closeInlinePartyForm(true);
+    } catch (error) {
+      setPartyPopupError(error.message || 'Error creating party');
+    } finally {
+      setPartyPopupLoading(false);
+    }
+  };
+
   const handlePartyInputKeyDown = (event) => {
+    if (event.key === 'Control' && !event.altKey && !event.metaKey) {
+      event.preventDefault();
+      event.stopPropagation();
+      openInlinePartyForm();
+      return;
+    }
+
     if (event.key === 'ArrowDown') {
       event.preventDefault();
       event.stopPropagation();
@@ -567,9 +715,21 @@ export default function AddVehiclePopup({ vehicle, onClose, onSave }) {
                 </h3>
 
                 <div className="min-w-0">
-                  <label htmlFor="vehicle-party-input" className="mb-1.5 block text-xs font-semibold text-gray-700 sm:text-sm">
-                    Owner / Party <span className="text-red-500">*</span>
-                  </label>
+                  <div className="relative mb-1 min-h-[16px]">
+                    <label htmlFor="vehicle-party-input" className="block text-xs font-semibold text-gray-700 sm:text-sm">
+                      Owner / Party <span className="text-red-500">*</span>
+                    </label>
+                    {isPartyDropdownOpen && (
+                      <button
+                        type="button"
+                        onClick={openInlinePartyForm}
+                        className="absolute right-0 -top-2 inline-flex items-center gap-1 rounded-md border border-emerald-200 bg-white px-2 py-1 text-[10px] font-semibold text-emerald-700 transition hover:bg-emerald-50"
+                      >
+                        <span className="rounded bg-emerald-100 px-1.5 py-0.5 font-mono text-[9px] text-emerald-700">Ctrl</span>
+                        New Party
+                      </button>
+                    )}
+                  </div>
                   <div
                     ref={partySectionRef}
                     className="relative min-w-0 w-full"
@@ -605,7 +765,18 @@ export default function AddVehiclePopup({ vehicle, onClose, onSave }) {
                         </div>
                         <div className="overflow-y-auto py-1" style={{ maxHeight: partyDropdownStyle.maxHeight }}>
                           {(filteredPartyOptions.length > 0 ? filteredPartyOptions : parties).length === 0 ? (
-                            <div className="px-3 py-3 text-center text-[13px] text-slate-500">No matching parties found.</div>
+                            <div className="px-3 py-3 text-center text-[13px] text-slate-500">
+                              <p>No matching parties found.</p>
+                              <button
+                                type="button"
+                                onMouseDown={(event) => event.preventDefault()}
+                                onClick={openInlinePartyForm}
+                                className="mt-2 inline-flex items-center gap-2 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-[12px] font-semibold text-emerald-700 transition hover:bg-emerald-100"
+                              >
+                                Create New Party
+                                <span className="rounded bg-white px-1.5 py-0.5 font-mono text-[10px] text-emerald-700">Ctrl</span>
+                              </button>
+                            </div>
                           ) : (
                             (filteredPartyOptions.length > 0 ? filteredPartyOptions : parties).map((party, index) => {
                               const isActive = index === partyListIndex;
@@ -687,6 +858,17 @@ export default function AddVehiclePopup({ vehicle, onClose, onSave }) {
           </div>
         </form>
       </div>
+
+      <AddPartyPopup
+        showForm={showPartyForm}
+        editingId={null}
+        loading={partyPopupLoading}
+        formData={partyFormData}
+        error={partyPopupError}
+        handleCloseForm={() => closeInlinePartyForm(true)}
+        handleSubmit={handlePartyPopupSubmit}
+        handleChange={handlePartyPopupChange}
+      />
     </div>
   );
 }
