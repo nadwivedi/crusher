@@ -140,11 +140,11 @@ export default function AddSalePopup({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-1 md:p-4" onClick={handleCancel}>
-      <div className="flex h-[95dvh] max-h-[95dvh] w-[94vw] max-w-[68rem] flex-col overflow-hidden rounded-lg bg-white shadow-2xl md:h-[98vh] md:max-h-[99vh] md:w-[27vw] md:max-w-[27rem] md:rounded-2xl" onClick={(e) => e.stopPropagation()}>
-        <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-2.5 py-2 text-white md:px-3 md:py-2.5">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 p-3 backdrop-blur-[2px] md:p-6" onClick={handleCancel}>
+      <div className="flex max-h-[88vh] w-full max-w-[30rem] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_30px_80px_rgba(15,23,42,0.28)]" onClick={(e) => e.stopPropagation()}>
+        <div className="bg-[linear-gradient(135deg,#2563eb_0%,#4338ca_55%,#7c3aed_100%)] px-4 py-3 text-white">
           <div className="flex justify-between items-center">
-            <h2 className="text-base font-bold md:text-xl">
+            <h2 className="text-base font-bold md:text-lg">
               {editingId ? 'Edit Sale Entry' : 'Add New Sale'}
             </h2>
             <button
@@ -161,15 +161,14 @@ export default function AddSalePopup({
         </div>
 
         <form id="sales-form" onSubmit={handleSubmit} onKeyDown={(e) => handlePopupFormKeyDown(e, handleCancel)} className="flex flex-1 flex-col overflow-hidden bg-white">
-          <div className="flex-1 overflow-y-auto p-2 md:p-3">
-            <div className="flex h-full flex-col gap-2.5 md:gap-2.5">
-                <div className="rounded-xl border-2 border-indigo-200 bg-gradient-to-r from-blue-50 to-indigo-50 p-2 md:p-3">
-                  <h3 className="mb-2.5 flex items-center gap-2 text-sm font-bold text-gray-800 md:mb-2 md:text-base">
-                    <span className="flex h-5 w-5 items-center justify-center rounded-full bg-indigo-600 text-[10px] text-white md:h-6 md:w-6 md:text-xs">1</span>
+          <div className="flex-1 overflow-y-auto px-4 py-4">
+            <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-3">
+                  <h3 className="mb-3 flex items-center gap-2 text-sm font-bold text-gray-800 md:text-base">
+                    <span className="flex h-6 w-6 items-center justify-center rounded-full bg-indigo-600 text-[11px] font-bold text-white">1</span>
                     Sale Details
                   </h3>
-                  <div className="grid grid-cols-1 gap-2.5 md:gap-2">
-                  <div>
+                  <div className="grid grid-cols-1 gap-3">
+                  <div className="space-y-1">
                     <label className={labelClass}>Invoice Date</label>
                     <div className="relative">
                       <CalendarDays className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-indigo-400 pointer-events-none" />
@@ -185,7 +184,7 @@ export default function AddSalePopup({
                     </div>
                   </div>
 
-                  <div>
+                  <div className="space-y-1">
                     <div className="relative mb-1 min-h-[16px]">
                       <label className="block pr-24 text-[11px] font-semibold text-gray-700 md:text-xs">Vehicle No</label>
                       {isVehicleSectionActive && (
@@ -289,7 +288,7 @@ export default function AddSalePopup({
                     </div>
                   </div>
 
-                  <div className="relative">
+                  <div className="relative space-y-1">
                     <div className="relative mb-1 min-h-[16px]">
                       <label className="block pr-24 text-[11px] font-semibold text-gray-700 md:text-xs">Party Name</label>
                       {isLeadgerSectionActive && (
@@ -389,7 +388,7 @@ export default function AddSalePopup({
                     </div>
                   </div>
 
-                  <div>
+                  <div className="space-y-1">
                     <label className={labelClass}>Material Type</label>
                     <div
                       ref={materialSectionRef}
@@ -475,22 +474,7 @@ export default function AddSalePopup({
                     </div>
                   </div>
 
-                  <div>
-                    <label className={labelClass}>Tare Weight (KG)</label>
-                    <input
-                      type="number"
-                      name="vehicleWeight"
-                      value={formData.vehicleWeight || ''}
-                      onChange={handleInputChange}
-                      onKeyDown={handleSelectEnterMoveNext}
-                      className={`${inputClass} focus:ring-indigo-500`}
-                      placeholder="0"
-                      step="0.01"
-                      min="0"
-                    />
-                  </div>
-
-                  <div>
+                  <div className="space-y-1">
                     <label className={labelClass}>Gross Weight (KG)</label>
                     <input
                       type="number"
@@ -505,7 +489,22 @@ export default function AddSalePopup({
                     />
                   </div>
 
-                  <div>
+                  <div className="space-y-1">
+                    <label className={labelClass}>Tare Weight (KG)</label>
+                    <input
+                      type="number"
+                      name="vehicleWeight"
+                      value={formData.vehicleWeight || ''}
+                      onChange={handleInputChange}
+                      onKeyDown={handleSelectEnterMoveNext}
+                      className={`${inputClass} focus:ring-indigo-500`}
+                      placeholder="0"
+                      step="0.01"
+                      min="0"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
                     <label className={labelClass}>Net Weight (KG)</label>
                     <input
                       type="number"
@@ -521,11 +520,10 @@ export default function AddSalePopup({
                     />
                   </div>
                 </div>
-                </div>
             </div>
           </div>
 
-          <div className="flex flex-col items-center justify-between gap-2 border-t border-gray-200 bg-gray-50 px-3 py-2.5 md:flex-row md:px-3 md:py-2.5">
+          <div className="flex flex-col items-center justify-between gap-2 border-t border-slate-200 bg-white px-4 py-3 md:flex-row">
             <div className="hidden text-[11px] text-gray-600 md:block md:text-xs">
               <kbd className="rounded bg-gray-200 px-1.5 py-0.5 font-mono text-[10px]">Esc</kbd> to close
             </div>
@@ -534,7 +532,7 @@ export default function AddSalePopup({
               <button
                 type="button"
                 onClick={handleCancel}
-                className="flex-1 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-100 md:flex-none md:px-5"
+                className="flex-1 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-slate-50 md:flex-none md:px-5"
               >
                 Cancel
               </button>
@@ -542,7 +540,7 @@ export default function AddSalePopup({
                 type="submit"
                 form="sales-form"
                 disabled={loading}
-                className="flex-1 rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 px-5 py-2 text-sm font-semibold text-white transition hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-50 md:flex-none md:px-6"
+                className="flex-1 rounded-lg bg-[linear-gradient(135deg,#2563eb_0%,#4338ca_100%)] px-5 py-2 text-sm font-semibold text-white transition hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-50 md:flex-none md:px-6"
               >
                 {loading ? 'Saving...' : editingId ? 'Update Sale' : 'Save Sale'}
               </button>

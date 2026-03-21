@@ -621,7 +621,7 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
         ...prev,
         vehicleNo: '',
         vehicleWeight: '',
-        materialWeight: prev.netWeight ? 0 - Number(prev.netWeight || 0) : ''
+        materialWeight: prev.netWeight ? Number(prev.netWeight || 0) : ''
       }));
       setVehicleListIndex(-1);
       return;
@@ -641,9 +641,9 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
         vehicleWeight: unladenWeight
       };
 
-      const numericVehicleWeight = Number(unladenWeight || 0);
-      const numericNetWeight = Number(prev.netWeight || 0);
-      nextState.materialWeight = numericVehicleWeight - numericNetWeight;
+      const numericTareWeight = Number(unladenWeight || 0);
+      const numericGrossWeight = Number(prev.netWeight || 0);
+      nextState.materialWeight = numericGrossWeight - numericTareWeight;
 
       if (linkedParty) {
         const partyName = getLeadgerDisplayName(linkedParty);
@@ -1304,9 +1304,9 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
       return;
     }
     if (name === 'vehicleWeight' || name === 'netWeight') {
-      const vehicleWeight = name === 'vehicleWeight' ? Number(value || 0) : Number(formData.vehicleWeight || 0);
-      const netWeight = name === 'netWeight' ? Number(value || 0) : Number(formData.netWeight || 0);
-      const materialWeight = vehicleWeight - netWeight;
+      const tareWeight = name === 'vehicleWeight' ? Number(value || 0) : Number(formData.vehicleWeight || 0);
+      const grossWeight = name === 'netWeight' ? Number(value || 0) : Number(formData.netWeight || 0);
+      const materialWeight = grossWeight - tareWeight;
       setFormData({ ...formData, [name]: value, materialWeight });
       return;
     }
