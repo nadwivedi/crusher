@@ -3,26 +3,23 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { getSectionConfig } from '../navigation/sectionMenu';
 import { useAuth } from '../context/AuthContext';
 import { filterRestrictedItems } from '../utils/featureAccess';
-import Sales from './Sales/Sales';
-import Purchases from './Purchases/Purchases';
-import Payments from './Payments/Payments';
-import Receipts from './Receipts/Receipts';
-import MaterialUsed from './MaterialUsed';
 import SaleReturn from './SaleReturn/SaleReturn';
 import PurchaseReturn from './PurchaseReturn/PurchaseReturn';
 import StockAdjustment from './StockAdjustment';
-import BoulderEntry from './BoulderEntry/BoulderEntry';
 
 const POPUP_VOUCHER_PATHS = new Set([
-  '/sales',
-  '/purchases',
-  '/material-used',
   '/purchase-return',
   '/sale-return',
   '/stock-adjustment',
+]);
+
+const HIDDEN_VOUCHER_PATHS = new Set([
+  '/boulder-entry',
+  '/sales',
+  '/purchases',
+  '/material-used',
   '/payments',
-  '/receipts',
-  '/boulder-entry'
+  '/receipts'
 ]);
 
 export default function Vouchers() {
@@ -30,7 +27,10 @@ export default function Vouchers() {
   const location = useLocation();
   const navigate = useNavigate();
   const config = getSectionConfig('Vouchers');
-  const items = useMemo(() => filterRestrictedItems(config?.items || [], user), [config, user]);
+  const items = useMemo(
+    () => filterRestrictedItems(config?.items || [], user).filter((item) => !HIDDEN_VOUCHER_PATHS.has(item.path)),
+    [config, user]
+  );
   const [activeIndex, setActiveIndex] = useState(0);
   const [openVoucherPath, setOpenVoucherPath] = useState('');
 
@@ -172,28 +172,8 @@ export default function Vouchers() {
         </div>
       </div>
 
-      {openVoucherPath === '/sales' && (
-        <Sales modalOnly onModalFinish={() => setOpenVoucherPath('')} />
-      )}
-
-      {openVoucherPath === '/purchases' && (
-        <Purchases modalOnly onModalFinish={() => setOpenVoucherPath('')} />
-      )}
-
       {openVoucherPath === '/purchase-return' && (
         <PurchaseReturn modalOnly onModalFinish={() => setOpenVoucherPath('')} />
-      )}
-
-      {openVoucherPath === '/material-used' && (
-        <MaterialUsed modalOnly onModalFinish={() => setOpenVoucherPath('')} />
-      )}
-
-      {openVoucherPath === '/payments' && (
-        <Payments modalOnly onModalFinish={() => setOpenVoucherPath('')} />
-      )}
-
-      {openVoucherPath === '/receipts' && (
-        <Receipts modalOnly onModalFinish={() => setOpenVoucherPath('')} />
       )}
 
       {openVoucherPath === '/sale-return' && (
@@ -204,9 +184,6 @@ export default function Vouchers() {
         <StockAdjustment modalOnly onModalFinish={() => setOpenVoucherPath('')} />
       )}
 
-      {openVoucherPath === '/boulder-entry' && (
-        <BoulderEntry modalOnly onModalFinish={() => setOpenVoucherPath('')} />
-      )}
     </div>
   );
 }

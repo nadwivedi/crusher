@@ -35,7 +35,7 @@ const voucherShortcutRoutes = {
 
 const sectionHubPaths = {
   Masters: '/masters',
-  Vouchers: '/vouchers',
+  Vouchers: '/',
   Expense: '/expense-hub',
   Reports: '/reports'
 };

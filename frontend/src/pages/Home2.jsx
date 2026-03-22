@@ -60,10 +60,10 @@ export default function Home2() {
   }, [activeIndex, navigate]);
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top,rgba(14,165,233,0.14),transparent_22%),linear-gradient(180deg,#e0f2fe_0%,#f8fafc_38%,#ecfeff_100%)] px-1 py-8 md:px-8">
+    <div className="min-h-screen bg-[radial-gradient(circle_at_top,rgba(14,165,233,0.14),transparent_22%),linear-gradient(180deg,#e0f2fe_0%,#f8fafc_38%,#ecfeff_100%)] px-1 py-6 md:px-8">
       <div className="mx-auto flex max-w-7xl justify-center">
-        <div className="w-full max-w-[24rem] rounded-[32px] border border-white/70 bg-white/78 p-3 shadow-[0_28px_80px_rgba(15,23,42,0.12)] backdrop-blur md:max-w-[21rem] md:p-6">
-          <div className="grid grid-cols-2 gap-2 md:grid-cols-1 md:justify-items-center md:gap-3">
+        <div className="w-full max-w-[28rem] rounded-[32px] border border-white/70 bg-white/78 p-2 shadow-[0_28px_80px_rgba(15,23,42,0.12)] backdrop-blur md:max-w-[68rem] md:p-4">
+          <div className="grid grid-cols-2 gap-1.5 md:grid-cols-4 md:gap-4">
           {homeCards.map((card, index) => (
             <button
               key={card.title}
@@ -71,11 +71,11 @@ export default function Home2() {
               onClick={() => navigate(card.path)}
               onMouseEnter={() => setActiveIndex(index)}
               onFocus={() => setActiveIndex(index)}
-              className={`group relative text-left transition duration-300 hover:-translate-y-1 md:w-full md:max-w-[17.5rem] ${
+              className={`group relative w-full text-left transition duration-300 hover:-translate-y-1 ${
                 activeIndex === index ? 'z-10' : ''
               }`}
             >
-              <div className={`${activeIndex === index ? 'rounded-[24px] md:ring-4 md:ring-sky-300/80' : ''}`}>
+              <div className={activeIndex === index ? 'rounded-[24px]' : ''}>
                 <img
                   src={card.image}
                   alt={card.title}

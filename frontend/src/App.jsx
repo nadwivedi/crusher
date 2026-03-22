@@ -6,7 +6,6 @@ import Login from './pages/Login';
 import Home from './pages/Home';
 import Home2 from './pages/Home2';
 import Masters from './pages/Masters';
-import Vouchers from './pages/Vouchers';
 import Products from './pages/Products';
 import StockDetail from './pages/StockDetail';
 import StockGroups from './pages/StockGroups';
@@ -48,10 +47,10 @@ function App() {
   const canViewSaleReturn = hasFeatureAccess(user, 'saleReturn');
   const canViewStockAdjustment = hasFeatureAccess(user, 'stockAdjustment');
 
-  const closeVoucherRouteToHub = (activePath) => {
-    navigate('/vouchers', {
+  const closeVoucherRouteToHub = () => {
+    navigate('/', {
       replace: true,
-      state: activePath ? { activePath } : undefined
+      state: undefined
     });
   };
 
@@ -63,6 +62,8 @@ function App() {
       homeQuickBoulder,
       homeQuickPayment,
       homeQuickReceipt,
+      homeQuickMaterialUsed,
+      homeQuickPurchaseReturn,
       homeQuickExpense,
       backgroundLocation,
       ...restState
@@ -116,15 +117,6 @@ function App() {
           element={
             <ProtectedRoute>
               <Masters />
-            </ProtectedRoute>
-          }
-        />
-
-        <Route
-          path="/vouchers"
-          element={
-            <ProtectedRoute>
-              <Vouchers />
             </ProtectedRoute>
           }
         />
@@ -200,7 +192,7 @@ function App() {
           path="/purchases"
           element={
             <ProtectedRoute>
-              <Purchases modalOnly onModalFinish={() => closeVoucherRouteToHub('/purchases')} />
+              <Purchases modalOnly onModalFinish={closeVoucherRouteToHub} />
             </ProtectedRoute>
           }
         />
@@ -209,7 +201,7 @@ function App() {
           path="/material-used"
           element={
             <ProtectedRoute>
-              <MaterialUsed modalOnly onModalFinish={() => closeVoucherRouteToHub('/material-used')} />
+              <MaterialUsed modalOnly onModalFinish={closeVoucherRouteToHub} />
             </ProtectedRoute>
           }
         />
@@ -218,7 +210,7 @@ function App() {
           path="/sales"
           element={
             <ProtectedRoute>
-              <Sales modalOnly onModalFinish={() => closeVoucherRouteToHub('/sales')} />
+              <Sales modalOnly onModalFinish={closeVoucherRouteToHub} />
             </ProtectedRoute>
           }
         />
@@ -347,7 +339,7 @@ function App() {
           path="/payments"
           element={
             <ProtectedRoute>
-              <Payments modalOnly onModalFinish={() => closeVoucherRouteToHub('/payments')} />
+              <Payments modalOnly onModalFinish={closeVoucherRouteToHub} />
             </ProtectedRoute>
           }
         />
@@ -356,7 +348,7 @@ function App() {
           path="/receipts"
           element={
             <ProtectedRoute>
-              <Receipts modalOnly onModalFinish={() => closeVoucherRouteToHub('/receipts')} />
+              <Receipts modalOnly onModalFinish={closeVoucherRouteToHub} />
             </ProtectedRoute>
           }
         />
@@ -365,7 +357,7 @@ function App() {
           path="/expenses"
           element={
             <ProtectedRoute>
-              <Expenses modalOnly onModalFinish={() => closeVoucherRouteToHub('/expenses')} />
+              <Expenses modalOnly onModalFinish={closeVoucherRouteToHub} />
             </ProtectedRoute>
           }
         />
@@ -420,8 +412,8 @@ function App() {
           element={
             <ProtectedRoute>
               {canViewStockAdjustment
-                ? <StockAdjustment modalOnly onModalFinish={() => closeVoucherRouteToHub('/stock-adjustment')} />
-                : <Navigate to="/vouchers" replace />}
+                ? <StockAdjustment modalOnly onModalFinish={closeVoucherRouteToHub} />
+                : <Navigate to="/" replace />}
             </ProtectedRoute>
           }
         />
@@ -431,8 +423,8 @@ function App() {
           element={
             <ProtectedRoute>
               {canViewSaleReturn
-                ? <SaleReturn modalOnly onModalFinish={() => closeVoucherRouteToHub('/sale-return')} />
-                : <Navigate to="/vouchers" replace />}
+                ? <SaleReturn modalOnly onModalFinish={closeVoucherRouteToHub} />
+                : <Navigate to="/" replace />}
             </ProtectedRoute>
           }
         />
@@ -441,7 +433,7 @@ function App() {
           path="/purchase-return"
           element={
             <ProtectedRoute>
-              <PurchaseReturn modalOnly onModalFinish={() => closeVoucherRouteToHub('/purchase-return')} />
+              <PurchaseReturn modalOnly onModalFinish={closeVoucherRouteToHub} />
             </ProtectedRoute>
           }
         />
@@ -486,6 +478,18 @@ function App() {
       {location.pathname === '/' && location.state?.homeQuickReceipt && (
         <ProtectedRoute>
           <Receipts modalOnly onModalFinish={clearHomeQuickShortcutState} />
+        </ProtectedRoute>
+      )}
+
+      {location.pathname === '/' && location.state?.homeQuickMaterialUsed && (
+        <ProtectedRoute>
+          <MaterialUsed modalOnly onModalFinish={clearHomeQuickShortcutState} />
+        </ProtectedRoute>
+      )}
+
+      {location.pathname === '/' && location.state?.homeQuickPurchaseReturn && (
+        <ProtectedRoute>
+          <PurchaseReturn modalOnly onModalFinish={clearHomeQuickShortcutState} />
         </ProtectedRoute>
       )}
 
