@@ -5,11 +5,9 @@ import { useAuth } from './context/AuthContext';
 import Login from './pages/Login';
 import Home from './pages/Home';
 import Home2 from './pages/Home2';
-import Masters from './pages/Masters';
 import Products from './pages/Products';
 import StockDetail from './pages/StockDetail';
 import StockGroups from './pages/StockGroups';
-import Unit from './pages/Unit';
 import Banks from './pages/Banks';
 import Vehicle from './pages/Vehicle';
 import Sales from './pages/Sales/Sales';
@@ -22,7 +20,6 @@ import PartyDetail from './pages/PartyDetail';
 import Expenses from './pages/Expenses';
 import ExpenseGroups from './pages/ExpenseGroups';
 import ExpenseHub from './pages/ExpenseHub';
-import Contra from './pages/Contra';
 import BoulderEntry from './pages/BoulderEntry/BoulderEntry';
 import StockAdjustment from './pages/StockAdjustment';
 import SaleReturn from './pages/SaleReturn/SaleReturn';
@@ -113,15 +110,6 @@ function App() {
         />
 
         <Route
-          path="/masters"
-          element={
-            <ProtectedRoute>
-              <Masters />
-            </ProtectedRoute>
-          }
-        />
-
-        <Route
           path="/expense-hub"
           element={
             <ProtectedRoute>
@@ -135,15 +123,6 @@ function App() {
           element={
             <ProtectedRoute>
               <StockGroups />
-            </ProtectedRoute>
-          }
-        />
-
-        <Route
-          path="/units"
-          element={
-            <ProtectedRoute>
-              <Unit />
             </ProtectedRoute>
           }
         />
@@ -394,15 +373,6 @@ function App() {
           element={
             <ProtectedRoute>
               <Navigate to="/party" replace />
-            </ProtectedRoute>
-          }
-        />
-
-        <Route
-          path="/contra"
-          element={
-            <ProtectedRoute>
-              <Contra />
             </ProtectedRoute>
           }
         />

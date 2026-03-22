@@ -115,7 +115,7 @@ export default function Vehicle() {
         <div className="mb-6 mt-2 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Link
-              to="/masters"
+              to="/"
               className="flex h-10 w-10 items-center justify-center rounded-xl bg-white shadow-sm ring-1 ring-slate-200/60 transition-all hover:shadow-md hover:ring-slate-300/80"
             >
               <ArrowLeft className="h-4 w-4 text-slate-600" />

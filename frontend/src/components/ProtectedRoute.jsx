@@ -34,7 +34,7 @@ const voucherShortcutRoutes = {
 };
 
 const sectionHubPaths = {
-  Masters: '/masters',
+  Masters: '/',
   Vouchers: '/',
   Expense: '/expense-hub',
   Reports: '/reports'
