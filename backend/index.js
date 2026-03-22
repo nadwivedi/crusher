@@ -18,6 +18,7 @@ const salesRoutes = require("./routes/salesRoutes");
 const stockRoutes = require("./routes/stockRoutes");
 const uploadRoutes = require("./routes/uploadRoutes");
 const vehicleRoutes = require("./routes/vehicleRoutes");
+const ocrRoutes = require("./routes/ocrRoutes");
 
 dotenv.config({ path: path.join(__dirname, ".env") });
 
@@ -53,6 +54,7 @@ app.use("/api/products", stockRoutes);
 app.use("/api/sales", salesRoutes);
 app.use("/api/uploads", uploadRoutes);
 app.use("/api/vehicles", vehicleRoutes);
+app.use("/api/ocr", ocrRoutes);
 
 const startServer = async () => {
   try {

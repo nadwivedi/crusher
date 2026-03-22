@@ -1407,6 +1407,77 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
     }
   };
 
+
+  const handleOcrFill = (data) => {
+    if (!data) return;
+
+    const { vehicleNo, materialType, grossWeight, tareWeight, netWeight, saleDate } = data;
+
+    // Vehicle No
+    if (vehicleNo) {
+      const upperVehicle = String(vehicleNo).toUpperCase();
+      setVehicleQuery(upperVehicle);
+      const matched = vehicles.find(
+        (v) => String(v.vehicleNo || '').toUpperCase() === upperVehicle
+      );
+      if (matched) {
+        selectVehicle(matched);
+      } else {
+        setFormData((prev) => {
+          const tare = Number(tareWeight || prev.vehicleWeight || 0);
+          const gross = Number(grossWeight || prev.netWeight || 0);
+          const net = Number(netWeight || gross - tare || 0);
+          const total = calculateSaleTotalAmount(net, prev.rate);
+          return {
+            ...prev,
+            vehicleNo: upperVehicle,
+            vehicleWeight: tare || prev.vehicleWeight,
+            netWeight: gross || prev.netWeight,
+            materialWeight: net || prev.materialWeight,
+            totalAmount: total,
+          };
+        });
+      }
+    }
+
+    // Material Type
+    if (materialType) {
+      const normalizedMat = String(materialType).toLowerCase().trim();
+      const matched = MATERIAL_TYPE_OPTIONS.find((opt) => opt.value === normalizedMat);
+      if (matched) {
+        setMaterialQuery(getMaterialDisplayName(matched));
+        setFormData((prev) => ({ ...prev, materialType: matched.value }));
+      }
+    }
+
+    // Weights (only if vehicle wasn't already matched — vehicle match sets them)
+    const matchedVehicle = vehicleNo
+      ? vehicles.find((v) => String(v.vehicleNo || '').toUpperCase() === String(vehicleNo).toUpperCase())
+      : null;
+
+    if (!matchedVehicle) {
+      const tare = Number(tareWeight || 0);
+      const gross = Number(grossWeight || 0);
+      const net = Number(netWeight || 0) || (gross - tare);
+      setFormData((prev) => {
+        const total = calculateSaleTotalAmount(net, prev.rate);
+        return {
+          ...prev,
+          vehicleWeight: tare > 0 ? tare : prev.vehicleWeight,
+          netWeight: gross > 0 ? gross : prev.netWeight,
+          materialWeight: net > 0 ? net : prev.materialWeight,
+          totalAmount: total,
+        };
+      });
+    }
+
+    // Sale Date
+    if (saleDate) {
+      setFormData((prev) => ({ ...prev, saleDate }));
+    }
+
+    toast.success('Slip data extracted!', { autoClose: 1500 });
+  };
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!formData.party) {
@@ -1717,6 +1788,7 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
           selectLeadger={selectLeadger}
           selectVehicle={selectVehicle}
           selectProduct={selectProduct}
+          onOcrFill={handleOcrFill}
         />
         <AddPartyPopup
           showForm={showPartyForm}
@@ -1867,6 +1939,7 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
         selectLeadger={selectLeadger}
         selectVehicle={selectVehicle}
         selectProduct={selectProduct}
+        onOcrFill={handleOcrFill}
       />
       <AddPartyPopup
         showForm={showPartyForm}

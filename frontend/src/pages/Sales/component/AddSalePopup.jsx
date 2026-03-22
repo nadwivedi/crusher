@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from 'react';
-import { Building2, CalendarDays, Package, Truck } from 'lucide-react';
+import { useEffect, useRef, useState, useCallback } from 'react';
+import { Building2, CalendarDays, Package, Truck, Camera, Loader2 } from 'lucide-react';
+import apiClient from '../../../utils/api';
 import { handlePopupFormKeyDown } from '../../../utils/popupFormKeyboard';
 import { useFloatingDropdownPosition } from '../../../utils/useFloatingDropdownPosition';
 
@@ -73,11 +74,47 @@ export default function AddSalePopup({
   handleRemoveItem,
   selectLeadger,
   selectVehicle,
-  selectProduct
+  selectProduct,
+  onOcrFill
 }) {
   const localProductInputRef = useRef(null);
   const paidAmountInputRef = useRef(null);
+  const ocrFileInputRef = useRef(null);
   const [isItemEntryClosed, setIsItemEntryClosed] = useState(false);
+  const [isOcrLoading, setIsOcrLoading] = useState(false);
+
+  const handleOcrFileChange = useCallback(async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    // Reset so same file can be picked again
+    e.target.value = '';
+    if (!onOcrFill) return;
+
+    setIsOcrLoading(true);
+    try {
+      const formData = new FormData();
+      formData.append('image', file);
+      const baseURL = String(apiClient.defaults.baseURL || '/api').replace(/\/+$/, '');
+      const response = await fetch(`${baseURL}/ocr/extract-sale`, {
+        method: 'POST',
+        body: formData,
+        credentials: 'include',
+      });
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({ message: 'OCR failed' }));
+        throw new Error(err.message || 'OCR failed');
+      }
+      const data = await response.json();
+      onOcrFill(data);
+    } catch (err) {
+      console.error('OCR error:', err);
+      // Show a simple alert so user knows something went wrong
+      // (toast is handled in Sales.jsx via onOcrFill)
+      alert(`Scan failed: ${err.message}`);
+    } finally {
+      setIsOcrLoading(false);
+    }
+  }, [onOcrFill]);
   const inputClass = "w-full rounded-lg border border-slate-400 bg-white px-2.5 py-1.5 text-[13px] text-gray-800 transition placeholder:text-slate-400 focus:border-transparent focus:outline-none focus:ring-2";
   const labelClass = "mb-1 block text-[11px] font-semibold text-gray-700 md:text-xs";
   const currentItemTotal = Math.max(0, Number(currentItem.quantity || 0) * Number(currentItem.unitPrice || 0));
@@ -148,24 +185,58 @@ export default function AddSalePopup({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 p-3 backdrop-blur-[2px] md:p-6" onClick={handleCancel}>
-      <div className="flex max-h-[88vh] w-full max-w-[30rem] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_30px_80px_rgba(15,23,42,0.28)]" onClick={(e) => e.stopPropagation()}>
+      <div className="relative flex max-h-[88vh] w-full max-w-[30rem] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_30px_80px_rgba(15,23,42,0.28)]" onClick={(e) => e.stopPropagation()}>
         <div className="bg-[linear-gradient(135deg,#2563eb_0%,#4338ca_55%,#7c3aed_100%)] px-4 py-3 text-white">
           <div className="flex justify-between items-center">
             <h2 className="text-base font-bold md:text-lg">
               {editingId ? 'Edit Sale Entry' : 'Add New Sale'}
             </h2>
-            <button
-              type="button"
-              onClick={handleCancel}
-              className="rounded-lg p-1.5 text-white transition hover:bg-white/20"
-              aria-label="Close popup"
-            >
-              <svg className="h-5 w-5 md:h-6 md:w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
+            <div className="flex items-center gap-2">
+              {onOcrFill && (
+                <>
+                  <input
+                    ref={ocrFileInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleOcrFileChange}
+                    tabIndex={-1}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => ocrFileInputRef.current?.click()}
+                    disabled={isOcrLoading}
+                    title="Scan weighbridge slip to auto-fill"
+                    className="flex items-center gap-1.5 rounded-lg border border-white/30 bg-white/15 px-2.5 py-1.5 text-xs font-semibold text-white transition hover:bg-white/25 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {isOcrLoading
+                      ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      : <Camera className="h-3.5 w-3.5" />}
+                    {isOcrLoading ? `Scanning...` : `Scan Slip`}
+                  </button>
+                </>
+              )}
+              <button
+                type="button"
+                onClick={handleCancel}
+                className="rounded-lg p-1.5 text-white transition hover:bg-white/20"
+                aria-label="Close popup"
+              >
+                <svg className="h-5 w-5 md:h-6 md:w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
           </div>
         </div>
+
+        {isOcrLoading && (
+          <div className="absolute inset-0 z-[100] flex flex-col items-center justify-center gap-3 rounded-2xl bg-white/80 backdrop-blur-sm">
+            <Loader2 className="h-10 w-10 animate-spin text-indigo-600" />
+            <p className="text-sm font-semibold text-indigo-700">Reading slip...</p>
+            <p className="text-xs text-slate-500">Extracting data with AI</p>
+          </div>
+        )}
 
         <form id="sales-form" onSubmit={handleSubmit} onKeyDown={(e) => handlePopupFormKeyDown(e, handleCancel)} className="flex flex-1 flex-col overflow-hidden bg-white">
           <div className="flex-1 overflow-y-auto px-4 py-4">
