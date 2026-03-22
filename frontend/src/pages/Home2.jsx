@@ -62,7 +62,7 @@ export default function Home2() {
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_top,rgba(14,165,233,0.14),transparent_22%),linear-gradient(180deg,#e0f2fe_0%,#f8fafc_38%,#ecfeff_100%)] px-1 py-8 md:px-8">
       <div className="mx-auto flex max-w-7xl justify-center">
-        <div className="w-full max-w-5xl rounded-[32px] border border-white/70 bg-white/78 p-3 shadow-[0_28px_80px_rgba(15,23,42,0.12)] backdrop-blur md:p-6">
+        <div className="w-full max-w-[24rem] rounded-[32px] border border-white/70 bg-white/78 p-3 shadow-[0_28px_80px_rgba(15,23,42,0.12)] backdrop-blur md:max-w-[21rem] md:p-6">
           <div className="grid grid-cols-2 gap-2 md:grid-cols-1 md:justify-items-center md:gap-3">
           {homeCards.map((card, index) => (
             <button
@@ -75,7 +75,7 @@ export default function Home2() {
                 activeIndex === index ? 'z-10' : ''
               }`}
             >
-              <div className={`${activeIndex === index ? 'rounded-[24px] ring-4 ring-sky-300/80' : ''}`}>
+              <div className={`${activeIndex === index ? 'rounded-[24px] md:ring-4 md:ring-sky-300/80' : ''}`}>
                 <img
                   src={card.image}
                   alt={card.title}
