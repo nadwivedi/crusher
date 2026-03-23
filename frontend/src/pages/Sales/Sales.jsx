@@ -1496,10 +1496,6 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
       setError('Paid amount cannot be negative');
       return;
     }
-    if (Number(formData.paidAmount || 0) > Number(formData.totalAmount || 0)) {
-      setError('Paid amount cannot exceed total amount');
-      return;
-    }
     const parsedSaleDate = parseSaleDate(formData.saleDate);
     if (!parsedSaleDate) {
       setError('Please select a valid sale date');
@@ -2182,4 +2178,3 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
     </div>
   );
 }
-
