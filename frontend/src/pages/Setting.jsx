@@ -18,7 +18,7 @@ const defaultSettings = {
 
 const landingPageOptions = [
   { value: '/', label: 'Home' },
-  { value: '/expense-hub', label: 'Expense' },
+  { value: '/expenses', label: 'Expense' },
   { value: '/reports', label: 'Reports' }
 ];
 

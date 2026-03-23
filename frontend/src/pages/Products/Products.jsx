@@ -2,8 +2,8 @@ import { useEffect, useState } from 'react';
 import { Package, PackageX, Pencil, Search, Trash2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import AddProductPopup from './Products/component/AddProductPopup';
-import apiClient from '../utils/api';
+import AddProductPopup from './component/AddProductPopup';
+import apiClient from '../../utils/api';
 
 export default function Products() {
   const toastOptions = { autoClose: 1200 };

@@ -5,7 +5,7 @@ import { useAuth } from './context/AuthContext';
 import Login from './pages/Login';
 import Home from './pages/Home';
 import Home2 from './pages/Home2';
-import Products from './pages/Products';
+import Products from './pages/Products/Products';
 import StockDetail from './pages/StockDetail';
 import StockGroups from './pages/StockGroups';
 import Banks from './pages/Banks';
@@ -19,7 +19,6 @@ import Party from './pages/Party/Party';
 import PartyDetail from './pages/PartyDetail';
 import Expenses from './pages/Expenses';
 import ExpenseGroups from './pages/ExpenseGroups';
-import ExpenseHub from './pages/ExpenseHub';
 import BoulderEntry from './pages/BoulderEntry/BoulderEntry';
 import StockAdjustment from './pages/StockAdjustment';
 import SaleReturn from './pages/SaleReturn/SaleReturn';
@@ -34,7 +33,6 @@ import ReportsPlaceholder from './pages/ReportsPlaceholder';
 import DayBook from './pages/DayBook';
 import Setting from './pages/Setting';
 import ProtectedRoute from './components/ProtectedRoute';
-import SectionHubPage from './components/SectionHubPage';
 import { hasFeatureAccess } from './utils/featureAccess';
 
 function App() {
@@ -105,15 +103,6 @@ function App() {
           element={
             <ProtectedRoute>
               <Home2 />
-            </ProtectedRoute>
-          }
-        />
-
-        <Route
-          path="/expense-hub"
-          element={
-            <ProtectedRoute>
-              <ExpenseHub />
             </ProtectedRoute>
           }
         />

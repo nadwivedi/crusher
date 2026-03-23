@@ -217,7 +217,7 @@ export const SECTION_CONFIG = {
   },
   Expense: {
     name: 'Expense',
-    hubPath: '/expense-hub',
+    hubPath: '/expenses',
     Icon: ExpenseIcon,
     description: 'Expenses and expense groups in one place',
     theme: {

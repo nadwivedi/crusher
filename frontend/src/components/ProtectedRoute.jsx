@@ -14,7 +14,6 @@ const homeNavigationEntries = [
   { section: 'Vouchers', path: '/stock-adjustment' },
   { section: 'Vouchers', path: '/payments' },
   { section: 'Vouchers', path: '/receipts' },
-  { section: 'Expense', path: '/expense-hub' },
   { section: 'Expense', path: '/expenses' },
   { section: 'Expense', path: '/expense-groups' },
   { section: 'Reports', path: '/reports' },
@@ -36,7 +35,7 @@ const voucherShortcutRoutes = {
 const sectionHubPaths = {
   Masters: '/',
   Vouchers: '/',
-  Expense: '/expense-hub',
+  Expense: '/expenses',
   Reports: '/reports'
 };
 
