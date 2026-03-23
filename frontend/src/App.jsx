@@ -4,7 +4,6 @@ import 'react-toastify/dist/ReactToastify.css';
 import { useAuth } from './context/AuthContext';
 import Login from './pages/Login';
 import Home from './pages/Home';
-import Home2 from './pages/Home2';
 import Products from './pages/Products/Products';
 import StockDetail from './pages/StockDetail';
 import StockGroups from './pages/StockGroups';
@@ -94,15 +93,6 @@ function App() {
           element={
             <ProtectedRoute>
               <Home />
-            </ProtectedRoute>
-          }
-        />
-
-        <Route
-          path="/home-2"
-          element={
-            <ProtectedRoute>
-              <Home2 />
             </ProtectedRoute>
           }
         />
