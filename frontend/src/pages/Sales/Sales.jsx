@@ -23,6 +23,30 @@ const formatDateForInput = (value = new Date()) => {
   return date.toISOString().split('T')[0];
 };
 
+const formatTimeForInput = (value = new Date()) => {
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+
+  const hours = String(date.getHours()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+  return `${hours}:${minutes}`;
+};
+
+const combineSaleDateTime = (dateValue, timeValue) => {
+  const date = dateValue instanceof Date ? new Date(dateValue) : new Date(dateValue);
+  if (Number.isNaN(date.getTime())) return null;
+
+  const normalizedTime = String(timeValue || '').trim();
+  if (!normalizedTime) return date;
+
+  const timeMatch = normalizedTime.match(/^(\d{1,2}):(\d{2})$/);
+  if (!timeMatch) return date;
+
+  const [, hourText, minuteText] = timeMatch;
+  date.setHours(Number(hourText), Number(minuteText), 0, 0);
+  return date;
+};
+
 const parseSaleDate = (value) => {
   const normalized = String(value || '').trim();
   if (!normalized) return null;
@@ -61,6 +85,7 @@ const parseSaleDate = (value) => {
 
 const getInitialFormData = () => ({
   saleDate: formatDateForInput(),
+  saleTime: formatTimeForInput(),
   party: '',
   customerName: '',
   customerPhone: '',
@@ -1312,6 +1337,10 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
       setFormData({ ...formData, saleDate: value });
       return;
     }
+    if (name === 'saleTime') {
+      setFormData({ ...formData, saleTime: value });
+      return;
+    }
     if (name === 'vehicleWeight' || name === 'netWeight') {
       const tareWeight = name === 'vehicleWeight' ? Number(value || 0) : Number(formData.vehicleWeight || 0);
       const grossWeight = name === 'netWeight' ? Number(value || 0) : Number(formData.netWeight || 0);
@@ -1501,6 +1530,11 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
       setError('Please select a valid sale date');
       return;
     }
+    const saleDateTime = combineSaleDateTime(parsedSaleDate, formData.saleTime);
+    if (!saleDateTime) {
+      setError('Please select a valid sale date and time');
+      return;
+    }
 
     try {
       setLoading(true);
@@ -1513,7 +1547,8 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
         materialWeight: Number(formData.materialWeight || 0),
         rate: Number(formData.rate || 0),
         totalAmount: Number(formData.totalAmount || 0),
-        saleDate: parsedSaleDate.toISOString()
+        saleDate: saleDateTime.toISOString(),
+        saleTime: formData.saleTime || ''
       };
 
       let savedSale;
@@ -1527,7 +1562,7 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
             party: formData.party || null,
             amount: paidAmount,
             method: 'Cash Account',
-            receiptDate: parsedSaleDate.toISOString(),
+            receiptDate: saleDateTime.toISOString(),
             notes: `Auto receipt for ${savedSale?.invoiceNumber || 'sale payment'}`,
             refType: 'sale',
             refId: savedSale?._id || null
@@ -1573,6 +1608,7 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
         ...sale,
       party: normalizedPartyId,
       saleDate: formatDateForInput(sale.saleDate),
+      saleTime: sale.saleTime || formatTimeForInput(sale.saleDate),
       customerName: resolvedLeadgerName,
       customerPhone: String(sale.customerPhone || '').replace(/\D/g, '').slice(0, 10),
       customerAddress: sale.customerAddress || '',

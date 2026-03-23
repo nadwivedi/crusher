@@ -24,6 +24,11 @@ const salesSchema = new mongoose.Schema(
       type: Date,
       default: Date.now,
     },
+    saleTime: {
+      type: String,
+      trim: true,
+      default: "",
+    },
     stoneSize: {
       type: String,
       required: true,

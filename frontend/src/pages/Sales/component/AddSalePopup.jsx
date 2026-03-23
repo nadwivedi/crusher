@@ -246,18 +246,32 @@ export default function AddSalePopup({
                     Sale Details
                   </h3>
                   <div className="grid grid-cols-1 gap-3">
-                  <div className="space-y-1">
-                    <label className={labelClass}>Invoice Date</label>
-                    <div className="relative">
-                      <CalendarDays className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-indigo-400 pointer-events-none" />
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <div className="space-y-1">
+                      <label className={labelClass}>Invoice Date</label>
+                      <div className="relative">
+                        <CalendarDays className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-indigo-400 pointer-events-none" />
+                        <input
+                          type="date"
+                          name="saleDate"
+                          value={formData.saleDate}
+                          onChange={handleInputChange}
+                          onKeyDown={handleSelectEnterMoveNext}
+                          autoFocus
+                          className={`${inputClass} pl-9 focus:ring-indigo-500`}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className={labelClass}>Sale Time</label>
                       <input
-                        type="date"
-                        name="saleDate"
-                        value={formData.saleDate}
+                        type="time"
+                        name="saleTime"
+                        value={formData.saleTime || ''}
                         onChange={handleInputChange}
                         onKeyDown={handleSelectEnterMoveNext}
-                        autoFocus
-                        className={`${inputClass} pl-9 focus:ring-indigo-500`}
+                        className={`${inputClass} focus:ring-indigo-500`}
                       />
                     </div>
                   </div>

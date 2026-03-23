@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { ArrowDownCircle, ArrowUpCircle, Banknote, BookText, Package, TrendingUp } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import apiClient from '../utils/api';
+import HomePartyLedger from './HomePartyLedger';
 
 const DEFAULT_SUMMARY = {
   entryCount: 0,
@@ -85,6 +86,7 @@ function StatCard({ title, value, icon: Icon, tone }) {
 
 export default function HomeDayBookPanel() {
   const today = useMemo(() => getTodayInput(), []);
+  const [activeView, setActiveView] = useState('daybook');
   const [entries, setEntries] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -126,12 +128,28 @@ export default function HomeDayBookPanel() {
     <section className="w-full rounded-[28px] border border-slate-200/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.96),rgba(241,245,249,0.96))] shadow-[0_28px_70px_rgba(15,23,42,0.18)]">
       <div className="border-b border-slate-200/80 px-5 py-5 sm:px-6">
         <div className="flex flex-wrap items-center justify-start gap-2">
-          <Link
-            to="/reports/party-ledger"
-            className="inline-flex items-center justify-center rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-100"
+          <button
+            type="button"
+            onClick={() => setActiveView('party-ledger')}
+            className={`inline-flex items-center justify-center rounded-lg border px-3 py-2 text-xs font-semibold transition ${
+              activeView === 'party-ledger'
+                ? 'border-emerald-300 bg-emerald-100 text-emerald-800'
+                : 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
+            }`}
           >
             Party Ledger
-          </Link>
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveView('daybook')}
+            className={`inline-flex items-center justify-center rounded-lg border px-3 py-2 text-xs font-semibold transition ${
+              activeView === 'daybook'
+                ? 'border-sky-300 bg-sky-100 text-sky-800'
+                : 'border-sky-200 bg-sky-50 text-sky-700 hover:bg-sky-100'
+            }`}
+          >
+            Day Book
+          </button>
           <Link
             to="/reports/boulder-ledger"
             className="inline-flex items-center justify-center rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-700 transition hover:bg-amber-100"
@@ -147,6 +165,9 @@ export default function HomeDayBookPanel() {
         </div>
       </div>
 
+      {activeView === 'party-ledger' ? (
+        <HomePartyLedger />
+      ) : (
       <div className="space-y-5 p-5 sm:p-6">
         {error ? (
           <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700">
@@ -238,6 +259,7 @@ export default function HomeDayBookPanel() {
           )}
         </div>
       </div>
+      )}
     </section>
   );
 }
