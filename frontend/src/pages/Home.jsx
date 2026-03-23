@@ -1,5 +1,6 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import HomeDayBookPanel from '../components/HomeDayBookPanel';
 import Navbar from '../components/Navbar';
 
 const homeQuickShortcuts = [
@@ -17,6 +18,7 @@ const homeQuickShortcuts = [
 export default function Home() {
   const location = useLocation();
   const navigate = useNavigate();
+  const [activeShortcutIndex, setActiveShortcutIndex] = useState(0);
 
   const handleQuickShortcutOpen = (target) => {
     const shortcut = homeQuickShortcuts.find((item) => item.stateKey === target || item.path === target);
@@ -43,6 +45,19 @@ export default function Home() {
   };
 
   useEffect(() => {
+    if (homeQuickShortcuts.length === 0) {
+      setActiveShortcutIndex(0);
+      return;
+    }
+
+    setActiveShortcutIndex((currentIndex) => {
+      if (currentIndex < 0) return 0;
+      if (currentIndex >= homeQuickShortcuts.length) return homeQuickShortcuts.length - 1;
+      return currentIndex;
+    });
+  }, []);
+
+  useEffect(() => {
     const isTypingTarget = (target) => {
       const tagName = target?.tagName?.toLowerCase();
       return tagName === 'input' || tagName === 'textarea' || tagName === 'select' || target?.isContentEditable;
@@ -53,8 +68,32 @@ export default function Home() {
     const handleKeyDown = (event) => {
       const key = event.key?.toLowerCase();
       const quickShortcutMap = { '6': 'homeQuickExpense' };
+      const isMoveDownKey = key === 'arrowdown' && !event.altKey && !event.ctrlKey;
+      const isMoveUpKey = key === 'arrowup' && !event.altKey && !event.ctrlKey;
 
       if (event.defaultPrevented || event.metaKey) return;
+
+      if ((isMoveDownKey || isMoveUpKey || key === 'enter') && !event.altKey) {
+        if (isTypingTarget(event.target) || isPopupOpen() || homeQuickShortcuts.length === 0) return;
+
+        if (key === 'enter') {
+          event.preventDefault();
+          const shortcut = homeQuickShortcuts[activeShortcutIndex] || homeQuickShortcuts[0];
+          if (shortcut) {
+            handleQuickShortcutOpen(shortcut.stateKey || shortcut.path);
+          }
+          return;
+        }
+
+        event.preventDefault();
+        const move = isMoveDownKey ? 1 : -1;
+        setActiveShortcutIndex((currentIndex) => {
+          const safeIndex = currentIndex >= 0 ? currentIndex : 0;
+          return (safeIndex + move + homeQuickShortcuts.length) % homeQuickShortcuts.length;
+        });
+        return;
+      }
+
       if (event.altKey && quickShortcutMap[key]) {
         if (isTypingTarget(event.target) || isPopupOpen()) return;
         event.preventDefault();
@@ -64,7 +103,7 @@ export default function Home() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [location.state, navigate]);
+  }, [activeShortcutIndex, location.state, navigate]);
 
   return (
     <div className="min-h-screen bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-slate-900 via-[#0f172a] to-[#020617]">
@@ -72,20 +111,25 @@ export default function Home() {
         <Navbar />
 
         <div className="px-4 py-4 sm:px-6 sm:py-5">
-          <div className="mx-auto flex min-h-[calc(100vh-7rem)] max-w-6xl items-center justify-center">
-            <aside className="relative w-full max-w-[16.5rem] overflow-hidden rounded-[20px] border border-slate-200/15 bg-[linear-gradient(165deg,rgba(30,41,59,0.92),rgba(51,65,85,0.9),rgba(71,85,105,0.88))] shadow-[0_24px_60px_rgba(15,23,42,0.34),0_0_42px_rgba(14,165,233,0.08)] sm:max-w-[18.5rem] sm:rounded-[30px] lg:max-w-[20.5rem]">
+          <div className="mx-auto grid min-h-[calc(100vh-7rem)] max-w-[96rem] grid-cols-1 gap-5 xl:grid-cols-[18rem_minmax(0,1.35fr)] xl:items-start">
+            <aside className="relative w-full overflow-hidden rounded-[20px] border border-slate-200/15 bg-[linear-gradient(165deg,rgba(30,41,59,0.92),rgba(51,65,85,0.9),rgba(71,85,105,0.88))] shadow-[0_24px_60px_rgba(15,23,42,0.34),0_0_42px_rgba(14,165,233,0.08)] sm:rounded-[30px] xl:sticky xl:top-5 xl:self-start">
               <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(56,189,248,0.16),transparent_30%),radial-gradient(circle_at_bottom_left,rgba(16,185,129,0.1),transparent_28%)]" />
               <div className="relative z-10 flex h-full flex-col">
                 <div className="flex flex-1 flex-col gap-2 px-2 py-2 sm:gap-2.5 sm:px-3 sm:py-3">
-                  {homeQuickShortcuts.map((shortcut) => (
+                  {homeQuickShortcuts.map((shortcut, index) => {
+                    const isActive = index === activeShortcutIndex;
+
+                    return (
                     <button
                       key={shortcut.stateKey || shortcut.path}
                       type="button"
                       onClick={() => handleQuickShortcutOpen(shortcut.stateKey || shortcut.path)}
+                      onMouseEnter={() => setActiveShortcutIndex(index)}
+                      onFocus={() => setActiveShortcutIndex(index)}
                       className={
                         shortcut.imageSrc
-                          ? 'cursor-pointer overflow-visible rounded-xl bg-transparent px-0 py-0.5 text-left shadow-none transition hover:-translate-y-0.5 hover:shadow-none'
-                          : 'cursor-pointer rounded-xl border border-slate-100 bg-[linear-gradient(180deg,rgba(255,255,255,0.96),rgba(248,250,252,0.94))] p-2 text-left shadow-[0_14px_30px_rgba(148,163,184,0.16),inset_0_1px_0_rgba(255,255,255,0.9)] backdrop-blur-sm transition hover:-translate-y-0.5 hover:shadow-[0_18px_34px_rgba(148,163,184,0.22),inset_0_1px_0_rgba(255,255,255,0.95)] sm:rounded-2xl sm:p-2.5'
+                          ? `cursor-pointer overflow-visible rounded-xl bg-transparent px-0 py-0.5 text-left shadow-none transition hover:-translate-y-0.5 hover:shadow-none ${isActive ? 'sm:-translate-y-0.5 sm:rounded-2xl sm:bg-amber-300/12 sm:ring-2 sm:ring-amber-300/80 sm:ring-offset-2 sm:ring-offset-slate-800' : ''}`
+                          : `cursor-pointer rounded-xl border border-slate-100 bg-[linear-gradient(180deg,rgba(255,255,255,0.96),rgba(248,250,252,0.94))] p-2 text-left shadow-[0_14px_30px_rgba(148,163,184,0.16),inset_0_1px_0_rgba(255,255,255,0.9)] backdrop-blur-sm transition hover:-translate-y-0.5 hover:shadow-[0_18px_34px_rgba(148,163,184,0.22),inset_0_1px_0_rgba(255,255,255,0.95)] sm:rounded-2xl sm:p-2.5 ${isActive ? 'sm:border-amber-300 sm:bg-[linear-gradient(180deg,rgba(255,251,235,1),rgba(254,243,199,0.95))] sm:ring-2 sm:ring-amber-200/95 sm:shadow-[0_18px_34px_rgba(245,158,11,0.18),inset_0_1px_0_rgba(255,255,255,0.98)]' : ''}`
                       }
                     >
                       {shortcut.imageSrc ? (
@@ -113,10 +157,15 @@ export default function Home() {
                         </div>
                       )}
                     </button>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             </aside>
+
+            <div className="min-w-0 xl:pl-1">
+              <HomeDayBookPanel />
+            </div>
           </div>
         </div>
       </div>

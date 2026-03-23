@@ -83,6 +83,16 @@ const buildPurchaseSummary = (purchase) => (
     : ""
 );
 
+const buildSaleMaterialSummary = (sale) => {
+  const materialType = String(sale?.stoneSize || "").trim().toLowerCase();
+  const quantity = toNumber(sale?.materialWeight, toNumber(sale?.netWeight));
+  const quantityLabel = quantity > 0 ? `${quantity} kg` : "";
+
+  return [materialType, quantityLabel]
+    .filter(Boolean)
+    .join(" / ") || "-";
+};
+
 const buildLedgerRowsForParty = ({ party, sales, purchases, receipts, payments, fromDate, toDate }) => {
   const openingImpact = getPartyOpeningImpact(party);
   const openingDate = party?.createdAt || new Date(0);
@@ -489,9 +499,13 @@ const getDayBook = async (req, res) => {
           entryCreatedAt: item.createdAt,
           voucherNumber: item.invoiceNumber || "-",
           partyName: item.partyId?.name || "-",
-          method: item.vehicleNo || item.stoneSize || "-",
+          materialSummary: buildSaleMaterialSummary(item),
+          method: [
+            item.vehicleNo ? `Vehicle ${item.vehicleNo}` : "",
+            item.stoneSize ? `Material ${String(item.stoneSize).toUpperCase()}` : "",
+          ].filter(Boolean).join(" | ") || "-",
           amount: Number(item.totalAmount || 0),
-          inAmount: Number(item.totalAmount || 0),
+          inAmount: 0,
           outAmount: 0,
         })),
       ...purchases
