@@ -433,6 +433,22 @@ export default function AddPurchasePopup({
                                         </span>
                                       </div>
                                       <div className="overflow-y-auto py-1" style={{ maxHeight: productDropdownStyle.maxHeight }}>
+                                        <button
+                                          type="button"
+                                          onMouseDown={(event) => event.preventDefault()}
+                                          onMouseEnter={() => setProductListIndex(0)}
+                                          onClick={closeItemEntryAndFocusPaidAmount}
+                                          className={`flex w-full items-center justify-between gap-3 border-b border-amber-100 px-3 py-2 text-left text-[13px] font-semibold transition ${
+                                            productListIndex === 0
+                                              ? 'bg-yellow-200 text-amber-950'
+                                              : 'text-amber-800 hover:bg-amber-50'
+                                          }`}
+                                        >
+                                          <span>End Item List</span>
+                                          <span className="shrink-0 rounded-full bg-white px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700">
+                                            Del
+                                          </span>
+                                        </button>
                                         {filteredProducts.length === 0 ? (
                                           <div className="px-3 py-3 text-center text-[13px] text-slate-500">
                                             <p>No matching products found.</p>
@@ -448,7 +464,8 @@ export default function AddPurchasePopup({
                                           </div>
                                         ) : (
                                           filteredProducts.map((product, index) => {
-                                            const isActive = index === productListIndex;
+                                            const optionIndex = index + 1;
+                                            const isActive = optionIndex === productListIndex;
                                             const isSelected = String(currentItem.product || '') === String(product._id);
 
                                             return (
@@ -456,7 +473,7 @@ export default function AddPurchasePopup({
                                                 key={product._id}
                                                 type="button"
                                                 onMouseDown={(event) => event.preventDefault()}
-                                                onMouseEnter={() => setProductListIndex(index)}
+                                                onMouseEnter={() => setProductListIndex(optionIndex)}
                                                 onClick={() => selectProduct(product)}
                                                 className={`flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-[13px] transition ${
                                                   isActive
@@ -476,22 +493,6 @@ export default function AddPurchasePopup({
                                             );
                                           })
                                         )}
-                                        <button
-                                          type="button"
-                                          onMouseDown={(event) => event.preventDefault()}
-                                          onMouseEnter={() => setProductListIndex(filteredProducts.length)}
-                                          onClick={closeItemEntryAndFocusPaidAmount}
-                                          className={`flex w-full items-center justify-between gap-3 border-t border-amber-100 px-3 py-2 text-left text-[13px] font-semibold transition ${
-                                            productListIndex === filteredProducts.length
-                                              ? 'bg-yellow-200 text-amber-950'
-                                              : 'text-amber-800 hover:bg-amber-50'
-                                          }`}
-                                        >
-                                          <span>End Item List</span>
-                                          <span className="shrink-0 rounded-full bg-white px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700">
-                                            End
-                                          </span>
-                                        </button>
                                       </div>
                                     </div>
                                   )}

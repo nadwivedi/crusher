@@ -710,6 +710,7 @@ export default function Purchases({ modalOnly = false, onModalFinish = null }) {
   const handleProductInputKeyDown = (e, moveToPaymentSection) => {
     const key = e.key?.toLowerCase();
     const lastOptionIndex = filteredProducts.length;
+    const endItemListIndex = 0;
 
     if (key === 'control' && !e.altKey && !e.metaKey) {
       e.preventDefault();
@@ -718,11 +719,19 @@ export default function Purchases({ modalOnly = false, onModalFinish = null }) {
       return;
     }
 
+    if (key === 'delete') {
+      e.preventDefault();
+      e.stopPropagation();
+      setIsProductSectionActive(false);
+      moveToPaymentSection?.();
+      return;
+    }
+
     if (key === 'arrowdown') {
       e.preventDefault();
       e.stopPropagation();
       setProductListIndex((prev) => {
-        if (prev < 0) return 0;
+        if (prev < 0) return endItemListIndex;
         return Math.min(prev + 1, lastOptionIndex);
       });
       return;
@@ -732,8 +741,8 @@ export default function Purchases({ modalOnly = false, onModalFinish = null }) {
       e.preventDefault();
       e.stopPropagation();
       setProductListIndex((prev) => {
-        if (prev < 0) return 0;
-        return Math.max(prev - 1, 0);
+        if (prev < 0) return endItemListIndex;
+        return Math.max(prev - 1, endItemListIndex);
       });
       return;
     }
@@ -742,13 +751,13 @@ export default function Purchases({ modalOnly = false, onModalFinish = null }) {
       e.preventDefault();
       e.stopPropagation();
 
-      if (productListIndex === lastOptionIndex) {
+      if (productListIndex === endItemListIndex) {
         setIsProductSectionActive(false);
         moveToPaymentSection?.();
         return;
       }
 
-      const activeProduct = productListIndex >= 0 ? filteredProducts[productListIndex] : null;
+      const activeProduct = productListIndex > 0 ? filteredProducts[productListIndex - 1] : null;
       const matchedProduct = activeProduct || findExactProduct(productQuery) || findBestProductMatch(productQuery);
       if (matchedProduct) {
         selectProduct(matchedProduct);
