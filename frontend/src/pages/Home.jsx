@@ -6,7 +6,6 @@ import Navbar from '../components/Navbar';
 const homeQuickShortcuts = [
   { label: 'Boulder Entry', hint: '', combo: '', stateKey: 'homeQuickBoulder', imageSrc: '/buttons/boulder.png', imageClassName: 'sm:scale-58' },
   { label: 'New Sale', hint: '', combo: '', stateKey: 'homeQuickSale', imageSrc: '/buttons/add sales.png', imageClassName: 'sm:scale-58' },
-  { label: 'New Purchase', hint: '', combo: '', stateKey: 'homeQuickPurchase', imageSrc: '/buttons/add purchase.png', imageClassName: 'sm:scale-58' },
   { label: 'New Payment', hint: 'Money Paid', combo: '', stateKey: 'homeQuickPayment', imageSrc: '/buttons/money paid.png', imageClassName: 'sm:scale-90' },
   { label: 'New Receipt', hint: 'Money Received', combo: '', stateKey: 'homeQuickReceipt', imageSrc: '/buttons/money received.png' },
   { label: 'Material Used', hint: '', combo: '', stateKey: 'homeQuickMaterialUsed', imageSrc: '/buttons/material used.png' },
@@ -120,43 +119,43 @@ export default function Home() {
                     const isActive = index === activeShortcutIndex;
 
                     return (
-                    <button
-                      key={shortcut.stateKey || shortcut.path}
-                      type="button"
-                      onClick={() => handleQuickShortcutOpen(shortcut.stateKey || shortcut.path)}
-                      onMouseEnter={() => setActiveShortcutIndex(index)}
-                      onFocus={() => setActiveShortcutIndex(index)}
-                      className={
-                        shortcut.imageSrc
-                          ? `cursor-pointer overflow-visible rounded-xl bg-transparent px-0 py-0.5 text-left shadow-none transition hover:-translate-y-0.5 hover:shadow-none ${isActive ? 'sm:-translate-y-0.5 sm:rounded-2xl sm:bg-amber-300/12 sm:ring-2 sm:ring-amber-300/80 sm:ring-offset-2 sm:ring-offset-slate-800' : ''}`
-                          : `cursor-pointer rounded-xl border border-slate-100 bg-[linear-gradient(180deg,rgba(255,255,255,0.96),rgba(248,250,252,0.94))] p-2 text-left shadow-[0_14px_30px_rgba(148,163,184,0.16),inset_0_1px_0_rgba(255,255,255,0.9)] backdrop-blur-sm transition hover:-translate-y-0.5 hover:shadow-[0_18px_34px_rgba(148,163,184,0.22),inset_0_1px_0_rgba(255,255,255,0.95)] sm:rounded-2xl sm:p-2.5 ${isActive ? 'sm:border-amber-300 sm:bg-[linear-gradient(180deg,rgba(255,251,235,1),rgba(254,243,199,0.95))] sm:ring-2 sm:ring-amber-200/95 sm:shadow-[0_18px_34px_rgba(245,158,11,0.18),inset_0_1px_0_rgba(255,255,255,0.98)]' : ''}`
-                      }
-                    >
-                      {shortcut.imageSrc ? (
-                        <div className="relative">
-                          <img
-                            src={shortcut.imageSrc}
-                            alt={shortcut.hint || shortcut.label}
-                            className={`h-auto w-full scale-100 object-contain mix-blend-multiply sm:scale-95 ${shortcut.imageClassName || ''}`}
-                          />
-                        </div>
-                      ) : (
-                        <div className="flex items-center gap-2 sm:gap-3">
-                          <div className={`h-7 w-1.5 rounded-full bg-gradient-to-b sm:h-8 ${shortcut.accent}`} />
-                          <div className="min-w-0 flex-1">
-                            <p className="text-[11px] font-semibold leading-tight text-slate-800 sm:text-[12px]">{shortcut.label}</p>
-                            {shortcut.hint && (
-                              <p className="mt-0.5 hidden text-[10px] font-medium text-slate-500 sm:block">{shortcut.hint}</p>
+                      <button
+                        key={shortcut.stateKey || shortcut.path}
+                        type="button"
+                        onClick={() => handleQuickShortcutOpen(shortcut.stateKey || shortcut.path)}
+                        onMouseEnter={() => setActiveShortcutIndex(index)}
+                        onFocus={() => setActiveShortcutIndex(index)}
+                        className={
+                          shortcut.imageSrc
+                            ? `cursor-pointer overflow-visible rounded-xl bg-transparent px-0 py-0.5 text-left shadow-none transition hover:-translate-y-0.5 hover:shadow-none ${isActive ? 'sm:-translate-y-0.5 sm:rounded-2xl sm:bg-amber-300/12 sm:ring-2 sm:ring-amber-300/80 sm:ring-offset-2 sm:ring-offset-slate-800' : ''}`
+                            : `cursor-pointer rounded-xl border border-slate-100 bg-[linear-gradient(180deg,rgba(255,255,255,0.96),rgba(248,250,252,0.94))] p-2 text-left shadow-[0_14px_30px_rgba(148,163,184,0.16),inset_0_1px_0_rgba(255,255,255,0.9)] backdrop-blur-sm transition hover:-translate-y-0.5 hover:shadow-[0_18px_34px_rgba(148,163,184,0.22),inset_0_1px_0_rgba(255,255,255,0.95)] sm:rounded-2xl sm:p-2.5 ${isActive ? 'sm:border-amber-300 sm:bg-[linear-gradient(180deg,rgba(255,251,235,1),rgba(254,243,199,0.95))] sm:ring-2 sm:ring-amber-200/95 sm:shadow-[0_18px_34px_rgba(245,158,11,0.18),inset_0_1px_0_rgba(255,255,255,0.98)]' : ''}`
+                        }
+                      >
+                        {shortcut.imageSrc ? (
+                          <div className="relative">
+                            <img
+                              src={shortcut.imageSrc}
+                              alt={shortcut.hint || shortcut.label}
+                              className={`h-auto w-full scale-100 object-contain mix-blend-multiply sm:scale-95 ${shortcut.imageClassName || ''}`}
+                            />
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-2 sm:gap-3">
+                            <div className={`h-7 w-1.5 rounded-full bg-gradient-to-b sm:h-8 ${shortcut.accent}`} />
+                            <div className="min-w-0 flex-1">
+                              <p className="text-[11px] font-semibold leading-tight text-slate-800 sm:text-[12px]">{shortcut.label}</p>
+                              {shortcut.hint && (
+                                <p className="mt-0.5 hidden text-[10px] font-medium text-slate-500 sm:block">{shortcut.hint}</p>
+                              )}
+                            </div>
+                            {shortcut.combo && (
+                              <span className="hidden rounded-full border border-sky-200 bg-sky-50 px-2.5 py-1 text-[10px] font-bold tracking-[0.14em] text-sky-700 sm:inline-flex">
+                                {shortcut.combo}
+                              </span>
                             )}
                           </div>
-                          {shortcut.combo && (
-                            <span className="hidden rounded-full border border-sky-200 bg-sky-50 px-2.5 py-1 text-[10px] font-bold tracking-[0.14em] text-sky-700 sm:inline-flex">
-                              {shortcut.combo}
-                            </span>
-                          )}
-                        </div>
-                      )}
-                    </button>
+                        )}
+                      </button>
                     );
                   })}
                 </div>
