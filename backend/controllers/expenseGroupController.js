@@ -11,7 +11,7 @@ const isDuplicateExpenseGroupNameError = (error) => (
 
 const createExpenseGroup = async (req, res) => {
   try {
-    const { name, description, type, unit, currentStock } = req.body;
+    const { name, description } = req.body;
     const userId = req.userId;
 
     if (!String(name || "").trim()) {
@@ -25,9 +25,6 @@ const createExpenseGroup = async (req, res) => {
       userId,
       name: String(name || "").trim(),
       description: String(description || "").trim(),
-      type: String(type || "services").trim().toLowerCase(),
-      unit: String(unit || "").trim(),
-      currentStock: Number(currentStock || 0),
     });
 
     return res.status(201).json({
@@ -61,8 +58,6 @@ const getAllExpenseGroups = async (req, res) => {
       filter.$or = [
         { name: searchRegex },
         { description: searchRegex },
-        { type: searchRegex },
-        { unit: searchRegex },
       ];
     }
 
@@ -85,7 +80,7 @@ const updateExpenseGroup = async (req, res) => {
   try {
     const { id } = req.params;
     const userId = req.userId;
-    const { name, description, type, unit, currentStock } = req.body;
+    const { name, description } = req.body;
 
     if (!mongoose.isValidObjectId(id)) {
       return res.status(400).json({
@@ -106,9 +101,6 @@ const updateExpenseGroup = async (req, res) => {
       {
         name: String(name || "").trim(),
         description: String(description || "").trim(),
-        type: String(type || "services").trim().toLowerCase(),
-        unit: String(unit || "").trim(),
-        currentStock: Number(currentStock || 0),
       },
       { new: true, runValidators: true }
     );

@@ -8,10 +8,7 @@ const TOAST_OPTIONS = { autoClose: 1200 };
 
 const getInitialForm = () => ({
   name: '',
-  description: '',
-  type: 'services',
-  unit: '',
-  currentStock: ''
+  description: ''
 });
 
 export default function ExpenseGroups() {
@@ -88,10 +85,7 @@ export default function ExpenseGroups() {
   const handleEdit = (expenseGroup) => {
     setFormData({
       name: expenseGroup.name || '',
-      description: expenseGroup.description || '',
-      type: expenseGroup.type || 'services',
-      unit: expenseGroup.unit || '',
-      currentStock: expenseGroup.currentStock ?? ''
+      description: expenseGroup.description || ''
     });
     setEditingId(expenseGroup._id);
     setError('');
@@ -138,8 +132,6 @@ export default function ExpenseGroups() {
   };
 
   const totalGroups = expenseGroups.length;
-  const showInventoryFields = formData.type === 'goods';
-
   return (
     <div className="min-h-screen bg-[#f3f6fb] p-4 pt-16 md:px-8 md:pb-8 md:pt-5">
       {error && (
@@ -237,54 +229,6 @@ export default function ExpenseGroups() {
                         />
                       </div>
 
-                      <div className="flex items-center gap-2">
-                        <label className="mb-0 w-32 shrink-0 text-xs font-semibold text-gray-700 md:text-sm">
-                          Type
-                        </label>
-                        <select
-                          name="type"
-                          value={formData.type}
-                          onChange={handleChange}
-                          className={getInlineFieldClass('indigo')}
-                        >
-                          <option value="goods">Goods</option>
-                          <option value="services">Services</option>
-                        </select>
-                      </div>
-
-                      {showInventoryFields && (
-                        <>
-                          <div className="flex items-center gap-2">
-                            <label className="mb-0 w-32 shrink-0 text-xs font-semibold text-gray-700 md:text-sm">
-                              Unit
-                            </label>
-                            <input
-                              type="text"
-                              name="unit"
-                              value={formData.unit}
-                              onChange={handleChange}
-                              className={getInlineFieldClass('indigo')}
-                              placeholder="Enter unit"
-                            />
-                          </div>
-
-                          <div className="flex items-center gap-2">
-                            <label className="mb-0 w-32 shrink-0 text-xs font-semibold text-gray-700 md:text-sm">
-                              Current Stock
-                            </label>
-                            <input
-                              type="number"
-                              name="currentStock"
-                              value={formData.currentStock}
-                              onChange={handleChange}
-                              className={getInlineFieldClass('indigo')}
-                              placeholder="Enter current stock"
-                              min="0"
-                              step="0.01"
-                            />
-                          </div>
-                        </>
-                      )}
                     </div>
                   </div>
 
@@ -347,9 +291,6 @@ export default function ExpenseGroups() {
             <thead className="bg-slate-900 text-white">
               <tr>
                 <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-[0.18em]">Name</th>
-                <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-[0.18em]">Type</th>
-                <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-[0.18em]">Unit</th>
-                <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-[0.18em]">Current Stock</th>
                 <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-[0.18em]">Description</th>
                 <th className="px-6 py-4 text-right text-xs font-semibold uppercase tracking-[0.18em]">Actions</th>
               </tr>
@@ -358,11 +299,6 @@ export default function ExpenseGroups() {
               {expenseGroups.map((expenseGroup) => (
                 <tr key={expenseGroup._id} className="hover:bg-slate-50">
                   <td className="px-6 py-4 font-medium text-slate-900">{expenseGroup.name}</td>
-                  <td className="px-6 py-4 text-sm capitalize text-slate-600">{expenseGroup.type || 'services'}</td>
-                  <td className="px-6 py-4 text-sm text-slate-600">{expenseGroup.unit || '-'}</td>
-                  <td className="px-6 py-4 text-sm text-slate-600">
-                    {expenseGroup.type === 'services' ? '-' : (expenseGroup.currentStock ?? 0)}
-                  </td>
                   <td className="px-6 py-4 text-sm text-slate-600">{expenseGroup.description || '-'}</td>
                   <td className="px-6 py-4">
                     <div className="flex justify-end gap-3">
@@ -388,7 +324,7 @@ export default function ExpenseGroups() {
 
               {!loading && expenseGroups.length === 0 && (
                 <tr>
-                  <td colSpan="6" className="px-6 py-12 text-center text-sm text-slate-500">
+                  <td colSpan="3" className="px-6 py-12 text-center text-sm text-slate-500">
                     No expense groups found. Add your first expense group.
                   </td>
                 </tr>

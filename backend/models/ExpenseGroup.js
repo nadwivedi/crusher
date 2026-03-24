@@ -17,22 +17,6 @@ const expenseGroupSchema = new mongoose.Schema(
       trim: true,
       default: "",
     },
-    type: {
-      type: String,
-      enum: ["goods", "services"],
-      default: "services",
-      trim: true,
-    },
-    unit: {
-      type: String,
-      trim: true,
-      default: "",
-    },
-    currentStock: {
-      type: Number,
-      default: 0,
-      min: 0,
-    },
   },
   { timestamps: true }
 );
