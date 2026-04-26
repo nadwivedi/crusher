@@ -569,7 +569,11 @@ export default function ReportsDashboard({ initialReport = 'partyLedger', showPi
                         <p className="text-[10px] text-slate-400 font-mono mt-0.5">{row.refNumber || '-'}</p>
                       </div>
                     </td>
-                    <td className="border border-slate-300 px-4 py-3 text-center">{row.productName || '-'}</td>
+                    <td className="border border-slate-300 px-4 py-3 text-center">
+                      <Link to={`/stock/${row.productId}`} className="font-semibold text-emerald-700 hover:underline">
+                        {row.productName || '-'}
+                      </Link>
+                    </td>
                     <td className="border border-slate-300 px-4 py-3 text-center font-semibold">{row.displayType || row.type || '-'}</td>
                     <td className="border border-slate-300 px-4 py-3 text-center">
                       <div className="flex items-center justify-center gap-2">

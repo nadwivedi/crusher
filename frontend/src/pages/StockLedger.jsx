@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Boxes, Truck } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import apiClient from '../utils/api';
 
 const formatNumber = (value) => Number(value || 0).toLocaleString('en-IN');
@@ -92,9 +92,13 @@ export default function StockLedger() {
               {currentStockRows.length > 0 ? (
                 <div className="space-y-3">
                   {currentStockRows.slice(0, 10).map((row, idx) => (
-                    <div key={idx} className="flex items-center justify-between p-3 rounded-xl bg-gradient-to-r from-slate-50 to-white border border-slate-100 hover:border-emerald-200 hover:shadow-md transition-all">
+                    <Link 
+                      key={idx} 
+                      to={`/stock/${row.productId}`}
+                      className="flex items-center justify-between p-3 rounded-xl bg-gradient-to-r from-slate-50 to-white border border-slate-100 hover:border-emerald-200 hover:shadow-md transition-all group"
+                    >
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-bold text-slate-800 truncate">{row.productName || 'Unknown'}</p>
+                        <p className="text-sm font-bold text-slate-800 truncate group-hover:text-emerald-700">{row.productName || 'Unknown'}</p>
                         <p className="text-xs text-slate-500">ID: {String(row.productId).slice(-6)}</p>
                       </div>
                       <div className="text-right ml-3">
@@ -103,7 +107,7 @@ export default function StockLedger() {
                         </p>
                         <p className="text-[10px] text-slate-400 uppercase tracking-wider">units</p>
                       </div>
-                    </div>
+                    </Link>
                   ))}
                 </div>
               ) : (
