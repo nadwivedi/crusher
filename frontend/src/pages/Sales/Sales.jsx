@@ -1100,7 +1100,7 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
     if (!form) return;
 
     const fields = Array.from(form.querySelectorAll(
-      'input:not([type="hidden"]):not([disabled]):not([readonly]), select:not([disabled]):not([readonly]), textarea:not([disabled]):not([readonly])'
+      'input:not([type="hidden"]):not([disabled]), select:not([disabled]), textarea:not([disabled])'
     )).filter((field) => {
       if (!(field instanceof HTMLElement)) return false;
       if (field.tabIndex === -1) return false;
@@ -1111,7 +1111,8 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
     const currentIndex = fields.indexOf(element);
     if (currentIndex === -1) return;
 
-    const nextField = fields[currentIndex + 1];
+    // Find the next field that is NOT readonly (we allow source to be readonly, but target should be editable)
+    const nextField = fields.slice(currentIndex + 1).find(f => !f.readOnly);
     if (!(nextField instanceof HTMLElement)) return;
     nextField.focus();
     if (nextField instanceof HTMLInputElement && typeof nextField.select === 'function') {
@@ -1429,8 +1430,7 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
       selectPricingMode(selectedMode);
       setIsBasisSectionActive(false);
       requestAnimationFrame(() => {
-        vehicleInputRef.current?.focus();
-        vehicleInputRef.current?.select?.();
+        focusNextPopupField(basisInputRef.current);
       });
       return;
     }
