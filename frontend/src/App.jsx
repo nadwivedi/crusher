@@ -291,6 +291,15 @@ function App() {
         />
 
         <Route
+          path="/reports/payment-report"
+          element={
+            <ProtectedRoute>
+              <Payments />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
           path="/reports/profit-loss-report"
           element={
             <ProtectedRoute>

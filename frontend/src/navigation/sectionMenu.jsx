@@ -246,6 +246,7 @@ export const SECTION_CONFIG = {
     },
     items: [
       { name: 'Reports', path: '/reports', Icon: ReportIcon },
+      { name: 'Payment Report', path: '/reports/payment-report', Icon: PaymentIcon },
       { name: 'Boulder Ledger', path: '/reports/boulder-ledger', Icon: BoulderLedgerIcon },
       { name: 'Material Used Ledger', path: '/reports/material-used-ledger', Icon: MaterialUsedLedgerIcon },
       { name: 'Day Book', path: '/day-book', Icon: DayBookIcon },
