@@ -862,12 +862,12 @@ const getDayBook = async (req, res) => {
           outAmount: Number(item.amount || 0),
         })),
       ...boulders
-        .filter((item) => withinRange(item.boulderDate || item.createdAt, fromDate, toDate))
+        .filter((item) => withinRange(item.date || item.boulderDate || item.createdAt, fromDate, toDate))
         .map((item) => ({
           type: "boulder",
           displayType: getEntryDisplayType("boulder"),
           refId: item._id,
-          date: item.boulderDate || item.createdAt,
+          date: item.date || item.boulderDate || item.createdAt,
           entryCreatedAt: item.createdAt,
           voucherNumber: item.boulderNumber || item.vehicleNo || "-",
           partyName: item.partyName || item.vehicleNo || "-",
@@ -893,8 +893,8 @@ const getDayBook = async (req, res) => {
           outAmount: 0,
         })),
     ].sort((a, b) => {
-      const aTime = new Date(a.entryCreatedAt || a.date).getTime() || 0;
-      const bTime = new Date(b.entryCreatedAt || b.date).getTime() || 0;
+      const aTime = new Date(a.date || a.entryCreatedAt).getTime() || 0;
+      const bTime = new Date(b.date || b.entryCreatedAt).getTime() || 0;
       return bTime - aTime;
     });
 

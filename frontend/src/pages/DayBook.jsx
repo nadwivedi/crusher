@@ -163,8 +163,8 @@ export default function DayBook() {
       );
     }
     return filtered.sort((a, b) => {
-      const aTime = new Date(a.entryCreatedAt || a.date).getTime() || 0;
-      const bTime = new Date(b.entryCreatedAt || b.date).getTime() || 0;
+      const aTime = new Date(a.date || a.entryCreatedAt).getTime() || 0;
+      const bTime = new Date(b.date || b.entryCreatedAt).getTime() || 0;
       return bTime - aTime;
     });
   }, [entries, typeFilter, searchTerm]);
@@ -331,8 +331,8 @@ export default function DayBook() {
                       <tr key={`${entry.refId || entry.voucherNumber || entry.type}-${index}`} className="hover:bg-violet-50/50 transition-colors">
                         <td className="px-6 py-4 lg:px-4 lg:py-3 xl:px-6 xl:py-4">
                           <div>
-                            <p className="text-sm font-semibold text-slate-800 lg:text-[12px] xl:text-sm">{formatDate(entry.entryCreatedAt || entry.date)}</p>
-                            <p className="text-xs text-slate-400 lg:text-[10px] xl:text-xs">{formatTime(entry.entryCreatedAt || entry.date)}</p>
+                            <p className="text-sm font-semibold text-slate-800 lg:text-[12px] xl:text-sm">{formatDate(entry.date || entry.entryCreatedAt)}</p>
+                            <p className="text-xs text-slate-400 lg:text-[10px] xl:text-xs">{formatTime(entry.date || entry.entryCreatedAt)}</p>
                           </div>
                         </td>
                         <td className="px-6 py-4 lg:px-4 lg:py-3 xl:px-6 xl:py-4">

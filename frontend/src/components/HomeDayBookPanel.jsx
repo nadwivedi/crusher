@@ -120,32 +120,32 @@ export default function HomeDayBookPanel({ activeView = 'daybook', setActiveView
         setLoading(true);
         const response = await apiClient.get('/reports/day-book', {
           params: {
-            fromDate: today,
-            toDate: today
+            fromDate: undefined,
+            toDate: undefined
           }
         });
         setEntries(response?.entries || []);
         setError('');
       } catch (err) {
-        setError(err.message || 'Unable to load day book');
+        setError(err.message || 'Unable to load records');
       } finally {
         setLoading(false);
       }
     };
 
     loadDayBook();
-  }, [today]);
+  }, []);
 
   const sortedEntries = useMemo(() => (
     [...entries].sort((a, b) => {
-      const aTime = new Date(a.entryCreatedAt || a.date).getTime() || 0;
-      const bTime = new Date(b.entryCreatedAt || b.date).getTime() || 0;
+      const aTime = new Date(a.date || a.entryCreatedAt).getTime() || 0;
+      const bTime = new Date(b.date || b.entryCreatedAt).getTime() || 0;
       return bTime - aTime;
     })
   ), [entries]);
 
   const summary = useMemo(() => buildSummary(sortedEntries), [sortedEntries]);
-  const recentEntries = sortedEntries.slice(0, 8);
+  const recentEntries = sortedEntries.slice(0, 50);
 
   return (
     <section className="w-full rounded-[28px] border border-slate-200/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.96),rgba(241,245,249,0.96))] shadow-[0_28px_70px_rgba(15,23,42,0.18)] lg:rounded-[24px] xl:rounded-[28px]">
@@ -207,8 +207,8 @@ export default function HomeDayBookPanel({ activeView = 'daybook', setActiveView
                         <div className="grid grid-cols-2 gap-3">
                           <div>
                             <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500">Date</p>
-                            <p className="mt-1 text-sm font-semibold text-slate-800">{formatDate(entry.entryCreatedAt || entry.date)}</p>
-                            <p className="text-xs text-slate-500">{formatTime(entry.entryCreatedAt || entry.date)}</p>
+                            <p className="mt-1 text-sm font-semibold text-slate-800">{formatDate(entry.date || entry.entryCreatedAt)}</p>
+                            <p className="text-xs text-slate-500">{formatTime(entry.date || entry.entryCreatedAt)}</p>
                           </div>
                           <div>
                             <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500">Material</p>
@@ -265,8 +265,8 @@ export default function HomeDayBookPanel({ activeView = 'daybook', setActiveView
                     <tr key={`${entry.refId || entry.voucherNumber || entry.type}-${index}`} className="hover:bg-slate-50">
                       <td className="px-4 py-3 lg:px-3 lg:py-2.5 xl:px-4 xl:py-3">
                         <div>
-                          <p className="text-sm font-semibold text-slate-700 lg:text-[13px] xl:text-sm">{formatDate(entry.entryCreatedAt || entry.date)}</p>
-                          <p className="text-xs text-slate-500 lg:text-[11px] xl:text-xs">{formatTime(entry.entryCreatedAt || entry.date)}</p>
+                          <p className="text-sm font-semibold text-slate-700 lg:text-[13px] xl:text-sm">{formatDate(entry.date || entry.entryCreatedAt)}</p>
+                          <p className="text-xs text-slate-500 lg:text-[11px] xl:text-xs">{formatTime(entry.date || entry.entryCreatedAt)}</p>
                         </div>
                       </td>
                       <td className="px-4 py-3 lg:px-3 lg:py-2.5 xl:px-4 xl:py-3">
@@ -324,8 +324,8 @@ export default function HomeDayBookPanel({ activeView = 'daybook', setActiveView
               <div className="rounded-full bg-slate-100 p-4">
                 <BookText className="h-7 w-7 text-slate-400" />
               </div>
-              <p className="mt-4 text-base font-semibold text-slate-700">No day book entries for today</p>
-              <p className="mt-1 text-sm text-slate-500">New vouchers created today will appear here automatically.</p>
+              <p className="mt-4 text-base font-semibold text-slate-700">No records found</p>
+              <p className="mt-1 text-sm text-slate-500">New transactions will appear here automatically.</p>
             </div>
           )}
         </div>
