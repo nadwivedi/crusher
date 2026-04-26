@@ -243,10 +243,10 @@ export default function HomeDayBookPanel({ activeView = 'daybook', setActiveView
                 })}
               </div>
 
-              <div className="hidden overflow-x-auto lg:block">
-              <table className="w-full min-w-[840px] xl:min-w-[940px]">
-                <thead>
-                  <tr className="bg-[linear-gradient(135deg,#0f766e_0%,#0d9488_38%,#0891b2_72%,#0284c7_100%)] text-white">
+              <div className="hidden lg:block overflow-x-auto max-h-[600px] overflow-y-auto custom-scrollbar">
+              <table className="w-full min-w-[840px] xl:min-w-[940px] sticky-header">
+                <thead className="sticky top-0 z-10">
+                  <tr className="bg-[linear-gradient(135deg,#0f766e_0%,#0d9488_38%,#0891b2_72%,#0284c7_100%)] text-white shadow-sm">
                     <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-[0.14em] lg:px-3 lg:py-2.5 lg:text-[11px] xl:px-4 xl:py-3 xl:text-xs">Date</th>
                     <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-[0.14em] lg:px-3 lg:py-2.5 lg:text-[11px] xl:px-4 xl:py-3 xl:text-xs">Type</th>
                     <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-[0.14em] lg:px-3 lg:py-2.5 lg:text-[11px] xl:px-4 xl:py-3 xl:text-xs">Ref</th>
