@@ -1197,96 +1197,90 @@ const getDashboardAnalytics = async (req, res) => {
 
 const getDieselConsumptionReport = async (req, res) => {
   const { userId } = req;
-  const { fromDate: fromDateStr, toDate: toDateStr, vehicleId } = req.query;
-
-  const fromDate = toDateBoundary(fromDateStr, false);
-  const toDate = toDateBoundary(toDateStr, true);
+  const fromDate = toDateBoundary(req.query.fromDate, false);
+  const toDate = toDateBoundary(req.query.toDate, true);
 
   try {
-    // 1. Find the Diesel product
-    const dieselStock = await Stock.findOne({
-      userId,
-      name: { $regex: /^diesel$/i },
-    });
-
+    // 1. Find Diesel Stock Product
+    const dieselStock = await Stock.findOne({ userId, name: { $regex: /diesel/i } });
     if (!dieselStock) {
-      return res.json({
-        summary: [],
-        ledger: [],
-        totalDieselUsed: 0,
-        message: "Diesel product not found in stock masters",
-      });
+      return res.json({ summary: [], ledger: [], totalDieselUsed: 0, totalDieselPurchased: 0, productName: "Diesel", unit: "Ltrs" });
     }
 
-    // 2. Fetch all material used entries for Diesel
-    const materialUsedFilter = {
-      userId,
-      materialType: dieselStock._id,
-    };
+    // 2. Fetch both Purchases and Usage
+    const [purchases, materialUsedEntries] = await Promise.all([
+      Purchase.find({ userId, "items.product": dieselStock._id }).populate("party", "name").sort({ purchaseDate: -1, createdAt: -1 }),
+      MaterialUsed.find({ userId, materialType: dieselStock._id }).populate("vehicle", "vehicleNo vehicleNumber").sort({ usedDate: -1, createdAt: -1 }),
+    ]);
 
-    if (vehicleId) {
-      materialUsedFilter.vehicle = vehicleId;
-    }
-
-    const materialUsedEntries = await MaterialUsed.find(materialUsedFilter)
-      .populate("vehicle", "vehicleNo vehicleNumber")
-      .sort({ usedDate: -1, createdAt: -1 });
-
-    // 3. Process data
+    // 3. Process Data
     const vehicleSummaryMap = new Map();
     let totalDieselUsed = 0;
+    let totalDieselPurchased = 0;
 
-    const filteredEntries = materialUsedEntries.filter((entry) => (
-      withinRange(entry.usedDate || entry.createdAt, fromDate, toDate)
-    ));
+    // Process Refills (Outward)
+    const refills = materialUsedEntries
+      .filter((entry) => withinRange(entry.usedDate || entry.createdAt, fromDate, toDate))
+      .map((entry) => {
+        const qty = toNumber(entry.usedQty);
+        totalDieselUsed += qty;
+        const vNo = entry.vehicleNo || entry.vehicle?.vehicleNo || entry.vehicle?.vehicleNumber || "Unknown";
+        const vId = entry.vehicle?._id || "unknown";
 
-    const ledger = filteredEntries.map((entry) => {
-      const qty = toNumber(entry.usedQty);
-      totalDieselUsed += qty;
+        if (!vehicleSummaryMap.has(vId)) {
+          vehicleSummaryMap.set(vId, { vehicleId: vId, vehicleNo: vNo, totalUsed: 0, entryCount: 0 });
+        }
+        const summary = vehicleSummaryMap.get(vId);
+        summary.totalUsed += qty;
+        summary.entryCount += 1;
 
-      const vNo = entry.vehicleNo || entry.vehicle?.vehicleNo || entry.vehicle?.vehicleNumber || "Unknown";
-      const vId = entry.vehicle?._id || "unknown";
+        return {
+          _id: entry._id,
+          type: "out",
+          date: entry.usedDate || entry.createdAt,
+          refNo: vNo,
+          partyName: vNo,
+          qty: -qty,
+          note: entry.notes || "-",
+        };
+      });
 
-      if (!vehicleSummaryMap.has(vId)) {
-        vehicleSummaryMap.set(vId, {
-          vehicleId: vId,
-          vehicleNo: vNo,
-          totalUsed: 0,
-          entryCount: 0,
-        });
-      }
+    // Process Purchases (Inward)
+    const inward = purchases
+      .filter((p) => withinRange(p.purchaseDate || p.createdAt, fromDate, toDate))
+      .flatMap((p) => (
+        (p.items || [])
+          .filter((item) => String(item.product) === String(dieselStock._id))
+          .map((item) => {
+            const qty = toNumber(item.quantity);
+            totalDieselPurchased += qty;
+            return {
+              _id: p._id,
+              type: "in",
+              date: p.purchaseDate || p.createdAt,
+              refNo: formatPurchaseNumber(p.purchaseNumber),
+              partyName: p.party?.name || "-",
+              qty: qty,
+              note: p.supplierInvoice || p.notes || "-",
+            };
+          })
+      ));
 
-      const summary = vehicleSummaryMap.get(vId);
-      summary.totalUsed += qty;
-      summary.entryCount += 1;
-
-      return {
-        _id: entry._id,
-        date: entry.usedDate || entry.createdAt,
-        vehicleNo: vNo,
-        vehicleId: vId,
-        qty,
-        note: entry.notes || "-",
-      };
-    });
-
+    const ledger = [...inward, ...refills].sort((a, b) => new Date(b.date) - new Date(a.date));
     const summary = Array.from(vehicleSummaryMap.values()).sort((a, b) => b.totalUsed - a.totalUsed);
 
     return res.json({
       summary,
       ledger,
       totalDieselUsed,
+      totalDieselPurchased,
       productName: dieselStock.name,
       unit: dieselStock.unit || "Ltrs",
     });
   } catch (error) {
-    return res.status(500).json({
-      message: "Failed to fetch diesel consumption report",
-      error: error.message,
-    });
+    return res.status(500).json({ message: "Failed to fetch diesel consumption report", error: error.message });
   }
 };
-
 const getPaymentReport = async (req, res) => {
   const { userId } = req;
   const { fromDate: fromDateStr, toDate: toDateStr, partyId } = req.query;
