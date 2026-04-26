@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Boxes,
   RefreshCw,
@@ -176,6 +177,7 @@ function ItemPreview({ items }) {
 }
 
 export default function ReportsDashboard({ initialReport = 'partyLedger', showPicker = true }) {
+  const navigate = useNavigate();
   const [activeReport, setActiveReport] = useState(initialReport);
   const [outstanding, setOutstanding] = useState(null);
   const [partyLedger, setPartyLedger] = useState([]);
@@ -289,6 +291,29 @@ export default function ReportsDashboard({ initialReport = 'partyLedger', showPi
   useEffect(() => {
     setActiveReport(initialReport);
   }, [initialReport]);
+
+  useEffect(() => {
+    const isTypingTarget = (target) => {
+      const tagName = target?.tagName?.toLowerCase();
+      return tagName === 'input' || tagName === 'textarea' || tagName === 'select' || target?.isContentEditable;
+    };
+
+    const handleKeyDown = (event) => {
+      if (event.key !== 'Escape' || event.defaultPrevented || event.metaKey || event.ctrlKey || event.altKey) {
+        return;
+      }
+
+      if (isTypingTarget(event.target)) {
+        return;
+      }
+
+      event.preventDefault();
+      navigate('/', { replace: true });
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [navigate]);
 
   const loadAllReports = async () => {
     setPageLoading(true);
@@ -660,7 +685,7 @@ export default function ReportsDashboard({ initialReport = 'partyLedger', showPi
                 <th className="border-y-2 border-r-2 border-black px-4 py-3 text-center font-semibold">Total</th>
               </tr>
             </thead>
-            <tbody className="bg-[linear-gradient(180deg,rgba(255,255,255,0.96)_0%,rgba(248,250,252,0.98)_100%)] text-slate-700">
+            <tbody className="bg-[linear-gradient(180deg,rgba(255,255,255,0.96)_0%,rgba(248,250,252,0.97)_100%)] text-slate-700">
               {sortedPurchases.map((purchase) => (
                 <tr key={purchase._id} className="transition-colors hover:bg-slate-200/45">
                   <td className="border border-slate-300 px-4 py-3 text-center font-semibold text-slate-900">{purchase.supplierInvoice || purchase.invoiceNo || purchase.invoiceNumber || '-'}</td>
