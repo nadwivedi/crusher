@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { AlertCircle, Camera, Check, ChevronDown, Eye, Loader2, Scale, Truck, Upload, X } from 'lucide-react';
+import { AlertCircle, Camera, Check, ChevronDown, Eye, Loader2, Scale, Truck, Upload, X, CalendarDays, Building2 } from 'lucide-react';
 import { toast } from 'react-toastify';
 import apiClient from '../../utils/api';
 import { handlePopupFormKeyDown } from '../../utils/popupFormKeyboard';
@@ -46,7 +46,7 @@ const sortVehiclesByTypePreference = (vehicles, preferredType) => [...vehicles].
   const bPreferred = b?.vehicleType === preferredType ? 0 : 1;
   if (aPreferred !== bPreferred) return aPreferred - bPreferred;
 
-  return String(a?.vehicleNo || a?.vehicleNumber || '').localeCompare(String(b?.vehicleNo || b?.vehicleNumber || ''));
+  return String(a?.vehicleNo || a?.vehicleNumber || '').localeCompare(String(a?.vehicleNo || a?.vehicleNumber || ''));
 });
 
 export default function BoulderEntry({ onModalFinish = null, editingEntry = null }) {
@@ -65,7 +65,7 @@ export default function BoulderEntry({ onModalFinish = null, editingEntry = null
   const [vehicleListIndex, setVehicleListIndex] = useState(-1);
   const [partyListIndex, setPartyListIndex] = useState(-1);
   const [scannerState, setScannerState] = useState(null);
-  const [ocrVehicleMismatch, setOcrVehicleMismatch] = useState(null); // { ocrValue, matchedValue }
+  const [ocrVehicleMismatch, setOcrVehicleMismatch] = useState(null);
   const vehicleSectionRef = useRef(null);
   const vehicleInputRef = useRef(null);
   const partySectionRef = useRef(null);
@@ -75,6 +75,7 @@ export default function BoulderEntry({ onModalFinish = null, editingEntry = null
   const ocrCameraInputRef = useRef(null);
   const inputClass = 'w-full rounded-lg border border-slate-400 bg-white px-2.5 py-1.5 text-[13px] text-gray-800 transition placeholder:text-slate-400 focus:border-transparent focus:outline-none focus:ring-2';
   const labelClass = 'mb-1 block text-[11px] font-semibold text-gray-700 md:text-xs';
+  
   const getVehicleDisplayName = (vehicle) => String(vehicle?.vehicleNumber || vehicle?.vehicleNo || '').trim();
   const getPartyDisplayName = (party) => String(party?.partyName || party?.name || '').trim();
   const getVehiclePartyId = (vehicle) => (
@@ -280,9 +281,7 @@ export default function BoulderEntry({ onModalFinish = null, editingEntry = null
 
   const closeInlineVehicleForm = (shouldRefocusVehicle = true) => {
     setShowVehicleForm(false);
-
     if (!shouldRefocusVehicle) return;
-
     requestAnimationFrame(() => {
       vehicleInputRef.current?.focus();
       vehicleInputRef.current?.select?.();
@@ -319,7 +318,6 @@ export default function BoulderEntry({ onModalFinish = null, editingEntry = null
       openInlineVehicleForm();
       return;
     }
-
     if (event.key === 'ArrowDown') {
       event.preventDefault();
       setIsVehicleSectionActive(true);
@@ -329,7 +327,6 @@ export default function BoulderEntry({ onModalFinish = null, editingEntry = null
       });
       return;
     }
-
     if (event.key === 'ArrowUp') {
       event.preventDefault();
       setIsVehicleSectionActive(true);
@@ -339,7 +336,6 @@ export default function BoulderEntry({ onModalFinish = null, editingEntry = null
       });
       return;
     }
-
     if (event.key === 'Enter' && isVehicleSectionActive && filteredVehicles.length > 0) {
       event.preventDefault();
       const selectedVehicle = filteredVehicles[vehicleListIndex] || filteredVehicles[0];
@@ -353,7 +349,6 @@ export default function BoulderEntry({ onModalFinish = null, editingEntry = null
   const selectParty = (party) => {
     const partyName = String(party?.partyName || party?.name || '').trim();
     if (!partyName) return;
-
     setPartyQuery(partyName);
     setFormData((prev) => ({ ...prev, partyId: party._id || '', partyName }));
     setIsPartySectionActive(false);
@@ -433,7 +428,6 @@ export default function BoulderEntry({ onModalFinish = null, editingEntry = null
       });
       return;
     }
-
     if (event.key === 'ArrowUp') {
       event.preventDefault();
       setIsPartySectionActive(true);
@@ -443,7 +437,6 @@ export default function BoulderEntry({ onModalFinish = null, editingEntry = null
       });
       return;
     }
-
     if (event.key === 'Enter' && isPartySectionActive && filteredParties.length > 0) {
       event.preventDefault();
       const selectedParty = filteredParties[partyListIndex] || filteredParties[0];
@@ -455,14 +448,10 @@ export default function BoulderEntry({ onModalFinish = null, editingEntry = null
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
-    // vehicleId is optional — it's only set when a vehicle is matched from the list.
-    // vehicleNo is always required; grossWeight and tareWeight must be non-zero.
     if (!formData.vehicleNo || !formData.tareWeight || !formData.grossWeight) {
       toast.error('Please fill in all required fields');
       return;
     }
-
     setLoading(true);
     try {
       const ensuredVehicleId = await ensureVehicleExists();
@@ -490,9 +479,7 @@ export default function BoulderEntry({ onModalFinish = null, editingEntry = null
       setFormData(initialFormData);
       setVehicleQuery('');
       setPartyQuery('');
-      if (onModalFinish) {
-        onModalFinish();
-      }
+      if (onModalFinish) onModalFinish();
     } catch (error) {
       toast.error(error.response?.data?.message || 'Error creating boulder entry');
     } finally {
@@ -501,9 +488,7 @@ export default function BoulderEntry({ onModalFinish = null, editingEntry = null
   };
 
   const handleClose = () => {
-    if (onModalFinish) {
-      onModalFinish();
-    }
+    if (onModalFinish) onModalFinish();
   };
 
   const handleSlipUploadChange = useCallback((event) => {
@@ -514,40 +499,21 @@ export default function BoulderEntry({ onModalFinish = null, editingEntry = null
 
   const handleOcrFill = useCallback((data) => {
     if (!data) return;
-
     const ocrRaw = String(data.vehicleNo || '').trim().toUpperCase();
     const grossWeight = Number(data.grossWeight || 0);
     const tareWeight = Number(data.tareWeight || 0);
     const netWeight = Number(data.netWeight || 0) || Math.max(grossWeight - tareWeight, 0);
-    const hasExtractedFields = Boolean(
-      ocrRaw ||
-      grossWeight > 0 ||
-      tareWeight > 0 ||
-      netWeight > 0 ||
-      data.boulderDate ||
-      data.entryTime ||
-      data.exitTime
-    );
+    const hasExtractedFields = Boolean(ocrRaw || grossWeight > 0 || tareWeight > 0 || netWeight > 0 || data.boulderDate || data.entryTime || data.exitTime);
 
     if (ocrRaw) {
       const matchResult = getSmartVehicleMatch(ocrRaw, vehicles, getVehicleDisplayName);
       const { matchedVehicle, isMismatch, matchedValue } = matchResult;
-
-      if (isMismatch) {
-        setOcrVehicleMismatch({ ocrValue: ocrRaw, matchedValue });
-      } else {
-        setOcrVehicleMismatch(null);
-      }
-
-      if (matchedVehicle) {
-        selectVehicle(matchedVehicle);
-      } else {
+      if (isMismatch) setOcrVehicleMismatch({ ocrValue: ocrRaw, matchedValue });
+      else setOcrVehicleMismatch(null);
+      if (matchedVehicle) selectVehicle(matchedVehicle);
+      else {
         setVehicleQuery(ocrRaw);
-        setFormData((prev) => ({
-          ...prev,
-          vehicleNo: ocrRaw,
-          vehicleId: ''
-        }));
+        setFormData((prev) => ({ ...prev, vehicleNo: ocrRaw, vehicleId: '' }));
       }
     }
 
@@ -562,21 +528,13 @@ export default function BoulderEntry({ onModalFinish = null, editingEntry = null
       slipImg: data.slipImg || prev.slipImg
     }));
 
-    if (hasExtractedFields) {
-      toast.success('Boulder slip data extracted!', { autoClose: 1500 });
-    }
+    if (hasExtractedFields) toast.success('Boulder slip data extracted!', { autoClose: 1500 });
   }, [vehicles, selectVehicle]);
 
   const uploadSlipFile = useCallback(async (file) => {
     const body = new FormData();
     body.append('slip', file);
-
-    const response = await apiClient.post('/uploads/slip', body, {
-      headers: {
-        'Content-Type': 'multipart/form-data'
-      }
-    });
-
+    const response = await apiClient.post('/uploads/slip', body, { headers: { 'Content-Type': 'multipart/form-data' } });
     return response?.url || response?.relativePath || '';
   }, []);
 
@@ -585,24 +543,15 @@ export default function BoulderEntry({ onModalFinish = null, editingEntry = null
     setIsOcrLoading(true);
     try {
       const slipImg = await uploadSlipFile(file);
-      setFormData((prev) => ({
-        ...prev,
-        slipImg: slipImg || prev.slipImg
-      }));
+      setFormData((prev) => ({ ...prev, slipImg: slipImg || prev.slipImg }));
       const fd = new FormData();
       fd.append('image', file);
       const baseURL = String(apiClient.defaults.baseURL || '/api').replace(/\/+$/, '');
-      const response = await fetch(`${baseURL}/ocr/extract-boulder`, {
-        method: 'POST',
-        body: fd,
-        credentials: 'include',
-      });
-
+      const response = await fetch(`${baseURL}/ocr/extract-boulder`, { method: 'POST', body: fd, credentials: 'include' });
       if (!response.ok) {
         const err = await response.json().catch(() => ({ message: 'OCR failed' }));
         throw new Error(err.message || 'OCR failed');
       }
-
       const data = await response.json();
       handleOcrFill({ ...data, slipImg });
     } catch (error) {
@@ -629,63 +578,28 @@ export default function BoulderEntry({ onModalFinish = null, editingEntry = null
   const isSlipPreviewImage = /\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i.test(String(formData.slipImg || ''));
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 p-3 backdrop-blur-[2px] md:p-6" onClick={handleClose}>
-      <div className="flex max-h-[88vh] w-full max-w-[30rem] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_30px_80px_rgba(15,23,42,0.28)]" onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/55 p-0 backdrop-blur-[2px] md:items-center md:p-6" onClick={handleClose}>
+      <div className="relative flex h-[100dvh] max-h-[100dvh] w-full max-w-[30rem] md:max-w-[64rem] flex-col overflow-hidden rounded-none border border-slate-200 bg-white shadow-[0_30px_80px_rgba(15,23,42,0.28)] md:h-auto md:max-h-[95vh] md:rounded-2xl" onClick={(e) => e.stopPropagation()}>
+        {/* Header */}
         <div className="bg-[linear-gradient(135deg,#2563eb_0%,#4338ca_55%,#7c3aed_100%)] px-4 py-3 text-white">
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-base font-bold md:text-lg">{isEditing ? 'Edit Boulder Entry' : 'Add Boulder Entry'}</h2>
-              <p className="text-[11px] text-white/80 md:text-xs">{isEditing ? 'Update boulder weight entry' : 'Register incoming boulder weight'}</p>
+              <p className="text-[11px] text-white/80 md:text-xs">Register incoming boulder weight</p>
             </div>
             <div className="flex items-center gap-2">
-              <input
-                ref={ocrCameraInputRef}
-                type="file"
-                accept="image/*"
-                capture="environment"
-                className="hidden"
-                onChange={handleOcrCameraChange}
-                tabIndex={-1}
-              />
-              <input
-                ref={ocrFileInputRef}
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={handleOcrFileChange}
-                tabIndex={-1}
-              />
-              <button
-                type="button"
-                onClick={() => { setOcrMode('camera'); ocrCameraInputRef.current?.click(); }}
-                disabled={isOcrLoading}
-                className="flex items-center gap-1.5 rounded-lg border border-white/30 bg-white/15 px-2.5 py-1.5 text-xs font-semibold text-white transition hover:bg-white/25 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {isOcrLoading && ocrMode === 'camera'
-                  ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  : <Camera className="h-3.5 w-3.5" />}
-                {isOcrLoading && ocrMode === 'camera' ? 'Scanning...' : 'Scan Slip'}
+              <input ref={ocrCameraInputRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handleOcrCameraChange} tabIndex={-1} />
+              <input ref={ocrFileInputRef} type="file" accept="image/*" className="hidden" onChange={handleOcrFileChange} tabIndex={-1} />
+              <button type="button" onClick={() => { setOcrMode('camera'); ocrCameraInputRef.current?.click(); }} disabled={isOcrLoading} className="flex items-center gap-1.5 rounded-lg border border-white/30 bg-white/15 px-2.5 py-1.5 text-xs font-semibold text-white transition hover:bg-white/25">
+                {isOcrLoading && ocrMode === 'camera' ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Camera className="h-3.5 w-3.5" />}
+                Scan Slip
               </button>
-              <button
-                type="button"
-                onClick={() => { setOcrMode('upload'); ocrFileInputRef.current?.click(); }}
-                disabled={isOcrLoading}
-                className="flex items-center gap-1.5 rounded-lg border border-emerald-400/50 bg-emerald-500/20 px-2.5 py-1.5 text-xs font-semibold text-white transition hover:bg-emerald-500/35 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {isOcrLoading && ocrMode === 'upload'
-                  ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  : <Upload className="h-3.5 w-3.5" />}
-                {isOcrLoading && ocrMode === 'upload' ? 'Uploading...' : 'Upload Slip'}
+              <button type="button" onClick={() => { setOcrMode('upload'); ocrFileInputRef.current?.click(); }} disabled={isOcrLoading} className="flex items-center gap-1.5 rounded-lg border border-emerald-400/50 bg-emerald-500/20 px-2.5 py-1.5 text-xs font-semibold text-white transition hover:bg-emerald-500/35">
+                {isOcrLoading && ocrMode === 'upload' ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
+                Upload Slip
               </button>
-              <button
-                type="button"
-                onClick={handleClose}
-                className="rounded-lg p-1.5 text-white transition hover:bg-white/20"
-                aria-label="Close popup"
-              >
-                <svg className="h-5 w-5 md:h-6 md:w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
+              <button type="button" onClick={handleClose} className="rounded-lg p-1.5 text-white transition hover:bg-white/20">
+                <X className="h-5 w-5 md:h-6 md:w-6" />
               </button>
             </div>
           </div>
@@ -694,10 +608,7 @@ export default function BoulderEntry({ onModalFinish = null, editingEntry = null
         {isOcrLoading && (
           <div className="absolute inset-0 z-[100] flex flex-col items-center justify-center gap-3 rounded-2xl bg-white/80 backdrop-blur-sm">
             <Loader2 className="h-10 w-10 animate-spin text-indigo-600" />
-            <p className="text-sm font-semibold text-indigo-700">
-              {ocrMode === 'camera' ? 'Reading captured boulder slip...' : 'Reading uploaded boulder slip...'}
-            </p>
-            <p className="text-xs text-slate-500">Extracting boulder entry with AI</p>
+            <p className="text-sm font-semibold text-indigo-700">Extracting data with AI...</p>
           </div>
         )}
 
@@ -708,9 +619,8 @@ export default function BoulderEntry({ onModalFinish = null, editingEntry = null
             onConfirm={async (processedFile) => {
               const type = scannerState.type;
               setScannerState(null);
-              if (type === 'ocr') {
-                await sendImageToOcr(processedFile);
-              } else {
+              if (type === 'ocr') await sendImageToOcr(processedFile);
+              else {
                 try {
                   setUploadingSlip(true);
                   const url = await uploadSlipFile(processedFile);
@@ -726,403 +636,163 @@ export default function BoulderEntry({ onModalFinish = null, editingEntry = null
           />
         )}
 
-        <form onSubmit={handleSubmit} onKeyDown={(e) => handlePopupFormKeyDown(e, handleClose)} className="flex flex-1 flex-col overflow-hidden bg-white">
-          <div className="flex-1 overflow-y-auto px-4 py-4">
-            <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-3">
-                <h3 className="mb-3 flex items-center gap-2 text-sm font-bold text-gray-800 md:text-base">
-                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-indigo-600 text-[11px] font-bold text-white">1</span>
-                  Boulder Details
-                </h3>
-                <div className="grid grid-cols-1 gap-3">
-                  <div className={`grid grid-cols-1 gap-3 ${formData.slipImg ? 'sm:grid-cols-3' : 'sm:grid-cols-1'}`}>
-                    <div className="space-y-1">
-                      <label className={labelClass}>Entry Date</label>
-                      <input
-                        ref={dateInputRef}
-                        type="date"
-                        name="boulderDate"
-                        value={formData.boulderDate || ''}
-                        onChange={handleChange}
-                        className={`${inputClass} focus:ring-indigo-500`}
-                        autoFocus
-                      />
-                    </div>
+        <form onSubmit={handleSubmit} onKeyDown={(e) => handlePopupFormKeyDown(e, handleClose)} className="flex flex-1 flex-col overflow-hidden bg-slate-50">
+          <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
+            
+            {/* Section 1: Primary Details (Blue) */}
+            <div className="rounded-2xl border border-blue-200 bg-white p-3 shadow-sm transition hover:shadow-md">
+              <h3 className="mb-3 flex items-center gap-2 text-[13px] font-bold text-blue-900">
+                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-blue-600 text-[10px] font-bold text-white">1</span>
+                Primary Details
+              </h3>
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                {/* Entry Date */}
+                <div className="space-y-1">
+                  <label className={labelClass}>Entry Date</label>
+                  <div className="relative">
+                    <CalendarDays className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 pointer-events-none" />
+                    <input ref={dateInputRef} type="date" name="boulderDate" value={formData.boulderDate || ''} onChange={handleChange} className={`${inputClass} pl-9 focus:ring-blue-500`} autoFocus />
+                  </div>
+                </div>
 
-                    {formData.slipImg && (
-                      <div className="grid grid-cols-2 gap-3 sm:col-span-2">
-                        <div className="space-y-1">
-                          <label className={labelClass}>Entry Time</label>
-                          <input
-                            type="time"
-                            name="entryTime"
-                            value={formData.entryTime || ''}
-                            onChange={handleChange}
-                            className={`${inputClass} focus:ring-indigo-500`}
-                          />
-                        </div>
-                        
-                        <div className="space-y-1">
-                          <label className={labelClass}>Exit Time</label>
-                          <input
-                            type="time"
-                            name="exitTime"
-                            value={formData.exitTime || ''}
-                            onChange={handleChange}
-                            className={`${inputClass} focus:ring-indigo-500`}
-                          />
+                {/* Vehicle No */}
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between">
+                    <label className={labelClass}>Vehicle No</label>
+                    <button type="button" onClick={openInlineVehicleForm} className="text-[10px] font-bold text-blue-600 hover:underline">+ New Vehicle</button>
+                  </div>
+                  <div ref={vehicleSectionRef} className="relative">
+                    <input ref={vehicleInputRef} type="text" value={vehicleQuery} onChange={handleVehicleInputChange} onKeyDown={handleVehicleInputKeyDown} className={`${inputClass} focus:ring-blue-500 uppercase`} placeholder="Type vehicle no..." autoComplete="off" />
+                    {isVehicleSectionActive && vehicleDropdownStyle && (
+                      <div className="fixed z-[80] overflow-hidden rounded-xl border border-blue-200 bg-white shadow-xl" style={vehicleDropdownStyle}>
+                        <div className="bg-blue-50 px-3 py-1.5 text-[10px] font-bold text-blue-700 uppercase">Vehicles ({filteredVehicles.length})</div>
+                        <div className="overflow-y-auto py-1" style={{ maxHeight: vehicleDropdownStyle.maxHeight }}>
+                          {filteredVehicles.length === 0 ? <div className="px-3 py-2 text-xs text-slate-500">No vehicles found</div> : filteredVehicles.map((v, i) => (
+                            <button key={v._id} type="button" onMouseDown={e => e.preventDefault()} onMouseEnter={() => setVehicleListIndex(i)} onClick={() => selectVehicle(v)} className={`w-full px-3 py-2 text-left text-xs ${i === vehicleListIndex ? 'bg-blue-100 text-blue-900' : 'text-slate-700 hover:bg-slate-50'}`}>{getVehicleDisplayName(v)}</button>
+                          ))}
                         </div>
                       </div>
                     )}
                   </div>
+                </div>
 
-                  <div className="space-y-1">
-                    <label className={labelClass}>Vehicle No</label>
-                    <div
-                      ref={vehicleSectionRef}
-                      className="relative"
-                      onFocusCapture={handleVehicleFocus}
-                      onBlurCapture={(event) => {
-                        const nextFocused = event.relatedTarget;
-                        if (vehicleSectionRef.current && nextFocused instanceof Node && vehicleSectionRef.current.contains(nextFocused)) return;
-                        setIsVehicleSectionActive(false);
-                      }}
-                    >
-                      <div className="relative">
-                        <Truck className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-indigo-400" />
-                        <input
-                          ref={vehicleInputRef}
-                          type="text"
-                          value={vehicleQuery}
-                          onChange={handleVehicleInputChange}
-                          onKeyDown={handleVehicleInputKeyDown}
-                          className={`${inputClass} pl-9 focus:ring-indigo-500`}
-                          placeholder="Type to search vehicle..."
-                          autoComplete="off"
-                        />
-                      </div>
-
-                      {ocrVehicleMismatch && (
-                        <div className="mt-2 animate-in fade-in slide-in-from-top-1 duration-200">
-                          <div className="flex flex-col gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3 shadow-sm">
-                            <div className="flex items-start gap-2">
-                              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
-                              <div className="flex-1">
-                                <p className="text-[12px] font-bold text-amber-900">Vehicle Mismatch Confirmation</p>
-                                <p className="text-[11px] text-amber-700">OCR read "<span className="font-bold underlineDecoration">{ocrVehicleMismatch.ocrValue}</span>" but we matched "<span className="font-bold">{ocrVehicleMismatch.matchedValue}</span>" from your list based on the last 4 digits.</p>
-                              </div>
-                            </div>
-                            <div className="mt-1 flex items-center justify-end gap-2">
-                              <span className="text-[10px] font-medium text-amber-600">Which one is correct?</span>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setVehicleQuery(ocrVehicleMismatch.ocrValue);
-                                  setFormData(prev => ({ ...prev, vehicleNo: ocrVehicleMismatch.ocrValue, vehicleId: '' }));
-                                  setOcrVehicleMismatch(null);
-                                }}
-                                className="flex items-center gap-1.5 rounded-lg border border-amber-200 bg-white px-2.5 py-1.5 text-[11px] font-bold text-amber-700 transition hover:bg-amber-100"
-                              >
-                                <X className="h-3 w-3" />
-                                {ocrVehicleMismatch.ocrValue}
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => setOcrVehicleMismatch(null)}
-                                className="flex items-center gap-1.5 rounded-lg bg-amber-600 px-2.5 py-1.5 text-[11px] font-bold text-white transition hover:bg-amber-700 shadow-sm"
-                              >
-                                <Check className="h-3 w-3" />
-                                {ocrVehicleMismatch.matchedValue}
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-                      )}
-
-                      {isVehicleSectionActive && vehicleDropdownStyle && (
-                        <div
-                          className="fixed z-[80] overflow-hidden rounded-xl border border-amber-200 bg-white shadow-[0_18px_40px_rgba(15,23,42,0.18)]"
-                          style={vehicleDropdownStyle}
-                          onClick={(event) => event.stopPropagation()}
-                        >
-                          <div className="flex items-center justify-between border-b border-amber-100 bg-gradient-to-r from-amber-50 to-yellow-50 px-3 py-2">
-                            <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-amber-700">Vehicle List</span>
-                            <span className="rounded-full bg-white px-2 py-0.5 text-[10px] font-semibold text-amber-700 shadow-sm">
-                              {filteredVehicles.length}
-                            </span>
-                          </div>
-                          <div className="overflow-y-auto py-1" style={{ maxHeight: vehicleDropdownStyle.maxHeight }}>
-                            {filteredVehicles.length === 0 ? (
-                              <div className="px-3 py-3 text-center text-[13px] text-slate-500">
-                                No matching vehicles found.
-                              </div>
-                            ) : (
-                              filteredVehicles.map((vehicle, index) => {
-                                const isActive = index === vehicleListIndex;
-                                const isSelected = String(formData.vehicleId || '') === String(vehicle._id);
-
-                                return (
-                                  <button
-                                    key={vehicle._id}
-                                    type="button"
-                                    onMouseDown={(event) => event.preventDefault()}
-                                    onMouseEnter={() => setVehicleListIndex(index)}
-                                    onClick={() => selectVehicle(vehicle)}
-                                    className={`flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-[13px] transition ${
-                                      isActive
-                                        ? 'bg-yellow-200 text-amber-950'
-                                        : isSelected
-                                        ? 'bg-yellow-50 text-amber-800'
-                                        : 'text-slate-700 hover:bg-amber-50'
-                                    }`}
-                                  >
-                                    <span className="truncate font-medium">{getVehicleDisplayName(vehicle)}</span>
-                                    {isSelected && (
-                                      <span className="shrink-0 rounded-full border border-amber-200 bg-white px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700">
-                                        Selected
-                                      </span>
-                                    )}
-                                  </button>
-                                );
-                              })
-                            )}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                    {isVehicleSectionActive ? (
-                      <div className="mt-1 text-[11px] text-indigo-600">
-                        Press <span className="rounded bg-indigo-100 px-1.5 py-0.5 font-mono text-[10px]">Ctrl</span> to create new vehicle
-                      </div>
-                    ) : null}
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className={labelClass}>Slip Upload</label>
-                    <input
-                      id="boulder-slip-upload"
-                      type="file"
-                      accept=".jpg,.jpeg,.png,.webp,.pdf,image/jpeg,image/png,image/webp,application/pdf"
-                      onChange={handleSlipUploadChange}
-                      disabled={uploadingSlip}
-                      className="hidden"
-                    />
-                    <label
-                      htmlFor="boulder-slip-upload"
-                      className={`flex min-h-[40px] cursor-pointer items-center justify-center gap-2 rounded-lg border-2 border-dashed px-3 py-2 text-center text-[13px] font-semibold transition ${
-                        uploadingSlip
-                          ? 'border-indigo-200 bg-indigo-50 text-indigo-500 opacity-75'
-                          : 'border-indigo-300 bg-white text-indigo-700 hover:bg-indigo-50'
-                      }`}
-                    >
-                      <Upload className="h-4 w-4" />
-                      <span>{uploadingSlip ? 'Uploading...' : formData.slipImg ? 'Slip Uploaded' : 'Upload Slip'}</span>
-                    </label>
-                    {formData.slipImg ? (
-                      <div className="rounded-xl border border-slate-200 bg-white p-2">
-                        {isSlipPreviewImage ? (
-                          <img
-                            src={formData.slipImg}
-                            alt="Slip preview"
-                            className="h-40 w-full rounded-lg object-cover"
-                          />
-                        ) : (
-                          <div className="flex h-32 items-center justify-center rounded-lg bg-slate-100 text-sm font-medium text-slate-600">
-                            Slip uploaded
-                          </div>
-                        )}
-                        <div className="mt-2 flex items-center justify-between gap-2">
-                          <p className="truncate text-[12px] text-slate-500">{formData.slipImg}</p>
-                          <a
-                            href={formData.slipImg}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="inline-flex shrink-0 items-center gap-1 rounded-md border border-indigo-200 bg-indigo-50 px-2.5 py-1 text-[12px] font-semibold text-indigo-700 transition hover:bg-indigo-100"
-                          >
-                            <Eye className="h-3.5 w-3.5" />
-                            Preview
-                          </a>
+                {/* Party Name */}
+                <div className="space-y-1">
+                  <label className={labelClass}>Supplier Name</label>
+                  <div ref={partySectionRef} className="relative">
+                    <Building2 className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 pointer-events-none" />
+                    <input ref={partyInputRef} type="text" name="partyName" value={partyQuery} onChange={handlePartyInputChange} onKeyDown={handlePartyInputKeyDown} className={`${inputClass} pl-9 pr-10 focus:ring-blue-500`} placeholder="Type to search party..." autoComplete="off" />
+                    {isPartySectionActive && partyDropdownStyle && (
+                      <div className="fixed z-[80] overflow-hidden rounded-xl border border-blue-200 bg-white shadow-xl" style={partyDropdownStyle}>
+                        <div className="bg-blue-50 px-3 py-1.5 text-[10px] font-bold text-blue-700 uppercase">Suppliers ({filteredParties.length})</div>
+                        <div className="overflow-y-auto py-1" style={{ maxHeight: partyDropdownStyle.maxHeight }}>
+                          {filteredParties.length === 0 ? <div className="px-3 py-2 text-xs text-slate-500">No matching suppliers</div> : filteredParties.map((p, i) => (
+                            <button key={p._id || i} type="button" onMouseDown={e => e.preventDefault()} onMouseEnter={() => setPartyListIndex(i)} onClick={() => selectParty(p)} className={`w-full px-3 py-2 text-left text-xs ${i === partyListIndex ? 'bg-blue-100 text-blue-900' : 'text-slate-700 hover:bg-slate-50'}`}>{getPartyDisplayName(p)}</button>
+                          ))}
                         </div>
                       </div>
-                    ) : null}
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className={labelClass}>Party Name</label>
-                    <div
-                      ref={partySectionRef}
-                      className="relative"
-                      onFocusCapture={handlePartyFocus}
-                      onBlurCapture={(event) => {
-                        const nextFocused = event.relatedTarget;
-                        if (partySectionRef.current && nextFocused instanceof Node && partySectionRef.current.contains(nextFocused)) return;
-                        setIsPartySectionActive(false);
-                      }}
-                    >
-                      <div className="relative">
-                        <input
-                          ref={partyInputRef}
-                          type="text"
-                          name="partyName"
-                          value={partyQuery}
-                          onChange={handlePartyInputChange}
-                          onKeyDown={handlePartyInputKeyDown}
-                          className={`${inputClass} pr-10 focus:ring-indigo-500`}
-                          placeholder="Type to search party..."
-                          autoComplete="off"
-                        />
-                        <ChevronDown className={`pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-indigo-500 transition-transform ${isPartySectionActive ? 'rotate-180' : ''}`} />
-                      </div>
-
-                      {isPartySectionActive && partyDropdownStyle && (
-                        <div
-                          className="fixed z-[80] overflow-hidden rounded-xl border border-amber-200 bg-white shadow-[0_18px_40px_rgba(15,23,42,0.18)]"
-                          style={partyDropdownStyle}
-                          onClick={(event) => event.stopPropagation()}
-                        >
-                          <div className="flex items-center justify-between border-b border-amber-100 bg-gradient-to-r from-amber-50 to-yellow-50 px-3 py-2">
-                            <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-amber-700">Party List</span>
-                            <span className="rounded-full bg-white px-2 py-0.5 text-[10px] font-semibold text-amber-700 shadow-sm">
-                              {filteredParties.length}
-                            </span>
-                          </div>
-                          <div className="overflow-y-auto py-1" style={{ maxHeight: partyDropdownStyle.maxHeight }}>
-                            {filteredParties.length === 0 ? (
-                              <div className="px-3 py-3 text-center text-[13px] text-slate-500">
-                                No matching parties found.
-                              </div>
-                            ) : (
-                              filteredParties.map((party, index) => {
-                                const isActive = index === partyListIndex;
-                                const partyName = String(party?.partyName || party?.name || '').trim();
-                                const isSelected = String(formData.partyName || '') === partyName;
-
-                                return (
-                                  <button
-                                    key={party._id || `${partyName}-${index}`}
-                                    type="button"
-                                    onMouseDown={(event) => event.preventDefault()}
-                                    onMouseEnter={() => setPartyListIndex(index)}
-                                    onClick={() => selectParty(party)}
-                                    className={`flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-[13px] transition ${
-                                      isActive
-                                        ? 'bg-yellow-200 text-amber-950'
-                                        : isSelected
-                                        ? 'bg-yellow-50 text-amber-800'
-                                        : 'text-slate-700 hover:bg-amber-50'
-                                    }`}
-                                  >
-                                    <span className="truncate font-medium">{partyName}</span>
-                                    {isSelected ? (
-                                      <span className="shrink-0 rounded-full border border-amber-200 bg-white px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700">
-                                        Selected
-                                      </span>
-                                    ) : null}
-                                  </button>
-                                );
-                              })
-                            )}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-1">
-                      <label className={labelClass}>Gross Weight (KG)</label>
-                      <input
-                        type="number"
-                        name="grossWeight"
-                        value={formData.grossWeight || ''}
-                        onChange={handleChange}
-                        className={`${inputClass} focus:ring-indigo-500`}
-                        placeholder="0"
-                        step="0.01"
-                        min="0"
-                      />
-                    </div>
-
-                    <div className="space-y-1">
-                      <label className={labelClass}>Tare Weight (KG)</label>
-                      <input
-                        type="number"
-                        name="tareWeight"
-                        value={formData.tareWeight || ''}
-                        onChange={handleChange}
-                        className={`${inputClass} focus:ring-indigo-500`}
-                        placeholder="0"
-                        step="0.01"
-                        min="0"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className={labelClass}>Net Weight (KG)</label>
-                    <div className="relative">
-                      <Scale className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-indigo-400" />
-                      <input
-                        type="number"
-                        name="netWeight"
-                        value={formData.netWeight || ''}
-                        readOnly
-                        className={`${inputClass} bg-slate-100 pl-9 font-semibold text-emerald-700 focus:ring-indigo-500`}
-                        placeholder="0"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                    <div className="space-y-1">
-                      <label className={labelClass}>Boulder Rate Per Ton (Rs)</label>
-                      <input
-                        type="text"
-                        value={boulderRatePerTon > 0 ? `${boulderRatePerTon.toFixed(2)} Rs/Ton` : '0.00 Rs/Ton'}
-                        readOnly
-                        className={`${inputClass} bg-slate-100 font-semibold text-blue-700 focus:ring-indigo-500`}
-                        placeholder="0.00 Rs/Ton"
-                      />
-                    </div>
-
-                    <div className="space-y-1">
-                      <label className={labelClass}>Total Amount (Rs)</label>
-                      <input
-                        type="text"
-                        value={boulderTotalAmount > 0 ? `Rs ${boulderTotalAmount.toFixed(2)}` : 'Rs 0.00'}
-                        readOnly
-                        className={`${inputClass} bg-slate-100 font-semibold text-emerald-700 focus:ring-indigo-500`}
-                        placeholder="Rs 0.00"
-                      />
-                    </div>
+                    )}
                   </div>
                 </div>
+              </div>
+
+              {/* Time Details */}
+              {formData.slipImg && (
+                <div className="mt-3 grid grid-cols-2 gap-3 md:grid-cols-4">
+                  <div className="space-y-1">
+                    <label className={labelClass}>Entry Time</label>
+                    <input type="time" name="entryTime" value={formData.entryTime || ''} onChange={handleChange} className={`${inputClass} focus:ring-blue-500`} />
+                  </div>
+                  <div className="space-y-1">
+                    <label className={labelClass}>Exit Time</label>
+                    <input type="time" name="exitTime" value={formData.exitTime || ''} onChange={handleChange} className={`${inputClass} focus:ring-blue-500`} />
+                  </div>
+                </div>
+              )}
+
+              {ocrVehicleMismatch && (
+                <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-2 text-[10px] text-amber-800 flex justify-between items-center">
+                  <span>OCR read "{ocrVehicleMismatch.ocrValue}", matched last-4 digits with "{ocrVehicleMismatch.matchedValue}"</span>
+                  <div className="flex gap-2">
+                    <button type="button" onClick={() => { setVehicleQuery(ocrVehicleMismatch.ocrValue); setFormData(prev => ({ ...prev, vehicleNo: ocrVehicleMismatch.ocrValue, vehicleId: '' })); setOcrVehicleMismatch(null); }} className="px-2 py-1 bg-white border border-amber-300 rounded font-bold">Use OCR</button>
+                    <button type="button" onClick={() => setOcrVehicleMismatch(null)} className="px-2 py-1 bg-amber-600 text-white rounded font-bold">Use Matched</button>
+                  </div>
+                </div>
+              )}
             </div>
+
+            {/* Section 2: Weight Details (Emerald) */}
+            <div className="rounded-2xl border border-emerald-200 bg-emerald-50/30 p-3 shadow-sm transition hover:shadow-md">
+              <h3 className="mb-3 flex items-center gap-2 text-[13px] font-bold text-emerald-900">
+                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-600 text-[10px] font-bold text-white">2</span>
+                Weight Details
+              </h3>
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                <div className="space-y-1">
+                  <label className={labelClass}>Gross Weight (KG)</label>
+                  <input type="number" name="grossWeight" value={formData.grossWeight || ''} onChange={handleChange} className={`${inputClass} focus:ring-emerald-500 font-bold`} placeholder="0" step="0.01" />
+                </div>
+                <div className="space-y-1">
+                  <label className={labelClass}>Tare Weight (KG)</label>
+                  <input type="number" name="tareWeight" value={formData.tareWeight || ''} onChange={handleChange} className={`${inputClass} focus:ring-emerald-500 font-bold`} placeholder="0" step="0.01" />
+                </div>
+                <div className="space-y-1">
+                  <label className={labelClass}>Net Weight (KG)</label>
+                  <div className="relative">
+                    <Scale className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-emerald-400 pointer-events-none" />
+                    <input type="number" name="netWeight" value={formData.netWeight || ''} readOnly className={`${inputClass} pl-9 bg-emerald-50/50 font-bold text-emerald-700`} placeholder="0" />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Section 3: Pricing Summary (Purple) */}
+            <div className="rounded-2xl border border-purple-200 bg-purple-50/30 p-3 shadow-sm transition hover:shadow-md">
+              <h3 className="mb-3 flex items-center gap-2 text-[13px] font-bold text-purple-900">
+                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-purple-600 text-[10px] font-bold text-white">3</span>
+                Pricing Summary
+              </h3>
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                <div className="space-y-1">
+                  <label className={labelClass}>Boulder Rate Per Ton</label>
+                  <div className="rounded-lg border border-purple-200 bg-white px-3 py-1.5 text-sm font-bold text-purple-700 shadow-inner">
+                    {boulderRatePerTon > 0 ? `${boulderRatePerTon.toLocaleString('en-IN')} Rs/Ton` : 'No rate set'}
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <label className={labelClass}>Total Payable Amount</label>
+                  <div className="rounded-lg border border-purple-200 bg-white px-3 py-1.5 text-sm font-bold text-emerald-700 shadow-inner">
+                    Rs {boulderTotalAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                  </div>
+                </div>
+              </div>
+
+              {formData.slipImg && (
+                <div className="mt-3">
+                  <label className={labelClass}>Slip Preview</label>
+                  <div className="relative group rounded-xl overflow-hidden border border-slate-200 bg-white shadow-sm">
+                    {isSlipPreviewImage ? <img src={formData.slipImg} alt="Slip" className="h-32 w-full object-cover" /> : <div className="h-32 flex items-center justify-center text-xs text-slate-400 bg-slate-50 italic">Document Uploaded</div>}
+                    <a href={formData.slipImg} target="_blank" rel="noreferrer" className="absolute inset-0 bg-slate-900/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center text-white text-xs font-bold gap-1"><Eye className="h-4 w-4" /> View Full Slip</a>
+                  </div>
+                </div>
+              )}
+            </div>
+
           </div>
 
-          <div className="flex flex-col items-center justify-between gap-2 border-t border-slate-200 bg-white px-4 py-3 md:flex-row">
-            <div className="hidden text-[11px] text-gray-600 md:block md:text-xs">
-              <kbd className="rounded bg-gray-200 px-1.5 py-0.5 font-mono text-[10px]">Esc</kbd> to close
-            </div>
-
-            <div className="flex w-full gap-2 md:w-auto">
-              <button
-                type="button"
-                onClick={handleClose}
-                className="flex-1 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-slate-50 md:flex-none md:px-5"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={loading}
-                className="flex-1 rounded-lg bg-[linear-gradient(135deg,#2563eb_0%,#4338ca_100%)] px-5 py-2 text-sm font-semibold text-white transition hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-50 md:flex-none md:px-6"
-              >
-                {loading ? 'Saving...' : isEditing ? 'Update Entry' : 'Save Entry'}
+          {/* Footer */}
+          <div className="border-t border-slate-200 bg-white px-4 py-3 flex items-center justify-between gap-3">
+            <div className="hidden md:block text-[10px] text-slate-400">Press <kbd className="rounded bg-slate-100 px-1 py-0.5 border">Esc</kbd> to cancel</div>
+            <div className="flex gap-2 w-full md:w-auto">
+              <button type="button" onClick={handleClose} className="flex-1 md:flex-none px-6 py-2 rounded-xl border border-slate-200 text-sm font-bold text-slate-600 hover:bg-slate-50 transition">Cancel</button>
+              <button type="submit" disabled={loading} className="flex-1 md:flex-none px-8 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-700 text-sm font-bold text-white shadow-lg hover:shadow-blue-500/30 transition disabled:opacity-50">
+                {loading ? 'Saving...' : (isEditing ? 'Update Entry' : 'Save Entry')}
               </button>
             </div>
           </div>
         </form>
       </div>
+
       {showVehicleForm ? (
         <AddVehiclePopup
           vehicle={null}
@@ -1131,12 +801,7 @@ export default function BoulderEntry({ onModalFinish = null, editingEntry = null
           onSave={fetchVehicles}
           onVehicleSaved={async (savedVehicle) => {
             if (!savedVehicle) return;
-            setVehicles((prev) => [
-              ...sortVehiclesByTypePreference([
-                savedVehicle,
-                ...prev.filter((item) => String(item._id) !== String(savedVehicle._id))
-              ], 'boulder')
-            ]);
+            setVehicles((prev) => sortVehiclesByTypePreference([savedVehicle, ...prev.filter((item) => String(item._id) !== String(savedVehicle._id))], 'boulder'));
             selectVehicle(savedVehicle);
             closeInlineVehicleForm(true);
           }}
