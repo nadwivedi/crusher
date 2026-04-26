@@ -129,7 +129,6 @@ const getPartyOpeningImpact = (party) => {
 const buildSaleSummary = (sale) => {
   const parts = [];
   if (sale.vehicleNo) parts.push(`Vehicle ${sale.vehicleNo}`);
-  if (sale.stoneSize) parts.push(`Material ${String(sale.stoneSize).toUpperCase()}`);
   parts.push(`Type ${getSaleTypeLabel(sale.type)}`);
   const amounts = getSaleAmounts(sale);
   if (amounts.paidAmount > 0) parts.push(`Paid ${formatAmount(amounts.paidAmount)}`);
@@ -152,17 +151,15 @@ const buildPurchaseSummary = (purchase) => (
 );
 
 const buildSaleMaterialSummary = (sale) => {
-  const materialType = String(sale?.stoneSize || "").trim().toLowerCase();
-  const pricingMode = String(sale?.pricingMode || "").trim().toLowerCase();
-  const quantity = pricingMode === "per_cubic_meter"
+  const materialType = String(sale?.stoneSize || "Uncategorized").trim();
+  const quantity = sale?.pricingMode === "per_cubic_meter"
     ? toNumber(sale?.cubicMeterQty)
-    : toNumber(sale?.netWeight, toNumber(sale?.materialWeight));
+    : toNumber(sale?.netWeight || sale?.materialWeight);
+  
   const quantityLabel = quantity > 0
-    ? (
-      pricingMode === "per_cubic_meter"
+    ? (sale?.pricingMode === "per_cubic_meter"
         ? `${quantity} m³`
-        : `${quantity} kg (${toNumber(sale?.netWeight, toNumber(sale?.materialWeight)) / 1000} ton)`
-    )
+        : `${quantity} kg (${(quantity / 1000).toFixed(2)} ton)`)
     : "";
 
   return [materialType, quantityLabel]
@@ -201,7 +198,6 @@ const buildLedgerRowsForParty = ({ party, sales, purchases, receipts, payments, 
       .map((item) => {
         const saleAmounts = getSaleAmounts(item);
         const saleImpact = saleAmounts.totalAmount - saleAmounts.paidAmount;
-        const pricingMode = String(item.pricingMode || "").trim().toLowerCase();
 
         return {
           type: "sale",
@@ -209,7 +205,6 @@ const buildLedgerRowsForParty = ({ party, sales, purchases, receipts, payments, 
           refId: item._id,
           partyId: party._id,
           partyName: party.name || "-",
-          materialType: item.stoneSize || "-",
           vehicleNo: item.vehicleNo || "-",
           date: item.saleDate || item.createdAt,
           entryCreatedAt: item.createdAt,
@@ -217,10 +212,9 @@ const buildLedgerRowsForParty = ({ party, sales, purchases, receipts, payments, 
           itemSummary: buildSaleSummary(item),
           note: "",
           method: item.vehicleNo || "-",
-          pricingMode,
-          quantity: pricingMode === "per_cubic_meter"
+          quantity: item.pricingMode === "per_cubic_meter"
             ? toNumber(item.cubicMeterQty)
-            : toNumber(item.netWeight, toNumber(item.materialWeight)),
+            : toNumber(item.netWeight || item.materialWeight),
           amount: saleAmounts.totalAmount,
           paidAmount: saleAmounts.paidAmount,
           impact: saleImpact,
@@ -418,25 +412,13 @@ const getStockLedgerData = async ({ userId, productId, fromDate, toDate }) => {
   const purchaseFilter = { userId };
   const materialUsedFilter = { userId };
 
-  const saleFilter = { userId };
-  let selectedStockName = null;
-
   if (productId) {
     stockFilter._id = productId;
     purchaseFilter["items.product"] = productId;
     materialUsedFilter.materialType = productId;
-
-    const stock = await Stock.findOne({ _id: productId, userId });
-    if (stock) {
-      selectedStockName = stock.name;
-      saleFilter.stoneSize = { $regex: new RegExp(`^${stock.name}$`, "i") };
-    } else {
-      // If product ID is invalid/not found, sales should probably not show any entries for this filter
-      saleFilter.stoneSize = "__non_existent__";
-    }
   }
 
-  const [stocks, purchases, materialUsedEntries, sales] = await Promise.all([
+  const [stocks, purchases, materialUsedEntries] = await Promise.all([
     Stock.find(stockFilter).sort({ name: 1 }),
     Purchase.find(purchaseFilter)
       .populate("party", "name")
@@ -446,9 +428,6 @@ const getStockLedgerData = async ({ userId, productId, fromDate, toDate }) => {
       .populate("vehicle", "vehicleNo vehicleNumber")
       .populate("materialType", "name unit")
       .sort({ usedDate: 1, createdAt: 1 }),
-    Sales.find(saleFilter)
-      .populate("partyId", "name")
-      .sort({ saleDate: 1, createdAt: 1 }),
   ]);
 
   const ledgerRows = [
@@ -478,27 +457,6 @@ const getStockLedgerData = async ({ userId, productId, fromDate, toDate }) => {
             }))
         : []
     )),
-    ...sales
-      .filter((sale) => withinRange(sale.saleDate || sale.createdAt, fromDate, toDate))
-      .map((sale) => ({
-        type: "sale",
-        displayType: getEntryDisplayType("sale"),
-        refId: sale._id,
-        sourceRefId: sale._id,
-        productId: sale.stoneSize,
-        productName: sale.stoneSize || "-",
-        unit: sale.pricingMode === "per_cubic_meter" ? "m³" : "ton",
-        partyName: sale.customerName || sale.partyId?.name || "-",
-        date: sale.saleDate || sale.createdAt,
-        entryCreatedAt: sale.createdAt,
-        refNumber: sale.invoiceNumber || "-",
-        vehicleNo: sale.vehicleNo || "-",
-        inQty: 0,
-        outQty: sale.pricingMode === "per_cubic_meter" ? toNumber(sale.cubicMeterQty) : toNumber(sale.netWeight) / 1000,
-        rate: toNumber(sale.rate),
-        amount: toNumber(sale.totalAmount),
-        note: String(sale.notes || "").trim(),
-      })),
     ...materialUsedEntries
       .filter((entry) => withinRange(entry.usedDate || entry.createdAt, fromDate, toDate))
       .map((entry) => ({
@@ -551,7 +509,6 @@ const getStockLedgerData = async ({ userId, productId, fromDate, toDate }) => {
     currentStock,
   };
 };
-
 const getOutstanding = async (_req, res) => {
   try {
     const { parties, ledgerRows } = await getPartyLedgerData({
@@ -614,10 +571,9 @@ const getPartyLedgerEntryDetail = async (req, res) => {
     if (type === "sale") {
       const sale = await Sales.findOne(scopedIdFilter(req, refId)).populate("partyId", "name");
       if (!sale) return res.status(404).json({ message: "Sale not found" });
-      const pricingMode = String(sale.pricingMode || "").trim().toLowerCase();
-      const quantity = pricingMode === "per_cubic_meter"
+      const quantity = sale.pricingMode === "per_cubic_meter"
         ? toNumber(sale.cubicMeterQty)
-        : toNumber(sale.netWeight, toNumber(sale.materialWeight));
+        : toNumber(sale.netWeight || sale.materialWeight);
 
       return res.json({
         type: "sale",
@@ -626,7 +582,6 @@ const getPartyLedgerEntryDetail = async (req, res) => {
         partyName: sale.partyId?.name || "-",
         amount: toNumber(sale.totalAmount),
         quantity,
-        pricingMode,
         method: sale.vehicleNo || "-",
         date: sale.saleDate || sale.createdAt,
         accountName: sale.partyId?.name || "-",
@@ -638,8 +593,7 @@ const getPartyLedgerEntryDetail = async (req, res) => {
           { label: "Paid Amount", value: formatAmount(getSaleAmounts(sale).paidAmount) },
           { label: "Pending Amount", value: formatAmount(getSaleAmounts(sale).pendingAmount) },
           { label: "Vehicle No", value: sale.vehicleNo || "-" },
-          { label: "Material Type", value: sale.stoneSize || "-" },
-          ...(pricingMode === "per_cubic_meter"
+          ...(sale.pricingMode === "per_cubic_meter"
             ? [
                 { label: "Cubic Meter Qty", value: toNumber(sale.cubicMeterQty) || "-" },
                 { label: "Rate Per M3", value: toNumber(sale.rate) || "-" },
@@ -834,10 +788,9 @@ const getDayBook = async (req, res) => {
             method: [
               getSaleTypeLabel(item.type),
               item.vehicleNo ? `Vehicle ${item.vehicleNo}` : "",
-              item.stoneSize ? `Material ${String(item.stoneSize).toUpperCase()}` : "",
               item.pricingMode === "per_cubic_meter"
                 ? `Qty ${toNumber(item.cubicMeterQty)} m³`
-                : `Qty ${toNumber(item.netWeight)} kg (${toNumber(item.netWeight) / 1000} ton)`,
+                : `Qty ${toNumber(item.netWeight || item.materialWeight)} kg (${toNumber(item.netWeight || item.materialWeight) / 1000} ton)`,
             ].filter(Boolean).join(" | ") || "-",
             totalAmount: saleAmounts.totalAmount,
             paidAmount: saleAmounts.paidAmount,
@@ -980,7 +933,6 @@ const getDashboardAnalytics = async (req, res) => {
     const [boulders, expenses, sales, parties, purchases, receipts, payments] = await Promise.all([
       Boulder.find(scopedFilter(req)).select("netWeight boulderDate createdAt partyId amount").lean(),
       Expense.find(scopedFilter(req)).select("amount expenseDate createdAt expenseGroup").populate("expenseGroup", "name").lean(),
-      Sales.find(scopedFilter(req)).select("stoneSize netWeight materialWeight totalAmount saleDate createdAt partyId type").lean(),
       Party.find(scopedFilter(req)).select("name openingBalance openingBalanceType").lean(),
       Purchase.find(scopedFilter(req)).select("totalAmount purchaseDate createdAt party type").lean(),
       Receipt.find(scopedFilter(req)).select("amount receiptDate createdAt party").lean(),
@@ -1124,7 +1076,7 @@ const getDashboardAnalytics = async (req, res) => {
     
     const salesRes = { '3d': new Map(), '7d': new Map(), '30d': new Map(), '90d': new Map(), 'thisYear': new Map(), 'lifetime': new Map() };
     for (const sale of sales) {
-      const material = String(sale.stoneSize || "").trim().toLowerCase();
+      const material = String(sale.stoneSize || "Uncategorized").trim();
       if (!material || material === "-") continue;
       
       const quantity = toNumber(sale.netWeight, toNumber(sale.materialWeight));
