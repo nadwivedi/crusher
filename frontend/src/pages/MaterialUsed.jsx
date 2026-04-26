@@ -131,7 +131,7 @@ function MaterialUsedForm({
                   />
                 </div>
 
-                {isVehicleSectionActive && vehicleDropdownStyle && (
+                {isVehicleSectionActive && vehicleQuery.trim().length > 0 && vehicleDropdownStyle && (
                   <div
                     className="fixed z-[80] overflow-hidden rounded-xl border border-amber-200 bg-white shadow-[0_18px_40px_rgba(15,23,42,0.18)]"
                     style={vehicleDropdownStyle}
@@ -525,9 +525,12 @@ export default function MaterialUsed({ modalOnly = false, onModalFinish = null }
       setVehicleListIndex((prev) => (filteredVehicles.length === 0 ? -1 : prev > 0 ? prev - 1 : filteredVehicles.length - 1));
       return;
     }
-    if (event.key === 'Enter' && isVehicleSectionActive && filteredVehicles.length > 0) {
+    if (event.key === 'Enter') {
       event.preventDefault();
-      selectVehicle(filteredVehicles[vehicleListIndex] || filteredVehicles[0]);
+      if (vehicleQuery.trim().length > 0 && isVehicleSectionActive && filteredVehicles.length > 0 && vehicleListIndex !== -1) {
+        selectVehicle(filteredVehicles[vehicleListIndex]);
+      }
+      materialInputRef.current?.focus();
     }
   };
 
