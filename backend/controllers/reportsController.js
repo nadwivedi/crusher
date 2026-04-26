@@ -1243,6 +1243,136 @@ const getDashboardAnalytics = async (req, res) => {
   }
 };
 
+const getDieselConsumptionReport = async (req, res) => {
+  const { userId } = req;
+  const { fromDate: fromDateStr, toDate: toDateStr, vehicleId } = req.query;
+
+  const fromDate = toDateBoundary(fromDateStr, false);
+  const toDate = toDateBoundary(toDateStr, true);
+
+  try {
+    // 1. Find the Diesel product
+    const dieselStock = await Stock.findOne({
+      userId,
+      name: { $regex: /^diesel$/i },
+    });
+
+    if (!dieselStock) {
+      return res.json({
+        summary: [],
+        ledger: [],
+        totalDieselUsed: 0,
+        message: "Diesel product not found in stock masters",
+      });
+    }
+
+    // 2. Fetch all material used entries for Diesel
+    const materialUsedFilter = {
+      userId,
+      materialType: dieselStock._id,
+    };
+
+    if (vehicleId) {
+      materialUsedFilter.vehicle = vehicleId;
+    }
+
+    const materialUsedEntries = await MaterialUsed.find(materialUsedFilter)
+      .populate("vehicle", "vehicleNo vehicleNumber")
+      .sort({ usedDate: -1, createdAt: -1 });
+
+    // 3. Process data
+    const vehicleSummaryMap = new Map();
+    let totalDieselUsed = 0;
+
+    const filteredEntries = materialUsedEntries.filter((entry) => (
+      withinRange(entry.usedDate || entry.createdAt, fromDate, toDate)
+    ));
+
+    const ledger = filteredEntries.map((entry) => {
+      const qty = toNumber(entry.usedQty);
+      totalDieselUsed += qty;
+
+      const vNo = entry.vehicleNo || entry.vehicle?.vehicleNo || entry.vehicle?.vehicleNumber || "Unknown";
+      const vId = entry.vehicle?._id || "unknown";
+
+      if (!vehicleSummaryMap.has(vId)) {
+        vehicleSummaryMap.set(vId, {
+          vehicleId: vId,
+          vehicleNo: vNo,
+          totalUsed: 0,
+          entryCount: 0,
+        });
+      }
+
+      const summary = vehicleSummaryMap.get(vId);
+      summary.totalUsed += qty;
+      summary.entryCount += 1;
+
+      return {
+        _id: entry._id,
+        date: entry.usedDate || entry.createdAt,
+        vehicleNo: vNo,
+        vehicleId: vId,
+        qty,
+        note: entry.notes || "-",
+      };
+    });
+
+    const summary = Array.from(vehicleSummaryMap.values()).sort((a, b) => b.totalUsed - a.totalUsed);
+
+    return res.json({
+      summary,
+      ledger,
+      totalDieselUsed,
+      productName: dieselStock.name,
+      unit: dieselStock.unit || "Ltrs",
+    });
+  } catch (error) {
+    return res.status(500).json({
+      message: "Failed to fetch diesel consumption report",
+      error: error.message,
+    });
+  }
+};
+
+const getPaymentReport = async (req, res) => {
+  const { userId } = req;
+  const { fromDate: fromDateStr, toDate: toDateStr, partyId } = req.query;
+
+  const fromDate = toDateBoundary(fromDateStr, false);
+  const toDate = toDateBoundary(toDateStr, true);
+
+  try {
+    const filter = { userId };
+    if (partyId && mongoose.Types.ObjectId.isValid(partyId)) {
+      filter.party = partyId;
+    }
+
+    const payments = await Payment.find(filter)
+      .populate("party", "name")
+      .sort({ paymentDate: -1, createdAt: -1 });
+
+    const filtered = payments.filter((p) => withinRange(p.paymentDate || p.createdAt, fromDate, toDate));
+
+    const rows = filtered.map((p) => ({
+      _id: p._id,
+      date: p.paymentDate || p.createdAt,
+      paymentNumber: formatPaymentNumber(p.paymentNumber),
+      partyName: p.party?.name || "-",
+      amount: toNumber(p.amount),
+      method: p.method || "-",
+      notes: p.notes || "-",
+    }));
+
+    return res.json(rows);
+  } catch (error) {
+    return res.status(500).json({
+      message: "Failed to fetch payment report",
+      error: error.message,
+    });
+  }
+};
+
 module.exports = {
   getDayBook,
   getOutstanding,
@@ -1250,4 +1380,6 @@ module.exports = {
   getPartyLedgerEntryDetail,
   getStockLedger,
   getDashboardAnalytics,
+  getDieselConsumptionReport,
+  getPaymentReport,
 };

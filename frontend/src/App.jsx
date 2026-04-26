@@ -27,6 +27,7 @@ import StockLedger from './pages/StockLedger';
 import PartyLedger from './pages/PartyLedger';
 import BoulderLedger from './pages/BoulderLedger';
 import MaterialUsedLedger from './pages/MaterialUsedLedger';
+import DieselConsumptionReport from './pages/Reports/DieselConsumptionReport';
 import ReportsPlaceholder from './pages/ReportsPlaceholder';
 import DayBook from './pages/DayBook';
 import Analytics from './pages/Analytics';
@@ -241,6 +242,15 @@ function App() {
           element={
             <ProtectedRoute>
               <MaterialUsedLedger />
+            </ProtectedRoute>
+          }
+        />
+        
+        <Route
+          path="/reports/diesel-consumption"
+          element={
+            <ProtectedRoute>
+              <DieselConsumptionReport />
             </ProtectedRoute>
           }
         />

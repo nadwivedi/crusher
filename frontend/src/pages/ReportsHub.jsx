@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Boxes, FileBarChart, Package, ReceiptText, RefreshCw, Wallet } from 'lucide-react';
+import { Boxes, FileBarChart, Fuel, Package, ReceiptText, RefreshCw, Wallet } from 'lucide-react';
 import { getSectionConfig } from '../navigation/sectionMenu';
 import { useAuth } from '../context/AuthContext';
 import { filterRestrictedItems } from '../utils/featureAccess';
@@ -12,6 +12,7 @@ const REPORT_ITEMS = [
   { name: 'Stock Adjustment Report', path: '/reports/stock-adjustment-report', Icon: Boxes },
   { name: 'Receipt Report', path: '/reports/receipt-report', Icon: ReceiptText },
   { name: 'Payment Report', path: '/reports/payment-report', Icon: Wallet },
+  { name: 'Diesel Consumption Report', path: '/reports/diesel-consumption', Icon: Fuel },
   { name: 'Expense Report', path: '/reports/expense-report', Icon: ReceiptText },
   { name: 'Profit And Loss Report', path: '/reports/profit-loss-report', Icon: FileBarChart }
 ];
