@@ -1,6 +1,7 @@
 const mongoose = require("mongoose");
 const Expense = require("../models/Expense");
 const ExpenseType = require("../models/ExpenseType");
+const Purchase = require("../models/Purchase");
 const Party = require("../models/Party");
 const Counter = require("../models/Counter");
 
@@ -289,6 +290,42 @@ const getAllExpenses = async (req, res) => {
       .populate("items.expenseGroup", "name unit")
       .populate("party", "name type")
       .sort({ expenseDate: -1, createdAt: -1 });
+
+    if (!resolvedExpenseTypeId) {
+      const purchaseFilter = { userId };
+      if (party && mongoose.isValidObjectId(party)) {
+        purchaseFilter.party = party;
+      }
+      if (fromDate) {
+        const parsedFromDate = new Date(fromDate);
+        if (!Number.isNaN(parsedFromDate.getTime())) {
+          purchaseFilter.purchaseDate = { $gte: parsedFromDate };
+        }
+      }
+
+      const purchases = await Purchase.find(purchaseFilter)
+        .populate("party", "name")
+        .sort({ purchaseDate: -1, createdAt: -1 });
+
+      const normalizedPurchases = purchases.map((p) => ({
+        _id: p._id,
+        expenseNumber: `PUR-${p.purchaseNumber}`,
+        expenseGroup: {
+          name: p.items.length > 0
+            ? `Purchase: ${p.items.map((i) => i.productName).join(", ")}`
+            : "Purchase",
+        },
+        party: p.party,
+        amount: p.totalAmount,
+        method: p.type?.includes("cash") ? "cash" : "credit",
+        expenseDate: p.purchaseDate,
+        notes: p.notes,
+        isPurchase: true,
+      }));
+
+      expenses = [...expenses, ...normalizedPurchases];
+      expenses.sort((a, b) => new Date(b.expenseDate) - new Date(a.expenseDate));
+    }
 
     if (search) {
       const normalizedSearch = String(search || "").trim().toLowerCase();
