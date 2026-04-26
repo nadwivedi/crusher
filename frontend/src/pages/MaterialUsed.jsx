@@ -63,7 +63,7 @@ function MaterialUsedForm({
 
   return (
     <div className="flex max-h-[88vh] w-full max-w-[30rem] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_30px_80px_rgba(15,23,42,0.28)]">
-      <div className="bg-[linear-gradient(135deg,#2563eb_0%,#4338ca_55%,#7c3aed_100%)] px-4 py-3 text-white">
+      <div className="bg-gradient-to-r from-indigo-600 via-violet-600 to-purple-600 px-4 py-3 text-white">
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-base font-bold md:text-lg">{editingId ? 'Edit Material Used' : 'Add Material Used'}</h2>
@@ -294,7 +294,7 @@ function MaterialUsedForm({
             type="button"
             onClick={onSave}
             disabled={loading}
-            className="flex-1 rounded-lg bg-[linear-gradient(135deg,#2563eb_0%,#4338ca_100%)] px-5 py-2 text-sm font-semibold text-white transition hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-50 md:flex-none md:px-6"
+            className="flex-1 rounded-lg bg-gradient-to-r from-indigo-600 to-violet-600 px-5 py-2 text-sm font-semibold text-white transition-all hover:from-indigo-500 hover:to-violet-500 hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-50 md:flex-none md:px-6"
           >
             <span className="md:hidden">{loading ? 'Saving...' : editingId ? 'Update' : 'Save'}</span>
             <span className="hidden md:inline">{loading ? 'Saving...' : editingId ? 'Update Material Used' : 'Save Material Used'}</span>
