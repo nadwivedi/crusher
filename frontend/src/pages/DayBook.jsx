@@ -188,16 +188,20 @@ export default function DayBook() {
     startDate.setDate(startDate.getDate() - 6);
     applyRangeAndLoad(toInputDate(startDate), today);
   };
+  const handleLast30Days = () => {
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - 29);
+    applyRangeAndLoad(toInputDate(startDate), today);
+  };
   const handleThisMonth = () => {
     const now = new Date();
     const startDate = new Date(now.getFullYear(), now.getMonth(), 1);
     applyRangeAndLoad(toInputDate(startDate), today);
   };
-  const handleLastMonth = () => {
-    const now = new Date();
-    const startDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-    const endDate = new Date(now.getFullYear(), now.getMonth(), 0);
-    applyRangeAndLoad(toInputDate(startDate), toInputDate(endDate));
+  const handleLifetime = () => {
+    setFromDate('');
+    setToDate('');
+    loadDayBook(null, null);
   };
 
   return (
@@ -227,8 +231,9 @@ export default function DayBook() {
               <div className="flex rounded-xl border-2 border-slate-200 bg-white overflow-hidden">
                 <button type="button" onClick={handleToday} className="px-4 py-2.5 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition">Today</button>
                 <button type="button" onClick={handleLast7Days} className="px-4 py-2.5 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition border-l border-slate-200">7 Days</button>
+                <button type="button" onClick={handleLast30Days} className="px-4 py-2.5 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition border-l border-slate-200">30 Days</button>
                 <button type="button" onClick={handleThisMonth} className="px-4 py-2.5 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition border-l border-slate-200">This Month</button>
-                <button type="button" onClick={handleLastMonth} className="px-4 py-2.5 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition border-l border-slate-200">Last Month</button>
+                <button type="button" onClick={handleLifetime} className="px-4 py-2.5 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition border-l border-slate-200 bg-violet-50 text-violet-700">Lifetime</button>
               </div>
               <button
                 type="button"
