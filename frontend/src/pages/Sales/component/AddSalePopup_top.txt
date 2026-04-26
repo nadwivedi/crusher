@@ -1,0 +1,226 @@
+import { useEffect, useRef, useState, useCallback } from 'react';
+import { Building2, CalendarDays, Package, Truck, Camera, Upload, Loader2, Eye, AlertCircle, Check, X } from 'lucide-react';
+import apiClient from '../../../utils/api';
+import { handlePopupFormKeyDown } from '../../../utils/popupFormKeyboard';
+import { useFloatingDropdownPosition } from '../../../utils/useFloatingDropdownPosition';
+import DocumentScannerPreview from '../../../components/DocumentScannerPreview';
+
+export default function AddSalePopup({
+  showForm,
+  editingId,
+  loading,
+  isCashParty,
+  formData,
+  currentItem,
+  products,
+  popupFieldClass,
+  popupLabelClass,
+  leadgerSectionRef,
+  leadgerInputRef,
+  vehicleSectionRef,
+  vehicleInputRef,
+  materialSectionRef,
+  materialInputRef,
+  basisSectionRef,
+  basisInputRef,
+  productSectionRef,
+  productInputRef,
+  leadgerQuery,
+  vehicleQuery,
+  materialQuery,
+  productQuery,
+  leadgerListIndex,
+  vehicleListIndex,
+  materialListIndex,
+  basisListIndex,
+  productListIndex,
+  filteredLeadgers,
+  filteredVehicles,
+  filteredMaterialTypes,
+  filteredProducts,
+  isLeadgerSectionActive,
+  isVehicleSectionActive,
+  isMaterialSectionActive,
+  isBasisSectionActive,
+  isProductSectionActive,
+  setCurrentItem,
+  setIsLeadgerSectionActive,
+  setIsVehicleSectionActive,
+  setIsMaterialSectionActive,
+  setIsBasisSectionActive,
+  setIsProductSectionActive,
+  setLeadgerListIndex,
+  setVehicleListIndex,
+  setMaterialListIndex,
+  setBasisListIndex,
+  setProductListIndex,
+  getLeadgerDisplayName,
+  getVehicleDisplayName,
+  getMaterialDisplayName,
+  getProductDisplayName,
+  handleCancel,
+  handleSubmit,
+  handleInputChange,
+  saleTypePreview,
+  pendingAmountPreview,
+  excessAmountPreview,
+  handleLeadgerFocus,
+  handleLeadgerInputChange,
+  handleLeadgerInputKeyDown,
+  handleVehicleFocus,
+  handleVehicleInputChange,
+  handleVehicleInputKeyDown,
+  handleMaterialFocus,
+  handleMaterialInputChange,
+  handleMaterialInputKeyDown,
+  handleBasisFocus,
+  handleBasisInputKeyDown,
+  getSaleBasisDisplayName,
+  selectPricingMode,
+  onOpenNewVehicle,
+  onOpenNewParty,
+  handleProductFocus,
+  handleProductInputChange,
+  handleProductInputKeyDown,
+  onOpenNewProduct,
+  handleSelectEnterMoveNext,
+  handleAddItem,
+  handleRemoveItem,
+  selectLeadger,
+  selectVehicle,
+  selectProduct,
+  onOcrFill,
+  ocrVehicleMismatch,
+  setOcrVehicleMismatch
+}) {
+  const localProductInputRef = useRef(null);
+  const paidAmountInputRef = useRef(null);
+  const ocrFileInputRef = useRef(null);
+  const ocrCameraInputRef = useRef(null);
+  const [isItemEntryClosed, setIsItemEntryClosed] = useState(false);
+  const [isOcrLoading, setIsOcrLoading] = useState(false);
+  const [ocrMode, setOcrMode] = useState(''); // 'camera' | 'upload'
+  const [scannerFile, setScannerFile] = useState(null);
+  const isSlipPreviewImage = /\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i.test(String(formData?.slipImg || ''));
+
+  const uploadSlipFile = useCallback(async (file) => {
+    const body = new FormData();
+    body.append('slip', file);
+
+    const response = await apiClient.post('/uploads/slip', body, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    });
+
+    return response?.url || response?.relativePath || '';
+  }, []);
+
+  const sendImageToOcr = useCallback(async (file) => {
+    if (!file || !onOcrFill) return;
+    setIsOcrLoading(true);
+    try {
+      const slipImg = await uploadSlipFile(file);
+      onOcrFill({ slipImg });
+      const fd = new FormData();
+      fd.append('image', file);
+      const baseURL = String(apiClient.defaults.baseURL || '/api').replace(/\/+$/, '');
+      const response = await fetch(`${baseURL}/ocr/extract-sale`, {
+        method: 'POST',
+        body: fd,
+        credentials: 'include',
+      });
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({ message: 'OCR failed' }));
+        throw new Error(err.message || 'OCR failed');
+      }
+      const data = await response.json();
+      onOcrFill({ ...data, slipImg });
+    } catch (err) {
+      console.error('OCR error:', err);
+      alert(`Scan failed: ${err.message}`);
+    } finally {
+      setIsOcrLoading(false);
+      setOcrMode('');
+    }
+  }, [onOcrFill, uploadSlipFile]);
+
+  const handleOcrFileChange = useCallback((e) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (file) setScannerFile(file);
+  }, []);
+
+  const handleOcrCameraChange = useCallback((e) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (file) setScannerFile(file);
+  }, []);
+  const inputClass = "w-full rounded-lg border border-slate-400 bg-white px-2.5 py-1.5 text-[13px] text-gray-800 transition placeholder:text-slate-400 focus:border-transparent focus:outline-none focus:ring-2";
+  const labelClass = "mb-1 block text-[11px] font-semibold text-gray-700 md:text-xs";
+  const currentItemTotal = Math.max(0, Number(currentItem.quantity || 0) * Number(currentItem.unitPrice || 0));
+  const resolvedProductInputRef = productInputRef || localProductInputRef;
+  const leadgerDropdownStyle = useFloatingDropdownPosition(leadgerSectionRef, isLeadgerSectionActive, [filteredLeadgers.length, leadgerListIndex]);
+  const vehicleDropdownStyle = useFloatingDropdownPosition(vehicleSectionRef, isVehicleSectionActive, [filteredVehicles.length, vehicleListIndex]);
+  const materialDropdownStyle = useFloatingDropdownPosition(materialSectionRef, isMaterialSectionActive, [filteredMaterialTypes.length, materialListIndex]);
+  const productDropdownStyle = useFloatingDropdownPosition(productSectionRef, isProductSectionActive, [filteredProducts.length, productListIndex]);
+  const resolveItemUnit = (item) => {
+    const itemUnit = String(item?.unit || '').trim();
+    if (itemUnit) return itemUnit;
+
+    const matchingProduct = products.find((product) => String(product?._id) === String(item?.product || ''));
+    return String(matchingProduct?.unit || '').trim() || '-';
+  };
+  const currentItemUnit = String(currentItem.unit || '').trim() || '-';
+
+  useEffect(() => {
+    if (showForm) {
+      setIsItemEntryClosed(false);
+    }
+  }, [showForm, editingId]);
+
+  if (!showForm) return null;
+
+  const closeItemEntryRow = () => {
+    selectProduct(null);
+    setCurrentItem((prev) => ({
+      ...prev,
+      quantity: '',
+      unitPrice: ''
+    }));
+    setIsProductSectionActive(false);
+    setIsItemEntryClosed(true);
+  };
+
+  const closeItemEntryAndFocusPaidAmount = () => {
+    closeItemEntryRow();
+    requestAnimationFrame(() => {
+      if (isCashParty) {
+        const submitButton = resolvedProductInputRef.current
+          ?.closest('form')
+          ?.querySelector('button[type="submit"]:not([disabled])');
+        submitButton?.focus();
+        return;
+      }
+      paidAmountInputRef.current?.focus();
+      paidAmountInputRef.current?.select?.();
+    });
+  };
+
+  const reopenItemEntryFromPaidAmount = () => {
+    setIsItemEntryClosed(false);
+    setIsProductSectionActive(true);
+    setProductListIndex(filteredProducts.length > 0 ? 0 : -1);
+    requestAnimationFrame(() => {
+      resolvedProductInputRef.current?.focus();
+      resolvedProductInputRef.current?.select?.();
+    });
+  };
+
+  const handlePaidAmountEnterSubmit = (event) => {
+    if (event.key !== 'Enter' || event.shiftKey) return;
+    event.preventDefault();
+    event.stopPropagation();
+    event.currentTarget.form?.requestSubmit();
+  };
+
