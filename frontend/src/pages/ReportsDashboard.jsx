@@ -4,6 +4,7 @@ import {
   Boxes,
   RefreshCw,
   ShoppingCart,
+  Truck,
   Users
 } from 'lucide-react';
 import apiClient from '../utils/api';
@@ -547,13 +548,13 @@ export default function ReportsDashboard({ initialReport = 'partyLedger', showPi
           ) : null}
 
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[980px] border-separate border-spacing-0 text-left text-sm">
+            <table className="w-full min-w-[1080px] border-separate border-spacing-0 text-left text-sm">
               <thead className="bg-[linear-gradient(135deg,#065f46_0%,#059669_38%,#0d9488_72%,#14b8a6_100%)] text-white">
                 <tr>
-                  <th className="border-y-2 border-l-2 border-r border-black px-4 py-3 text-center font-semibold">Date</th>
+                  <th className="border-y-2 border-l-2 border-r border-black px-4 py-3 text-center font-semibold">Date / Ref</th>
                   <th className="border-y-2 border-r border-black px-4 py-3 text-center font-semibold">Product</th>
                   <th className="border-y-2 border-r border-black px-4 py-3 text-center font-semibold">Type</th>
-                  <th className="border-y-2 border-r border-black px-4 py-3 text-center font-semibold">Ref No</th>
+                  <th className="border-y-2 border-r border-black px-4 py-3 text-center font-semibold">Vehicle No</th>
                   <th className="border-y-2 border-r border-black px-4 py-3 text-center font-semibold">In Qty</th>
                   <th className="border-y-2 border-r border-black px-4 py-3 text-center font-semibold">Out Qty</th>
                   <th className="border-y-2 border-r-2 border-black px-4 py-3 text-center font-semibold">Running Qty</th>
@@ -562,10 +563,20 @@ export default function ReportsDashboard({ initialReport = 'partyLedger', showPi
               <tbody className="bg-[linear-gradient(180deg,rgba(255,255,255,0.96)_0%,rgba(248,250,252,0.98)_100%)] text-slate-700">
                 {[...stockLedgerRows].reverse().map((row, index) => (
                   <tr key={`${row.refId || 'stock'}-${index}`} className="transition-colors hover:bg-slate-200/45">
-                    <td className="border border-slate-300 px-4 py-3 text-center">{formatDate(row.date)}</td>
+                    <td className="border border-slate-300 px-4 py-3 text-center">
+                      <div>
+                        <p className="font-semibold text-slate-900">{formatDate(row.date)}</p>
+                        <p className="text-[10px] text-slate-400 font-mono mt-0.5">{row.refNumber || '-'}</p>
+                      </div>
+                    </td>
                     <td className="border border-slate-300 px-4 py-3 text-center">{row.productName || '-'}</td>
                     <td className="border border-slate-300 px-4 py-3 text-center font-semibold">{row.displayType || row.type || '-'}</td>
-                    <td className="border border-slate-300 px-4 py-3 text-center">{row.refNumber || '-'}</td>
+                    <td className="border border-slate-300 px-4 py-3 text-center">
+                      <div className="flex items-center justify-center gap-2">
+                        <Truck className="h-3.5 w-3.5 text-slate-400" />
+                        <span className="font-bold text-slate-700">{row.vehicleNo || '-'}</span>
+                      </div>
+                    </td>
                     <td className="border border-slate-300 px-4 py-3 text-center font-semibold text-emerald-700">{formatNumber(row.inQty)}</td>
                     <td className="border border-slate-300 px-4 py-3 text-center font-semibold text-rose-700">{formatNumber(row.outQty)}</td>
                     <td className="border border-slate-300 px-4 py-3 text-center font-semibold">{formatNumber(row.runningQty)}</td>

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Boxes } from 'lucide-react';
+import { Boxes, Truck } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import apiClient from '../utils/api';
 
@@ -113,10 +113,45 @@ export default function StockLedger() {
           </div>
 
           <div className="rounded-3xl bg-white shadow-xl border border-slate-100 overflow-hidden">
-            <div className="px-6 py-5 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white">
+            <div className="px-6 py-5 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white flex flex-col md:flex-row md:items-center justify-between gap-4">
               <div>
                 <h2 className="text-lg font-black text-slate-800">Detailed Ledger</h2>
                 <p className="text-sm text-slate-500">Complete transaction history</p>
+              </div>
+              
+              <div className="flex flex-wrap items-center gap-3">
+                <div className="relative">
+                  <select
+                    value={productId}
+                    onChange={(e) => setProductId(e.target.value)}
+                    className="appearance-none bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold py-2 pl-3 pr-8 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all cursor-pointer uppercase tracking-wider"
+                  >
+                    <option value="">All Products</option>
+                    {currentStockRows.map(p => (
+                      <option key={p.productId} value={p.productId}>{p.productName}</option>
+                    ))}
+                  </select>
+                  <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-slate-400">
+                    <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 7.929 8.707 6.515 10.141z"/></svg>
+                  </div>
+                </div>
+
+                <div className="relative">
+                  <select
+                    value={dateRange}
+                    onChange={(e) => setDateRange(e.target.value)}
+                    className="appearance-none bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold py-2 pl-3 pr-8 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all cursor-pointer uppercase tracking-wider"
+                  >
+                    <option value="all">All Time</option>
+                    <option value="1">Last 1 Day</option>
+                    <option value="7">Last 7 Days</option>
+                    <option value="30">Last 30 Days</option>
+                    <option value="90">Last 90 Days</option>
+                  </select>
+                  <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-slate-400">
+                    <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 7.929 8.707 6.515 10.141z"/></svg>
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -124,10 +159,10 @@ export default function StockLedger() {
               <table className="w-full min-w-[900px]">
                 <thead>
                   <tr className="bg-gradient-to-r from-slate-800 via-slate-700 to-slate-800 text-white">
-                    <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider">Date</th>
+                    <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider">Date / Ref</th>
                     <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider">Product</th>
                     <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider">Type</th>
-                    <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider">Reference</th>
+                    <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider">Vehicle No</th>
                     <th className="px-6 py-4 text-right text-xs font-bold uppercase tracking-wider">Rate</th>
                     <th className="px-6 py-4 text-right text-xs font-bold uppercase tracking-wider">Stock In</th>
                     <th className="px-6 py-4 text-right text-xs font-bold uppercase tracking-wider">Stock Out</th>
@@ -141,6 +176,7 @@ export default function StockLedger() {
                         <td className="px-6 py-4">
                           <div>
                             <p className="text-sm font-semibold text-slate-800">{formatDate(row.date)}</p>
+                            <p className="text-[10px] text-slate-400 font-mono mt-0.5">{row.refNumber || '-'}</p>
                           </div>
                         </td>
                         <td className="px-6 py-4">
@@ -156,7 +192,12 @@ export default function StockLedger() {
                           </span>
                         </td>
                         <td className="px-6 py-4">
-                          <p className="text-sm text-slate-600 font-mono">{row.refNumber || '-'}</p>
+                          <div className="flex items-center gap-2">
+                            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-slate-100 text-slate-500">
+                              <Truck className="h-3.5 w-3.5" />
+                            </div>
+                            <span className="text-sm font-bold text-slate-700">{row.vehicleNo || '-'}</span>
+                          </div>
                         </td>
                         <td className="px-6 py-4 text-right">
                           <p className="text-sm font-semibold text-slate-700">

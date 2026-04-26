@@ -418,16 +418,25 @@ const getStockLedgerData = async ({ userId, productId, fromDate, toDate }) => {
   const purchaseFilter = { userId };
   const materialUsedFilter = { userId };
 
+  const saleFilter = { userId };
+  let selectedStockName = null;
+
   if (productId) {
     stockFilter._id = productId;
-  }
-
-  if (productId) {
     purchaseFilter["items.product"] = productId;
     materialUsedFilter.materialType = productId;
+
+    const stock = await Stock.findOne({ _id: productId, userId });
+    if (stock) {
+      selectedStockName = stock.name;
+      saleFilter.stoneSize = { $regex: new RegExp(`^${stock.name}$`, "i") };
+    } else {
+      // If product ID is invalid/not found, sales should probably not show any entries for this filter
+      saleFilter.stoneSize = "__non_existent__";
+    }
   }
 
-  const [stocks, purchases, materialUsedEntries] = await Promise.all([
+  const [stocks, purchases, materialUsedEntries, sales] = await Promise.all([
     Stock.find(stockFilter).sort({ name: 1 }),
     Purchase.find(purchaseFilter)
       .populate("party", "name")
@@ -437,6 +446,9 @@ const getStockLedgerData = async ({ userId, productId, fromDate, toDate }) => {
       .populate("vehicle", "vehicleNo vehicleNumber")
       .populate("materialType", "name unit")
       .sort({ usedDate: 1, createdAt: 1 }),
+    Sales.find(saleFilter)
+      .populate("partyId", "name")
+      .sort({ saleDate: 1, createdAt: 1 }),
   ]);
 
   const ledgerRows = [
@@ -457,6 +469,7 @@ const getStockLedgerData = async ({ userId, productId, fromDate, toDate }) => {
               date: purchase.purchaseDate || purchase.createdAt,
               entryCreatedAt: purchase.createdAt,
               refNumber: formatPurchaseNumber(purchase.purchaseNumber),
+              vehicleNo: purchase.vehicleNo || "-",
               inQty: toNumber(item.quantity),
               outQty: 0,
               rate: toNumber(item.unitPrice),
@@ -465,6 +478,27 @@ const getStockLedgerData = async ({ userId, productId, fromDate, toDate }) => {
             }))
         : []
     )),
+    ...sales
+      .filter((sale) => withinRange(sale.saleDate || sale.createdAt, fromDate, toDate))
+      .map((sale) => ({
+        type: "sale",
+        displayType: getEntryDisplayType("sale"),
+        refId: sale._id,
+        sourceRefId: sale._id,
+        productId: sale.stoneSize,
+        productName: sale.stoneSize || "-",
+        unit: sale.pricingMode === "per_cubic_meter" ? "m³" : "ton",
+        partyName: sale.customerName || sale.partyId?.name || "-",
+        date: sale.saleDate || sale.createdAt,
+        entryCreatedAt: sale.createdAt,
+        refNumber: sale.invoiceNumber || "-",
+        vehicleNo: sale.vehicleNo || "-",
+        inQty: 0,
+        outQty: sale.pricingMode === "per_cubic_meter" ? toNumber(sale.cubicMeterQty) : toNumber(sale.netWeight) / 1000,
+        rate: toNumber(sale.rate),
+        amount: toNumber(sale.totalAmount),
+        note: String(sale.notes || "").trim(),
+      })),
     ...materialUsedEntries
       .filter((entry) => withinRange(entry.usedDate || entry.createdAt, fromDate, toDate))
       .map((entry) => ({
@@ -479,6 +513,7 @@ const getStockLedgerData = async ({ userId, productId, fromDate, toDate }) => {
         date: entry.usedDate || entry.createdAt,
         entryCreatedAt: entry.createdAt,
         refNumber: entry.vehicleNo || entry.vehicle?.vehicleNo || entry.vehicle?.vehicleNumber || "-",
+        vehicleNo: entry.vehicleNo || entry.vehicle?.vehicleNo || entry.vehicle?.vehicleNumber || "-",
         inQty: 0,
         outQty: toNumber(entry.usedQty),
         rate: 0,
