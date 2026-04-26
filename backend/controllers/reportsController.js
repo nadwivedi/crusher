@@ -67,12 +67,13 @@ const formatAmount = (value) => `Rs ${toNumber(value).toLocaleString("en-IN", {
   maximumFractionDigits: 2,
 })}`;
 
-const getSaleTypeLabel = (value) => {
-  const normalized = String(value || "").trim().toLowerCase();
-  if (normalized === "sale") return "Sale";
-  if (normalized === "cash sale") return "Cash Sale";
-  if (normalized === "credit sale") return "Credit Sale";
-  return "Sale";
+const getSaleTypeLabel = (total, paid) => {
+  const totalAmount = toNumber(total);
+  const paidAmount = toNumber(paid);
+
+  if (paidAmount === 0) return "Credit Sale";
+  if (paidAmount >= totalAmount && totalAmount > 0) return "Cash Sale";
+  return "Partial Sale";
 };
 
 const getPurchaseTypeLabel = (total, paid) => {
@@ -86,7 +87,7 @@ const getPurchaseTypeLabel = (total, paid) => {
 
 const getEntryDisplayType = (baseType, entryType = "") => {
   if (baseType === "sale") {
-    return getSaleTypeLabel(entryType);
+    return "Sale"; // Usually overridden by getSaleTypeLabel(total, paid)
   }
 
   if (baseType === "purchase") {
@@ -129,7 +130,7 @@ const getPartyOpeningImpact = (party) => {
 const buildSaleSummary = (sale) => {
   const parts = [];
   if (sale.vehicleNo) parts.push(`Vehicle ${sale.vehicleNo}`);
-  parts.push(`Type ${getSaleTypeLabel(sale.type)}`);
+  parts.push(`Type ${getSaleTypeLabel(sale.totalAmount, sale.paidAmount)}`);
   const amounts = getSaleAmounts(sale);
   if (amounts.paidAmount > 0) parts.push(`Paid ${formatAmount(amounts.paidAmount)}`);
   if (amounts.pendingAmount > 0) parts.push(`Due ${formatAmount(amounts.pendingAmount)}`);
@@ -201,7 +202,8 @@ const buildLedgerRowsForParty = ({ party, sales, purchases, receipts, payments, 
 
         return {
           type: "sale",
-          displayType: getEntryDisplayType("sale", item.type),
+          displayType: getSaleTypeLabel(item.totalAmount, item.paidAmount),
+          materialType: item.stoneSize || "Material",
           refId: item._id,
           partyId: party._id,
           partyName: party.name || "-",
@@ -589,7 +591,7 @@ const getPartyLedgerEntryDetail = async (req, res) => {
         notes: "",
         fields: [
           { label: "Invoice Date", value: sale.saleDate || sale.createdAt },
-          { label: "Sale Type", value: getSaleTypeLabel(sale.type) },
+          { label: "Sale Type", value: getSaleTypeLabel(sale.totalAmount, sale.paidAmount) },
           { label: "Paid Amount", value: formatAmount(getSaleAmounts(sale).paidAmount) },
           { label: "Pending Amount", value: formatAmount(getSaleAmounts(sale).pendingAmount) },
           { label: "Vehicle No", value: sale.vehicleNo || "-" },
@@ -777,7 +779,7 @@ const getDayBook = async (req, res) => {
 
           return {
           type: "sale",
-          displayType: getEntryDisplayType("sale", item.type),
+          displayType: getSaleTypeLabel(item.totalAmount, item.paidAmount),
           refId: item._id,
             date: item.saleDate || item.createdAt,
             entryCreatedAt: item.createdAt,
@@ -786,7 +788,7 @@ const getDayBook = async (req, res) => {
             vehicleNo: item.vehicleNo || "",
             materialSummary: buildSaleMaterialSummary(item),
             method: [
-              getSaleTypeLabel(item.type),
+              getSaleTypeLabel(item.totalAmount, item.paidAmount),
               item.vehicleNo ? `Vehicle ${item.vehicleNo}` : "",
               item.pricingMode === "per_cubic_meter"
                 ? `Qty ${toNumber(item.cubicMeterQty)} m³`
