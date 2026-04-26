@@ -68,11 +68,20 @@ const formatAmount = (value) => `Rs ${toNumber(value).toLocaleString("en-IN", {
 })}`;
 
 const getSaleTypeLabel = (value) => {
-  const normalized = String(value || "").trim();
+  const normalized = String(value || "").trim().toLowerCase();
   if (normalized === "sale") return "Sale";
   if (normalized === "cash sale") return "Cash Sale";
   if (normalized === "credit sale") return "Credit Sale";
   return "Sale";
+};
+
+const getPurchaseTypeLabel = (total, paid) => {
+  const totalAmount = toNumber(total);
+  const paidAmount = toNumber(paid);
+  
+  if (paidAmount === 0) return "Credit Purchase";
+  if (paidAmount >= totalAmount && totalAmount > 0) return "Cash Purchase";
+  return "Partial Purchase";
 };
 
 const getEntryDisplayType = (baseType, entryType = "") => {
@@ -81,10 +90,7 @@ const getEntryDisplayType = (baseType, entryType = "") => {
   }
 
   if (baseType === "purchase") {
-    const normalized = String(entryType || "").trim().toLowerCase();
-    if (normalized === "cash purchase") return "Cash Purchase";
-    if (normalized === "credit purchase") return "Credit Purchase";
-    return "Purchase";
+    return "Purchase"; // Default, usually overridden by getPurchaseTypeLabel
   }
   if (baseType === "receipt") return "Receipt";
   if (baseType === "payment") return "Payment";
@@ -225,7 +231,7 @@ const buildLedgerRowsForParty = ({ party, sales, purchases, receipts, payments, 
       .filter((item) => withinRange(item.purchaseDate || item.createdAt, fromDate, toDate))
       .map((item) => ({
         type: "purchase",
-        displayType: getEntryDisplayType("purchase", item.type),
+        displayType: getPurchaseTypeLabel(item.totalAmount, item.paidAmount),
         refId: item._id,
         partyId: party._id,
         partyName: party.name || "-",
@@ -239,7 +245,8 @@ const buildLedgerRowsForParty = ({ party, sales, purchases, receipts, payments, 
           ? item.items.reduce((sum, row) => sum + toNumber(row.quantity), 0)
           : 0,
         amount: toNumber(item.totalAmount),
-        impact: -toNumber(item.totalAmount),
+        paidAmount: toNumber(item.paidAmount),
+        impact: -(toNumber(item.totalAmount) - toNumber(item.paidAmount)),
       })),
     ...receipts
       .filter((item) => String(item.party?._id || item.party) === String(party._id))
@@ -637,6 +644,8 @@ const getPartyLedgerEntryDetail = async (req, res) => {
         fields: [
           { label: "Purchase Date", value: purchase.purchaseDate || purchase.createdAt },
           { label: "Supplier Invoice", value: purchase.supplierInvoice || "-" },
+          { label: "Paid Amount", value: formatAmount(purchase.paidAmount) },
+          { label: "Pending Amount", value: formatAmount(toNumber(purchase.totalAmount) - toNumber(purchase.paidAmount)) },
           { label: "Invoice Link", value: purchase.invoiceLink || "-" },
         ],
         items: Array.isArray(purchase.items)
@@ -806,16 +815,18 @@ const getDayBook = async (req, res) => {
         .filter((item) => withinRange(item.purchaseDate || item.createdAt, fromDate, toDate))
         .map((item) => ({
           type: "purchase",
-          displayType: getEntryDisplayType("purchase", item.type),
+          displayType: getPurchaseTypeLabel(item.totalAmount, item.paidAmount),
           refId: item._id,
           date: item.purchaseDate || item.createdAt,
           entryCreatedAt: item.createdAt,
           voucherNumber: formatPurchaseNumber(item.purchaseNumber),
           partyName: item.party?.name || "-",
           method: item.supplierInvoice || "-",
+          totalAmount: Number(item.totalAmount || 0),
+          paidAmount: Number(item.paidAmount || 0),
           amount: Number(item.totalAmount || 0),
           inAmount: 0,
-          outAmount: Number(item.totalAmount || 0),
+          outAmount: Number(item.paidAmount || 0),
         })),
       ...payments
         .filter((item) => withinRange(item.paymentDate || item.createdAt, fromDate, toDate))
@@ -1134,10 +1145,11 @@ const getDashboardAnalytics = async (req, res) => {
     };
 
     for (const sale of sales) {
-       addImpact(sale, "partyId", sale.type === "cash sale" ? 0 : toNumber(sale.totalAmount));
+       const saleAmounts = getSaleAmounts(sale);
+       addImpact(sale, "partyId", saleAmounts.totalAmount - saleAmounts.paidAmount);
     }
     for (const purchase of purchases) {
-       addImpact(purchase, "party", purchase.type === "cash purchase" ? 0 : -toNumber(purchase.totalAmount));
+       addImpact(purchase, "party", -(toNumber(purchase.totalAmount) - toNumber(purchase.paidAmount)));
     }
     for (const receipt of receipts) {
        addImpact(receipt, "party", -toNumber(receipt.amount));

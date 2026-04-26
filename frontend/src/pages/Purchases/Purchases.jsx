@@ -7,6 +7,21 @@ import AddPartyPopup from '../Party/component/AddPartyPopup';
 import AddProductPopup from '../Products/component/AddProductPopup';
 import AddPurchasePopup from './component/AddPurchasePopup';
 
+const getPurchaseTypeLabel = (total, paid) => {
+  const totalAmount = Number(total || 0);
+  const paidAmount = Number(paid || 0);
+  
+  if (paidAmount === 0) return 'Credit Purchase';
+  if (paidAmount >= totalAmount && totalAmount > 0) return 'Cash Purchase';
+  return 'Partial Purchase';
+};
+
+const getPurchaseTypeBadgeClass = (label) => {
+  if (label === 'Cash Purchase') return 'bg-emerald-100 text-emerald-700 border-emerald-200';
+  if (label === 'Credit Purchase') return 'bg-amber-100 text-amber-700 border-amber-200';
+  return 'bg-orange-100 text-orange-700 border-orange-200';
+};
+
 export default function Purchases({ modalOnly = false, onModalFinish = null }) {
   const toastOptions = { autoClose: 1200 };
   const location = useLocation();
@@ -1343,12 +1358,31 @@ export default function Purchases({ modalOnly = false, onModalFinish = null }) {
                       <p className="mt-0.5 truncate text-xs font-semibold text-white">
                         {purchase.supplierInvoice || purchase.invoiceNo || purchase.invoiceNumber || 'No supplier invoice'}
                       </p>
+                      <div className="mt-1">
+                        <span className={`inline-flex rounded-full px-2 py-0.5 text-[9px] font-bold border ${getPurchaseTypeBadgeClass(getPurchaseTypeLabel(purchase.totalAmount, purchase.paidAmount))}`}>
+                          {getPurchaseTypeLabel(purchase.totalAmount, purchase.paidAmount)}
+                        </span>
+                      </div>
                     </div>
-                    <div className="rounded-lg bg-white/20 backdrop-blur-sm px-2.5 py-1.5 text-right">
-                      <p className="text-[8px] font-semibold uppercase tracking-[0.1em] text-white/90">Total</p>
-                      <p className="text-xs font-bold text-white">
-                        Rs {Number(purchase.totalAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                      </p>
+                    <div className="flex flex-col gap-1.5 rounded-lg bg-white/20 backdrop-blur-sm px-2.5 py-1.5 text-right min-w-[100px]">
+                      <div className="flex justify-between items-center gap-3">
+                        <p className="text-[8px] font-semibold uppercase tracking-[0.1em] text-white/90">Total</p>
+                        <p className="text-[11px] font-bold text-white">
+                          Rs {Number(purchase.totalAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                        </p>
+                      </div>
+                      <div className="flex justify-between items-center gap-3">
+                        <p className="text-[8px] font-semibold uppercase tracking-[0.1em] text-white/90">Paid</p>
+                        <p className="text-[11px] font-bold text-emerald-200">
+                          Rs {Number(purchase.paidAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                        </p>
+                      </div>
+                      <div className="flex justify-between items-center gap-3 border-t border-white/20 pt-1">
+                        <p className="text-[8px] font-semibold uppercase tracking-[0.1em] text-white/90">Due</p>
+                        <p className="text-[11px] font-bold text-rose-200">
+                          Rs {Number((purchase.totalAmount || 0) - (purchase.paidAmount || 0)).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                        </p>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -1434,12 +1468,15 @@ export default function Purchases({ modalOnly = false, onModalFinish = null }) {
               <thead className="bg-[linear-gradient(135deg,#0f766e_0%,#0d9488_38%,#0891b2_72%,#0284c7_100%)] text-white">
                 <tr>
                   <th className="border-y-2 border-l-2 border-r border-black px-4 py-3.5 text-center text-sm font-semibold">Purchase No</th>
+                  <th className="border-y-2 border-r border-black px-4 py-3.5 text-center text-sm font-semibold">Type</th>
                   <th className="border-y-2 border-r border-black px-4 py-3.5 text-center text-sm font-semibold">Supplier Invoice No.</th>
                   <th className="border-y-2 border-r border-black px-4 py-3.5 text-center text-sm font-semibold">Manage Party</th>
                   <th className="border-y-2 border-r border-black px-4 py-3.5 text-sm font-semibold">Products</th>
                   <th className="border-y-2 border-r border-black px-4 py-3.5 text-center text-sm font-semibold">Date</th>
                   <th className="border-y-2 border-r border-black px-4 py-3.5 text-center text-sm font-semibold">Invoice File</th>
                   <th className="border-y-2 border-r border-black px-4 py-3.5 text-center text-sm font-semibold">Total</th>
+                  <th className="border-y-2 border-r border-black px-4 py-3.5 text-center text-sm font-semibold">Paid</th>
+                  <th className="border-y-2 border-r border-black px-4 py-3.5 text-center text-sm font-semibold">Balance</th>
                   <th className="border-y-2 border-r-2 border-black px-4 py-3.5 text-center text-sm font-semibold">Actions</th>
                 </tr>
               </thead>
@@ -1448,6 +1485,11 @@ export default function Purchases({ modalOnly = false, onModalFinish = null }) {
                   return (
                     <tr key={purchase._id} className="transition-colors duration-150 hover:bg-slate-200/45">
                       <td className="border border-slate-400 px-4 py-3 text-center font-semibold text-slate-800">{formatPurchaseNumber(purchase.purchaseNumber)}</td>
+                      <td className="border border-slate-400 px-4 py-3 text-center">
+                        <span className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-bold border ${getPurchaseTypeBadgeClass(getPurchaseTypeLabel(purchase.totalAmount, purchase.paidAmount))}`}>
+                          {getPurchaseTypeLabel(purchase.totalAmount, purchase.paidAmount)}
+                        </span>
+                      </td>
                       <td className="border border-slate-400 px-4 py-3 text-center font-semibold text-slate-800">{purchase.supplierInvoice || purchase.invoiceNo || purchase.invoiceNumber || '-'}</td>
                       <td className="border border-slate-400 px-4 py-3 text-center font-medium text-slate-700">{resolveLeadgerNameById(purchase.party)}</td>
                       <td className="border border-slate-400 px-4 py-3 text-slate-600">
@@ -1489,8 +1531,14 @@ export default function Purchases({ modalOnly = false, onModalFinish = null }) {
                           </a>
                         ) : <span className="text-slate-400">-</span>}
                       </td>
-                      <td className="border border-slate-400 px-4 py-3 text-center font-semibold text-emerald-600">
+                      <td className="border border-slate-400 px-4 py-3 text-center font-bold text-slate-800">
                         Rs {Number(purchase.totalAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                      </td>
+                      <td className="border border-slate-400 px-4 py-3 text-center font-bold text-emerald-600">
+                        Rs {Number(purchase.paidAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                      </td>
+                      <td className="border border-slate-400 px-4 py-3 text-center font-bold text-rose-600">
+                        Rs {Number((purchase.totalAmount || 0) - (purchase.paidAmount || 0)).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                       </td>
                       <td className="border border-slate-400 px-4 py-3">
                         <div className="flex items-center justify-center gap-2">
@@ -1521,4 +1569,3 @@ export default function Purchases({ modalOnly = false, onModalFinish = null }) {
     </div>
   );
 }
-

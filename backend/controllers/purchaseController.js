@@ -74,51 +74,14 @@ const getPurchasePaymentBreakdown = (totalAmountValue, paidAmountValue) => {
   };
 };
 
-const syncPurchaseAutoPayments = async (purchaseDoc, userId, paymentMeta = {}) => {
-  const breakdown = getPurchasePaymentBreakdown(purchaseDoc.totalAmount, purchaseDoc.paidAmount);
-  const paymentMethod = String(paymentMeta.paymentMethod || "Cash Account").trim() || "Cash Account";
-  const paymentDate = paymentMeta.paymentDate ? new Date(paymentMeta.paymentDate) : (purchaseDoc.purchaseDate || new Date());
-  const paymentNotes = String(paymentMeta.paymentNotes || "").trim();
-
+const syncPurchaseAutoPayments = async (purchaseDoc, userId) => {
   await Payment.deleteMany({
     userId,
     originPurchaseId: purchaseDoc._id,
     paymentSource: { $in: AUTO_PAYMENT_SOURCES },
   });
 
-  if (breakdown.appliedAmount > 0 && breakdown.appliedAmount < breakdown.totalAmount) {
-    await Payment.create({
-      userId,
-      party: purchaseDoc.party || null,
-      refType: "purchase",
-      refId: purchaseDoc._id,
-      originPurchaseId: purchaseDoc._id,
-      amount: breakdown.appliedAmount,
-      paymentNumber: await createPaymentNumber(userId, paymentDate),
-      method: paymentMethod,
-      paymentDate,
-      notes: paymentNotes || `Auto payment for ${purchaseDoc.supplierInvoice || `Pur-${purchaseDoc.purchaseNumber}`}`,
-      paymentSource: "purchase-payment",
-    });
-  }
-
-  if (breakdown.excessAmount > 0) {
-    await Payment.create({
-      userId,
-      party: purchaseDoc.party || null,
-      refType: "none",
-      refId: null,
-      originPurchaseId: purchaseDoc._id,
-      amount: breakdown.excessAmount,
-      paymentNumber: await createPaymentNumber(userId, paymentDate),
-      method: paymentMethod,
-      paymentDate,
-      notes: paymentNotes || `Auto excess payment for ${purchaseDoc.supplierInvoice || `Pur-${purchaseDoc.purchaseNumber}`}`,
-      paymentSource: "purchase-excess-payment",
-    });
-  }
-
-  return breakdown;
+  return getPurchasePaymentBreakdown(purchaseDoc.totalAmount, purchaseDoc.paidAmount);
 };
 
 const normalizeItems = (items = []) => (
@@ -218,7 +181,7 @@ const createPurchase = async (req, res) => {
     });
 
     await adjustStockLevels(req.userId, normalizedItems, 1);
-    await syncPurchaseAutoPayments(purchase, req.userId, req.body);
+    await syncPurchaseAutoPayments(purchase, req.userId);
 
     const savedPurchase = await populatePurchase(req.userId, purchase._id);
     return res.status(201).json({ data: savedPurchase });
@@ -322,7 +285,7 @@ const updatePurchase = async (req, res) => {
     purchase.notes = String(req.body.notes || "").trim();
 
     await purchase.save();
-    await syncPurchaseAutoPayments(purchase, req.userId, req.body);
+    await syncPurchaseAutoPayments(purchase, req.userId);
 
     const savedPurchase = await populatePurchase(req.userId, purchase._id);
     return res.json({ data: savedPurchase });

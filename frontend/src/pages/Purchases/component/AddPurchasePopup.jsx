@@ -342,46 +342,7 @@ export default function AddPurchasePopup({
                               <td className="border-r border-slate-400 px-3 py-2.5 text-right font-semibold text-gray-800">Rs {Number(item.total || 0).toFixed(2)}</td>
                             </tr>
                           ))}
-                          {isItemEntryClosed ? (
-                            <>
-                              <tr className="bg-emerald-50/40">
-                                <td colSpan={4} className="border-t border-emerald-200 px-3 py-3 text-right text-[12px] font-bold uppercase tracking-wide text-emerald-800">
-                                  Total Amount
-                                </td>
-                                <td className="border-t border-emerald-200 px-3 py-3 text-right text-sm font-bold text-emerald-900">
-                                  Rs {Number(formData.totalAmount || 0).toFixed(2)}
-                                </td>
-                              </tr>
-                              {!isCashParty && (
-                                <tr className="bg-white">
-                                  <td colSpan={4} className="border-t border-emerald-100 px-3 py-3 text-right text-[12px] font-bold uppercase tracking-wide text-slate-700">
-                                    Paid Amount
-                                  </td>
-                                  <td className="border-t border-emerald-100 px-3 py-2">
-                                    <input
-                                      ref={paidAmountInputRef}
-                                      type="number"
-                                      name="paymentAmount"
-                                      value={formData.paymentAmount}
-                                      onChange={handleInputChange}
-                                      onKeyDown={(event) => {
-                                        if (event.key === 'Backspace' && !String(formData.paymentAmount || '').trim()) {
-                                          event.preventDefault();
-                                          event.stopPropagation();
-                                          reopenItemEntryFromPaidAmount();
-                                        }
-                                      }}
-                                      step="0.01"
-                                      min="0"
-                                      disabled={Boolean(editingId)}
-                                      className={`${inputClass} text-right ${Boolean(editingId) ? 'bg-gray-100 text-gray-500' : 'bg-white'} focus:ring-emerald-500`}
-                                      placeholder="0.00"
-                                    />
-                                  </td>
-                                </tr>
-                              )}
-                            </>
-                          ) : (
+                          {!isItemEntryClosed && (
                             <tr className="bg-emerald-50/50 align-top">
                               <td className="px-3 py-2.5">
                                 <div
@@ -530,6 +491,40 @@ export default function AddPurchasePopup({
                               </td>
                             </tr>
                           )}
+                          <tr className="bg-emerald-50/40">
+                            <td colSpan={4} className="border-t border-emerald-200 px-3 py-3 text-right text-[12px] font-bold uppercase tracking-wide text-emerald-800">
+                              Total Amount
+                            </td>
+                            <td className="border-t border-emerald-200 px-3 py-3 text-right text-sm font-bold text-emerald-900">
+                              Rs {Number(formData.totalAmount || 0).toFixed(2)}
+                            </td>
+                          </tr>
+                          <tr className="bg-white">
+                            <td colSpan={4} className="border-t border-emerald-100 px-3 py-3 text-right text-[12px] font-bold uppercase tracking-wide text-slate-700">
+                              Paid Amount {isCashParty && <span className="ml-1 text-[10px] text-emerald-600 font-medium">(Cash Purchase)</span>}
+                            </td>
+                            <td className="border-t border-emerald-100 px-3 py-2">
+                              <input
+                                ref={paidAmountInputRef}
+                                type="number"
+                                name="paymentAmount"
+                                value={formData.paymentAmount}
+                                onChange={handleInputChange}
+                                onKeyDown={(event) => {
+                                  if (event.key === 'Backspace' && !String(formData.paymentAmount || '').trim() && !isCashParty) {
+                                    event.preventDefault();
+                                    event.stopPropagation();
+                                    reopenItemEntryFromPaidAmount();
+                                  }
+                                }}
+                                step="0.01"
+                                min="0"
+                                disabled={Boolean(editingId) || isCashParty}
+                                className={`${inputClass} text-right ${(Boolean(editingId) || isCashParty) ? 'bg-gray-100 text-gray-500' : 'bg-white'} focus:ring-emerald-500`}
+                                placeholder="0.00"
+                              />
+                            </td>
+                          </tr>
                         </tbody>
                       </table>
                     </div>

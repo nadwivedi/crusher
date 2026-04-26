@@ -353,10 +353,10 @@ export default function DayBook() {
                           <p className="text-sm text-slate-500 capitalize lg:text-[12px] xl:text-sm">{entry.method || '-'}</p>
                         </td>
                         <td className="px-6 py-4 text-right lg:px-4 lg:py-3 xl:px-6 xl:py-4">
-                          {entry.type === 'sale' ? (
+                          {['sale', 'purchase'].includes(entry.type) ? (
                             <div className="space-y-0.5 text-xs">
                               <p className="text-slate-500">Total: <span className="font-bold text-slate-800">{formatCurrency(entry.totalAmount)}</span></p>
-                              <p className="text-slate-500">Paid: <span className="font-bold text-emerald-600">{formatCurrency(entry.paidAmount)}</span></p>
+                              <p className="text-slate-500">Paid: <span className={`font-bold ${entry.type === 'sale' ? 'text-emerald-600' : 'text-rose-600'}`}>{formatCurrency(entry.paidAmount)}</span></p>
                             </div>
                           ) : (
                             <span className="text-slate-300">-</span>

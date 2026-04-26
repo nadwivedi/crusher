@@ -82,8 +82,14 @@ const TYPE_BADGE_STYLES = {
   receipt: 'bg-emerald-100 text-emerald-700',
   purchase: 'bg-amber-100 text-amber-700',
   expense: 'bg-fuchsia-100 text-fuchsia-700',
+  'Cash Purchase': 'bg-emerald-100 text-emerald-700',
+  'Credit Purchase': 'bg-amber-100 text-amber-700',
+  'Partial Purchase': 'bg-orange-100 text-orange-700',
 };
-const getEntryTypeLabel = (entry) => String(entry?.displayType || entry?.type || '-');
+const getEntryTypeLabel = (entry) => {
+  const displayType = String(entry?.displayType || entry?.type || '-');
+  return displayType;
+};
 
 function StatCard({ title, value, icon: Icon, tone }) {
   return (
@@ -211,15 +217,21 @@ export default function HomeDayBookPanel({ activeView = 'daybook', setActiveView
                           </div>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-3 border-t border-slate-100 pt-3">
+                        <div className="grid grid-cols-3 gap-3 border-t border-slate-100 pt-3">
                           <div>
-                            <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500">In Amount</p>
+                            <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500">Total</p>
+                            <p className="mt-1 text-sm font-bold text-slate-800">
+                              {Number(entry.totalAmount || entry.amount || 0) > 0 ? formatCurrency(entry.totalAmount || entry.amount) : '-'}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500">In</p>
                             <p className="mt-1 text-sm font-bold text-emerald-600">
                               {Number(entry.inAmount || 0) > 0 ? formatCurrency(entry.inAmount) : '-'}
                             </p>
                           </div>
                           <div>
-                            <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500">Out Amount</p>
+                            <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500">Out</p>
                             <p className="mt-1 text-sm font-bold text-rose-600">
                               {Number(entry.outAmount || 0) > 0 ? formatCurrency(entry.outAmount) : '-'}
                             </p>
@@ -240,6 +252,7 @@ export default function HomeDayBookPanel({ activeView = 'daybook', setActiveView
                     <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-[0.14em] lg:px-3 lg:py-2.5 lg:text-[11px] xl:px-4 xl:py-3 xl:text-xs">Ref</th>
                     <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-[0.14em] lg:px-3 lg:py-2.5 lg:text-[11px] xl:px-4 xl:py-3 xl:text-xs">Party</th>
                     <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-[0.14em] lg:px-3 lg:py-2.5 lg:text-[11px] xl:px-4 xl:py-3 xl:text-xs">Material</th>
+                    <th className="px-4 py-3 text-right text-xs font-bold uppercase tracking-[0.14em] lg:px-3 lg:py-2.5 lg:text-[11px] xl:px-4 xl:py-3 xl:text-xs">Total</th>
                     <th className="px-4 py-3 text-right text-xs font-bold uppercase tracking-[0.14em] lg:px-3 lg:py-2.5 lg:text-[11px] xl:px-4 xl:py-3 xl:text-xs">In</th>
                     <th className="px-4 py-3 text-right text-xs font-bold uppercase tracking-[0.14em] lg:px-3 lg:py-2.5 lg:text-[11px] xl:px-4 xl:py-3 xl:text-xs">Out</th>
                   </tr>
@@ -289,6 +302,9 @@ export default function HomeDayBookPanel({ activeView = 'daybook', setActiveView
                         ) : (
                           <span className="text-sm text-slate-700 lg:text-[13px] xl:text-sm">-</span>
                         )}
+                      </td>
+                      <td className="px-4 py-3 text-right text-sm font-semibold text-slate-700 lg:px-3 lg:py-2.5 lg:text-[13px] xl:px-4 xl:py-3 xl:text-sm">
+                        {Number(entry.totalAmount || entry.amount || 0) > 0 ? formatCurrency(entry.totalAmount || entry.amount) : '-'}
                       </td>
                       <td className="px-4 py-3 text-right text-sm font-semibold text-emerald-600 lg:px-3 lg:py-2.5 lg:text-[13px] xl:px-4 xl:py-3 xl:text-sm">
                         {Number(entry.inAmount || 0) > 0 ? formatCurrency(entry.inAmount) : '-'}

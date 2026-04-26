@@ -700,10 +700,10 @@ export default function PartyDetail() {
                         </div>
                       </div>
                       <div className="text-right">
-                        {row.type === 'sale' ? (
+                        {row.type === 'sale' || row.type === 'purchase' ? (
                           <div className="mt-3 space-y-2 rounded-xl bg-slate-50 p-3">
                             <div className="flex justify-between items-center text-[11px]">
-                              <span className="text-slate-500 uppercase font-bold tracking-wider">Sale Total</span>
+                              <span className="text-slate-500 uppercase font-bold tracking-wider">{row.type === 'sale' ? 'Sale Total' : 'Purchase Total'}</span>
                               <span className="font-black text-slate-800">{formatCurrency(row.amount)}</span>
                             </div>
                             <div className="flex justify-between items-center text-[11px]">
@@ -711,8 +711,10 @@ export default function PartyDetail() {
                               <span className="font-black text-emerald-600">{formatCurrency(row.paidAmount)}</span>
                             </div>
                             <div className="flex justify-between items-center text-[11px] pt-1 border-t border-slate-200">
-                              <span className="text-slate-500 uppercase font-bold tracking-wider">Sale Balance</span>
-                              <span className={`font-black ${Number(row.impact || 0) > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>{formatCurrency(Math.abs(Number(row.impact || 0)))}</span>
+                              <span className="text-slate-500 uppercase font-bold tracking-wider">{row.type === 'sale' ? 'Sale Balance' : 'Purchase Balance'}</span>
+                              <span className={`font-black ${Number(row.impact || 0) !== 0 ? (Number(row.impact || 0) > 0 ? 'text-rose-600' : 'text-emerald-600') : 'text-slate-400'}`}>
+                                {formatCurrency(Math.abs(Number(row.impact || 0)))}
+                              </span>
                             </div>
                           </div>
                         ) : (
@@ -798,11 +800,13 @@ export default function PartyDetail() {
                           <p className="text-sm font-bold text-slate-800">{formatCurrency(row.amount)}</p>
                         </td>
                         <td className="px-6 py-4 text-right">
-                          <p className="text-sm font-bold text-emerald-600">{row.type === 'sale' ? formatCurrency(row.paidAmount) : '-'}</p>
+                          <p className="text-sm font-bold text-emerald-600">
+                            {(row.type === 'sale' || row.type === 'purchase') ? formatCurrency(row.paidAmount) : '-'}
+                          </p>
                         </td>
                         <td className="px-6 py-4 text-right">
-                          <p className={`text-sm font-bold ${Number(row.impact || 0) > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
-                            {row.type === 'sale' ? formatCurrency(Math.abs(Number(row.impact || 0))) : '-'}
+                          <p className={`text-sm font-bold ${Number(row.impact || 0) !== 0 ? (Number(row.impact || 0) > 0 ? 'text-rose-600' : 'text-emerald-600') : 'text-slate-400'}`}>
+                            {(row.type === 'sale' || row.type === 'purchase') ? formatCurrency(Math.abs(Number(row.impact || 0))) : '-'}
                           </p>
                         </td>
                         <td className="px-6 py-4 text-right">
