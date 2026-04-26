@@ -20,30 +20,15 @@ export const useFloatingDropdownPosition = (
       if (!rect) return;
 
       const viewportPadding = 12;
-      const estimatedHeight = 320;
-      const clampedWidth = Math.min(rect.width, window.innerWidth - viewportPadding * 2);
-      const clampedLeft = Math.max(
-        viewportPadding,
-        Math.min(rect.left, window.innerWidth - clampedWidth - viewportPadding)
-      );
       const spaceBelow = window.innerHeight - rect.bottom - viewportPadding;
-      const spaceAbove = rect.top - viewportPadding;
-      const shouldOpenUp = preferredDirection === 'up'
-        ? true
-        : preferredDirection === 'down'
-        ? false
-        : spaceBelow < 240 && spaceAbove > spaceBelow;
-      const availableHeight = Math.max(96, (shouldOpenUp ? spaceAbove : spaceBelow) - 8);
-      const maxHeight = heightMode === 'viewport'
-        ? availableHeight
-        : Math.min(estimatedHeight, availableHeight);
+      const availableHeight = Math.max(120, spaceBelow - 4);
 
       setStyle({
-        left: clampedLeft,
-        width: clampedWidth,
-        top: shouldOpenUp ? 'auto' : rect.bottom + 6,
-        bottom: shouldOpenUp ? window.innerHeight - rect.top + 6 : 'auto',
-        maxHeight
+        left: Math.max(viewportPadding, Math.min(rect.left, window.innerWidth - rect.width - viewportPadding)),
+        width: rect.width,
+        top: rect.bottom + 6,
+        bottom: 'auto',
+        maxHeight: availableHeight
       });
     };
 
