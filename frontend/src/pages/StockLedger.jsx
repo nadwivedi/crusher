@@ -22,6 +22,8 @@ export default function StockLedger() {
   const [stockLedger, setStockLedger] = useState({ ledger: [], currentStock: [] });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [productId, setProductId] = useState('');
+  const [dateRange, setDateRange] = useState('all');
 
   const stockLedgerRows = stockLedger?.ledger || [];
   const currentStockRows = stockLedger?.currentStock || [];
@@ -38,13 +40,31 @@ export default function StockLedger() {
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [productId, dateRange]);
 
   const loadData = async () => {
     setLoading(true);
     setError('');
     try {
-      const stockRes = await apiClient.get('/reports/stock-ledger');
+      const params = new URLSearchParams();
+      if (productId) params.append('productId', productId);
+      
+      if (dateRange !== 'all') {
+        const now = new Date();
+        let fromDate;
+        if (dateRange === '1') {
+          fromDate = new Date(now.setDate(now.getDate() - 1));
+        } else if (dateRange === '7') {
+          fromDate = new Date(now.setDate(now.getDate() - 7));
+        } else if (dateRange === '30') {
+          fromDate = new Date(now.setDate(now.getDate() - 30));
+        } else if (dateRange === '90') {
+          fromDate = new Date(now.setDate(now.getDate() - 90));
+        }
+        if (fromDate) params.append('fromDate', fromDate.toISOString());
+      }
+
+      const stockRes = await apiClient.get(`/reports/stock-ledger?${params.toString()}`);
       setStockLedger(stockRes || { ledger: [], currentStock: [] });
     } catch (err) {
       setError(err.message || 'Error loading data');
@@ -55,14 +75,14 @@ export default function StockLedger() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-100 via-slate-50 to-stone-100">
-      <div className="mx-auto max-w-[95%] px-4 py-6">
+      <div className="max-w-[98%] pl-2 pr-4 py-6">
         {error && (
           <div className="mb-6 rounded-2xl border border-rose-200 bg-rose-50 px-6 py-4 text-sm font-semibold text-rose-700 shadow-lg">
             {error}
           </div>
         )}
 
-        <div className="grid grid-cols-1 xl:grid-cols-[17rem_minmax(0,1fr)] gap-6 items-stretch">
+        <div className="grid grid-cols-1 xl:grid-cols-[14rem_minmax(0,1fr)] gap-4 items-stretch">
           <div className="flex h-full flex-col rounded-3xl bg-white shadow-xl border border-slate-100 overflow-hidden">
             <div className="px-6 py-5 border-b border-slate-100 bg-gradient-to-r from-emerald-50 to-white">
               <h2 className="text-lg font-black text-slate-800">Current Stock</h2>
@@ -127,12 +147,11 @@ export default function StockLedger() {
                           <p className="text-sm font-semibold text-slate-800 max-w-[180px] truncate">{row.productName || '-'}</p>
                         </td>
                         <td className="px-6 py-4">
-                          <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${
-                            row.type === 'sale' ? 'bg-rose-100 text-rose-700' :
-                            row.type === 'purchase' ? 'bg-emerald-100 text-emerald-700' :
-                            row.type === 'materialUsed' ? 'bg-amber-100 text-amber-700' :
-                            'bg-slate-100 text-slate-700'
-                          }`}>
+                          <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${row.type === 'sale' ? 'bg-rose-100 text-rose-700' :
+                              row.type === 'purchase' ? 'bg-emerald-100 text-emerald-700' :
+                                row.type === 'materialUsed' ? 'bg-amber-100 text-amber-700' :
+                                  'bg-slate-100 text-slate-700'
+                            }`}>
                             {row.displayType || row.type || 'N/A'}
                           </span>
                         </td>
