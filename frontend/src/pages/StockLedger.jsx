@@ -116,7 +116,7 @@ export default function StockLedger() {
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {stockLedgerRows.length > 0 ? (
-                    stockLedgerRows.map((row, index) => (
+                    [...stockLedgerRows].reverse().map((row, index) => (
                       <tr key={`${row.refId || 'row'}-${index}`} className="hover:bg-emerald-50/50 transition-colors">
                         <td className="px-6 py-4">
                           <div>
@@ -130,10 +130,10 @@ export default function StockLedger() {
                           <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${
                             row.type === 'sale' ? 'bg-rose-100 text-rose-700' :
                             row.type === 'purchase' ? 'bg-emerald-100 text-emerald-700' :
-                            row.type === 'return' ? 'bg-amber-100 text-amber-700' :
+                            row.type === 'materialUsed' ? 'bg-amber-100 text-amber-700' :
                             'bg-slate-100 text-slate-700'
                           }`}>
-                            {row.type || 'N/A'}
+                            {row.displayType || row.type || 'N/A'}
                           </span>
                         </td>
                         <td className="px-6 py-4">

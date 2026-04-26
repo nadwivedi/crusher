@@ -560,7 +560,7 @@ export default function ReportsDashboard({ initialReport = 'partyLedger', showPi
                 </tr>
               </thead>
               <tbody className="bg-[linear-gradient(180deg,rgba(255,255,255,0.96)_0%,rgba(248,250,252,0.98)_100%)] text-slate-700">
-                {stockLedgerRows.map((row, index) => (
+                {[...stockLedgerRows].reverse().map((row, index) => (
                   <tr key={`${row.refId || 'stock'}-${index}`} className="transition-colors hover:bg-slate-200/45">
                     <td className="border border-slate-300 px-4 py-3 text-center">{formatDate(row.date)}</td>
                     <td className="border border-slate-300 px-4 py-3 text-center">{row.productName || '-'}</td>
