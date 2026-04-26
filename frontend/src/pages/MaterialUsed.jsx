@@ -67,7 +67,7 @@ function MaterialUsedForm({
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-base font-bold md:text-lg">{editingId ? 'Edit Material Used' : 'Add Material Used'}</h2>
-            <p className="text-[11px] text-white/80 md:text-xs">Track material consumption and reduce stock automatically.</p>
+            <p className="text-[10px] text-white/80 md:text-xs">Track material consumption and reduce stock automatically.</p>
           </div>
           {onClose && (
             <button
@@ -296,7 +296,8 @@ function MaterialUsedForm({
             disabled={loading}
             className="flex-1 rounded-lg bg-[linear-gradient(135deg,#2563eb_0%,#4338ca_100%)] px-5 py-2 text-sm font-semibold text-white transition hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-50 md:flex-none md:px-6"
           >
-            {loading ? 'Saving...' : editingId ? 'Update Material Used' : 'Save Material Used'}
+            <span className="md:hidden">{loading ? 'Saving...' : editingId ? 'Update' : 'Save'}</span>
+            <span className="hidden md:inline">{loading ? 'Saving...' : editingId ? 'Update Material Used' : 'Save Material Used'}</span>
           </button>
         </div>
       </div>

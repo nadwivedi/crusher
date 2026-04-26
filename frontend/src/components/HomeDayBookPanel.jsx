@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowDownCircle, ArrowUpCircle, Banknote, BookText, Package, TrendingUp, BarChart2, Truck } from 'lucide-react';
 import apiClient from '../utils/api';
 import HomeMaterialUsedLedger from './HomeMaterialUsedLedger';
-import HomeStockLedger from './HomeStockLedger';
 
 const DEFAULT_SUMMARY = {
   entryCount: 0,
@@ -146,8 +145,6 @@ export default function HomeDayBookPanel({ activeView = 'daybook', setActiveView
     <section className="w-full rounded-[28px] border border-slate-200/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.96),rgba(241,245,249,0.96))] shadow-[0_28px_70px_rgba(15,23,42,0.18)] lg:rounded-[24px] xl:rounded-[28px]">
       {activeView === 'material-used-ledger' ? (
         <HomeMaterialUsedLedger />
-      ) : activeView === 'stock-ledger' ? (
-        <HomeStockLedger />
       ) : (
       <div className="space-y-5 p-5 sm:p-6 lg:space-y-4 lg:p-4 xl:space-y-5 xl:p-6">
         {error ? (
