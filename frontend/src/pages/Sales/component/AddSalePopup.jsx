@@ -256,8 +256,8 @@ export default function AddSalePopup({
                     <label className={labelClass}>Vehicle No</label>
                     <button type="button" onClick={onOpenNewVehicle} className="text-[10px] font-bold text-blue-600 hover:underline">+ New Vehicle</button>
                   </div>
-                  <div ref={vehicleSectionRef} className="relative">
-                    <input ref={vehicleInputRef} type="text" name="vehicleNo" value={vehicleQuery} onChange={handleVehicleInputChange} onKeyDown={handleVehicleInputKeyDown} autoComplete="off" className={`${inputClass} focus:ring-blue-500 uppercase`} placeholder="Type vehicle no..." />
+                  <div ref={vehicleSectionRef} className="relative" onBlurCapture={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) setIsVehicleSectionActive(false); }}>
+                    <input ref={vehicleInputRef} type="text" name="vehicleNo" value={vehicleQuery} onFocus={handleVehicleFocus} onChange={handleVehicleInputChange} onKeyDown={handleVehicleInputKeyDown} autoComplete="off" className={`${inputClass} focus:ring-blue-500 uppercase`} placeholder="Type vehicle no..." />
                     {isVehicleSectionActive && vehicleDropdownStyle && (
                       <div className="fixed z-[80] overflow-hidden rounded-xl border border-blue-200 bg-white shadow-xl" style={vehicleDropdownStyle}>
                         <div className="bg-blue-50 px-3 py-1.5 text-[10px] font-bold text-blue-700 uppercase">Vehicles ({filteredVehicles.length})</div>
@@ -277,8 +277,8 @@ export default function AddSalePopup({
                     <label className={labelClass}>Party Name</label>
                     <button type="button" onClick={onOpenNewParty} className="text-[10px] font-bold text-blue-600 hover:underline">+ New Party</button>
                   </div>
-                  <div ref={leadgerSectionRef} className="relative">
-                    <input ref={leadgerInputRef} type="text" value={leadgerQuery} onChange={handleLeadgerInputChange} onKeyDown={handleLeadgerInputKeyDown} className={`${inputClass} focus:ring-blue-500`} placeholder="Type party name..." autoComplete="off" />
+                  <div ref={leadgerSectionRef} className="relative" onBlurCapture={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) setIsLeadgerSectionActive(false); }}>
+                    <input ref={leadgerInputRef} type="text" value={leadgerQuery} onFocus={handleLeadgerFocus} onChange={handleLeadgerInputChange} onKeyDown={handleLeadgerInputKeyDown} className={`${inputClass} focus:ring-blue-500`} placeholder="Type party name..." autoComplete="off" />
                     {isLeadgerSectionActive && leadgerDropdownStyle && (
                       <div className="fixed z-[80] overflow-hidden rounded-xl border border-blue-200 bg-white shadow-xl" style={leadgerDropdownStyle}>
                         <div className="bg-blue-50 px-3 py-1.5 text-[10px] font-bold text-blue-700 uppercase">Parties ({filteredLeadgers.length})</div>
@@ -329,8 +329,8 @@ export default function AddSalePopup({
                   {/* Material Type */}
                   <div className="space-y-1">
                     <label className={labelClass}>Material Type</label>
-                    <div ref={materialSectionRef} className="relative">
-                      <input ref={materialInputRef} type="text" value={materialQuery} onChange={handleMaterialInputChange} onKeyDown={handleMaterialInputKeyDown} className={`${inputClass} focus:ring-emerald-500`} placeholder="Search material..." autoComplete="off" />
+                    <div ref={materialSectionRef} className="relative" onBlurCapture={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) setIsMaterialSectionActive(false); }}>
+                      <input ref={materialInputRef} type="text" value={materialQuery} onFocus={handleMaterialFocus} onChange={handleMaterialInputChange} onKeyDown={handleMaterialInputKeyDown} className={`${inputClass} focus:ring-emerald-500`} placeholder="Search material..." autoComplete="off" />
                       {isMaterialSectionActive && materialDropdownStyle && (
                         <div className="fixed z-[80] overflow-hidden rounded-xl border border-emerald-200 bg-white shadow-xl" style={materialDropdownStyle}>
                           <div className="bg-emerald-50 px-3 py-1.5 text-[10px] font-bold text-emerald-700 uppercase">Materials ({filteredMaterialTypes.length})</div>

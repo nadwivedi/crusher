@@ -1,4 +1,4 @@
-import { Building2, CalendarDays, Wallet } from 'lucide-react';
+import { Building2, CalendarDays, Wallet, X, MessageSquare, IndianRupee } from 'lucide-react';
 import { handlePopupFormKeyDown } from '../../../utils/popupFormKeyboard';
 import { useFloatingDropdownPosition } from '../../../utils/useFloatingDropdownPosition';
 
@@ -39,303 +39,117 @@ export default function AddPaymentPopup({
   selectPaymentAccount,
   selectParty
 }) {
-  const inputClass = 'w-full rounded-lg border border-gray-300 bg-white px-2.5 py-1.5 text-[13px] text-gray-800 focus:border-transparent focus:outline-none focus:ring-2';
+  const inputClass = 'w-full rounded-lg border border-slate-400 bg-white px-2.5 py-1.5 text-[13px] text-gray-800 transition placeholder:text-slate-400 focus:border-transparent focus:outline-none focus:ring-2';
+  const labelClass = 'mb-1 block text-[11px] font-semibold text-gray-700 md:text-xs';
   const partyDropdownStyle = useFloatingDropdownPosition(partySectionRef, isPartySectionActive, [filteredParties.length, partyListIndex]);
   const paymentAccountDropdownStyle = useFloatingDropdownPosition(paymentAccountSectionRef, isPaymentAccountSectionActive, [filteredPaymentAccounts.length, paymentAccountListIndex]);
 
   if (!showForm) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-2 backdrop-blur-[1.5px] md:p-4" onClick={handleCloseForm}>
-      <div
-        className="flex max-h-[78vh] w-full max-w-[32rem] flex-col overflow-hidden rounded-xl bg-white shadow-2xl ring-1 ring-slate-200/80 md:rounded-2xl"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex-shrink-0 border-b border-white/15 bg-gradient-to-r from-cyan-700 via-blue-700 to-indigo-700 px-3 py-1.5 text-white md:px-4 md:py-2">
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/55 p-0 backdrop-blur-[2px] md:items-center md:p-6" onClick={handleCloseForm}>
+      <div className="relative flex h-[100dvh] max-h-[100dvh] w-full max-w-[30rem] md:max-w-[48rem] flex-col overflow-hidden rounded-none border border-slate-200 bg-white shadow-[0_30px_80px_rgba(15,23,42,0.28)] md:h-auto md:max-h-[90vh] md:rounded-2xl" onClick={(e) => e.stopPropagation()}>
+        
+        {/* Header */}
+        <div className="bg-[linear-gradient(135deg,#0e7490_0%,#1d4ed8_55%,#4338ca_100%)] px-4 py-3 text-white">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-base font-bold md:text-xl">
-                New Payment
-                <span className="ml-2 text-sm font-medium text-slate-200 md:text-base">Money Paid</span>
-              </h2>
+              <h2 className="text-base font-bold md:text-xl">New Payment Entry</h2>
+              <p className="text-[11px] text-white/80 md:text-xs">Record money paid to a party or supplier</p>
             </div>
-
-            <button
-              type="button"
-              onClick={handleCloseForm}
-              className="rounded-lg p-1.5 text-white transition hover:bg-white/25 md:p-2"
-              aria-label="Close popup"
-            >
-              <svg className="h-5 w-5 md:h-6 md:w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
+            <button type="button" onClick={handleCloseForm} className="rounded-lg p-1.5 text-white transition hover:bg-white/20">
+              <X className="h-5 w-5 md:h-6 md:w-6" />
             </button>
           </div>
         </div>
 
-        <form
-          id="payment-form"
-          onSubmit={handleSubmit}
-          onKeyDown={(e) => handlePopupFormKeyDown(e, handleCloseForm)}
-          className="flex flex-col overflow-hidden"
-        >
-          <div className="overflow-y-auto p-2.5 md:p-4">
-            <div className="flex flex-col gap-3 md:gap-4">
-              <div className="rounded-xl border-2 border-indigo-200 bg-gradient-to-r from-blue-50 to-indigo-50 p-2.5 md:p-4">
-                <h3 className="mb-2.5 flex items-center gap-2 text-sm font-bold text-gray-800 md:mb-3 md:text-base">
-                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-indigo-600 text-[10px] text-white md:h-6 md:w-6 md:text-xs">1</span>
-                  Payment Details
-                </h3>
-
-                <div className="grid grid-cols-1 gap-2.5 md:grid-cols-2 md:gap-3">
-                  <div>
-                    <label className="mb-1 block text-[11px] font-semibold text-gray-700 md:text-xs">Payment Date</label>
+        <form id="payment-form" onSubmit={handleSubmit} onKeyDown={(e) => handlePopupFormKeyDown(e, handleCloseForm)} className="flex flex-1 flex-col overflow-hidden bg-slate-50">
+          <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
+            
+            {/* Main Details Section */}
+            <div className="rounded-2xl border border-blue-200 bg-white p-3 shadow-sm transition hover:shadow-md">
+              <h3 className="mb-3 flex items-center gap-2 text-[13px] font-bold text-blue-900">
+                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-blue-600 text-[10px] font-bold text-white">1</span>
+                Transaction Details
+              </h3>
+              
+              <div className="space-y-4">
+                {/* Row 1: Date, Amount, Party */}
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                  <div className="space-y-1">
+                    <label className={labelClass}>Payment Date</label>
                     <div className="relative">
-                      <CalendarDays className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-indigo-400" />
-                      <input
-                        id="payment-date"
-                        type="text"
-                        name="paymentDate"
-                        value={formData.paymentDate}
-                        onChange={handleChange}
-                        onBlur={handlePaymentDateBlur}
-                        className={`${inputClass} pl-10 focus:ring-indigo-500`}
-                        placeholder="DD/MM/YYYY"
-                        inputMode="numeric"
-                        autoFocus
-                      />
+                      <CalendarDays className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 pointer-events-none" />
+                      <input type="text" name="paymentDate" value={formData.paymentDate} onChange={handleChange} onBlur={handlePaymentDateBlur} className={`${inputClass} pl-9 focus:ring-blue-500`} placeholder="DD/MM/YYYY" inputMode="numeric" autoFocus />
                     </div>
                   </div>
 
-                  <div>
-                    <label className="mb-1 block text-[11px] font-semibold text-gray-700 md:text-xs">
-                      Amount <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      id="payment-amount"
-                      type="number"
-                      name="amount"
-                      value={formData.amount}
-                      onChange={handleChange}
-                      step="0.01"
-                      className={`${inputClass} font-semibold focus:ring-indigo-500`}
-                      placeholder="Enter payment amount"
-                      required
-                    />
+                  <div className="space-y-1">
+                    <label className={labelClass}>Amount Paid (Rs)</label>
+                    <div className="relative">
+                      <IndianRupee className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 pointer-events-none" />
+                      <input type="number" name="amount" value={formData.amount} onChange={handleChange} step="0.01" className={`${inputClass} pl-9 font-bold text-emerald-700 focus:ring-blue-500`} placeholder="0.00" required />
+                    </div>
                   </div>
 
-                  <div className="relative">
-                    <label htmlFor="payment-party" className="mb-1 block text-[11px] font-semibold text-gray-700 md:text-xs">
-                      Party Name
-                    </label>
-                    <div
-                      ref={partySectionRef}
-                      className="relative"
-                      onFocusCapture={handlePartyFocus}
-                      onBlurCapture={(event) => {
-                        const nextFocused = event.relatedTarget;
-                        if (partySectionRef.current && nextFocused instanceof Node && partySectionRef.current.contains(nextFocused)) return;
-                        setIsPartySectionActive(false);
-                      }}
-                    >
-                      <div className="relative">
-                        <Building2 className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-indigo-400" />
-                        <input
-                          id="payment-party"
-                          type="text"
-                          value={partyQuery}
-                          onChange={handlePartyInputChange}
-                          onKeyDown={handlePartyInputKeyDown}
-                          className={`${inputClass} pl-9 focus:ring-indigo-500`}
-                          placeholder="Type to search party..."
-                          autoComplete="off"
-                        />
-                      </div>
-
+                  <div className="space-y-1">
+                    <label className={labelClass}>Party Name</label>
+                    <div ref={partySectionRef} className="relative" onBlurCapture={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) setIsPartySectionActive(false); }}>
+                      <Building2 className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 pointer-events-none" />
+                      <input type="text" value={partyQuery} onFocus={handlePartyFocus} onChange={handlePartyInputChange} onKeyDown={handlePartyInputKeyDown} className={`${inputClass} pl-9 focus:ring-blue-500`} placeholder="Search party..." autoComplete="off" />
                       {isPartySectionActive && partyDropdownStyle && (
-                        <div
-                          className="fixed z-[80] overflow-hidden rounded-xl border border-amber-200 bg-white shadow-[0_18px_40px_rgba(15,23,42,0.18)]"
-                          style={partyDropdownStyle}
-                          onClick={(event) => event.stopPropagation()}
-                        >
-                          <div className="flex items-center justify-between border-b border-amber-100 bg-gradient-to-r from-amber-50 to-yellow-50 px-3 py-2">
-                            <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-amber-700">Party List</span>
-                            <span className="rounded-full bg-white px-2 py-0.5 text-[10px] font-semibold text-amber-700 shadow-sm">
-                              {filteredParties.length}
-                            </span>
-                          </div>
+                        <div className="fixed z-[80] overflow-hidden rounded-xl border border-blue-200 bg-white shadow-xl" style={partyDropdownStyle}>
+                          <div className="bg-blue-50 px-3 py-1.5 text-[10px] font-bold text-blue-700 uppercase">Parties ({filteredParties.length})</div>
                           <div className="overflow-y-auto py-1" style={{ maxHeight: partyDropdownStyle.maxHeight }}>
-                            {filteredParties.length === 0 ? (
-                              <div className="px-3 py-3 text-center text-[13px] text-slate-500">
-                                No matching parties found.
-                              </div>
-                            ) : (
-                              filteredParties.map((party, index) => {
-                                const isActive = index === partyListIndex;
-                                const isSelected = String(formData.party || '') === String(party._id);
-
-                                return (
-                                  <button
-                                    key={party._id}
-                                    type="button"
-                                    onMouseDown={(event) => event.preventDefault()}
-                                    onMouseEnter={() => setPartyListIndex(index)}
-                                    onClick={() => {
-                                      selectParty(party);
-                                      setIsPartySectionActive(false);
-                                    }}
-                                    className={`flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-[13px] transition ${
-                                      isActive
-                                        ? 'bg-yellow-200 text-amber-950'
-                                        : isSelected
-                                        ? 'bg-yellow-50 text-amber-800'
-                                        : 'text-slate-700 hover:bg-amber-50'
-                                    }`}
-                                  >
-                                    <span className="truncate font-medium">{getPartyDisplayName(party)}</span>
-                                    {isSelected && (
-                                      <span className="shrink-0 rounded-full border border-amber-200 bg-white px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700">
-                                        Selected
-                                      </span>
-                                    )}
-                                  </button>
-                                );
-                              })
-                            )}
+                            {filteredParties.length === 0 ? <div className="px-3 py-2 text-xs text-slate-500">No parties found</div> : filteredParties.map((p, i) => (
+                              <button key={p._id} type="button" onMouseDown={e => e.preventDefault()} onMouseEnter={() => setPartyListIndex(i)} onClick={() => { selectParty(p); setIsPartySectionActive(false); }} className={`w-full px-3 py-2 text-left text-xs ${i === partyListIndex ? 'bg-blue-100 text-blue-900' : 'text-slate-700 hover:bg-slate-50'}`}>{getPartyDisplayName(p)}</button>
+                            ))}
                           </div>
                         </div>
                       )}
                     </div>
                   </div>
+                </div>
 
-                  <div className="relative">
-                    <label htmlFor="payment-method" className="mb-1 block text-[11px] font-semibold text-gray-700 md:text-xs">
-                      Payment Account
-                    </label>
-                    <div
-                      ref={paymentAccountSectionRef}
-                      className="relative"
-                      onFocusCapture={handlePaymentAccountFocus}
-                      onBlurCapture={(event) => {
-                        const nextFocused = event.relatedTarget;
-                        if (paymentAccountSectionRef.current && nextFocused instanceof Node && paymentAccountSectionRef.current.contains(nextFocused)) return;
-                        setIsPaymentAccountSectionActive(false);
-                      }}
-                    >
-                      <div className="relative">
-                        <Wallet className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-indigo-400" />
-                        <input
-                          id="payment-method"
-                          type="text"
-                          value={paymentAccountQuery}
-                          onChange={handlePaymentAccountInputChange}
-                          onKeyDown={handlePaymentAccountInputKeyDown}
-                          className={`${inputClass} pl-9 focus:ring-indigo-500`}
-                          placeholder="Type to search account..."
-                          autoComplete="off"
-                        />
-                      </div>
-
+                {/* Row 2: Account & Notes */}
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <div className="space-y-1">
+                    <label className={labelClass}>Payment Account</label>
+                    <div ref={paymentAccountSectionRef} className="relative" onBlurCapture={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) setIsPaymentAccountSectionActive(false); }}>
+                      <Wallet className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 pointer-events-none" />
+                      <input type="text" value={paymentAccountQuery} onFocus={handlePaymentAccountFocus} onChange={handlePaymentAccountInputChange} onKeyDown={handlePaymentAccountInputKeyDown} className={`${inputClass} pl-9 focus:ring-blue-500`} placeholder="Search account..." autoComplete="off" />
                       {isPaymentAccountSectionActive && paymentAccountDropdownStyle && (
-                        <div
-                          className="fixed z-[80] overflow-hidden rounded-xl border border-indigo-200 bg-white shadow-[0_18px_40px_rgba(15,23,42,0.18)]"
-                          style={paymentAccountDropdownStyle}
-                          onClick={(event) => event.stopPropagation()}
-                        >
-                          <div className="flex items-center justify-between border-b border-indigo-100 bg-gradient-to-r from-indigo-50 to-blue-50 px-3 py-2">
-                            <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-indigo-700">Accounts</span>
-                            <span className="rounded-full bg-white px-2 py-0.5 text-[10px] font-semibold text-indigo-700 shadow-sm">
-                              {filteredPaymentAccounts.length}
-                            </span>
-                          </div>
+                        <div className="fixed z-[80] overflow-hidden rounded-xl border border-blue-200 bg-white shadow-xl" style={paymentAccountDropdownStyle}>
+                          <div className="bg-blue-50 px-3 py-1.5 text-[10px] font-bold text-blue-700 uppercase">Accounts ({filteredPaymentAccounts.length})</div>
                           <div className="overflow-y-auto py-1" style={{ maxHeight: paymentAccountDropdownStyle.maxHeight }}>
-                            {filteredPaymentAccounts.length === 0 ? (
-                              <div className="px-3 py-3 text-center text-[13px] text-slate-500">
-                                No matching accounts found.
-                              </div>
-                            ) : (
-                              filteredPaymentAccounts.map((accountName, index) => {
-                                const isActive = index === paymentAccountListIndex;
-                                const isSelected = formData.method === accountName;
-
-                                return (
-                                  <button
-                                    key={accountName}
-                                    type="button"
-                                    onMouseDown={(event) => event.preventDefault()}
-                                    onMouseEnter={() => setPaymentAccountListIndex(index)}
-                                    onClick={() => {
-                                      selectPaymentAccount(accountName);
-                                      setIsPaymentAccountSectionActive(false);
-                                    }}
-                                    className={`flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-[13px] transition ${
-                                      isActive
-                                        ? 'bg-indigo-200 text-indigo-950'
-                                        : isSelected
-                                        ? 'bg-indigo-50 text-indigo-800'
-                                        : 'text-slate-700 hover:bg-indigo-50'
-                                    }`}
-                                  >
-                                    <span className="truncate font-medium">{accountName}</span>
-                                    {isSelected && (
-                                      <span className="shrink-0 rounded-full border border-indigo-200 bg-white px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-indigo-700">
-                                        Selected
-                                      </span>
-                                    )}
-                                  </button>
-                                );
-                              })
-                            )}
+                            {filteredPaymentAccounts.length === 0 ? <div className="px-3 py-2 text-xs text-slate-500">No accounts found</div> : filteredPaymentAccounts.map((acc, i) => (
+                              <button key={acc} type="button" onMouseDown={e => e.preventDefault()} onMouseEnter={() => setPaymentAccountListIndex(i)} onClick={() => { selectPaymentAccount(acc); setIsPaymentAccountSectionActive(false); }} className={`w-full px-3 py-2 text-left text-xs ${i === paymentAccountListIndex ? 'bg-blue-100 text-blue-900' : 'text-slate-700 hover:bg-slate-50'}`}>{acc}</button>
+                            ))}
                           </div>
                         </div>
                       )}
                     </div>
                   </div>
 
-                  <div className="md:col-span-2">
-                    <label htmlFor="payment-notes" className="mb-1 block text-[11px] font-semibold text-gray-700 md:text-xs">
-                      Notes
-                    </label>
-                    <textarea
-                      id="payment-notes"
-                      name="notes"
-                      value={formData.notes}
-                      onChange={handleChange}
-                      onKeyDown={(event) => {
-                        if (event.key !== 'Enter' || event.shiftKey) return;
-                        event.preventDefault();
-                        event.currentTarget.form?.requestSubmit();
-                      }}
-                      rows="3"
-                      className={`${inputClass} resize-none focus:ring-indigo-500`}
-                      placeholder="Optional note"
-                    />
+                  <div className="space-y-1">
+                    <label className={labelClass}>Notes / Remarks</label>
+                    <div className="relative">
+                      <MessageSquare className="absolute left-2.5 top-3 h-3.5 w-3.5 text-slate-400 pointer-events-none" />
+                      <textarea name="notes" value={formData.notes} onChange={handleChange} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); e.currentTarget.form?.requestSubmit(); } }} rows="2" className={`${inputClass} pl-9 resize-none focus:ring-blue-500`} placeholder="Optional notes about this payment..." />
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
+
           </div>
 
-          <div className="flex flex-col items-center justify-between gap-2 border-t border-gray-200 bg-gray-50 px-3 py-2.5 md:flex-row md:px-4 md:py-3">
-            <div className="text-[11px] text-gray-600 md:text-xs">
-              <kbd className="rounded bg-gray-200 px-1.5 py-0.5 font-mono text-[10px]">Esc</kbd> to close
-            </div>
-
-            <div className="flex w-full gap-2 md:w-auto">
-              <button
-                type="button"
-                onClick={handleCloseForm}
-                className="flex-1 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-100 md:flex-none md:px-5"
-              >
-                Cancel
-              </button>
-
-              <button
-                type="submit"
-                form="payment-form"
-                disabled={loading}
-                className="flex-1 rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 px-5 py-2 text-sm font-semibold text-white transition hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-50 md:flex-none md:px-6"
-              >
+          {/* Footer */}
+          <div className="border-t border-slate-200 bg-white px-4 py-3 flex items-center justify-between gap-3">
+            <div className="hidden md:block text-[10px] text-slate-400">Press <kbd className="rounded bg-slate-100 px-1 py-0.5 border">Esc</kbd> to cancel</div>
+            <div className="flex gap-2 w-full md:w-auto">
+              <button type="button" onClick={handleCloseForm} className="flex-1 md:flex-none px-6 py-2 rounded-xl border border-slate-200 text-sm font-bold text-slate-600 hover:bg-slate-50 transition">Cancel</button>
+              <button type="submit" disabled={loading} className="flex-1 md:flex-none px-8 py-2 rounded-xl bg-gradient-to-r from-cyan-600 to-blue-700 text-sm font-bold text-white shadow-lg hover:shadow-cyan-500/30 transition disabled:opacity-50">
                 {loading ? 'Saving...' : 'Save Payment'}
               </button>
             </div>

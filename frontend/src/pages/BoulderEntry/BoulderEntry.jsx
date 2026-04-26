@@ -661,8 +661,8 @@ export default function BoulderEntry({ onModalFinish = null, editingEntry = null
                     <label className={labelClass}>Vehicle No</label>
                     <button type="button" onClick={openInlineVehicleForm} className="text-[10px] font-bold text-blue-600 hover:underline">+ New Vehicle</button>
                   </div>
-                  <div ref={vehicleSectionRef} className="relative">
-                    <input ref={vehicleInputRef} type="text" value={vehicleQuery} onChange={handleVehicleInputChange} onKeyDown={handleVehicleInputKeyDown} className={`${inputClass} focus:ring-blue-500 uppercase`} placeholder="Type vehicle no..." autoComplete="off" />
+                  <div ref={vehicleSectionRef} className="relative" onBlurCapture={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) setIsVehicleSectionActive(false); }}>
+                    <input ref={vehicleInputRef} type="text" value={vehicleQuery} onFocus={handleVehicleFocus} onChange={handleVehicleInputChange} onKeyDown={handleVehicleInputKeyDown} className={`${inputClass} focus:ring-blue-500 uppercase`} placeholder="Type vehicle no..." autoComplete="off" />
                     {isVehicleSectionActive && vehicleDropdownStyle && (
                       <div className="fixed z-[80] overflow-hidden rounded-xl border border-blue-200 bg-white shadow-xl" style={vehicleDropdownStyle}>
                         <div className="bg-blue-50 px-3 py-1.5 text-[10px] font-bold text-blue-700 uppercase">Vehicles ({filteredVehicles.length})</div>
@@ -679,9 +679,9 @@ export default function BoulderEntry({ onModalFinish = null, editingEntry = null
                 {/* Party Name */}
                 <div className="space-y-1">
                   <label className={labelClass}>Supplier Name</label>
-                  <div ref={partySectionRef} className="relative">
+                  <div ref={partySectionRef} className="relative" onBlurCapture={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) setIsPartySectionActive(false); }}>
                     <Building2 className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 pointer-events-none" />
-                    <input ref={partyInputRef} type="text" name="partyName" value={partyQuery} onChange={handlePartyInputChange} onKeyDown={handlePartyInputKeyDown} className={`${inputClass} pl-9 pr-10 focus:ring-blue-500`} placeholder="Type to search party..." autoComplete="off" />
+                    <input ref={partyInputRef} type="text" name="partyName" value={partyQuery} onFocus={handlePartyFocus} onChange={handlePartyInputChange} onKeyDown={handlePartyInputKeyDown} className={`${inputClass} pl-9 pr-10 focus:ring-blue-500`} placeholder="Type to search party..." autoComplete="off" />
                     {isPartySectionActive && partyDropdownStyle && (
                       <div className="fixed z-[80] overflow-hidden rounded-xl border border-blue-200 bg-white shadow-xl" style={partyDropdownStyle}>
                         <div className="bg-blue-50 px-3 py-1.5 text-[10px] font-bold text-blue-700 uppercase">Suppliers ({filteredParties.length})</div>
