@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Mail, Phone, MapPin, Globe, MessageCircle, Share2 } from 'lucide-react';
+import { Mail, Phone, MapPin, Globe, MessageCircle, Share2, Instagram } from 'lucide-react';
 
 const Footer = () => {
   return (
@@ -23,6 +23,7 @@ const Footer = () => {
               <a href="https://crusherbook.com" className="flex h-7 w-7 items-center justify-center rounded-md bg-white/10 text-white/60 transition-colors hover:bg-brand-orange hover:text-white [&_svg]:h-3.5 [&_svg]:w-3.5" aria-label="CrusherBook website"><Globe /></a>
               <a href="https://wa.me/916264682508" target="_blank" rel="noreferrer" className="flex h-7 w-7 items-center justify-center rounded-md bg-white/10 text-white/60 transition-colors hover:bg-green-600 hover:text-white [&_svg]:h-3.5 [&_svg]:w-3.5" aria-label="CrusherBook WhatsApp"><MessageCircle /></a>
               <a href="https://app.crusherbook.com" target="_blank" rel="noreferrer" className="flex h-7 w-7 items-center justify-center rounded-md bg-white/10 text-white/60 transition-colors hover:bg-brand-orange hover:text-white [&_svg]:h-3.5 [&_svg]:w-3.5" aria-label="CrusherBook login"><Share2 /></a>
+              <a href="https://www.instagram.com/crusherbook/" target="_blank" rel="noreferrer" className="flex h-7 w-7 items-center justify-center rounded-md bg-white/10 text-white/60 transition-colors hover:bg-gradient-to-br hover:from-[#F58529] hover:via-[#DD2A7B] hover:to-[#8134AF] hover:text-white [&_svg]:h-3.5 [&_svg]:w-3.5" aria-label="CrusherBook Instagram"><Instagram /></a>
             </div>
           </div>
 
