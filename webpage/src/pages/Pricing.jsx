@@ -18,6 +18,7 @@ const plans = [
       'Sales & boulder entry',
       'Expense management',
       'Stock movement',
+      '1 employee login',
     ],
   },
   {
@@ -34,6 +35,7 @@ const plans = [
       'Weightbridge entry',
       'Faster weight capture',
       'Dispatch flow',
+      '3 employee logins',
     ],
   },
   {
@@ -50,6 +52,7 @@ const plans = [
       'Custom user roles',
       'Priority support',
       'Data export & backup',
+      '10 employee logins',
     ],
   },
 ];
