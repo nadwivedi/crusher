@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Menu, X } from 'lucide-react';
+import { Menu, X, MessageCircle } from 'lucide-react';
 import { useState } from 'react';
 
 const Navbar = () => {
@@ -29,10 +29,20 @@ const Navbar = () => {
             <Link to="/contact" className="text-brand-slate hover:text-brand-orange transition-colors font-medium">Contact</Link>
             
             <a
+              href="https://wa.me/916264682508?text=Hello%20Crusherbook%2C%20I%20want%20to%20know%20more%20about%20crusher%20software."
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-2 bg-green-600 text-white px-5 py-2 rounded-full font-semibold shadow-md hover:bg-green-700 hover:shadow-green-600/30 hover:-translate-y-0.5 transition-all text-sm"
+            >
+              <MessageCircle size={17} />
+              <span>WhatsApp</span>
+            </a>
+
+            <a
               href="https://app.crusherbook.com"
               target="_blank"
               rel="noreferrer"
-              className="bg-brand-orange text-white px-6 py-2 rounded-full font-semibold shadow-lg hover:shadow-orange-500/30 hover:-translate-y-0.5 transition-all"
+              className="bg-brand-orange text-white px-6 py-2 rounded-full font-semibold shadow-lg hover:shadow-orange-500/30 hover:-translate-y-0.5 transition-all text-sm"
             >
               Login
             </a>
@@ -54,7 +64,7 @@ const Navbar = () => {
       {/* Mobile Navigation */}
       {isOpen && (
         <div className="md:hidden bg-white border-t border-gray-100">
-          <div className="px-4 pt-2 pb-6 space-y-1">
+          <div className="px-4 pt-2 pb-6 space-y-2">
             <Link 
               to="/" 
               onClick={() => setIsOpen(false)}
@@ -83,7 +93,16 @@ const Navbar = () => {
             >
               Contact
             </Link>
-            <div className="pt-4 px-3">
+            <div className="pt-2 px-3 space-y-2">
+              <a
+                href="https://wa.me/916264682508?text=Hello%20Crusherbook%2C%20I%20want%20to%20know%20more%20about%20crusher%20software."
+                target="_blank"
+                rel="noreferrer"
+                className="flex items-center justify-center gap-2 w-full bg-green-600 text-center text-white px-6 py-3 rounded-full font-semibold shadow-md hover:bg-green-700"
+              >
+                <MessageCircle size={18} />
+                <span>WhatsApp (+91 6264682508)</span>
+              </a>
               <a
                 href="https://app.crusherbook.com"
                 target="_blank"
