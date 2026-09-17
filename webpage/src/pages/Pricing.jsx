@@ -6,7 +6,7 @@ import Seo from '../components/Seo';
 const plans = [
   {
     name: 'Basic',
-    price: 'Rs 13,999',
+    price: 'Rs 2,999',
     period: '/ year',
     badge: 'Starter',
     popular: false,
@@ -22,7 +22,7 @@ const plans = [
   },
   {
     name: 'Advanced',
-    price: 'Rs 17,999',
+    price: 'Rs 4,999',
     period: '/ year',
     badge: 'Most Popular',
     popular: true,
@@ -34,6 +34,22 @@ const plans = [
       'Faster weight capture',
       'Less manual entry',
       'Dispatch flow',
+    ],
+  },
+  {
+    name: 'Enterprise',
+    price: 'Rs 6,999',
+    period: '/ year',
+    badge: 'Best Value',
+    popular: false,
+    description: 'For multi-plant control and priority support.',
+    features: [
+      'Everything in Advanced',
+      'Multi-plant management',
+      'Advanced profit & analytics',
+      'Custom user roles',
+      'Priority support',
+      'Data export & backup',
     ],
   },
 ];
@@ -62,7 +78,7 @@ export default function Pricing() {
     <div className="w-full bg-white">
       <Seo
         title="Crusher ERP Pricing"
-        description="CrusherBook pricing includes Basic at Rs 13,999 per year and Advanced at Rs 17,999 per year with auto slip and weightbridge entry support."
+        description="CrusherBook pricing includes Basic at Rs 2,999/year, Advanced at Rs 4,999/year with auto slip and weightbridge entry, and Enterprise at Rs 6,999/year for multi-plant control."
         path="/pricing"
         keywords={[
           'crusher software pricing',
@@ -110,7 +126,7 @@ export default function Pricing() {
             transition={{ duration: 0.4, delay: 0.15 }}
             className="text-xs text-white/70 sm:text-sm"
           >
-            Basic for records. Advanced for automation.
+            Basic for records. Advanced for automation. Enterprise for full control.
           </motion.p>
         </div>
       </section>
@@ -118,7 +134,7 @@ export default function Pricing() {
       {/* Plans */}
       <section className="px-4 py-8 sm:py-10 lg:py-12 bg-gray-50">
         <div className="w-full max-w-5xl mx-auto px-0 sm:px-5 lg:px-6 xl:max-w-6xl">
-          <div className="grid gap-4 sm:gap-5 lg:grid-cols-2">
+          <div className="grid gap-4 sm:gap-5 lg:grid-cols-3">
             {plans.map((plan, i) => (
               <motion.div
                 key={plan.name}
@@ -129,20 +145,28 @@ export default function Pricing() {
                 className={`relative rounded-2xl border p-5 sm:p-6 shadow-sm ${
                   plan.popular
                     ? 'border-brand-orange/40 bg-gradient-to-br from-orange-50 via-white to-white'
-                    : 'border-gray-200 bg-white'
+                    : plan.badge === 'Best Value'
+                      ? 'border-brand-navy/25 bg-gradient-to-br from-slate-50 via-white to-white'
+                      : 'border-gray-200 bg-white'
                 }`}
               >
-                {plan.popular && (
-                  <span className="absolute -top-2.5 right-5 rounded-full bg-brand-orange px-2.5 py-0.5 text-[0.6rem] font-bold uppercase tracking-wide text-white shadow-sm">
-                    Most Popular
+                {(plan.popular || plan.badge === 'Best Value') && (
+                  <span
+                    className={`absolute -top-2.5 right-5 rounded-full px-2.5 py-0.5 text-[0.6rem] font-bold uppercase tracking-wide text-white shadow-sm ${
+                      plan.popular ? 'bg-brand-orange' : 'bg-brand-navy'
+                    }`}
+                  >
+                    {plan.badge}
                   </span>
                 )}
 
                 <div className="flex items-baseline justify-between gap-3">
                   <h2 className="text-base sm:text-lg font-bold text-brand-navy">{plan.name}</h2>
-                  <span className="text-[0.6rem] font-semibold uppercase tracking-wide text-brand-orange">
-                    {plan.badge}
-                  </span>
+                  {!plan.popular && plan.badge !== 'Best Value' && (
+                    <span className="text-[0.6rem] font-semibold uppercase tracking-wide text-brand-orange">
+                      {plan.badge}
+                    </span>
+                  )}
                 </div>
 
                 <div className="mt-3 flex items-end gap-1.5">
@@ -151,7 +175,7 @@ export default function Pricing() {
                 </div>
                 <p className="mt-1.5 text-xs sm:text-sm text-brand-slate">{plan.description}</p>
 
-                <div className="mt-4 grid grid-cols-1 gap-1.5 border-t border-gray-100 pt-4 sm:grid-cols-2">
+                <div className="mt-4 grid grid-cols-1 gap-1.5 border-t border-gray-100 pt-4">
                   {plan.features.map((feature) => (
                     <div key={feature} className="flex items-start gap-2">
                       <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-green-600" />
@@ -169,7 +193,7 @@ export default function Pricing() {
               <div>
                 <h2 className="text-base sm:text-lg font-bold">Need Help Choosing?</h2>
                 <p className="mt-1 text-xs sm:text-sm text-white/75">
-                  Basic for records. Advanced for auto slip and weightbridge.
+                  Basic for records, Advanced for auto slip & weightbridge, Enterprise for multi-plant control.
                 </p>
               </div>
               <ContactActions align="left" compact primaryLabel="Get Pricing on WhatsApp" secondaryLabel="Call for Demo" />

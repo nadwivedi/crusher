@@ -62,14 +62,20 @@ const homeSchema = {
     {
       '@type': 'Offer',
       priceCurrency: 'INR',
-      price: '14999',
+      price: '2999',
       name: 'Basic',
     },
     {
       '@type': 'Offer',
       priceCurrency: 'INR',
-      price: '19999',
+      price: '4999',
       name: 'Advanced',
+    },
+    {
+      '@type': 'Offer',
+      priceCurrency: 'INR',
+      price: '6999',
+      name: 'Enterprise',
     },
   ],
 };
@@ -194,7 +200,7 @@ const Home = () => {
               },
               {
                 question: 'What are your pricing plans?',
-                answer: 'We offer flexible pricing. Basic plan starts at Rs 14,999/year and Advanced plan starts at Rs 19,999/year. Both include 14-day free trial with no credit card required.',
+                answer: 'We offer flexible pricing starting at Rs 2,999/year for Basic, Rs 4,999/year for Advanced, and Rs 6,999/year for Enterprise with multi-plant support. All plans include a 14-day free trial with no credit card required.',
               },
             ].map((item) => (
               <div key={item.question} className="rounded-xl border border-gray-200 bg-white p-5 sm:p-6 shadow-sm hover:shadow-md transition-shadow">
