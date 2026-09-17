@@ -47,71 +47,91 @@ const Home = () => {
       />
       <MarketingHero />
       <FeatureShowcase />
-      <section className="bg-brand-navy px-4 py-16 text-white sm:px-6 lg:px-8">
-        <div className="mx-auto max-w-5xl text-center">
-          <h2 className="text-3xl font-bold md:text-4xl">Run Sales, Boulder, Ledger, Stock, and Profit Reporting From One Software</h2>
-          <p className="mt-4 text-base leading-relaxed text-white/80 md:text-lg">
-            Crusherbook helps crusher plants manage weightbridge-based entry, slip-based entry, party ledger, expenses, employee work, and stock movement without depending on manual registers.
+
+      <section className="bg-gradient-to-b from-brand-navy via-brand-navy to-brand-navy/95 px-4 py-16 sm:py-20 lg:py-24 text-white">
+        <div className="w-full max-w-5xl mx-auto px-0 sm:px-5 lg:px-6 xl:max-w-6xl text-center">
+          <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-[2.2rem] font-bold leading-tight mb-4 sm:mb-6">
+            Everything for Your Crusher Plant, in One Place
+          </h2>
+          <p className="text-sm sm:text-base md:text-lg leading-relaxed text-white/80 max-w-3xl mx-auto mb-8 sm:mb-10">
+            Manage sales, boulder entry, weighbridge workflow, party ledger, stock movement, expenses, and reporting — all without manual registers.
           </p>
-          <div className="mt-8">
-            <ContactActions primaryLabel="WhatsApp For Pricing" secondaryLabel="Call For Demo" />
+          <div className="mt-8 sm:mt-10">
+            <ContactActions primaryLabel="Start Free Trial" secondaryLabel="Call for Demo" />
           </div>
         </div>
       </section>
 
-      <section className="bg-white px-4 py-16 sm:px-6 lg:px-8">
-        <div className="mx-auto max-w-6xl">
-          <div className="mx-auto max-w-3xl text-center">
-            <h2 className="text-3xl font-bold text-brand-navy md:text-4xl">Why Crusher Plants Choose CrusherBook</h2>
-            <p className="mt-4 text-base leading-relaxed text-brand-slate md:text-lg">
-              Built for stone crusher plants that need faster entry, cleaner records, and better control across dispatch, stock, and reporting.
+      <section className="bg-white px-4 py-16 sm:py-20 lg:py-24">
+        <div className="w-full max-w-5xl mx-auto px-0 sm:px-5 lg:px-6 xl:max-w-6xl">
+          <div className="max-w-3xl mx-auto text-center mb-12 sm:mb-16">
+            <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-[2.2rem] font-bold text-brand-navy mb-4 sm:mb-6 leading-tight">
+              Why Crusher Plants Trust Us
+            </h2>
+            <p className="text-sm sm:text-base md:text-lg leading-relaxed text-brand-slate">
+              Purpose-built for stone crusher operations. Faster entry, cleaner records, better control.
             </p>
           </div>
 
-          <div className="mt-10 grid gap-6 md:grid-cols-2">
-            <div className="rounded-3xl border border-gray-100 bg-gray-50 p-6">
-              <h3 className="text-xl font-bold text-brand-navy">Built for Daily Plant Operations</h3>
-              <p className="mt-3 text-sm leading-relaxed text-brand-slate sm:text-base">
-                Manage sales slips, boulder entry, stock movement, party wise ledger, expenses, employee access, and profit reports from one crusher management system.
+          <div className="grid gap-5 sm:gap-6 md:grid-cols-2">
+            <div className="rounded-2xl border border-gray-200 bg-gradient-to-br from-gray-50 to-white p-6 sm:p-8 shadow-sm hover:shadow-md transition-shadow">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-orange/10 text-brand-orange mb-4">
+                <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+              </div>
+              <h3 className="text-lg sm:text-xl font-bold text-brand-navy mb-3">Daily Operations Made Simple</h3>
+              <p className="text-sm sm:text-base leading-relaxed text-brand-slate">
+                Sales slips, boulder entry, stock movement, party ledger, expenses, employee management — everything in one unified system.
               </p>
             </div>
-            <div className="rounded-3xl border border-gray-100 bg-gray-50 p-6">
-              <h3 className="text-xl font-bold text-brand-navy">Ready for Weighbridge Workflow</h3>
-              <p className="mt-3 text-sm leading-relaxed text-brand-slate sm:text-base">
-                Use slip-based entry now and move toward weightbridge-connected workflow for faster dispatch entry and reduced manual typing.
+            <div className="rounded-2xl border border-gray-200 bg-gradient-to-br from-gray-50 to-white p-6 sm:p-8 shadow-sm hover:shadow-md transition-shadow">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-accent/10 text-brand-accent mb-4">
+                <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                </svg>
+              </div>
+              <h3 className="text-lg sm:text-xl font-bold text-brand-navy mb-3">Ready for Weighbridge Integration</h3>
+              <p className="text-sm sm:text-base leading-relaxed text-brand-slate">
+                Start with slip-based entry today. Scale to weighbridge-connected workflow tomorrow for instant dispatch and zero manual typing.
               </p>
             </div>
           </div>
         </div>
       </section>
 
-      <section className="bg-gray-50 px-4 py-16 sm:px-6 lg:px-8">
-        <div className="mx-auto max-w-5xl">
-          <div className="text-center">
-            <h2 className="text-3xl font-bold text-brand-navy md:text-4xl">Frequently Asked Questions</h2>
+      <section className="bg-gradient-to-b from-gray-50 via-white to-gray-50/50 px-4 py-16 sm:py-20 lg:py-24">
+        <div className="w-full max-w-5xl mx-auto px-0 sm:px-5 lg:px-6 xl:max-w-6xl">
+          <div className="text-center mb-12 sm:mb-16">
+            <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-[2.2rem] font-bold text-brand-navy mb-3 sm:mb-4">
+              Questions? We Have Answers
+            </h2>
+            <p className="text-sm sm:text-base text-brand-slate max-w-2xl mx-auto">
+              Everything you need to know about CrusherBook and how it works for your crusher plant.
+            </p>
           </div>
-          <div className="mt-10 space-y-4">
+          <div className="space-y-3 sm:space-y-4">
             {[
               {
                 question: 'What is CrusherBook?',
-                answer: 'CrusherBook is stone crusher plant ERP software for managing slips, ledger, stock, expenses, employees, and reports.',
+                answer: 'CrusherBook is stone crusher plant ERP software designed to manage sales slips, boulder entry, stock movement, party ledger, expenses, employee access, and profit reports all in one unified system.',
               },
               {
-                question: 'Can CrusherBook help with weighbridge workflow?',
-                answer: 'Yes. CrusherBook supports slip-based workflow today and is suited for weightbridge-based operational entry flow.',
+                question: 'Does it support weighbridge workflow?',
+                answer: 'Yes! CrusherBook works with slip-based entry today and scales to full weighbridge-connected workflow for automatic dispatch entry and zero manual typing.',
               },
               {
-                question: 'Can I manage party wise ledger and expenses?',
-                answer: 'Yes. The software includes party wise ledger, record management, expense tracking, and stock visibility.',
+                question: 'Can I track party-wise ledger and expenses?',
+                answer: 'Absolutely. The software includes detailed party-wise ledger tracking, transaction history, expense management, and real-time stock visibility.',
               },
               {
-                question: 'Do you offer pricing for different plant needs?',
-                answer: 'Yes. Basic starts at Rs 14,999 per year and Advanced starts at Rs 19,999 per year.',
+                question: 'What are your pricing plans?',
+                answer: 'We offer flexible pricing. Basic plan starts at Rs 14,999/year and Advanced plan starts at Rs 19,999/year. Both include 14-day free trial with no credit card required.',
               },
             ].map((item) => (
-              <div key={item.question} className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
-                <h3 className="text-lg font-bold text-brand-navy">{item.question}</h3>
-                <p className="mt-2 text-sm leading-relaxed text-brand-slate sm:text-base">{item.answer}</p>
+              <div key={item.question} className="rounded-xl border border-gray-200 bg-white p-5 sm:p-6 shadow-sm hover:shadow-md transition-shadow">
+                <h3 className="text-base sm:text-lg font-bold text-brand-navy mb-2 sm:mb-3">{item.question}</h3>
+                <p className="text-sm sm:text-base leading-relaxed text-brand-slate">{item.answer}</p>
               </div>
             ))}
           </div>

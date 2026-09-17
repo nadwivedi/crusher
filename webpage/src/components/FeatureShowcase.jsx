@@ -3,17 +3,19 @@ import { Camera, Zap, FileText, Check, Scale, Wallet, Boxes, Users } from 'lucid
 
 const FeatureShowcase = () => {
   return (
-    <section className="py-24 bg-white overflow-hidden">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        
+    <section className="py-16 sm:py-20 lg:py-24 bg-gradient-to-b from-white via-gray-50/50 to-white overflow-hidden">
+      <div className="w-full max-w-5xl mx-auto px-4 sm:px-5 lg:px-6 xl:max-w-6xl">
+
         {/* Section Header */}
-        <div className="text-center max-w-3xl mx-auto mb-20">
-          <h2 className="text-brand-orange font-semibold tracking-wide uppercase text-sm mb-3">Magic Workflow</h2>
-          <h3 className="text-3xl md:text-5xl font-bold text-brand-navy mb-6 leading-tight">
-            Click a slip. <br/> We do the rest.
-          </h3>
-          <p className="text-lg text-brand-slate">
-            Say goodbye to hours of manual data entry. Our intelligent OCR technology reads weighbridge slips from a simple photo and automatically logs the transaction.
+        <div className="text-center max-w-3xl mx-auto mb-16 sm:mb-20">
+          <div className="mb-4">
+            <span className="text-xs sm:text-sm font-semibold uppercase tracking-widest text-brand-orange">Smart Workflow</span>
+          </div>
+          <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-[2.2rem] font-bold text-brand-navy mb-4 sm:mb-6 leading-tight">
+            Snap a slip. We handle the rest.
+          </h2>
+          <p className="text-sm sm:text-base md:text-lg text-brand-slate leading-relaxed">
+            No more manual typing. Our OCR reads weighbridge slips instantly and automatically logs transactions with zero human entry.
           </p>
         </div>
 
@@ -163,35 +165,39 @@ const FeatureShowcase = () => {
 
         </div>
 
-        <div className="mt-16 grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-4">
+        <div className="mt-12 sm:mt-16 grid grid-cols-1 gap-4 sm:gap-5 md:grid-cols-2 lg:grid-cols-4">
           {[
             {
               icon: Scale,
-              title: 'Weightbridge Auto Entry',
-              description: 'Capture weightbridge readings and reduce repetitive typing at dispatch time.',
+              title: 'Weightbridge Ready',
+              description: 'Capture readings automatically and eliminate manual dispatch entry.',
+              color: 'bg-brand-orange/10 text-brand-orange'
             },
             {
               icon: Wallet,
-              title: 'Expense Management',
-              description: 'Track operational expenses with cleaner day-to-day control.',
+              title: 'Expense Tracking',
+              description: 'Monitor all operational costs with daily control and clarity.',
+              color: 'bg-brand-accent/10 text-brand-accent'
             },
             {
               icon: Users,
-              title: 'Party Wise Ledger',
-              description: 'See each party ledger, pending amount, and transaction history clearly.',
+              title: 'Party Ledger',
+              description: 'Track each customer, pending amounts, and payment history.',
+              color: 'bg-green-500/10 text-green-600'
             },
             {
               icon: Boxes,
-              title: 'Stock Movement',
-              description: 'Monitor incoming boulder, outgoing sales, and stock movement in one flow.',
+              title: 'Stock Control',
+              description: 'Real-time visibility of incoming boulders and outgoing sales.',
+              color: 'bg-blue-500/10 text-blue-600'
             },
-          ].map(({ icon: Icon, title, description }) => (
-            <div key={title} className="rounded-3xl border border-gray-100 bg-gray-50 p-6 shadow-sm">
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-orange/10 text-brand-orange">
-                <Icon className="h-6 w-6" />
+          ].map(({ icon: Icon, title, description, color }) => (
+            <div key={title} className="rounded-2xl border border-gray-200 bg-white p-5 sm:p-6 shadow-sm hover:shadow-md hover:border-gray-300 transition-all">
+              <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${color}`}>
+                <Icon className="h-5 w-5 sm:h-6 sm:w-6" />
               </div>
-              <h4 className="mt-5 text-xl font-bold text-brand-navy">{title}</h4>
-              <p className="mt-3 text-sm leading-relaxed text-brand-slate">{description}</p>
+              <h4 className="mt-4 sm:mt-5 text-base sm:text-lg font-bold text-brand-navy">{title}</h4>
+              <p className="mt-2 sm:mt-3 text-xs sm:text-sm leading-relaxed text-brand-slate">{description}</p>
             </div>
           ))}
         </div>

@@ -3,9 +3,9 @@ import { Mail, Phone, MapPin, Globe, MessageCircle, Share2 } from 'lucide-react'
 
 const Footer = () => {
   return (
-    <footer className="bg-brand-navy text-white pt-16 pb-8">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-12 mb-12">
+    <footer className="bg-brand-navy text-white pt-12 sm:pt-16 pb-8 sm:pb-10">
+      <div className="w-full max-w-5xl mx-auto px-4 sm:px-5 lg:px-6 xl:max-w-6xl">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-8 sm:gap-10 lg:gap-12 mb-10 sm:mb-12">
           
           {/* Brand Info */}
           <div className="col-span-1 md:col-span-1">
