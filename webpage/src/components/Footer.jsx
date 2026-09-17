@@ -1,11 +1,23 @@
 import { Link } from 'react-router-dom';
-import { Mail, Phone, MapPin, Globe, MessageCircle, Share2 } from 'lucide-react';
+import { Mail, Phone, MapPin } from 'lucide-react';
 
 const InstagramIcon = (props) => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
     <rect x="2" y="2" width="20" height="20" rx="5" ry="5" />
     <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
     <line x1="17.5" y1="6.5" x2="17.51" y2="6.5" />
+  </svg>
+);
+
+const FacebookIcon = (props) => (
+  <svg viewBox="0 0 24 24" fill="currentColor" {...props}>
+    <path d="M22 12.06C22 6.51 17.52 2 12 2S2 6.51 2 12.06c0 5.02 3.66 9.18 8.44 9.94v-7.03H7.9v-2.91h2.54V9.79c0-2.51 1.49-3.9 3.77-3.9 1.09 0 2.24.2 2.24.2v2.46h-1.26c-1.24 0-1.63.78-1.63 1.58v1.9h2.78l-.44 2.91h-2.34V22c4.78-.76 8.44-4.92 8.44-9.94z" />
+  </svg>
+);
+
+const XIcon = (props) => (
+  <svg viewBox="0 0 24 24" fill="currentColor" {...props}>
+    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
   </svg>
 );
 
@@ -28,10 +40,9 @@ const Footer = () => {
               ERP software for rock crusher plants — automate workflow, manage stock, and grow productivity from anywhere.
             </p>
             <div className="mt-3 flex gap-2">
-              <a href="https://crusherbook.com" className="flex h-7 w-7 items-center justify-center rounded-md bg-white/10 text-white/60 transition-colors hover:bg-brand-orange hover:text-white [&_svg]:h-3.5 [&_svg]:w-3.5" aria-label="CrusherBook website"><Globe /></a>
-              <a href="https://wa.me/916264682508" target="_blank" rel="noreferrer" className="flex h-7 w-7 items-center justify-center rounded-md bg-white/10 text-white/60 transition-colors hover:bg-green-600 hover:text-white [&_svg]:h-3.5 [&_svg]:w-3.5" aria-label="CrusherBook WhatsApp"><MessageCircle /></a>
-              <a href="https://app.crusherbook.com" target="_blank" rel="noreferrer" className="flex h-7 w-7 items-center justify-center rounded-md bg-white/10 text-white/60 transition-colors hover:bg-brand-orange hover:text-white [&_svg]:h-3.5 [&_svg]:w-3.5" aria-label="CrusherBook login"><Share2 /></a>
               <a href="https://www.instagram.com/crusherbook/" target="_blank" rel="noreferrer" className="flex h-7 w-7 items-center justify-center rounded-md bg-white/10 text-white/60 transition-colors hover:bg-gradient-to-br hover:from-[#F58529] hover:via-[#DD2A7B] hover:to-[#8134AF] hover:text-white [&_svg]:h-3.5 [&_svg]:w-3.5" aria-label="CrusherBook Instagram"><InstagramIcon /></a>
+              <a href="https://www.facebook.com/crusherbook" target="_blank" rel="noreferrer" className="flex h-7 w-7 items-center justify-center rounded-md bg-white/10 text-white/60 transition-colors hover:bg-[#1877F2] hover:text-white [&_svg]:h-3.5 [&_svg]:w-3.5" aria-label="CrusherBook Facebook"><FacebookIcon /></a>
+              <a href="https://x.com/crusherbook" target="_blank" rel="noreferrer" className="flex h-7 w-7 items-center justify-center rounded-md bg-white/10 text-white/60 transition-colors hover:bg-black hover:text-white [&_svg]:h-3.5 [&_svg]:w-3.5" aria-label="CrusherBook X"><XIcon /></a>
             </div>
           </div>
 
