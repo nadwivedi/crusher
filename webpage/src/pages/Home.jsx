@@ -1,7 +1,53 @@
 import MarketingHero from '../components/MarketingHero';
 import FeatureShowcase from '../components/FeatureShowcase';
 import ContactActions from '../components/ContactActions';
+import TestimonialCard from '../components/TestimonialCard';
 import Seo from '../components/Seo';
+
+const testimonials = [
+  {
+    quote:
+      'Manual slip entry used to take our staff hours every evening. With CrusherBook, boulder entries and party ledger update the same minute the truck leaves the weighbridge.',
+    name: 'Rajesh Sahu',
+    role: 'Crusher Plant Owner',
+    location: 'Raipur, Chhattisgarh',
+  },
+  {
+    quote:
+      'Tracking pending payments from dozens of parties was our biggest headache. Now every ledger entry, expense, and stock number is visible on one screen.',
+    name: 'Manoj Agrawal',
+    role: 'Plant Manager',
+    location: 'Jabalpur, Madhya Pradesh',
+  },
+  {
+    quote:
+      'We run two crushers and CrusherBook gives us combined stock and profit reports instantly. No more waiting for the accountant to reconcile registers.',
+    name: 'Biswajit Patra',
+    role: 'Crusher Plant Owner',
+    location: 'Rourkela, Odisha',
+  },
+  {
+    quote:
+      'Our dispatch team loves how fast sales slips get created now. Weighbridge readings flow straight into billing without any retyping.',
+    name: 'Suresh Mahato',
+    role: 'Operations Head',
+    location: 'Dhanbad, Jharkhand',
+  },
+  {
+    quote:
+      'Employee access control was important for us since we have multiple supervisors. CrusherBook lets us control exactly who can see ledger and pricing.',
+    name: 'Deepak Verma',
+    role: 'Crusher Plant Owner',
+    location: 'Bilaspur, Chhattisgarh',
+  },
+  {
+    quote:
+      'Switching from paper registers to CrusherBook took less than a day. Support team helped us set up party ledgers and stock categories quickly.',
+    name: 'Ashok Tiwari',
+    role: 'Plant Manager',
+    location: 'Katni, Madhya Pradesh',
+  },
+];
 
 const homeSchema = {
   '@context': 'https://schema.org',
@@ -96,6 +142,28 @@ const Home = () => {
                 Start with slip-based entry today. Scale to weighbridge-connected workflow tomorrow for instant dispatch and zero manual typing.
               </p>
             </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="bg-white px-4 py-16 sm:py-20 lg:py-24">
+        <div className="w-full max-w-5xl mx-auto px-0 sm:px-5 lg:px-6 xl:max-w-6xl">
+          <div className="max-w-3xl mx-auto text-center mb-12 sm:mb-16">
+            <span className="mb-3 inline-block text-xs sm:text-sm font-semibold uppercase tracking-widest text-brand-orange">
+              Trusted Across Central &amp; Eastern India
+            </span>
+            <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-[2.2rem] font-bold text-brand-navy mb-4 sm:mb-6 leading-tight">
+              Loved by Crusher Plants in MP, Chhattisgarh, Odisha &amp; Jharkhand
+            </h2>
+            <p className="text-sm sm:text-base md:text-lg leading-relaxed text-brand-slate">
+              Real feedback from crusher plant owners and managers who switched from manual registers to CrusherBook.
+            </p>
+          </div>
+
+          <div className="grid gap-4 sm:gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            {testimonials.map((t) => (
+              <TestimonialCard key={t.name} {...t} />
+            ))}
           </div>
         </div>
       </section>
