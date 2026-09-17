@@ -26,13 +26,13 @@ const plans = [
     period: '/ year',
     badge: 'Most Popular',
     popular: true,
-    description: 'For auto slip and weightbridge entry.',
+    description: 'For AI auto entry and weightbridge entry.',
     features: [
       'Everything in Basic',
-      'Auto slip entry',
+      'AI auto entry (slip photo upload)',
+      'Automated WhatsApp alerts',
       'Weightbridge entry',
       'Faster weight capture',
-      'Less manual entry',
       'Dispatch flow',
     ],
   },
@@ -56,7 +56,7 @@ const plans = [
 
 const highlightCards = [
   { icon: Scale, title: 'Weightbridge Entry', description: 'Weightbridge-based entry.' },
-  { icon: ScanText, title: 'Auto Slip Entry', description: 'Slip-based entry.' },
+  { icon: ScanText, title: 'AI Auto Entry', description: 'Snap a slip photo, AI fills the entry.' },
   { icon: Users, title: 'Party Wise Ledger', description: 'Party account tracking.' },
   { icon: ChartColumnBig, title: 'Stock & Profit Visibility', description: 'Stock and profit view.' },
 ];
@@ -78,7 +78,7 @@ export default function Pricing() {
     <div className="w-full bg-white">
       <Seo
         title="Crusher ERP Pricing"
-        description="CrusherBook pricing includes Basic at Rs 2,999/year, Advanced at Rs 4,999/year with auto slip and weightbridge entry, and Enterprise at Rs 6,999/year for multi-plant control."
+        description="CrusherBook pricing includes Basic at Rs 2,999/year, Advanced at Rs 4,999/year with AI auto entry, automated WhatsApp alerts, and weightbridge entry, and Enterprise at Rs 6,999/year for multi-plant control."
         path="/pricing"
         keywords={[
           'crusher software pricing',
@@ -193,7 +193,7 @@ export default function Pricing() {
               <div>
                 <h2 className="text-base sm:text-lg font-bold">Need Help Choosing?</h2>
                 <p className="mt-1 text-xs sm:text-sm text-white/75">
-                  Basic for records, Advanced for auto slip & weightbridge, Enterprise for multi-plant control.
+                  Basic for records, Advanced for AI auto entry, WhatsApp alerts & weightbridge, Enterprise for multi-plant control.
                 </p>
               </div>
               <ContactActions align="left" compact primaryLabel="Get Pricing on WhatsApp" secondaryLabel="Call for Demo" />
