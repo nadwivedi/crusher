@@ -21,7 +21,7 @@ const Contact = () => {
         keywords={[
           'contact crusher software company',
           'crusher ERP software demo',
-          'crushbook contact',
+          'crusherbook contact',
           'crusher plant management support',
           'weighbridge software support India',
           'crusher ERP implementation help',

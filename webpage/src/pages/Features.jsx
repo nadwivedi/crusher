@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { Camera, MessageCircle, Scale, BarChart3, Users, FileText, DollarSign, Zap, Smartphone, Monitor, Cloud, Infinity } from 'lucide-react';
+import { Camera, MessageCircle, Scale, BarChart3, Users, FileText, DollarSign, Zap, Smartphone, Monitor, Cloud, Infinity, Receipt, Landmark } from 'lucide-react';
 import ContactActions from '../components/ContactActions';
 import Seo from '../components/Seo';
 
@@ -60,6 +60,20 @@ const featuresData = [
     color: 'text-amber-600',
     bgColor: 'from-amber-100 to-amber-50',
   },
+  {
+    icon: Receipt,
+    title: 'GST Billing',
+    description: 'Generate GST-compliant sales invoices and bills automatically with correct tax slabs. Track input and output GST, and export GST-ready reports for easy filing.',
+    color: 'text-teal-600',
+    bgColor: 'from-teal-100 to-teal-50',
+  },
+  {
+    icon: Landmark,
+    title: 'Royalty Management',
+    description: 'Track mining royalty on every dispatch — quantity, rate, and amount payable to the government. Get royalty reports ready for compliance and audits, without manual calculation.',
+    color: 'text-violet-600',
+    bgColor: 'from-violet-100 to-violet-50',
+  },
 ];
 
 const platformFeatures = [
@@ -94,13 +108,15 @@ export default function Features() {
   return (
     <div className="w-full bg-white">
       <Seo
-        title="CrusherBook Features - AI Entry, Weighbridge, Reports & More"
-        description="Explore CrusherBook ERP features: AI auto slip entry, WhatsApp integration, weighbridge workflow, daily reports, party ledger, expense tracking & payroll for crushers!"
+        title="CrusherBook Features - AI Entry, Weighbridge, GST & Royalty"
+        description="Explore CrusherBook ERP features: AI auto slip entry, weighbridge workflow, GST billing, royalty management, party ledger, expense tracking & payroll for crushers!"
         path="/features"
         keywords={[
           'crusher software features',
           'AI slip photo entry',
           'weighbridge software integration',
+          'GST billing software for crusher',
+          'royalty management software',
           'party ledger report',
           'sales ledger software',
           'expense tracking software',
@@ -162,6 +178,16 @@ export default function Features() {
                   name: 'Payroll Management',
                   description: 'Manage employee work records, calculate wages, and generate monthly payroll reports.',
                 },
+                {
+                  '@type': 'Thing',
+                  name: 'GST Billing',
+                  description: 'Generate GST-compliant sales invoices with correct tax slabs and export GST-ready reports for easy filing.',
+                },
+                {
+                  '@type': 'Thing',
+                  name: 'Royalty Management',
+                  description: 'Track mining royalty on every dispatch and get royalty reports ready for compliance and audits.',
+                },
               ],
             },
           },
@@ -200,7 +226,7 @@ export default function Features() {
             transition={{ duration: 0.4, delay: 0.15 }}
             className="mx-auto max-w-md text-xs leading-relaxed text-white/70 sm:text-sm"
           >
-            From AI-powered entry to automated WhatsApp alerts, comprehensive reports, and seamless integrations — everything you need to run your crusher plant efficiently.
+            From AI-powered entry to GST billing, royalty management, and seamless weighbridge integration — everything you need to run your crusher plant efficiently.
           </motion.p>
         </div>
       </section>
