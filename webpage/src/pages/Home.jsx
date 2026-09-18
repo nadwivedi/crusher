@@ -178,12 +178,12 @@ const Home = () => {
       <section className="bg-white px-4 py-10 sm:py-12 lg:py-16">
         <div className="w-full max-w-5xl mx-auto px-0 sm:px-5 lg:px-6 xl:max-w-6xl">
           <div className="max-w-3xl mx-auto text-center mb-8 sm:mb-10">
-            <span className="mb-3 inline-block text-xs sm:text-sm font-semibold uppercase tracking-widest text-brand-orange">
-              Trusted Across Central &amp; Eastern India
-            </span>
             <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-[2.2rem] font-bold text-brand-navy mb-4 sm:mb-6 leading-tight">
-              Loved by Crusher Plants in MP, Chhattisgarh, Odisha &amp; Jharkhand
+              What Our Customers Say
             </h2>
+            <p className="text-sm sm:text-base text-brand-slate max-w-2xl mx-auto">
+              Loved by crusher plants in MP, Chhattisgarh, Odisha, and Jharkhand
+            </p>
             <p className="text-sm sm:text-base md:text-lg leading-relaxed text-brand-slate">
               Real feedback from crusher plant owners and managers who switched from manual registers to CrusherBook.
             </p>
