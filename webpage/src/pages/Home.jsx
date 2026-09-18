@@ -137,9 +137,9 @@ const Home = () => {
         </div>
       </section>
 
-      <section className="bg-white px-4 py-16 sm:py-20 lg:py-24">
+      <section className="bg-white px-4 py-10 sm:py-12 lg:py-16">
         <div className="w-full max-w-5xl mx-auto px-0 sm:px-5 lg:px-6 xl:max-w-6xl">
-          <div className="max-w-3xl mx-auto text-center mb-12 sm:mb-16">
+          <div className="max-w-3xl mx-auto text-center mb-8 sm:mb-10">
             <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-[2.2rem] font-bold text-brand-navy mb-4 sm:mb-6 leading-tight">
               Why Crusher Plants Trust Us
             </h2>
@@ -175,9 +175,9 @@ const Home = () => {
         </div>
       </section>
 
-      <section className="bg-white px-4 py-16 sm:py-20 lg:py-24">
+      <section className="bg-white px-4 py-10 sm:py-12 lg:py-16">
         <div className="w-full max-w-5xl mx-auto px-0 sm:px-5 lg:px-6 xl:max-w-6xl">
-          <div className="max-w-3xl mx-auto text-center mb-12 sm:mb-16">
+          <div className="max-w-3xl mx-auto text-center mb-8 sm:mb-10">
             <span className="mb-3 inline-block text-xs sm:text-sm font-semibold uppercase tracking-widest text-brand-orange">
               Trusted Across Central &amp; Eastern India
             </span>
