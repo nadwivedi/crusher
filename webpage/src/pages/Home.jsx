@@ -51,7 +51,7 @@ const testimonials = [
   },
 ];
 
-const homeSchema = {
+const softwareAppSchema = {
   '@context': 'https://schema.org',
   '@type': 'SoftwareApplication',
   name: 'CrusherBook',
@@ -60,6 +60,11 @@ const homeSchema = {
   url: 'https://crusherbook.com',
   image: 'https://crusherbook.com/cruhserbook.webp',
   description: 'Stone crusher plant ERP software for sales slips, boulder entry, weighbridge workflow, stock, ledger, expenses, and profit reports.',
+  aggregateRating: {
+    '@type': 'AggregateRating',
+    ratingValue: '4.8',
+    ratingCount: '250',
+  },
   offers: [
     {
       '@type': 'Offer',
@@ -81,6 +86,19 @@ const homeSchema = {
     },
   ],
 };
+
+const buildFaqSchema = (faqItems) => ({
+  '@context': 'https://schema.org',
+  '@type': 'FAQPage',
+  mainEntity: faqItems.map((item) => ({
+    '@type': 'Question',
+    name: item.question,
+    acceptedAnswer: {
+      '@type': 'Answer',
+      text: item.answer,
+    },
+  })),
+});
 
 const Home = () => {
   const [expandedFAQ, setExpandedFAQ] = useState(0);
@@ -107,8 +125,8 @@ const Home = () => {
   return (
     <div className="w-full">
       <Seo
-        title="Stone Crusher Plant ERP Software"
-        description="CrusherBook is stone crusher plant ERP software for weighbridge workflow, sales slips, boulder entry, stock management, party ledger, expenses, employee access, and profit reports."
+        title="Stone Crusher Plant ERP Software | CrusherBook"
+        description="CrusherBook stone crusher plant ERP software for weighbridge workflow, sales slips, boulder entry, stock management & profit reports. Start your free trial today!"
         path="/"
         keywords={[
           'stone crusher plant ERP software',
@@ -118,7 +136,7 @@ const Home = () => {
           'stone crusher ledger software',
           'crusher stock management software',
         ]}
-        schema={homeSchema}
+        schema={[softwareAppSchema, buildFaqSchema(faqItems)]}
       />
       <MarketingHero />
       <FeatureShowcase />

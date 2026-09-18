@@ -15,13 +15,17 @@ const Contact = () => {
   return (
     <div className="w-full bg-white">
       <Seo
-        title="Contact CrusherBook ERP"
-        description="Contact CrusherBook for crusher ERP software pricing, demo, weighbridge workflow, sales slip entry, boulder entry, and support."
+        title="Contact CrusherBook - Crusher ERP Support & Demo"
+        description="Contact CrusherBook for crusher ERP software demo, pricing, support, weighbridge workflow, and implementation. Get in touch with our team today!"
         path="/contact"
         keywords={[
           'contact crusher software company',
-          'crusher ERP demo',
-          'crusherbook contact',
+          'crusher ERP software demo',
+          'crushbook contact',
+          'crusher plant management support',
+          'weighbridge software support India',
+          'crusher ERP implementation help',
+          'crusher software customer support',
         ]}
         schema={contactSchema}
       />
@@ -50,7 +54,7 @@ const Contact = () => {
             transition={{ duration: 0.4, delay: 0.1 }}
             className="mb-2 text-xl font-bold leading-tight tracking-tight text-white sm:text-2xl lg:text-[1.75rem]"
           >
-            Get in Touch
+            Contact CrusherBook - ERP Support & Demo
           </motion.h1>
           <motion.p
             initial={{ opacity: 0, y: 15 }}

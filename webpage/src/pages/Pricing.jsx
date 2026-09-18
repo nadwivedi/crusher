@@ -80,21 +80,41 @@ export default function Pricing() {
   return (
     <div className="w-full bg-white">
       <Seo
-        title="Crusher ERP Pricing"
-        description="CrusherBook pricing includes Basic at Rs 2,999/year, Advanced at Rs 4,999/year with AI auto entry, automated WhatsApp alerts, and weightbridge entry, and Enterprise at Rs 6,999/year for multi-plant control."
+        title="CrusherBook Pricing - Affordable Stone Crusher ERP Plans"
+        description="CrusherBook ERP pricing: Basic Rs 2,999, Advanced Rs 4,999 with AI entry & alerts, Enterprise Rs 6,999. All include 14-day free trial. Start today!"
         path="/pricing"
         keywords={[
           'crusher software pricing',
           'stone crusher ERP pricing',
           'weighbridge software pricing',
-          'crusherbook pricing',
+          'crusherbook pricing plans',
+          'best crusher management software price',
+          'affordable ERP for crushers',
+          'crusher software cost India',
         ]}
-        schema={{
-          '@context': 'https://schema.org',
-          '@type': 'WebPage',
-          name: 'CrusherBook Pricing',
-          url: 'https://crusherbook.com/pricing',
-        }}
+        schema={[
+          {
+            '@context': 'https://schema.org',
+            '@type': 'PriceSpecification',
+            priceCurrency: 'INR',
+            price: '2999',
+            pricingCategory: 'Basic Plan',
+          },
+          {
+            '@context': 'https://schema.org',
+            '@type': 'PriceSpecification',
+            priceCurrency: 'INR',
+            price: '4999',
+            pricingCategory: 'Advanced Plan',
+          },
+          {
+            '@context': 'https://schema.org',
+            '@type': 'PriceSpecification',
+            priceCurrency: 'INR',
+            price: '6999',
+            pricingCategory: 'Enterprise Plan',
+          },
+        ]}
       />
 
       {/* Hero */}

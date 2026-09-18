@@ -94,22 +94,78 @@ export default function Features() {
   return (
     <div className="w-full bg-white">
       <Seo
-        title="Features - CrusherBook ERP"
-        description="Explore CrusherBook features: AI auto entry, WhatsApp integration, weighbridge support, daily reports, party ledger, sales ledger, expense tracking, and payroll management."
+        title="CrusherBook Features - AI Entry, Weighbridge, Reports & More"
+        description="Explore CrusherBook ERP features: AI auto slip entry, WhatsApp integration, weighbridge workflow, daily reports, party ledger, expense tracking & payroll for crushers!"
         path="/features"
         keywords={[
           'crusher software features',
-          'AI slip upload entry',
-          'weighbridge software',
+          'AI slip photo entry',
+          'weighbridge software integration',
           'party ledger report',
-          'sales report software',
+          'sales ledger software',
+          'expense tracking software',
+          'stone crusher ERP features',
+          'automated WhatsApp alerts',
+          'payroll management system',
+          'stock control software',
         ]}
-        schema={{
-          '@context': 'https://schema.org',
-          '@type': 'WebPage',
-          name: 'CrusherBook Features',
-          url: 'https://crusherbook.com/features',
-        }}
+        schema={[
+          {
+            '@context': 'https://schema.org',
+            '@type': 'WebPage',
+            name: 'CrusherBook Features',
+            url: 'https://crusherbook.com/features',
+            description: 'CrusherBook ERP features for stone crusher plants including AI auto entry, weighbridge integration, reports, and more.',
+            mainEntity: {
+              '@type': 'SoftwareApplication',
+              name: 'CrusherBook',
+              applicationCategory: 'BusinessApplication',
+              operatingSystem: 'Web',
+              hasFeature: [
+                {
+                  '@type': 'Thing',
+                  name: 'AI Auto Entry (Slip Upload)',
+                  description: 'Snap a photo of your weighbridge or sales slip. Our AI reads the data instantly and fills the entry automatically.',
+                },
+                {
+                  '@type': 'Thing',
+                  name: 'Automated WhatsApp Integration',
+                  description: 'Send auto-generated party pending balance notifications, payment reminders, and transaction updates via WhatsApp.',
+                },
+                {
+                  '@type': 'Thing',
+                  name: 'Weighbridge Integration',
+                  description: 'Connect your weighbridge directly to CrusherBook. Weights flow automatically from the scale in real-time.',
+                },
+                {
+                  '@type': 'Thing',
+                  name: 'Daily Report (Daybook)',
+                  description: 'Automatic end-of-day summary showing all entries, total sales, boulder quantity moved, and cash collected.',
+                },
+                {
+                  '@type': 'Thing',
+                  name: 'Party Ledger Report',
+                  description: 'Track what each customer owes you with transaction history, pending amounts, payment history, and credit limits.',
+                },
+                {
+                  '@type': 'Thing',
+                  name: 'Sales Ledger Report',
+                  description: 'Daily, weekly, and monthly sales summaries with trend analysis and top-performing boulder grades.',
+                },
+                {
+                  '@type': 'Thing',
+                  name: 'Expense Tracking',
+                  description: 'Record all operational costs and track trends to see exactly where your money goes every day.',
+                },
+                {
+                  '@type': 'Thing',
+                  name: 'Payroll Management',
+                  description: 'Manage employee work records, calculate wages, and generate monthly payroll reports.',
+                },
+              ],
+            },
+          },
+        ]}
       />
 
       {/* Hero */}

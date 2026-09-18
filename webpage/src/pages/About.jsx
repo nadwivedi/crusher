@@ -5,10 +5,25 @@ import Seo from '../components/Seo';
 
 const aboutSchema = {
   '@context': 'https://schema.org',
-  '@type': 'AboutPage',
-  name: 'About CrusherBook',
-  url: 'https://crusherbook.com/about',
-  description: 'About CrusherBook, stone crusher plant ERP software built by SoftwareBytes India for weighbridge workflow, ledger, stock, expenses, and reporting.',
+  '@type': 'Organization',
+  name: 'CrusherBook',
+  url: 'https://crusherbook.com',
+  logo: 'https://crusherbook.com/cruhserbook.webp',
+  description: 'CrusherBook is a stone crusher plant ERP software built by SoftwareBytes India for weighbridge workflow, slip entry, party ledger, expenses, stock management, and reporting.',
+  founder: {
+    '@type': 'Person',
+    name: 'SoftwareBytes India',
+  },
+  foundingDate: '2021',
+  areaServed: ['IN'],
+  knowsAbout: [
+    'Crusher Plant Management',
+    'ERP Software',
+    'Weighbridge Integration',
+    'Ledger Management',
+    'Stock Management',
+    'Expense Tracking',
+  ],
 };
 
 const highlights = [
@@ -39,13 +54,16 @@ export default function About() {
   return (
     <div className="w-full bg-white">
       <Seo
-        title="About CrusherBook ERP"
-        description="Learn about CrusherBook, a stone crusher plant ERP system built by SoftwareBytes India for weighbridge workflow, slip entry, party ledger, expenses, stock, and reports."
+        title="About CrusherBook - Stone Crusher ERP Software Company"
+        description="Meet CrusherBook by SoftwareBytes India - stone crusher ERP software for weighbridge workflow, party ledger, expenses & profit reports since 2021. Learn our story!"
         path="/about"
         keywords={[
-          'about crusher ERP',
+          'about crusher ERP software',
           'stone crusher plant software company',
           'crusher management software India',
+          'ERP for stone crushers',
+          'weighbridge software India',
+          'crusher plant management system',
           'SoftwareBytes India',
         ]}
         schema={aboutSchema}
