@@ -60,26 +60,23 @@ const featuresData = [
     color: 'text-amber-600',
     bgColor: 'from-amber-100 to-amber-50',
   },
+];
+
+const platformFeatures = [
   {
     icon: Users,
     title: 'Dedicated Employee Panel',
-    description: 'Give employees role-based access. They see only the data you assign — sales entry, work logs, punch records — but not pricing, ledger, or profit details. Control who sees what.',
-    color: 'text-indigo-600',
-    bgColor: 'from-indigo-100 to-indigo-50',
+    description: 'Role-based access for employees. They see only assigned data — sales entry, work logs, punch records — but not pricing or ledger details.',
   },
   {
     icon: Smartphone,
     title: 'Mobile Application',
-    description: 'Manage your crusher plant from anywhere. Mobile app for sales entry, slip upload, daily reports, and WhatsApp alerts. Work on the go with full offline support.',
-    color: 'text-purple-600',
-    bgColor: 'from-purple-100 to-purple-50',
+    description: 'Manage from anywhere with sales entry, slip upload, daily reports, WhatsApp alerts, and full offline support.',
   },
   {
     icon: Monitor,
     title: 'Desktop Software',
-    description: 'Full-featured desktop application for comprehensive plant management. Faster data entry, large reports, bulk uploads, and complete dashboard control from your office.',
-    color: 'text-cyan-600',
-    bgColor: 'from-cyan-100 to-cyan-50',
+    description: 'Full-featured office application with faster data entry, large reports, bulk uploads, and complete dashboard control.',
   },
 ];
 
@@ -162,6 +159,33 @@ export default function Features() {
                 <p className="text-xs sm:text-sm leading-relaxed text-brand-slate">{feature.description}</p>
               </motion.div>
             ))}
+          </div>
+
+          {/* Platform Features Section */}
+          <div className="mt-8 sm:mt-10 pt-8 sm:pt-10 border-t border-gray-200">
+            <h3 className="text-lg sm:text-xl font-bold text-brand-navy mb-5 sm:mb-6">Available On Multiple Platforms</h3>
+            <div className="grid gap-4 md:grid-cols-3">
+              {platformFeatures.map((feature, i) => (
+                <motion.div
+                  key={feature.title}
+                  initial={{ opacity: 0, y: 15 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 0.4, delay: i * 0.05 }}
+                  className="rounded-xl border border-gray-200 bg-white p-4 sm:p-5 shadow-sm hover:shadow-md transition-shadow"
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gray-100 shrink-0 mt-0.5">
+                      <feature.icon className="h-5 w-5 text-brand-navy" />
+                    </div>
+                    <div>
+                      <h4 className="text-sm sm:text-base font-bold text-brand-navy mb-1">{feature.title}</h4>
+                      <p className="text-xs sm:text-sm leading-relaxed text-brand-slate">{feature.description}</p>
+                    </div>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
           </div>
         </div>
       </section>
