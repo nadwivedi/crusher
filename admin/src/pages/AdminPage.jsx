@@ -134,6 +134,11 @@ function AdminPage() {
     setForm((current) => ({ ...current, [name]: value }))
   }
 
+  const handleMobileChange = (event) => {
+    const digitsOnly = event.target.value.replace(/\D/g, '').slice(0, 10)
+    setForm((current) => ({ ...current, mobile: digitsOnly }))
+  }
+
   const handleLoginChange = (event) => {
     const { name, value } = event.target
     setLoginForm((current) => ({ ...current, [name]: value }))
@@ -187,6 +192,11 @@ function AdminPage() {
 
       if (!editingId && !payload.password) {
         toast.error('Password is required for new users')
+        return
+      }
+
+      if (!/^\d{10}$/.test(payload.mobile)) {
+        toast.error('Mobile number must be exactly 10 digits')
         return
       }
 
@@ -607,8 +617,12 @@ function AdminPage() {
                     <input
                       name="mobile"
                       value={form.mobile}
-                      onChange={handleChange}
+                      onChange={handleMobileChange}
                       placeholder="10-digit mobile"
+                      inputMode="numeric"
+                      pattern="\d{10}"
+                      maxLength={10}
+                      title="Mobile number must be exactly 10 digits"
                       className="w-full rounded-xl border border-white/10 bg-slate-950/60 py-2.5 pl-10 pr-3.5 text-sm text-white placeholder:text-slate-500 outline-none transition-colors focus:border-sky-400/60 focus:ring-2 focus:ring-sky-400/20"
                       required
                     />
