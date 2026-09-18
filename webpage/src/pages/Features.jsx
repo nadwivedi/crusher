@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { Camera, MessageCircle, Scale, BarChart3, Users, FileText, DollarSign, Zap, Smartphone, Monitor } from 'lucide-react';
+import { Camera, MessageCircle, Scale, BarChart3, Users, FileText, DollarSign, Zap, Smartphone, Monitor, Cloud, Infinity } from 'lucide-react';
 import ContactActions from '../components/ContactActions';
 import Seo from '../components/Seo';
 
@@ -77,6 +77,16 @@ const platformFeatures = [
     icon: Monitor,
     title: 'Desktop Software',
     description: 'Full-featured office application with faster data entry, large reports, bulk uploads, and complete dashboard control.',
+  },
+  {
+    icon: Cloud,
+    title: 'Cloud Based Variant',
+    description: 'Access CrusherBook from any device, anytime. Real-time sync, automatic backups, and secure cloud storage for all your crusher plant data.',
+  },
+  {
+    icon: Infinity,
+    title: 'Offline Variant + Lifetime Plan',
+    description: 'Work without internet with our offline version. One-time lifetime payment — no recurring subscriptions, perfect for locations with connectivity challenges.',
   },
 ];
 
@@ -164,7 +174,7 @@ export default function Features() {
           {/* Platform Features Section */}
           <div className="mt-8 sm:mt-10 pt-8 sm:pt-10 border-t border-gray-200">
             <h3 className="text-lg sm:text-xl font-bold text-brand-navy mb-5 sm:mb-6">Available On Multiple Platforms</h3>
-            <div className="grid gap-4 md:grid-cols-3">
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {platformFeatures.map((feature, i) => (
                 <motion.div
                   key={feature.title}
