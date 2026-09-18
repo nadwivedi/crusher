@@ -123,7 +123,7 @@ const Home = () => {
       <MarketingHero />
       <FeatureShowcase />
 
-      <section className="bg-gradient-to-b from-brand-navy via-brand-navy to-brand-navy/95 px-4 py-16 sm:py-20 lg:py-24 text-white">
+      <section className="bg-gradient-to-b from-brand-navy via-brand-navy to-brand-navy/95 px-4 py-10 sm:py-12 lg:py-16 text-white">
         <div className="w-full max-w-5xl mx-auto px-0 sm:px-5 lg:px-6 xl:max-w-6xl text-center">
           <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-[2.2rem] font-bold leading-tight mb-4 sm:mb-6">
             Everything for Your Crusher Plant, in One Place
