@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { Target, Users, Shield, TrendingUp } from 'lucide-react';
+import { Target, Shield, TrendingUp, Zap } from 'lucide-react';
 import ContactActions from '../components/ContactActions';
 import Seo from '../components/Seo';
 
@@ -8,158 +8,247 @@ const aboutSchema = {
   '@type': 'AboutPage',
   name: 'About CrusherBook',
   url: 'https://crusherbook.com/about',
-  description: 'About CrusherBook, stone crusher plant ERP software built for weighbridge workflow, ledger, stock, expenses, and reporting.',
+  description: 'About CrusherBook, stone crusher plant ERP software built by SoftwareBytes India for weighbridge workflow, ledger, stock, expenses, and reporting.',
 };
 
-const About = () => {
+const highlights = [
+  {
+    icon: Zap,
+    title: 'Work Made Easier',
+    description: 'Stop managing crushers with paper registers and scattered notebooks. CrusherBook gives you a single dashboard for slips, stock, ledger, and expenses — organized, searchable, and always backed up.',
+    color: 'text-blue-600',
+    bgColor: 'from-blue-100 to-blue-50',
+  },
+  {
+    icon: TrendingUp,
+    title: 'Profit & Loss Made Simple',
+    description: 'Know your real profit every single day. Auto-calculated P&L reports show revenue, boulder cost, expenses, and net margin — no guessing, no manual math, no surprises at year-end.',
+    color: 'text-green-600',
+    bgColor: 'from-green-100 to-green-50',
+  },
+  {
+    icon: Target,
+    title: 'Built for Crushers, By Crushers',
+    description: 'Designed with crusher plant owners and managers in mind. Every feature solves real problems — from weighbridge integration to party ledger tracking to employee payroll.',
+    color: 'text-orange-600',
+    bgColor: 'from-orange-100 to-orange-50',
+  },
+];
+
+export default function About() {
   return (
     <div className="w-full bg-white">
       <Seo
         title="About CrusherBook ERP"
-        description="Learn about CrusherBook, a stone crusher plant ERP system built for weighbridge workflow, slip entry, party ledger, expenses, stock, and reports."
+        description="Learn about CrusherBook, a stone crusher plant ERP system built by SoftwareBytes India for weighbridge workflow, slip entry, party ledger, expenses, stock, and reports."
         path="/about"
         keywords={[
           'about crusher ERP',
           'stone crusher plant software company',
           'crusher management software India',
+          'SoftwareBytes India',
         ]}
         schema={aboutSchema}
       />
 
       {/* Hero */}
-      <section className="relative overflow-hidden bg-brand-navy pt-16 pb-12 sm:pt-20 sm:pb-16 lg:pt-24 lg:pb-20">
+      <section className="relative overflow-hidden bg-brand-navy pt-10 pb-8 sm:pt-16 sm:pb-10 lg:pt-20 lg:pb-12">
         <div
           className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_80%_60%_at_50%_0%,rgba(250,86,8,0.18),transparent),radial-gradient(circle_at_90%_60%,rgba(17,76,171,0.25),transparent_40%)]"
           aria-hidden
         />
         <div className="relative z-10 w-full max-w-5xl mx-auto px-4 sm:px-5 lg:px-6 xl:max-w-6xl text-center">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
+          <motion.span
+            initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
-            className="mb-4 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-2 text-brand-accent backdrop-blur-sm"
+            transition={{ duration: 0.4 }}
+            className="mb-3 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-brand-accent backdrop-blur-sm"
           >
-            <span className="flex h-2 w-2 rounded-full bg-brand-orange animate-pulse"></span>
-            <span className="text-xs font-medium tracking-wide text-brand-accent/90 sm:text-sm">
-              Trusted by 50+ Crusher Plants
+            <span className="flex h-1.5 w-1.5 rounded-full bg-brand-orange animate-pulse"></span>
+            <span className="text-[0.65rem] font-medium tracking-wide text-brand-accent/90 sm:text-xs">
+              About CrusherBook
             </span>
-          </motion.div>
-
+          </motion.span>
           <motion.h1
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.1 }}
-            className="mb-4 text-2xl font-bold leading-tight tracking-tight text-white sm:text-3xl lg:text-[1.85rem]"
+            transition={{ duration: 0.4, delay: 0.1 }}
+            className="mb-2 text-xl font-bold leading-tight tracking-tight text-white sm:text-2xl lg:text-[1.75rem]"
           >
-            About CrusherBook
+            Simplifying Crusher Plant Operations Since 2021
           </motion.h1>
-
           <motion.p
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.2 }}
-            className="mx-auto max-w-2xl text-xs leading-relaxed text-white/75 sm:text-sm lg:text-base"
+            transition={{ duration: 0.4, delay: 0.15 }}
+            className="mx-auto max-w-2xl text-xs leading-relaxed text-white/70 sm:text-sm"
           >
-            Stone crusher management software built to replace outdated, manual data tracking with intelligent, automated, mobile-first workflows for the rock crushing industry.
+            Trusted for over 3 years by crusher plant owners across Chhattisgarh, Madhya Pradesh, Odisha, and Jharkhand — helping them manage sales, stock, ledger, and profits with clarity and speed.
           </motion.p>
         </div>
       </section>
 
-      {/* Mission / Why Choose Split */}
-      <section className="bg-gray-50 px-4 py-16 sm:py-20 lg:py-24">
+      {/* What We Do */}
+      <section className="bg-white px-4 py-10 sm:py-12 lg:py-16">
         <div className="w-full max-w-5xl mx-auto px-0 sm:px-5 lg:px-6 xl:max-w-6xl">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.5 }}
-            className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm"
-          >
-            <div className="grid grid-cols-1 lg:grid-cols-2">
-              <div className="p-6 sm:p-10 lg:p-12 flex flex-col justify-center">
-                <div className="inline-flex items-center gap-2 bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-semibold mb-4 w-fit">
-                  <TrendingUp size={14} />
-                  Our Mission
-                </div>
-                <h2 className="text-xl sm:text-2xl lg:text-[1.65rem] font-bold text-brand-navy mb-4 leading-tight">
-                  Empowering Crusher Plants with Modern ERP
-                </h2>
-                <p className="text-sm sm:text-base text-brand-slate leading-relaxed mb-4">
-                  CrusherBook was built from the ground up by industry experts who lived the frustration of lost weighbridge slips, tedious ledger reconciliation, and complex software.
-                </p>
-                <p className="text-sm sm:text-base text-brand-slate leading-relaxed">
-                  Our mission is to arm crusher plant owners and managers with absolute clarity. Through cutting-edge features like our <strong className="text-brand-navy">One-Tap Slip Scanner</strong>, we eliminate human error and give you back hours of your day.
-                </p>
-              </div>
-              <div className="bg-brand-navy p-6 sm:p-10 lg:p-12 text-white flex flex-col justify-center relative overflow-hidden">
-                <div
-                  className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_80%_60%_at_100%_0%,rgba(250,86,8,0.18),transparent)]"
-                  aria-hidden
-                />
-                <div className="relative z-10">
-                  <div className="inline-flex items-center gap-2 bg-white/10 text-brand-orange px-3 py-1 rounded-full text-xs font-semibold mb-4 w-fit">
-                    <Shield size={14} />
-                    Built for Scale
-                  </div>
-                  <h2 className="text-xl sm:text-2xl lg:text-[1.65rem] font-bold mb-5 leading-tight">
-                    Why Choose CrusherBook?
-                  </h2>
-                  <ul className="space-y-4">
-                    {[
-                      { icon: Target, title: 'Precision Accuracy', desc: 'Every transaction verified and recorded seamlessly.' },
-                      { icon: Shield, title: 'Secure Ledger', desc: 'Your financial data is tightly encrypted and backed up.' },
-                      { icon: Users, title: 'Expert Support', desc: 'Dedicated team ready to help you 24/7.' },
-                    ].map((item) => (
-                      <li key={item.title} className="flex items-start gap-3">
-                        <div className="bg-white/10 p-2.5 rounded-lg shrink-0">
-                          <item.icon className="w-5 h-5 text-brand-orange" />
-                        </div>
-                        <div>
-                          <h4 className="font-semibold text-sm sm:text-base text-white">{item.title}</h4>
-                          <p className="text-white/70 text-xs sm:text-sm leading-relaxed">{item.desc}</p>
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              </div>
-            </div>
-          </motion.div>
-        </div>
-      </section>
+          <div className="max-w-3xl mx-auto text-center mb-8 sm:mb-10">
+            <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-[2.2rem] font-bold text-brand-navy mb-4 sm:mb-6 leading-tight">
+              Software Built for Crusher Plants
+            </h2>
+            <p className="text-sm sm:text-base md:text-lg leading-relaxed text-brand-slate">
+              CrusherBook replaces manual registers, messy spreadsheets, and scattered data with one unified system that handles slips, stock, ledger, expenses, and profit reporting.
+            </p>
+          </div>
 
-      {/* Stats */}
-      <section className="bg-white px-4 py-16 sm:py-20 lg:py-24">
-        <div className="w-full max-w-5xl mx-auto px-0 sm:px-5 lg:px-6 xl:max-w-6xl">
-          <div className="grid grid-cols-2 gap-4 sm:gap-5 lg:grid-cols-4">
+          <div className="max-w-3xl mx-auto space-y-4 mb-8 sm:mb-10">
+            <p className="text-sm sm:text-base leading-relaxed text-brand-slate">
+              Every day, a crusher plant owner juggles weighbridge slips, boulder movements, party payments, expense tracking, and month-end P&L calculations. CrusherBook digitizes that entire workflow so you spend less time on paperwork and more time growing your business.
+            </p>
+            <p className="text-sm sm:text-base leading-relaxed text-brand-slate">
+              For <strong className="text-brand-navy">3+ years</strong>, CrusherBook has grown with feedback from working crusher plant owners — earning trust as the go-to ERP software for crusher operations that demand <strong className="text-brand-navy">reliability, speed, and features that match how crushing actually happens</strong>.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
             {[
-              { icon: TrendingUp, value: '10k+', label: 'Slips processed daily', color: 'text-brand-orange', bg: 'from-orange-100 to-orange-50' },
-              { icon: Users, value: '50+', label: 'Active crusher plants', color: 'text-brand-navy', bg: 'from-slate-100 to-slate-50' },
-              { icon: Shield, value: '99.9%', label: 'Uptime guarantee', color: 'text-green-600', bg: 'from-green-100 to-green-50' },
-              { icon: Users, value: '50+', label: 'Satisfied clients', color: 'text-brand-orange', bg: 'from-orange-100 to-orange-50' },
-            ].map((stat, i) => (
+              { label: '3+ Years', sublabel: 'Serving crusher plants' },
+              { label: 'AI', sublabel: 'Slip entry automation' },
+              { label: 'WA', sublabel: 'Automated alerts' },
+              { label: 'P&L', sublabel: 'Automatic daily reports' },
+            ].map((stat) => (
               <motion.div
                 key={stat.label}
-                initial={{ opacity: 0, y: 20 }}
+                initial={{ opacity: 0, y: 10 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
-                transition={{ delay: i * 0.1, duration: 0.4 }}
-                className="group rounded-xl border border-gray-200 bg-white p-4 sm:p-6 text-center shadow-sm hover:shadow-md hover:border-brand-orange/30 transition-all"
+                className="rounded-xl border border-gray-200 bg-gradient-to-br from-orange-50 to-white px-3 py-4 text-center"
               >
-                <div className={`w-10 h-10 sm:w-12 sm:h-12 mx-auto bg-gradient-to-br ${stat.bg} ${stat.color} rounded-xl flex items-center justify-center mb-3 sm:mb-4 group-hover:scale-110 transition-transform`}>
-                  <stat.icon size={20} className="sm:hidden" />
-                  <stat.icon size={24} className="hidden sm:block" />
-                </div>
-                <h3 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-brand-navy mb-1">{stat.value}</h3>
-                <p className="text-xs sm:text-sm text-brand-slate font-medium">{stat.label}</p>
+                <strong className="block text-lg font-bold text-brand-navy sm:text-xl">{stat.label}</strong>
+                <span className="mt-1 block text-[0.6rem] font-medium leading-snug text-brand-slate sm:text-xs">
+                  {stat.sublabel}
+                </span>
               </motion.div>
             ))}
           </div>
         </div>
       </section>
 
+      {/* Highlights */}
+      <section className="px-4 py-10 sm:py-12 lg:py-16 bg-gray-50">
+        <div className="w-full max-w-5xl mx-auto px-0 sm:px-5 lg:px-6 xl:max-w-6xl">
+          <div className="max-w-3xl mx-auto text-center mb-8 sm:mb-10">
+            <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-[2.2rem] font-bold text-brand-navy mb-4 sm:mb-6 leading-tight">
+              Why Crusher Plants Choose CrusherBook
+            </h2>
+            <p className="text-sm sm:text-base text-brand-slate">
+              Three core pillars that make the difference
+            </p>
+          </div>
+
+          <div className="grid gap-5 sm:gap-6 md:grid-cols-3">
+            {highlights.map((item, i) => (
+              <motion.div
+                key={item.title}
+                initial={{ opacity: 0, y: 15 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: i * 0.1 }}
+                className={`rounded-2xl border border-gray-200 bg-gradient-to-br ${item.bgColor} p-6 sm:p-7 shadow-sm hover:shadow-md transition-shadow`}
+              >
+                <div className={`flex h-10 w-10 items-center justify-center rounded-lg bg-white shadow-sm mb-4`}>
+                  <item.icon className={`h-5 w-5 ${item.color}`} />
+                </div>
+                <h3 className="text-base sm:text-lg font-bold text-brand-navy mb-2">{item.title}</h3>
+                <p className="text-xs sm:text-sm leading-relaxed text-brand-slate">{item.description}</p>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* SoftwareBytes Section */}
+      <section className="px-4 py-10 sm:py-12 lg:py-16 bg-white">
+        <div className="w-full max-w-5xl mx-auto px-0 sm:px-5 lg:px-6 xl:max-w-6xl">
+          <div className="grid items-center gap-8 lg:grid-cols-2 lg:gap-10">
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true }}
+            >
+              <h2 className="text-2xl sm:text-3xl font-bold text-brand-navy mb-4 leading-tight">
+                Made by SoftwareBytes, Raipur
+              </h2>
+              <p className="text-sm sm:text-base leading-relaxed text-brand-slate mb-4">
+                CrusherBook is designed, developed, and supported by{' '}
+                <a
+                  href="https://softwarebytes.in"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-semibold text-brand-orange hover:underline"
+                >
+                  SoftwareBytes
+                </a>
+                , a Raipur-based IT company in Chhattisgarh, India. The team builds practical business software for Indian enterprises — with deep focus on products that solve real local problems.
+              </p>
+              <p className="text-sm sm:text-base leading-relaxed text-brand-slate mb-4">
+                SoftwareBytes works closely with crusher plant owners to understand daily workflows, weighbridge setups, ledger management, and compliance needs. That on-ground knowledge shapes every feature in CrusherBook — not generic software adapted from abroad.
+              </p>
+              <p className="text-sm sm:text-base leading-relaxed text-brand-slate">
+                When you choose CrusherBook, you partner with a product team in Raipur that offers hands-on support, understands your language, and is committed to helping your crusher plant grow with technology.
+              </p>
+
+              <ul className="mt-6 space-y-2">
+                {[
+                  'Raipur, Chhattisgarh, India',
+                  'CrusherBook.com — full crusher ERP product',
+                  'Ongoing updates driven by crusher feedback',
+                ].map((line) => (
+                  <li key={line} className="flex items-center gap-2 text-xs sm:text-sm text-brand-slate">
+                    <span className="shrink-0 text-brand-orange">
+                      <Shield className="h-4 w-4" />
+                    </span>
+                    {line}
+                  </li>
+                ))}
+              </ul>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              whileInView={{ opacity: 1, scale: 1 }}
+              viewport={{ once: true }}
+              className="rounded-2xl border border-gray-200 bg-gradient-to-br from-brand-navy/10 to-white p-6 sm:p-8 text-center shadow-sm"
+            >
+              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-brand-orange to-brand-navy text-lg font-bold text-white shadow-md">
+                SB
+              </div>
+              <h3 className="text-base sm:text-lg font-bold text-brand-navy mb-1">SoftwareBytes</h3>
+              <p className="text-sm font-medium text-brand-orange mb-1">Raipur-based IT company</p>
+              <p className="text-xs sm:text-sm text-brand-slate mb-5">
+                Chhattisgarh, India · Business &amp; ERP software
+              </p>
+              <div className="rounded-lg border border-orange-100 bg-orange-50/80 px-4 py-3">
+                <p className="text-xs sm:text-sm leading-relaxed text-brand-slate">
+                  <strong className="text-brand-navy">CrusherBook</strong> is SoftwareBytes' flagship product for the crusher community — built in India, for India, and trusted by 50+ crusher plants.
+                </p>
+              </div>
+              <div className="mt-5">
+                <a
+                  href="https://softwarebytes.in"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex text-xs sm:text-sm font-semibold text-brand-orange hover:text-brand-navy transition-colors"
+                >
+                  Visit SoftwareBytes →
+                </a>
+              </div>
+            </motion.div>
+          </div>
+        </div>
+      </section>
+
       {/* CTA */}
-      <section className="bg-gray-50 px-4 py-16 sm:py-20 lg:py-24">
+      <section className="px-4 py-12 sm:py-16 lg:py-20 bg-gray-50">
         <div className="w-full max-w-5xl mx-auto px-0 sm:px-5 lg:px-6 xl:max-w-6xl">
           <div className="relative overflow-hidden rounded-2xl bg-brand-navy px-6 py-12 sm:px-10 sm:py-16 text-center text-white shadow-lg">
             <div
@@ -168,20 +257,16 @@ const About = () => {
             />
             <div className="relative z-10">
               <h2 className="text-xl sm:text-2xl lg:text-[1.65rem] font-bold mb-3 leading-tight">
-                Built Around Crusher Plant Daily Work
+                Ready to Simplify Your Crusher Operations?
               </h2>
-              <p className="mx-auto max-w-2xl text-xs sm:text-sm lg:text-base leading-relaxed text-white/75">
-                From weighbridge connection and sales slip entry to party wise ledger, expense management, employee access, stock movement, and profit and loss visibility — CrusherBook is designed for real plant operations.
+              <p className="mx-auto max-w-2xl text-xs sm:text-sm lg:text-base leading-relaxed text-white/75 mb-6">
+                Join 50+ crusher plant owners who trust CrusherBook. Start your 14-day free trial today — no credit card required.
               </p>
-              <div className="mt-8">
-                <ContactActions primaryLabel="WhatsApp Us" secondaryLabel="Call Team" />
-              </div>
+              <ContactActions primaryLabel="Start Free Trial" secondaryLabel="Talk to Sales" />
             </div>
           </div>
         </div>
       </section>
     </div>
   );
-};
-
-export default About;
+}
