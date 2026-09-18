@@ -5,7 +5,7 @@ import DashboardPreview from './DashboardPreview';
 
 export default function MarketingHero() {
   return (
-    <section className="relative overflow-hidden bg-brand-navy pt-16 pb-12 sm:pt-20 lg:pt-24 lg:pb-16">
+    <section className="relative overflow-hidden bg-brand-navy pt-16 pb-8 sm:pt-20 sm:pb-10 lg:pt-24 lg:pb-12">
       <div
         className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_80%_60%_at_50%_0%,rgba(250,86,8,0.18),transparent),radial-gradient(circle_at_90%_60%,rgba(17,76,171,0.25),transparent_40%)]"
         aria-hidden
