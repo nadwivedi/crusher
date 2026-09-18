@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { Camera, MessageCircle, Scale, BarChart3, Users, FileText, DollarSign, Zap } from 'lucide-react';
+import { Camera, MessageCircle, Scale, BarChart3, Users, FileText, DollarSign, Zap, Smartphone, Monitor } from 'lucide-react';
 import ContactActions from '../components/ContactActions';
 import Seo from '../components/Seo';
 
@@ -59,6 +59,27 @@ const featuresData = [
     description: 'Manage employee work records, calculate wages based on daily output or fixed rates, and generate monthly payroll reports. Transparent, fast, and error-free.',
     color: 'text-amber-600',
     bgColor: 'from-amber-100 to-amber-50',
+  },
+  {
+    icon: Users,
+    title: 'Dedicated Employee Panel',
+    description: 'Give employees role-based access. They see only the data you assign — sales entry, work logs, punch records — but not pricing, ledger, or profit details. Control who sees what.',
+    color: 'text-indigo-600',
+    bgColor: 'from-indigo-100 to-indigo-50',
+  },
+  {
+    icon: Smartphone,
+    title: 'Mobile Application',
+    description: 'Manage your crusher plant from anywhere. Mobile app for sales entry, slip upload, daily reports, and WhatsApp alerts. Work on the go with full offline support.',
+    color: 'text-purple-600',
+    bgColor: 'from-purple-100 to-purple-50',
+  },
+  {
+    icon: Monitor,
+    title: 'Desktop Software',
+    description: 'Full-featured desktop application for comprehensive plant management. Faster data entry, large reports, bulk uploads, and complete dashboard control from your office.',
+    color: 'text-cyan-600',
+    bgColor: 'from-cyan-100 to-cyan-50',
   },
 ];
 
