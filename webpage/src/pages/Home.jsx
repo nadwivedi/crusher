@@ -1,3 +1,5 @@
+import { useState } from 'react';
+import { ChevronDown } from 'lucide-react';
 import MarketingHero from '../components/MarketingHero';
 import FeatureShowcase from '../components/FeatureShowcase';
 import ContactActions from '../components/ContactActions';
@@ -81,6 +83,27 @@ const homeSchema = {
 };
 
 const Home = () => {
+  const [expandedFAQ, setExpandedFAQ] = useState(0);
+
+  const faqItems = [
+    {
+      question: 'What is CrusherBook?',
+      answer: 'CrusherBook is stone crusher plant ERP software designed to manage sales slips, boulder entry, stock movement, party ledger, expenses, employee access, and profit reports all in one unified system.',
+    },
+    {
+      question: 'Does it support weighbridge workflow?',
+      answer: 'Yes! CrusherBook works with slip-based entry today and scales to full weighbridge-connected workflow for automatic dispatch entry and zero manual typing.',
+    },
+    {
+      question: 'Can I track party-wise ledger and expenses?',
+      answer: 'Absolutely. The software includes detailed party-wise ledger tracking, transaction history, expense management, and real-time stock visibility.',
+    },
+    {
+      question: 'What are your pricing plans?',
+      answer: 'We offer flexible pricing starting at Rs 2,999/year for Basic, Rs 4,999/year for Advanced, and Rs 6,999/year for Enterprise with multi-plant support. All plans include a 14-day free trial with no credit card required.',
+    },
+  ];
+
   return (
     <div className="w-full">
       <Seo
@@ -185,28 +208,26 @@ const Home = () => {
             </p>
           </div>
           <div className="space-y-3 sm:space-y-4">
-            {[
-              {
-                question: 'What is CrusherBook?',
-                answer: 'CrusherBook is stone crusher plant ERP software designed to manage sales slips, boulder entry, stock movement, party ledger, expenses, employee access, and profit reports all in one unified system.',
-              },
-              {
-                question: 'Does it support weighbridge workflow?',
-                answer: 'Yes! CrusherBook works with slip-based entry today and scales to full weighbridge-connected workflow for automatic dispatch entry and zero manual typing.',
-              },
-              {
-                question: 'Can I track party-wise ledger and expenses?',
-                answer: 'Absolutely. The software includes detailed party-wise ledger tracking, transaction history, expense management, and real-time stock visibility.',
-              },
-              {
-                question: 'What are your pricing plans?',
-                answer: 'We offer flexible pricing starting at Rs 2,999/year for Basic, Rs 4,999/year for Advanced, and Rs 6,999/year for Enterprise with multi-plant support. All plans include a 14-day free trial with no credit card required.',
-              },
-            ].map((item) => (
-              <div key={item.question} className="rounded-xl border border-gray-200 bg-white p-5 sm:p-6 shadow-sm hover:shadow-md transition-shadow">
-                <h3 className="text-base sm:text-lg font-bold text-brand-navy mb-2 sm:mb-3">{item.question}</h3>
-                <p className="text-sm sm:text-base leading-relaxed text-brand-slate">{item.answer}</p>
-              </div>
+            {faqItems.map((item, index) => (
+              <button
+                key={item.question}
+                onClick={() => setExpandedFAQ(expandedFAQ === index ? -1 : index)}
+                className="w-full text-left rounded-xl border border-gray-200 bg-white shadow-sm hover:shadow-md transition-shadow"
+              >
+                <div className="p-5 sm:p-6 flex items-center justify-between gap-3">
+                  <h3 className="text-base sm:text-lg font-bold text-brand-navy">{item.question}</h3>
+                  <ChevronDown
+                    className={`h-5 w-5 shrink-0 text-brand-navy transition-transform ${
+                      expandedFAQ === index ? 'rotate-180' : ''
+                    }`}
+                  />
+                </div>
+                {expandedFAQ === index && (
+                  <div className="border-t border-gray-100 px-5 py-4 sm:px-6 sm:py-5">
+                    <p className="text-sm sm:text-base leading-relaxed text-brand-slate">{item.answer}</p>
+                  </div>
+                )}
+              </button>
             ))}
           </div>
         </div>
