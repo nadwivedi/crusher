@@ -24,6 +24,7 @@ const Navbar = () => {
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center space-x-8">
             <Link to="/" className="text-brand-slate hover:text-brand-orange transition-colors font-medium">Home</Link>
+            <Link to="/features" className="text-brand-slate hover:text-brand-orange transition-colors font-medium">Features</Link>
             <Link to="/about" className="text-brand-slate hover:text-brand-orange transition-colors font-medium">About</Link>
             <Link to="/pricing" className="text-brand-slate hover:text-brand-orange transition-colors font-medium">Pricing</Link>
             <Link to="/contact" className="text-brand-slate hover:text-brand-orange transition-colors font-medium">Contact</Link>
@@ -65,15 +66,22 @@ const Navbar = () => {
       {isOpen && (
         <div className="md:hidden bg-white border-t border-gray-100">
           <div className="px-4 pt-2 pb-6 space-y-2">
-            <Link 
-              to="/" 
+            <Link
+              to="/"
               onClick={() => setIsOpen(false)}
               className="block px-3 py-3 rounded-md text-base font-medium text-brand-slate hover:bg-gray-50 hover:text-brand-orange"
             >
               Home
             </Link>
-            <Link 
-              to="/about" 
+            <Link
+              to="/features"
+              onClick={() => setIsOpen(false)}
+              className="block px-3 py-3 rounded-md text-base font-medium text-brand-slate hover:bg-gray-50 hover:text-brand-orange"
+            >
+              Features
+            </Link>
+            <Link
+              to="/about"
               onClick={() => setIsOpen(false)}
               className="block px-3 py-3 rounded-md text-base font-medium text-brand-slate hover:bg-gray-50 hover:text-brand-orange"
             >
