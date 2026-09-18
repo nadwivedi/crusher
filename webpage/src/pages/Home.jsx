@@ -197,9 +197,9 @@ const Home = () => {
         </div>
       </section>
 
-      <section className="bg-gradient-to-b from-gray-50 via-white to-gray-50/50 px-4 py-16 sm:py-20 lg:py-24">
+      <section className="bg-gradient-to-b from-gray-50 via-white to-gray-50/50 px-4 py-10 sm:py-12 lg:py-16">
         <div className="w-full max-w-5xl mx-auto px-0 sm:px-5 lg:px-6 xl:max-w-6xl">
-          <div className="text-center mb-12 sm:mb-16">
+          <div className="text-center mb-8 sm:mb-10">
             <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-[2.2rem] font-bold text-brand-navy mb-3 sm:mb-4">
               Questions? We Have Answers
             </h2>
