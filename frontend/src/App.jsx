@@ -33,6 +33,7 @@ import DayBook from './pages/DayBook';
 import Analytics from './pages/Analytics';
 import Setting from './pages/Setting';
 import ProtectedRoute from './components/ProtectedRoute';
+import BackButton from './components/BackButton';
 import { hasFeatureAccess } from './utils/featureAccess';
 
 function App() {
@@ -72,6 +73,7 @@ function App() {
 
   return (
     <>
+      {isAuthenticated && <BackButton />}
       <Routes location={location}>
         {/* Public Routes */}
         <Route
