@@ -660,7 +660,7 @@ export default function AddProductPopup({
 
                   <div className="space-y-3 md:space-y-4">
                     <div className="flex items-center gap-2">
-                      <label className="w-32 shrink-0 text-xs font-semibold text-gray-700 md:text-sm">Current Stock</label>
+                      <label className="w-32 shrink-0 text-xs font-semibold text-gray-700 md:text-sm">{isEditMode ? 'Current Stock' : 'Opening Stock'}</label>
                       <input
                         ref={currentStockInputRef}
                         type="number"

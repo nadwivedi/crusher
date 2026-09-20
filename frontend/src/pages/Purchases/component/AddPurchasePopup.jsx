@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Building2, CalendarDays, Package, Upload } from 'lucide-react';
+import { Building2, CalendarDays, Package, Plus, Upload } from 'lucide-react';
 import { handlePopupFormKeyDown } from '../../../utils/popupFormKeyboard';
 import { useFloatingDropdownPosition } from '../../../utils/useFloatingDropdownPosition';
 
@@ -380,7 +380,10 @@ export default function AddPurchasePopup({
                                           {filteredProducts.length}
                                         </span>
                                       </div>
-                                      <div className="overflow-y-auto py-1" style={{ maxHeight: productDropdownStyle.maxHeight }}>
+                                      <div
+                                        className="overflow-y-auto py-1"
+                                        style={{ maxHeight: `calc(${typeof productDropdownStyle.maxHeight === 'number' ? `${productDropdownStyle.maxHeight}px` : productDropdownStyle.maxHeight} - 44px)` }}
+                                      >
                                         <button
                                           type="button"
                                           onMouseDown={(event) => event.preventDefault()}
@@ -400,15 +403,6 @@ export default function AddPurchasePopup({
                                         {filteredProducts.length === 0 ? (
                                           <div className="px-3 py-3 text-center text-[13px] text-slate-500">
                                             <p>No matching products found.</p>
-                                            <button
-                                              type="button"
-                                              onMouseDown={(event) => event.preventDefault()}
-                                              onClick={onOpenNewProduct}
-                                              className="mt-2 inline-flex items-center gap-2 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-[12px] font-semibold text-emerald-700 transition hover:bg-emerald-100"
-                                            >
-                                              Create New Stock
-                                              <span className="rounded bg-white px-1.5 py-0.5 font-mono text-[10px] text-emerald-700">Ctrl</span>
-                                            </button>
                                           </div>
                                         ) : (
                                           filteredProducts.map((product, index) => {
@@ -442,6 +436,16 @@ export default function AddPurchasePopup({
                                           })
                                         )}
                                       </div>
+                                      <button
+                                        type="button"
+                                        onMouseDown={(event) => event.preventDefault()}
+                                        onClick={onOpenNewProduct}
+                                        className="flex w-full items-center gap-2 border-t border-emerald-200 bg-emerald-50 px-3 py-2 text-left text-[13px] font-semibold text-emerald-700 transition hover:bg-emerald-100"
+                                      >
+                                        <Plus className="h-4 w-4" />
+                                        Add New Stock Item
+                                        <span className="ml-auto text-[10px] font-medium text-emerald-600">Ctrl</span>
+                                      </button>
                                     </div>
                                   )}
                                 </div>
