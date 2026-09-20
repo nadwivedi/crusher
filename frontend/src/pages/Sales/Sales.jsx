@@ -9,6 +9,8 @@ import AddPartyPopup from '../Party/component/AddPartyPopup';
 import AddProductPopup from '../Products/component/AddProductPopup';
 import AddVehiclePopup from '../Vehicle/component/AddVehiclePopup';
 import AddSalePopup from './component/AddSalePopup';
+import CustomRangePopup, { CustomRangeButton } from '../../components/CustomRangePopup';
+import MonthPickerPopup, { MonthRangeButton } from '../../components/MonthPickerPopup';
 
 const isCompleteVehicleNumber = (value) => normalizeVehicleValue(value).length >= 9;
 
@@ -306,8 +308,6 @@ const SALES_RANGE_OPTIONS = [
 
 const SALES_PAGE_SIZE = 50;
 
-const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-const YEAR_OPTIONS = Array.from({ length: 6 }, (_, i) => new Date().getFullYear() - i);
 const formatRupees = (value) => `₹${Number(value || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
 
 // Returns { from, to } as ISO strings (either may be undefined) for the server query.
@@ -386,6 +386,10 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
   const [customTo, setCustomTo] = useState('');
   const [selectedMonth, setSelectedMonth] = useState(String(new Date().getMonth()));
   const [selectedYear, setSelectedYear] = useState(String(new Date().getFullYear()));
+  const [showMonthPicker, setShowMonthPicker] = useState(false);
+  const rangeBeforeMonthRef = useRef('lifetime');
+  const rangeBeforeCustomRef = useRef('lifetime');
+  const [showCustomPicker, setShowCustomPicker] = useState(false);
   const [materialStats, setMaterialStats] = useState([]);
   const [materialFilter, setMaterialFilter] = useState('');
   const [summary, setSummary] = useState({ totalAmount: 0, cashAmount: 0, creditAmount: 0, totalWeight: 0, count: 0 });
@@ -447,13 +451,13 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
 
   useEffect(() => {
     const handleKeyDown = (event) => {
-      if (event.key === 'Escape' && !showForm && !showPartyForm && !showProductForm && !showVehicleForm) {
+      if (event.key === 'Escape' && !showForm && !showPartyForm && !showProductForm && !showVehicleForm && !showMonthPicker && !showCustomPicker) {
         navigate('/');
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [navigate, showForm, showPartyForm, showProductForm, showVehicleForm]);
+  }, [navigate, showForm, showPartyForm, showProductForm, showVehicleForm, showMonthPicker, showCustomPicker]);
 
   useEffect(() => {
     if (location.state?.openShortcut !== 'sale' || showForm) return;
@@ -485,6 +489,54 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [showForm]);
+
+  const openMonthPicker = () => setShowMonthPicker(true);
+
+  const closeMonthPicker = () => {
+    setShowMonthPicker(false);
+    // Cancelled straight after choosing "Month Wise": go back to the previous range.
+    if (rangeBeforeMonthRef.current !== 'month') setTableRange(rangeBeforeMonthRef.current);
+  };
+
+  const applyMonthPicker = (month, year) => {
+    setSelectedMonth(month);
+    setSelectedYear(year);
+    rangeBeforeMonthRef.current = 'month';
+    setShowMonthPicker(false);
+  };
+
+  const openCustomPicker = () => setShowCustomPicker(true);
+
+  const closeCustomPicker = () => {
+    setShowCustomPicker(false);
+    // Cancelled straight after choosing "Custom Range": go back to the previous range.
+    if (rangeBeforeCustomRef.current !== 'custom') setTableRange(rangeBeforeCustomRef.current);
+  };
+
+  const applyCustomPicker = (from, to) => {
+    setCustomFrom(from);
+    setCustomTo(to);
+    rangeBeforeCustomRef.current = 'custom';
+    setShowCustomPicker(false);
+  };
+
+  const handleRangeChange = (value) => {
+    if (value === 'custom') {
+      if (tableRange !== 'custom') rangeBeforeCustomRef.current = tableRange;
+      setTableRange('custom');
+      openCustomPicker();
+      return;
+    }
+    rangeBeforeCustomRef.current = value;
+    if (value === 'month') {
+      if (tableRange !== 'month') rangeBeforeMonthRef.current = tableRange;
+      setTableRange('month');
+      openMonthPicker();
+      return;
+    }
+    rangeBeforeMonthRef.current = value;
+    setTableRange(value);
+  };
 
   const getSaleInvoicePdfUrl = (saleId) => {
     const baseUrl = String(apiClient.defaults.baseURL || '/api').replace(/\/+$/, '');
@@ -2495,6 +2547,18 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
         }}
       />
       )}
+      {showCustomPicker && (
+        <CustomRangePopup from={customFrom} to={customTo} onApply={applyCustomPicker} onClose={closeCustomPicker} />
+      )}
+      {showMonthPicker && (
+        <MonthPickerPopup
+          month={selectedMonth}
+          year={selectedYear}
+          subtitle="Choose the year, then the month to view sales"
+          onApply={applyMonthPicker}
+          onClose={closeMonthPicker}
+        />
+      )}
       <div className="mb-6 overflow-hidden rounded-3xl border border-slate-100 bg-white shadow-xl">
         <div className="border-b border-slate-100 bg-white px-6 py-5">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -2519,7 +2583,7 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
                 <CalendarDays className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                 <select
                   value={tableRange}
-                  onChange={(e) => setTableRange(e.target.value)}
+                  onChange={(e) => handleRangeChange(e.target.value)}
                   className="w-full rounded-xl border-2 border-slate-300 bg-white py-2.5 pl-10 pr-4 text-sm font-medium text-slate-700 transition-all focus:border-sky-500 focus:outline-none focus:ring-4 focus:ring-sky-100 sm:w-52"
                 >
                   {SALES_RANGE_OPTIONS.map((option) => (
@@ -2529,51 +2593,11 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
               </div>
 
               {tableRange === 'month' && (
-                <div className="flex items-center gap-2">
-                  <select
-                    value={selectedMonth}
-                    onChange={(e) => setSelectedMonth(e.target.value)}
-                    aria-label="Month"
-                    className="rounded-xl border-2 border-slate-300 bg-white px-3 py-2.5 text-sm font-medium text-slate-700 focus:border-sky-500 focus:outline-none focus:ring-4 focus:ring-sky-100"
-                  >
-                    <option value="">All Months</option>
-                    {MONTH_NAMES.map((name, index) => (
-                      <option key={name} value={String(index)}>{name}</option>
-                    ))}
-                  </select>
-                  <select
-                    value={selectedYear}
-                    onChange={(e) => setSelectedYear(e.target.value)}
-                    aria-label="Year"
-                    className="rounded-xl border-2 border-slate-300 bg-white px-3 py-2.5 text-sm font-medium text-slate-700 focus:border-sky-500 focus:outline-none focus:ring-4 focus:ring-sky-100"
-                  >
-                    {YEAR_OPTIONS.map((y) => (
-                      <option key={y} value={String(y)}>{y}</option>
-                    ))}
-                  </select>
-                </div>
+                <MonthRangeButton month={selectedMonth} year={selectedYear} onClick={openMonthPicker} />
               )}
 
               {tableRange === 'custom' && (
-                <div className="flex items-center gap-2">
-                  <input
-                    type="date"
-                    value={customFrom}
-                    max={customTo || undefined}
-                    onChange={(e) => setCustomFrom(e.target.value)}
-                    aria-label="From date"
-                    className="rounded-xl border-2 border-slate-300 bg-white px-3 py-2.5 text-sm font-medium text-slate-700 transition-all focus:border-sky-500 focus:outline-none focus:ring-4 focus:ring-sky-100"
-                  />
-                  <span className="text-sm font-semibold text-slate-500">to</span>
-                  <input
-                    type="date"
-                    value={customTo}
-                    min={customFrom || undefined}
-                    onChange={(e) => setCustomTo(e.target.value)}
-                    aria-label="To date"
-                    className="rounded-xl border-2 border-slate-300 bg-white px-3 py-2.5 text-sm font-medium text-slate-700 transition-all focus:border-sky-500 focus:outline-none focus:ring-4 focus:ring-sky-100"
-                  />
-                </div>
+                <CustomRangeButton from={customFrom} to={customTo} onClick={openCustomPicker} />
               )}
 
               {canCreateSales && (

@@ -1,9 +1,11 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { CalendarDays, Eye, Pencil, RefreshCw, Search, Trash2, Truck } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import apiClient from '../utils/api';
 import { useAuth } from '../context/AuthContext';
 import BoulderEntry from './BoulderEntry/BoulderEntry';
+import CustomRangePopup, { CustomRangeButton } from '../components/CustomRangePopup';
+import MonthPickerPopup, { MonthRangeButton, getMonthRange } from '../components/MonthPickerPopup';
 
 const formatNumber = (value) => Number(value || 0).toLocaleString('en-IN', {
   minimumFractionDigits: 0,
@@ -97,17 +99,22 @@ export default function BoulderLedger() {
   const [datePreset, setDatePreset] = useState('');
   const [{ fromDate, toDate }, setDateRange] = useState({ fromDate: '', toDate: '' });
   const [editingEntry, setEditingEntry] = useState(null);
+  const [showCustomPicker, setShowCustomPicker] = useState(false);
+  const [showMonthPicker, setShowMonthPicker] = useState(false);
+  const [selectedMonth, setSelectedMonth] = useState(String(new Date().getMonth()));
+  const [selectedYear, setSelectedYear] = useState(String(new Date().getFullYear()));
+  const rangeBeforeCustomRef = useRef({ preset: '', range: { fromDate: '', toDate: '' } });
 
   useEffect(() => {
     const handleKeyDown = (event) => {
-      if (event.key === 'Escape') {
+      if (event.key === 'Escape' && !showCustomPicker && !showMonthPicker) {
         navigate('/');
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [navigate]);
+  }, [navigate, showCustomPicker, showMonthPicker]);
 
   useEffect(() => {
     loadBoulders();
@@ -186,9 +193,60 @@ export default function BoulderLedger() {
   );
 
   const handlePresetChange = (value) => {
-    setDatePreset(value);
+    if (value === 'monthWise') {
+      if (datePreset !== 'monthWise') rangeBeforeCustomRef.current = { preset: datePreset, range: { fromDate, toDate } };
+      setDatePreset('monthWise');
+      setShowMonthPicker(true);
+      return;
+    }
+
+    if (value === 'custom') {
+      if (datePreset !== 'custom') rangeBeforeCustomRef.current = { preset: datePreset, range: { fromDate, toDate } };
+      setDatePreset('custom');
+      setShowCustomPicker(true);
+      return;
+    }
+
     const resolvedRange = resolvePresetRange(value);
+    rangeBeforeCustomRef.current = { preset: value, range: resolvedRange };
+    setDatePreset(value);
     setDateRange(resolvedRange);
+  };
+
+  const closeMonthPicker = () => {
+    setShowMonthPicker(false);
+    // Cancelled straight after choosing "Month Wise": go back to the previous filter.
+    if (rangeBeforeCustomRef.current.preset !== 'monthWise') {
+      setDatePreset(rangeBeforeCustomRef.current.preset);
+      setDateRange(rangeBeforeCustomRef.current.range);
+    }
+  };
+
+  const applyMonth = (month, year) => {
+    const bounds = getMonthRange(month, year);
+    const range = { fromDate: bounds.from, toDate: bounds.to };
+    setSelectedMonth(month);
+    setSelectedYear(year);
+    setDatePreset('monthWise');
+    setDateRange(range);
+    rangeBeforeCustomRef.current = { preset: 'monthWise', range };
+    setShowMonthPicker(false);
+  };
+
+  const closeCustomPicker = () => {
+    setShowCustomPicker(false);
+    // Cancelled straight after choosing "Custom Range": go back to the previous filter.
+    if (rangeBeforeCustomRef.current.preset !== 'custom') {
+      setDatePreset(rangeBeforeCustomRef.current.preset);
+      setDateRange(rangeBeforeCustomRef.current.range);
+    }
+  };
+
+  const applyCustomRange = (from, to) => {
+    setDatePreset('custom');
+    setDateRange({ fromDate: from, toDate: to });
+    rangeBeforeCustomRef.current = { preset: 'custom', range: { fromDate: from, toDate: to } };
+    setShowCustomPicker(false);
   };
 
   const handleEdit = (entry) => {
@@ -226,6 +284,18 @@ export default function BoulderLedger() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-100 via-slate-50 to-stone-100">
+      {showMonthPicker && (
+        <MonthPickerPopup
+          month={selectedMonth}
+          year={selectedYear}
+          subtitle="Choose the year, then the month to view boulder entries"
+          onApply={applyMonth}
+          onClose={closeMonthPicker}
+        />
+      )}
+      {showCustomPicker && (
+        <CustomRangePopup from={fromDate} to={toDate} onApply={applyCustomRange} onClose={closeCustomPicker} />
+      )}
       <div className="mx-auto max-w-[95%] px-4 py-6">
         {editingEntry ? (
           <BoulderEntry
@@ -285,26 +355,12 @@ export default function BoulderLedger() {
                   </select>
                 </div>
 
+                {datePreset === 'monthWise' && (
+                  <MonthRangeButton month={selectedMonth} year={selectedYear} onClick={() => setShowMonthPicker(true)} />
+                )}
+
                 {datePreset === 'custom' && (
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="date"
-                      value={fromDate}
-                      max={toDate || undefined}
-                      onChange={(e) => setDateRange((prev) => ({ ...prev, fromDate: e.target.value }))}
-                      aria-label="From date"
-                      className="rounded-xl border-2 border-slate-300 bg-white px-3 py-2.5 text-sm font-medium text-slate-700 transition-all focus:border-sky-500 focus:outline-none focus:ring-4 focus:ring-sky-100"
-                    />
-                    <span className="text-sm font-semibold text-slate-500">to</span>
-                    <input
-                      type="date"
-                      value={toDate}
-                      min={fromDate || undefined}
-                      onChange={(e) => setDateRange((prev) => ({ ...prev, toDate: e.target.value }))}
-                      aria-label="To date"
-                      className="rounded-xl border-2 border-slate-300 bg-white px-3 py-2.5 text-sm font-medium text-slate-700 transition-all focus:border-sky-500 focus:outline-none focus:ring-4 focus:ring-sky-100"
-                    />
-                  </div>
+                  <CustomRangeButton from={fromDate} to={toDate} onClick={() => setShowCustomPicker(true)} />
                 )}
 
                 <button

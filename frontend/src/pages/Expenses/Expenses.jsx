@@ -6,6 +6,8 @@ import apiClient from '../../utils/api';
 import { useAuth } from '../../context/AuthContext';
 import { useFloatingDropdownPosition } from '../../utils/useFloatingDropdownPosition';
 import Purchases from '../Purchases/Purchases';
+import CustomRangePopup, { CustomRangeButton } from '../../components/CustomRangePopup';
+import MonthPickerPopup, { MonthRangeButton, getMonthRange } from '../../components/MonthPickerPopup';
 import AddExpensePopup from './component/AddExpensePopup';
 import AddExpenseTypePopup from './component/AddExpenseTypePopup';
 import ExpenseTypePicker from './component/ExpenseTypePicker';
@@ -69,11 +71,17 @@ const EXPENSE_RANGE_OPTIONS = [
   { value: '30d', label: 'Last 30 Days' },
   { value: '90d', label: 'Last 90 Days' },
   { value: 'currentYear', label: 'Current Year' },
+  { value: 'month', label: 'Month Wise' },
   { value: 'lifetime', label: 'Lifetime' },
   { value: 'custom', label: 'Custom Range' }
 ];
 
-const isWithinRange = (value, range, customFrom = '', customTo = '') => {
+const isWithinRange = (value, range, customFrom = '', customTo = '', monthValue = '', yearValue = '') => {
+  if (range === 'month') {
+    const bounds = getMonthRange(monthValue, yearValue);
+    return isWithinRange(value, 'custom', bounds.from, bounds.to);
+  }
+
   const date = value instanceof Date ? value : new Date(value);
   if (Number.isNaN(date.getTime())) return false;
 
@@ -145,6 +153,11 @@ export default function Expenses({ modalOnly = false, onModalFinish = null }) {
   const [tableRange, setTableRange] = useState('lifetime');
   const [customFrom, setCustomFrom] = useState('');
   const [customTo, setCustomTo] = useState('');
+  const [showCustomPicker, setShowCustomPicker] = useState(false);
+  const [showMonthPicker, setShowMonthPicker] = useState(false);
+  const [selectedMonth, setSelectedMonth] = useState(String(new Date().getMonth()));
+  const [selectedYear, setSelectedYear] = useState(String(new Date().getFullYear()));
+  const rangeBeforeCustomRef = useRef('lifetime');
   const [showForm, setShowForm] = useState(false);
   const [showExpenseTypePicker, setShowExpenseTypePicker] = useState(false);
   const [showPurchaseExpenseModal, setShowPurchaseExpenseModal] = useState(false);
@@ -179,15 +192,58 @@ export default function Expenses({ modalOnly = false, onModalFinish = null }) {
     fetchExpenses();
   }, []);
 
+  const handleRangeChange = (value) => {
+    if (value === 'month') {
+      if (tableRange !== 'month') rangeBeforeCustomRef.current = tableRange;
+      setTableRange('month');
+      setShowMonthPicker(true);
+      return;
+    }
+    if (value === 'custom') {
+      if (tableRange !== 'custom') rangeBeforeCustomRef.current = tableRange;
+      setTableRange('custom');
+      setShowCustomPicker(true);
+      return;
+    }
+    rangeBeforeCustomRef.current = value;
+    setTableRange(value);
+  };
+
+  const closeMonthPicker = () => {
+    setShowMonthPicker(false);
+    // Cancelled straight after choosing "Month Wise": go back to the previous range.
+    if (rangeBeforeCustomRef.current !== 'month') setTableRange(rangeBeforeCustomRef.current);
+  };
+
+  const applyMonth = (month, year) => {
+    setSelectedMonth(month);
+    setSelectedYear(year);
+    rangeBeforeCustomRef.current = 'month';
+    setShowMonthPicker(false);
+  };
+
+  const closeCustomPicker = () => {
+    setShowCustomPicker(false);
+    // Cancelled straight after choosing "Custom Range": go back to the previous range.
+    if (rangeBeforeCustomRef.current !== 'custom') setTableRange(rangeBeforeCustomRef.current);
+  };
+
+  const applyCustomRange = (from, to) => {
+    setCustomFrom(from);
+    setCustomTo(to);
+    rangeBeforeCustomRef.current = 'custom';
+    setShowCustomPicker(false);
+  };
+
   useEffect(() => {
     const handleKeyDown = (event) => {
-      if (event.key === 'Escape' && !showForm && !showExpenseTypePicker && !showPurchaseExpenseModal) {
+      if (event.key === 'Escape' && !showForm && !showExpenseTypePicker && !showPurchaseExpenseModal && !showCustomPicker && !showMonthPicker) {
         navigate('/');
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [navigate, showForm, showExpenseTypePicker, showPurchaseExpenseModal]);
+  }, [navigate, showForm, showExpenseTypePicker, showPurchaseExpenseModal, showCustomPicker, showMonthPicker]);
 
   useEffect(() => {
     fetchExpenseGroups();
@@ -1229,7 +1285,7 @@ export default function Expenses({ modalOnly = false, onModalFinish = null }) {
     const normalizedSearch = String(search || '').trim().toLowerCase();
 
     return expenses.filter((item) => {
-      if (!isWithinRange(item.expenseDate, tableRange, customFrom, customTo)) return false;
+      if (!isWithinRange(item.expenseDate, tableRange, customFrom, customTo, selectedMonth, selectedYear)) return false;
 
       if (!normalizedSearch) return true;
 
@@ -1244,10 +1300,22 @@ export default function Expenses({ modalOnly = false, onModalFinish = null }) {
 
       return haystack.includes(normalizedSearch);
     });
-  }, [expenses, search, tableRange, customFrom, customTo]);
+  }, [expenses, search, tableRange, customFrom, customTo, selectedMonth, selectedYear]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-100 via-slate-50 to-stone-100">
+      {showMonthPicker && (
+        <MonthPickerPopup
+          month={selectedMonth}
+          year={selectedYear}
+          subtitle="Choose the year, then the month to view expenses"
+          onApply={applyMonth}
+          onClose={closeMonthPicker}
+        />
+      )}
+      {showCustomPicker && (
+        <CustomRangePopup from={customFrom} to={customTo} onApply={applyCustomRange} onClose={closeCustomPicker} />
+      )}
       <div className="mx-auto max-w-[95%] px-4 py-6">
         {error && (
           <div className="mb-6 rounded-2xl border border-rose-200 bg-rose-50 px-6 py-4 text-sm font-semibold text-rose-700 shadow-lg">
@@ -1279,7 +1347,7 @@ export default function Expenses({ modalOnly = false, onModalFinish = null }) {
                   <CalendarDays className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                   <select
                     value={tableRange}
-                    onChange={(event) => setTableRange(event.target.value)}
+                    onChange={(event) => handleRangeChange(event.target.value)}
                     className="w-full rounded-xl border-2 border-slate-300 bg-white py-2.5 pl-10 pr-4 text-sm font-medium text-slate-700 transition-all focus:border-sky-500 focus:outline-none focus:ring-4 focus:ring-sky-100 sm:w-52"
                   >
                     {EXPENSE_RANGE_OPTIONS.map((option) => (
@@ -1288,26 +1356,12 @@ export default function Expenses({ modalOnly = false, onModalFinish = null }) {
                   </select>
                 </div>
 
+                {tableRange === 'month' && (
+                  <MonthRangeButton month={selectedMonth} year={selectedYear} onClick={() => setShowMonthPicker(true)} />
+                )}
+
                 {tableRange === 'custom' && (
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="date"
-                      value={customFrom}
-                      max={customTo || undefined}
-                      onChange={(event) => setCustomFrom(event.target.value)}
-                      aria-label="From date"
-                      className="rounded-xl border-2 border-slate-300 bg-white px-3 py-2.5 text-sm font-medium text-slate-700 transition-all focus:border-sky-500 focus:outline-none focus:ring-4 focus:ring-sky-100"
-                    />
-                    <span className="text-sm font-semibold text-slate-500">to</span>
-                    <input
-                      type="date"
-                      value={customTo}
-                      min={customFrom || undefined}
-                      onChange={(event) => setCustomTo(event.target.value)}
-                      aria-label="To date"
-                      className="rounded-xl border-2 border-slate-300 bg-white px-3 py-2.5 text-sm font-medium text-slate-700 transition-all focus:border-sky-500 focus:outline-none focus:ring-4 focus:ring-sky-100"
-                    />
-                  </div>
+                  <CustomRangeButton from={customFrom} to={customTo} onClick={() => setShowCustomPicker(true)} />
                 )}
 
                 <button
