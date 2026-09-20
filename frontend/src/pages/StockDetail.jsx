@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { 
-  ArrowLeft, 
   Boxes, 
   Calendar, 
   Filter, 
@@ -166,12 +165,6 @@ export default function StockDetail() {
         {/* Header Section */}
         <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div className="flex items-center gap-4">
-            <Link
-              to="/reports/stock-ledger"
-              className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white text-slate-600 shadow-sm border border-slate-100 hover:bg-slate-50 hover:text-slate-900 transition-all"
-            >
-              <ArrowLeft className="h-5 w-5" />
-            </Link>
             <div>
               <div className="flex items-center gap-2 mb-0.5">
                 <Boxes className="h-5 w-5 text-emerald-600" />
@@ -210,50 +203,50 @@ export default function StockDetail() {
         )}
 
         {/* Stats Grid */}
-        <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <div className="relative overflow-hidden rounded-3xl border border-slate-100 bg-white p-6 shadow-xl transition-all hover:shadow-2xl hover:-translate-y-1">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600">
-                <Boxes className="h-6 w-6" />
+        <div className="mb-5 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="relative overflow-hidden rounded-2xl border border-slate-100 bg-white px-4 py-3 shadow-xl transition-all hover:shadow-2xl ">
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
+                <Boxes className="h-4 w-4" />
               </div>
               <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Inventory</span>
             </div>
-            <p className="text-3xl font-black text-slate-800">{formatQuantity(displayedCurrentStock)}</p>
-            <p className="mt-1 text-sm font-bold text-slate-500 uppercase tracking-tighter">Current Stock Units</p>
-            <div className="absolute -bottom-6 -right-6 h-24 w-24 rounded-full bg-emerald-50/50 opacity-50 blur-2xl"></div>
+            <p className="text-2xl font-black text-slate-800">{formatQuantity(displayedCurrentStock)}</p>
+            <p className="mt-0.5 text-xs font-bold text-slate-500 uppercase tracking-tighter">Current Stock Units</p>
+            <div className="absolute -bottom-4 -right-4 h-16 w-16 rounded-full bg-emerald-50/50 opacity-50 blur-2xl"></div>
           </div>
 
-          <div className="relative overflow-hidden rounded-3xl border border-slate-100 bg-white p-6 shadow-xl transition-all hover:shadow-2xl hover:-translate-y-1">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-50 text-blue-600">
-                <TrendingUp className="h-6 w-6" />
+          <div className="relative overflow-hidden rounded-2xl border border-slate-100 bg-white px-4 py-3 shadow-xl transition-all hover:shadow-2xl ">
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
+                <TrendingUp className="h-4 w-4" />
               </div>
               <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Inbound</span>
             </div>
-            <p className="text-3xl font-black text-slate-800">{formatQuantity(totals.totalIn)}</p>
-            <p className="mt-1 text-sm font-bold text-slate-500 uppercase tracking-tighter text-blue-600">Total Stock In</p>
+            <p className="text-2xl font-black text-slate-800">{formatQuantity(totals.totalIn)}</p>
+            <p className="mt-0.5 text-xs font-bold text-slate-500 uppercase tracking-tighter text-blue-600">Total Stock In</p>
           </div>
 
-          <div className="relative overflow-hidden rounded-3xl border border-slate-100 bg-white p-6 shadow-xl transition-all hover:shadow-2xl hover:-translate-y-1">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-rose-50 text-rose-600">
-                <TrendingDown className="h-6 w-6" />
+          <div className="relative overflow-hidden rounded-2xl border border-slate-100 bg-white px-4 py-3 shadow-xl transition-all hover:shadow-2xl ">
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-rose-50 text-rose-600">
+                <TrendingDown className="h-4 w-4" />
               </div>
               <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Outbound</span>
             </div>
-            <p className="text-3xl font-black text-slate-800">{formatQuantity(totals.totalOut)}</p>
-            <p className="mt-1 text-sm font-bold text-slate-500 uppercase tracking-tighter text-rose-600">Total Stock Out</p>
+            <p className="text-2xl font-black text-slate-800">{formatQuantity(totals.totalOut)}</p>
+            <p className="mt-0.5 text-xs font-bold text-slate-500 uppercase tracking-tighter text-rose-600">Total Stock Out</p>
           </div>
 
-          <div className="relative overflow-hidden rounded-3xl border border-slate-100 bg-gradient-to-br from-slate-800 to-slate-900 p-6 shadow-xl transition-all hover:shadow-2xl hover:-translate-y-1">
-            <div className="flex items-center justify-between mb-4 text-white">
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/10 text-white">
-                <Calendar className="h-6 w-6" />
+          <div className="relative overflow-hidden rounded-2xl border border-slate-100 bg-gradient-to-br from-slate-800 to-slate-900 px-4 py-3 shadow-xl transition-all hover:shadow-2xl ">
+            <div className="flex items-center justify-between mb-2 text-white">
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/10 text-white">
+                <Calendar className="h-4 w-4" />
               </div>
               <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Net</span>
             </div>
-            <p className="text-3xl font-black text-white">{formatQuantity(totals.totalIn - totals.totalOut)}</p>
-            <p className="mt-1 text-sm font-bold text-slate-400 uppercase tracking-tighter">Net Movement</p>
+            <p className="text-2xl font-black text-white">{formatQuantity(totals.totalIn - totals.totalOut)}</p>
+            <p className="mt-0.5 text-xs font-bold text-slate-400 uppercase tracking-tighter">Net Movement</p>
           </div>
         </div>
 
