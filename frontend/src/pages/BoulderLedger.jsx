@@ -281,8 +281,31 @@ export default function BoulderLedger() {
                     <option value="monthWise">Month Wise</option>
                     <option value="last1Year">Last 1 Year</option>
                     <option value="yearWise">Year Wise</option>
+                    <option value="custom">Custom Range</option>
                   </select>
                 </div>
+
+                {datePreset === 'custom' && (
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="date"
+                      value={fromDate}
+                      max={toDate || undefined}
+                      onChange={(e) => setDateRange((prev) => ({ ...prev, fromDate: e.target.value }))}
+                      aria-label="From date"
+                      className="rounded-xl border-2 border-slate-300 bg-white px-3 py-2.5 text-sm font-medium text-slate-700 transition-all focus:border-sky-500 focus:outline-none focus:ring-4 focus:ring-sky-100"
+                    />
+                    <span className="text-sm font-semibold text-slate-500">to</span>
+                    <input
+                      type="date"
+                      value={toDate}
+                      min={fromDate || undefined}
+                      onChange={(e) => setDateRange((prev) => ({ ...prev, toDate: e.target.value }))}
+                      aria-label="To date"
+                      className="rounded-xl border-2 border-slate-300 bg-white px-3 py-2.5 text-sm font-medium text-slate-700 transition-all focus:border-sky-500 focus:outline-none focus:ring-4 focus:ring-sky-100"
+                    />
+                  </div>
+                )}
 
                 <button
                   type="button"

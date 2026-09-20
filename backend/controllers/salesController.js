@@ -268,8 +268,56 @@ const getAllSales = async (req, res) => {
     if (req.visibilityBoundary) {
        query.saleDate = { $gte: req.visibilityBoundary };
     }
-    const sales = await Sales.find(query).sort({ createdAt: -1 });
-    return res.json(sales.map(serializeSale));
+
+    // Without ?page the full list is returned (other screens rely on this).
+    if (req.query.page === undefined) {
+      const sales = await Sales.find(query).sort({ createdAt: -1 });
+      return res.json(sales.map(serializeSale));
+    }
+
+    const from = req.query.from ? new Date(req.query.from) : null;
+    const to = req.query.to ? new Date(req.query.to) : null;
+    if ((from && !Number.isNaN(from.getTime())) || (to && !Number.isNaN(to.getTime()))) {
+      const range = { ...(query.saleDate || {}) };
+      if (from && !Number.isNaN(from.getTime())) {
+        range.$gte = range.$gte && range.$gte > from ? range.$gte : from;
+      }
+      if (to && !Number.isNaN(to.getTime())) range.$lte = to;
+      query.saleDate = range;
+    }
+
+    const search = String(req.query.search || "").trim();
+    if (search) {
+      const pattern = new RegExp(search.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i");
+      query.$or = [
+        { invoiceNumber: pattern },
+        { customerName: pattern },
+        { vehicleNo: pattern },
+        { materialType: pattern },
+        { type: pattern },
+        { notes: pattern },
+      ];
+    }
+
+    const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 50, 1), 200);
+    const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
+    const [sales, total] = await Promise.all([
+      Sales.find(query)
+        .sort({ createdAt: -1 })
+        .skip((page - 1) * limit)
+        .limit(limit),
+      Sales.countDocuments(query),
+    ]);
+
+    return res.json({
+      sales: sales.map(serializeSale),
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.max(Math.ceil(total / limit), 1),
+      },
+    });
   } catch (error) {
     return res.status(500).json({
       message: "Failed to fetch sales",

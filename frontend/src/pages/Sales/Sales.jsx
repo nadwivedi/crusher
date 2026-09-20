@@ -299,41 +299,38 @@ const SALES_RANGE_OPTIONS = [
   { value: '30d', label: 'Last 30 Days' },
   { value: '90d', label: 'Last 90 Days' },
   { value: 'currentYear', label: 'Current Year' },
-  { value: 'lifetime', label: 'Lifetime' }
+  { value: 'lifetime', label: 'Lifetime' },
+  { value: 'custom', label: 'Custom Range' }
 ];
 
-const isWithinRange = (value, range) => {
-  const date = value instanceof Date ? value : new Date(value);
-  if (Number.isNaN(date.getTime())) return false;
+const SALES_PAGE_SIZE = 50;
+
+// Returns { from, to } as ISO strings (either may be undefined) for the server query.
+const getRangeBounds = (range, customFrom = '', customTo = '') => {
+  if (range === 'custom') {
+    const from = parseSaleDate(customFrom);
+    const to = parseSaleDate(customTo);
+    if (from) from.setHours(0, 0, 0, 0);
+    if (to) to.setHours(23, 59, 59, 999);
+    return { from: from?.toISOString(), to: to?.toISOString() };
+  }
 
   const today = new Date();
   today.setHours(23, 59, 59, 999);
   const start = new Date(today);
   start.setHours(0, 0, 0, 0);
 
-  if (range === '3d') {
-    start.setDate(today.getDate() - 2);
-    return date >= start && date <= today;
-  }
-  if (range === '7d') {
-    start.setDate(today.getDate() - 6);
-    return date >= start && date <= today;
-  }
-  if (range === '30d') {
-    start.setDate(today.getDate() - 29);
-    return date >= start && date <= today;
-  }
-  if (range === '90d') {
-    start.setDate(today.getDate() - 89);
-    return date >= start && date <= today;
+  const daysBack = { '3d': 2, '7d': 6, '30d': 29, '90d': 89 }[range];
+  if (daysBack !== undefined) {
+    start.setDate(today.getDate() - daysBack);
+    return { from: start.toISOString(), to: today.toISOString() };
   }
   if (range === 'currentYear') {
     const yearStart = new Date(today.getFullYear(), 0, 1);
-    yearStart.setHours(0, 0, 0, 0);
-    return date >= yearStart && date <= today;
+    return { from: yearStart.toISOString(), to: today.toISOString() };
   }
 
-  return true;
+  return {};
 };
 
 export default function Sales({ modalOnly = false, onModalFinish = null }) {
@@ -372,6 +369,11 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
   const [editingId, setEditingId] = useState(null);
   const [search, setSearch] = useState('');
   const [tableRange, setTableRange] = useState('lifetime');
+  const [customFrom, setCustomFrom] = useState('');
+  const [customTo, setCustomTo] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [page, setPage] = useState(1);
+  const [pagination, setPagination] = useState({ total: 0, totalPages: 1 });
   const [formData, setFormData] = useState(initialFormData);
   const [currentItem, setCurrentItem] = useState(initialCurrentItem);
   const [showPartyForm, setShowPartyForm] = useState(false);
@@ -395,6 +397,7 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
   const [productListIndex, setProductListIndex] = useState(-1);
   const [isProductSectionActive, setIsProductSectionActive] = useState(false);
   const [ocrVehicleMismatch, setOcrVehicleMismatch] = useState(null);
+  const salesRequestRef = useRef(0);
   const leadgerSectionRef = useRef(null);
   const leadgerInputRef = useRef(null);
   const vehicleSectionRef = useRef(null);
@@ -407,10 +410,22 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
   const productInputRef = useRef(null);
 
   useEffect(() => {
-    fetchSales();
     fetchLeadgers();
     fetchVehicles();
   }, []);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(search.trim()), 300);
+    return () => clearTimeout(timer);
+  }, [search]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [debouncedSearch, tableRange, customFrom, customTo]);
+
+  useEffect(() => {
+    fetchSales();
+  }, [page, debouncedSearch, tableRange, customFrom, customTo]);
 
   useEffect(() => {
     const handleKeyDown = (event) => {
@@ -464,15 +479,33 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
   };
 
   const fetchSales = async () => {
+    const requestId = ++salesRequestRef.current;
     try {
       setLoading(true);
-      const response = await apiClient.get('/sales');
-      setSales(Array.isArray(response) ? response : []);
+      const params = {
+        page,
+        limit: SALES_PAGE_SIZE,
+        ...getRangeBounds(tableRange, customFrom, customTo)
+      };
+      if (debouncedSearch) params.search = debouncedSearch;
+
+      const response = await apiClient.get('/sales', { params });
+      if (requestId !== salesRequestRef.current) return;
+
+      const rows = Array.isArray(response?.sales) ? response.sales : [];
+      const totalPages = response?.pagination?.totalPages || 1;
+      if (page > totalPages) {
+        setPage(totalPages);
+        return;
+      }
+      setSales(rows);
+      setPagination({ total: response?.pagination?.total || 0, totalPages });
       setError('');
     } catch (err) {
+      if (requestId !== salesRequestRef.current) return;
       setError(err.message || 'Error fetching sales');
     } finally {
-      setLoading(false);
+      if (requestId === salesRequestRef.current) setLoading(false);
     }
   };
 
@@ -2155,27 +2188,7 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
   };
 
 
-  const visibleSales = useMemo(() => {
-    const normalizedSearch = String(search || '').trim().toLowerCase();
-
-    return sales.filter((sale) => {
-      if (!isWithinRange(sale.saleDate, tableRange)) return false;
-
-      if (!normalizedSearch) return true;
-
-      const haystack = [
-        sale.invoiceNumber,
-        resolveLeadgerNameById(sale.partyId || sale.party) || sale.customerName,
-        sale.vehicleNo,
-        sale.materialType,
-        sale.type,
-        sale.notes,
-        sale.saleDate
-      ].join(' ').toLowerCase();
-
-      return haystack.includes(normalizedSearch);
-    });
-  }, [sales, search, tableRange, leadgers]);
+  const visibleSales = sales;
 
   const popupFieldClass = 'w-full rounded-lg border border-indigo-200 bg-white px-3 py-2 text-sm font-medium text-gray-900 transition-all focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200';
   const popupLabelClass = 'mb-1 block text-[11px] font-semibold uppercase tracking-wide text-slate-600';
@@ -2483,6 +2496,28 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
                 </select>
               </div>
 
+              {tableRange === 'custom' && (
+                <div className="flex items-center gap-2">
+                  <input
+                    type="date"
+                    value={customFrom}
+                    max={customTo || undefined}
+                    onChange={(e) => setCustomFrom(e.target.value)}
+                    aria-label="From date"
+                    className="rounded-xl border-2 border-slate-300 bg-white px-3 py-2.5 text-sm font-medium text-slate-700 transition-all focus:border-sky-500 focus:outline-none focus:ring-4 focus:ring-sky-100"
+                  />
+                  <span className="text-sm font-semibold text-slate-500">to</span>
+                  <input
+                    type="date"
+                    value={customTo}
+                    min={customFrom || undefined}
+                    onChange={(e) => setCustomTo(e.target.value)}
+                    aria-label="To date"
+                    className="rounded-xl border-2 border-slate-300 bg-white px-3 py-2.5 text-sm font-medium text-slate-700 transition-all focus:border-sky-500 focus:outline-none focus:ring-4 focus:ring-sky-100"
+                  />
+                </div>
+              )}
+
               {canCreateSales && (
                 <button
                   onClick={handleOpenForm}
@@ -2644,6 +2679,33 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
                 })}
               </tbody>
             </table>
+          </div>
+
+          <div className="mt-4 flex flex-col items-center justify-between gap-3 sm:flex-row">
+            <p className="text-sm text-slate-500">
+              Showing {(page - 1) * SALES_PAGE_SIZE + 1}-{(page - 1) * SALES_PAGE_SIZE + visibleSales.length} of {pagination.total}
+            </p>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setPage((prev) => Math.max(prev - 1, 1))}
+                disabled={page <= 1 || loading}
+                className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Previous
+              </button>
+              <span className="text-sm font-semibold text-slate-700">
+                Page {page} of {pagination.totalPages}
+              </span>
+              <button
+                type="button"
+                onClick={() => setPage((prev) => Math.min(prev + 1, pagination.totalPages))}
+                disabled={page >= pagination.totalPages || loading}
+                className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Next
+              </button>
+            </div>
           </div>
         </div>
       )}
