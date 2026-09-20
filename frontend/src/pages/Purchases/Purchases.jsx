@@ -22,6 +22,9 @@ const getPurchaseTypeBadgeClass = (label) => {
   return 'bg-orange-100 text-orange-700 border-orange-200';
 };
 
+// The backend keeps one default "Cash" party per account; it is preselected for new purchases.
+const CASH_PARTY = { name: 'Cash' };
+
 export default function Purchases({ modalOnly = false, onModalFinish = null }) {
   const toastOptions = { autoClose: 1200 };
   const location = useLocation();
@@ -149,7 +152,7 @@ export default function Purchases({ modalOnly = false, onModalFinish = null }) {
   const [partyPopupLoading, setPartyPopupLoading] = useState(false);
   const [partyPopupError, setPartyPopupError] = useState('');
   const [showProductForm, setShowProductForm] = useState(false);
-  const [leadgerQuery, setLeadgerQuery] = useState('');
+  const [leadgerQuery, setLeadgerQuery] = useState(CASH_PARTY.name);
   const [leadgerListIndex, setLeadgerListIndex] = useState(-1);
   const [isLeadgerSectionActive, setIsLeadgerSectionActive] = useState(false);
   const [productQuery, setProductQuery] = useState('');
@@ -257,7 +260,7 @@ export default function Purchases({ modalOnly = false, onModalFinish = null }) {
 
   const resolveLeadgerNameById = (leadgerId) => {
     const resolvedId = typeof leadgerId === 'object' ? leadgerId?._id : leadgerId;
-    if (!resolvedId) return '-';
+    if (!resolvedId) return CASH_PARTY.name;
     const matching = leadgers.find((leadger) => String(leadger._id) === String(resolvedId));
     return matching ? getLeadgerDisplayName(matching) : '-';
   };
@@ -301,7 +304,17 @@ export default function Purchases({ modalOnly = false, onModalFinish = null }) {
     () => leadgers.find((leadger) => String(leadger._id) === String(formData.party || '')) || null,
     [leadgers, formData.party]
   );
+  const cashLeadgerId = leadgers.find((leadger) => (
+    String(leadger.type || '').toLowerCase() === 'cash-in-hand'
+    && normalizeText(leadger.name) === normalizeText(CASH_PARTY.name)
+  ))?._id || '';
   const isCashParty = String(selectedLeadger?.type || '').trim().toLowerCase() === 'cash-in-hand';
+
+  useEffect(() => {
+    if (!showForm || editingId || !cashLeadgerId) return;
+    setFormData((prev) => (prev.party ? prev : { ...prev, party: cashLeadgerId }));
+    setLeadgerQuery((prev) => prev || CASH_PARTY.name);
+  }, [showForm, editingId, cashLeadgerId]);
 
   useEffect(() => {
     if (!showForm) return;
@@ -931,8 +944,8 @@ export default function Purchases({ modalOnly = false, onModalFinish = null }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!formData.party || formData.items.length === 0) {
-      setError('Party name and at least one item are required');
+    if (formData.items.length === 0) {
+      setError('At least one item is required');
       return;
     }
 
@@ -978,7 +991,7 @@ export default function Purchases({ modalOnly = false, onModalFinish = null }) {
       setFormData(getInitialFormData());
       setCurrentItem(initialCurrentItem);
       setEditingId(null);
-      setLeadgerQuery('');
+      setLeadgerQuery(CASH_PARTY.name);
       setLeadgerListIndex(-1);
       setIsLeadgerSectionActive(false);
       setProductQuery('');
@@ -1027,7 +1040,7 @@ export default function Purchases({ modalOnly = false, onModalFinish = null }) {
     });
 
     setCurrentItem(initialCurrentItem);
-    setLeadgerQuery(resolvedLeadgerName === '-' ? '' : resolvedLeadgerName);
+    setLeadgerQuery(resolvedLeadgerName === '-' ? CASH_PARTY.name : resolvedLeadgerName);
     setLeadgerListIndex(resolvedLeadgerName && resolvedLeadgerName !== '-' ? 0 : -1);
     setIsLeadgerSectionActive(false);
     setProductQuery('');
@@ -1059,7 +1072,7 @@ export default function Purchases({ modalOnly = false, onModalFinish = null }) {
     setEditingId(null);
     setFormData(getInitialFormData());
     setCurrentItem(initialCurrentItem);
-    setLeadgerQuery('');
+    setLeadgerQuery(CASH_PARTY.name);
     setLeadgerListIndex(-1);
     setIsLeadgerSectionActive(false);
     setProductQuery('');
@@ -1076,7 +1089,7 @@ export default function Purchases({ modalOnly = false, onModalFinish = null }) {
     setEditingId(null);
     setFormData(getInitialFormData());
     setCurrentItem(initialCurrentItem);
-    setLeadgerQuery('');
+    setLeadgerQuery(CASH_PARTY.name);
     setLeadgerListIndex(0);
     setIsLeadgerSectionActive(false);
     setProductQuery('');

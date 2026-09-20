@@ -762,6 +762,17 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
     setBasisListIndex(selectedIndex >= 0 ? selectedIndex : 0);
   };
 
+  // The backend keeps one default "Cash" party per account; preselect it for new sales.
+  const defaultCashLeadger = useMemo(() => leadgers.find((leadger) => (
+    String(leadger.type || '').toLowerCase() === 'cash-in-hand'
+    && normalizeText(leadger.name) === 'cash'
+  )) || null, [leadgers]);
+
+  useEffect(() => {
+    if (!showForm || editingId || !defaultCashLeadger || formData.party) return;
+    selectLeadger(defaultCashLeadger);
+  }, [showForm, editingId, defaultCashLeadger]);
+
   useEffect(() => {
     if (!showForm || editingId || !isCashParty) return;
 

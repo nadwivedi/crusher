@@ -63,6 +63,12 @@ const expenseSchema = new mongoose.Schema(
       required: true,
       min: 0.01,
     },
+    // Amount actually paid now. Missing on older records, which were fully paid.
+    paidAmount: {
+      type: Number,
+      min: 0,
+      default: null,
+    },
     items: {
       type: [expenseItemSchema],
       default: [],

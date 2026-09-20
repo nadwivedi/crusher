@@ -3,12 +3,20 @@ import { useNavigate } from 'react-router-dom';
 import { CalendarDays, ChevronDown, Plus, Search } from 'lucide-react';
 import { toast } from 'react-toastify';
 import apiClient from '../../utils/api';
+import { useAuth } from '../../context/AuthContext';
 import { useFloatingDropdownPosition } from '../../utils/useFloatingDropdownPosition';
 import Purchases from '../Purchases/Purchases';
 import AddExpensePopup from './component/AddExpensePopup';
+import AddExpenseTypePopup from './component/AddExpenseTypePopup';
 import ExpenseTypePicker from './component/ExpenseTypePicker';
 
 const TOAST_OPTIONS = { autoClose: 1200 };
+
+// The backend keeps one default "Cash" party per account; it is preselected for new expenses.
+const CASH_PARTY = { name: 'Cash' };
+const findCashParty = (partyList) => partyList.find((party) => (
+  party.type === 'cash-in-hand' && String(party.name || '').trim().toLowerCase() === CASH_PARTY.name.toLowerCase()
+)) || null;
 
 const getInitialForm = () => ({
   expenseGroup: '',
@@ -61,12 +69,21 @@ const EXPENSE_RANGE_OPTIONS = [
   { value: '30d', label: 'Last 30 Days' },
   { value: '90d', label: 'Last 90 Days' },
   { value: 'currentYear', label: 'Current Year' },
-  { value: 'lifetime', label: 'Lifetime' }
+  { value: 'lifetime', label: 'Lifetime' },
+  { value: 'custom', label: 'Custom Range' }
 ];
 
-const isWithinRange = (value, range) => {
+const isWithinRange = (value, range, customFrom = '', customTo = '') => {
   const date = value instanceof Date ? value : new Date(value);
   if (Number.isNaN(date.getTime())) return false;
+
+  if (range === 'custom') {
+    const from = customFrom ? new Date(`${customFrom}T00:00:00`) : null;
+    const to = customTo ? new Date(`${customTo}T23:59:59.999`) : null;
+    if (from && !Number.isNaN(from.getTime()) && date < from) return false;
+    if (to && !Number.isNaN(to.getTime()) && date > to) return false;
+    return true;
+  }
 
   const today = new Date();
   today.setHours(23, 59, 59, 999);
@@ -122,11 +139,21 @@ export default function Expenses({ modalOnly = false, onModalFinish = null }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [search, setSearch] = useState('');
+  const { user } = useAuth();
+  const canManageExpenses = user?.role !== 'employee' && (user?.role === 'owner' || user?.permissions?.edit);
+  const [editingId, setEditingId] = useState(null);
   const [tableRange, setTableRange] = useState('lifetime');
+  const [customFrom, setCustomFrom] = useState('');
+  const [customTo, setCustomTo] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [showExpenseTypePicker, setShowExpenseTypePicker] = useState(false);
   const [showPurchaseExpenseModal, setShowPurchaseExpenseModal] = useState(false);
   const [expenseEntryType, setExpenseEntryType] = useState('');
+  const [showTypePopup, setShowTypePopup] = useState(false);
+  const [newTypeName, setNewTypeName] = useState('');
+  const [newTypeDescription, setNewTypeDescription] = useState('');
+  const [typePopupLoading, setTypePopupLoading] = useState(false);
+  const [typePopupError, setTypePopupError] = useState('');
   const expenseGroupInputRef = useRef(null);
   const partyInputRef = useRef(null);
   const methodInputRef = useRef(null);
@@ -136,7 +163,7 @@ export default function Expenses({ modalOnly = false, onModalFinish = null }) {
   const partySectionRef = useRef(null);
   const methodSectionRef = useRef(null);
   const [expenseGroupQuery, setExpenseGroupQuery] = useState('');
-  const [partyQuery, setPartyQuery] = useState('');
+  const [partyQuery, setPartyQuery] = useState(CASH_PARTY.name);
   const [methodQuery, setMethodQuery] = useState('Cash');
   const [expenseGroupListIndex, setExpenseGroupListIndex] = useState(-1);
   const [partyListIndex, setPartyListIndex] = useState(-1);
@@ -146,6 +173,7 @@ export default function Expenses({ modalOnly = false, onModalFinish = null }) {
   const [isMethodSectionActive, setIsMethodSectionActive] = useState(false);
   const [goodsItem, setGoodsItem] = useState(getInitialGoodsItem());
   const [goodsItems, setGoodsItems] = useState([]);
+  const cashPartyId = findCashParty(parties)?._id || '';
 
   useEffect(() => {
     fetchExpenses();
@@ -177,6 +205,12 @@ export default function Expenses({ modalOnly = false, onModalFinish = null }) {
   }, [showForm]);
 
   useEffect(() => {
+    if (!showForm || !cashPartyId) return;
+    setFormData((prev) => (prev.party ? prev : { ...prev, party: cashPartyId }));
+    setPartyQuery((prev) => prev || CASH_PARTY.name);
+  }, [showForm, cashPartyId]);
+
+  useEffect(() => {
     if (!modalOnly || showForm) return;
     handleOpenForm();
   }, [modalOnly, showForm]);
@@ -206,7 +240,8 @@ export default function Expenses({ modalOnly = false, onModalFinish = null }) {
   const fetchParties = async () => {
     try {
       const response = await apiClient.get('/parties');
-      setParties(Array.isArray(response) ? response : (response?.data || []));
+      const partyList = Array.isArray(response) ? response : (response?.data || []);
+      setParties(partyList);
     } catch (err) {
       console.error('Error fetching parties:', err);
     }
@@ -216,7 +251,7 @@ export default function Expenses({ modalOnly = false, onModalFinish = null }) {
     const focusTone = tone === 'emerald'
       ? 'focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200'
       : 'focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200';
-    return `flex-1 min-w-0 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-bold text-gray-900 transition-all placeholder:font-normal placeholder:text-gray-400 focus:outline-none ${focusTone}`;
+    return `flex-1 min-w-0 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-semibold text-slate-900 shadow-sm hover:border-slate-300 focus:bg-white transition-all placeholder:font-normal placeholder:text-gray-400 focus:outline-none ${focusTone}`;
   };
 
   const getTableFieldClass = (tone = 'emerald') => {
@@ -275,6 +310,11 @@ export default function Expenses({ modalOnly = false, onModalFinish = null }) {
   );
   const isGoodsSelection = String(selectedExpenseGroup?.type || '').toLowerCase() === 'goods';
   const isGoodsExpense = expenseEntryType === 'purchase';
+  const selectedPartyRecord = parties.find((party) => String(party._id || '') === String(formData.party || ''));
+  const isCashExpense = !formData.party || selectedPartyRecord?.type === 'cash-in-hand';
+  const expenseTotalAmount = Math.max(0, Number(formData.amount || 0));
+  const expensePaidAmount = Math.max(0, Number(formData.paymentAmount || 0));
+  const expenseBalanceAmount = Math.max(0, expenseTotalAmount - expensePaidAmount);
   const goodsItemUnit = String(selectedExpenseGroup?.unit || '').trim() || '-';
   const goodsQuantity = Number(goodsItem.quantity || 0);
   const goodsUnitPrice = Number(goodsItem.unitPrice || 0);
@@ -413,6 +453,14 @@ export default function Expenses({ modalOnly = false, onModalFinish = null }) {
   const handleChange = (event) => {
     const { name, value } = event.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  // Credit expense: Enter on Total Amount moves to Paid Amount; Enter there saves (form submit).
+  const handleAmountKeyDown = (event) => {
+    if (event.key !== 'Enter' || event.shiftKey || isCashExpense) return;
+    event.preventDefault();
+    event.stopPropagation();
+    focusNextPopupField(event.currentTarget);
   };
 
   const handleSelectEnterMoveNext = (event) => {
@@ -606,8 +654,58 @@ export default function Expenses({ modalOnly = false, onModalFinish = null }) {
     }
   };
 
+  const openTypePopup = () => {
+    setNewTypeName(String(expenseGroupQuery || '').trim());
+    setNewTypeDescription('');
+    setTypePopupError('');
+    setIsExpenseGroupSectionActive(false);
+    setShowTypePopup(true);
+  };
+
+  const closeTypePopup = () => {
+    setShowTypePopup(false);
+    requestAnimationFrame(() => expenseGroupInputRef.current?.focus());
+  };
+
+  const handleCreateExpenseType = async () => {
+    const name = newTypeName.trim();
+    if (!name) {
+      setTypePopupError('Expense type name is required');
+      return;
+    }
+
+    try {
+      setTypePopupLoading(true);
+      setTypePopupError('');
+      const response = await apiClient.post('/expense-types', {
+        name,
+        description: newTypeDescription.trim(),
+        type: 'services'
+      });
+      const created = response?.data;
+      if (created?._id) {
+        setExpenseGroups((prev) => [...prev, created]);
+        selectExpenseGroup(created);
+      }
+      toast.success('Expense type created', TOAST_OPTIONS);
+      setShowTypePopup(false);
+      requestAnimationFrame(() => focusNextPopupField(expenseGroupInputRef.current));
+    } catch (err) {
+      setTypePopupError(err.message || 'Error creating expense type');
+    } finally {
+      setTypePopupLoading(false);
+    }
+  };
+
   const handleExpenseGroupInputKeyDown = (event) => {
     const key = event.key?.toLowerCase();
+
+    if (key === 'control' && !event.altKey && !event.metaKey) {
+      event.preventDefault();
+      event.stopPropagation();
+      openTypePopup();
+      return;
+    }
 
     if (key === 'arrowdown') {
       event.preventDefault();
@@ -781,6 +879,7 @@ export default function Expenses({ modalOnly = false, onModalFinish = null }) {
   };
 
   const handleOpenForm = () => {
+    setEditingId(null);
     setFormData(getInitialForm());
     setGoodsItem(getInitialGoodsItem());
     setGoodsItems([]);
@@ -789,7 +888,7 @@ export default function Expenses({ modalOnly = false, onModalFinish = null }) {
     setExpenseGroupQuery('');
     setExpenseGroupListIndex(-1);
     setIsExpenseGroupSectionActive(false);
-    setPartyQuery('');
+    setPartyQuery(CASH_PARTY.name);
     setPartyListIndex(-1);
     setIsPartySectionActive(false);
     setMethodQuery(EXPENSE_METHOD_OPTIONS[0].label);
@@ -824,6 +923,7 @@ export default function Expenses({ modalOnly = false, onModalFinish = null }) {
   };
 
   const handleCloseForm = () => {
+    setEditingId(null);
     setShowForm(false);
     setShowExpenseTypePicker(false);
     setShowPurchaseExpenseModal(false);
@@ -834,7 +934,7 @@ export default function Expenses({ modalOnly = false, onModalFinish = null }) {
     setExpenseGroupQuery('');
     setExpenseGroupListIndex(-1);
     setIsExpenseGroupSectionActive(false);
-    setPartyQuery('');
+    setPartyQuery(CASH_PARTY.name);
     setPartyListIndex(-1);
     setIsPartySectionActive(false);
     setMethodQuery(EXPENSE_METHOD_OPTIONS[0].label);
@@ -844,6 +944,66 @@ export default function Expenses({ modalOnly = false, onModalFinish = null }) {
     if (modalOnly && typeof onModalFinish === 'function') {
       onModalFinish();
     }
+  };
+
+  const handleEdit = (expense) => {
+    const methodValue = expense.method || 'cash';
+    setEditingId(expense._id);
+    setExpenseEntryType('normal');
+    setShowExpenseTypePicker(false);
+    setFormData({
+      expenseGroup: expense.expenseGroup?._id || '',
+      party: expense.party?._id || '',
+      amount: String(expense.amount ?? ''),
+      paymentAmount: String(expense.paidAmount ?? expense.amount ?? ''),
+      method: methodValue,
+      expenseDate: formatDateForInput(expense.expenseDate),
+      notes: expense.notes || ''
+    });
+    setExpenseGroupQuery(expense.expenseGroup?.name || '');
+    setPartyQuery(expense.party?.name || CASH_PARTY.name);
+    setMethodQuery(EXPENSE_METHOD_OPTIONS.find((option) => option.value === methodValue)?.label || 'Cash');
+    setError('');
+    setShowForm(true);
+  };
+
+  const handleDelete = async (expense) => {
+    if (!window.confirm(`Delete expense ${expense.expenseNumber || ''}? This cannot be undone.`)) return;
+
+    try {
+      await apiClient.delete(`/expenses/${expense._id}`);
+      toast.success('Expense deleted', TOAST_OPTIONS);
+      fetchExpenses();
+      fetchExpenseGroups();
+    } catch (err) {
+      setError(err.message || 'Error deleting expense');
+    }
+  };
+
+  const renderExpenseActions = (expense, className = '') => {
+    if (!canManageExpenses || expense.isPurchase) return null;
+    const isGoods = Array.isArray(expense.items) && expense.items.length > 0;
+
+    return (
+      <div className={`flex items-center justify-center gap-2 ${className}`}>
+        {!isGoods && (
+          <button
+            type="button"
+            onClick={() => handleEdit(expense)}
+            className="inline-flex items-center justify-center rounded-md border border-blue-200 bg-white px-3 py-1.5 text-[11px] font-medium text-blue-700 shadow-sm transition hover:border-blue-300 hover:bg-blue-50"
+          >
+            Edit
+          </button>
+        )}
+        <button
+          type="button"
+          onClick={() => handleDelete(expense)}
+          className="inline-flex items-center justify-center rounded-md border border-rose-200 bg-white px-3 py-1.5 text-[11px] font-medium text-rose-700 shadow-sm transition hover:border-rose-300 hover:bg-rose-50"
+        >
+          Delete
+        </button>
+      </div>
+    );
   };
 
   const buildCurrentGoodsItem = () => {
@@ -1021,12 +1181,18 @@ export default function Expenses({ modalOnly = false, onModalFinish = null }) {
       return;
     }
 
+    if (!isGoodsExpense && !isCashExpense && expensePaidAmount > resolvedAmount) {
+      setError('Paid amount cannot be more than total amount');
+      return;
+    }
+
     try {
       setLoading(true);
-      await apiClient.post('/expenses', {
+      const payload = {
         expenseGroup: isGoodsExpense ? expenseItems[0]?.expenseGroup : formData.expenseGroup,
         party: formData.party || null,
         amount: resolvedAmount,
+        paidAmount: isGoodsExpense || isCashExpense ? resolvedAmount : expensePaidAmount,
         method: formData.method,
         expenseDate: formData.expenseDate ? new Date(formData.expenseDate) : new Date(),
         notes: formData.notes,
@@ -1038,15 +1204,21 @@ export default function Expenses({ modalOnly = false, onModalFinish = null }) {
             total: item.total,
           }))
           : undefined
-      });
+      };
+
+      if (editingId) {
+        await apiClient.put(`/expenses/${editingId}`, payload);
+      } else {
+        await apiClient.post('/expenses', payload);
+      }
 
       setError('');
-      toast.success('Expense created successfully', TOAST_OPTIONS);
+      toast.success(editingId ? 'Expense updated successfully' : 'Expense created successfully', TOAST_OPTIONS);
       handleCloseForm();
       fetchExpenses();
       fetchExpenseGroups();
     } catch (err) {
-      setError(err.message || 'Error creating expense');
+      setError(err.message || (editingId ? 'Error updating expense' : 'Error creating expense'));
     } finally {
       setLoading(false);
     }
@@ -1057,7 +1229,7 @@ export default function Expenses({ modalOnly = false, onModalFinish = null }) {
     const normalizedSearch = String(search || '').trim().toLowerCase();
 
     return expenses.filter((item) => {
-      if (!isWithinRange(item.expenseDate, tableRange)) return false;
+      if (!isWithinRange(item.expenseDate, tableRange, customFrom, customTo)) return false;
 
       if (!normalizedSearch) return true;
 
@@ -1072,7 +1244,7 @@ export default function Expenses({ modalOnly = false, onModalFinish = null }) {
 
       return haystack.includes(normalizedSearch);
     });
-  }, [expenses, search, tableRange]);
+  }, [expenses, search, tableRange, customFrom, customTo]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-100 via-slate-50 to-stone-100">
@@ -1116,6 +1288,28 @@ export default function Expenses({ modalOnly = false, onModalFinish = null }) {
                   </select>
                 </div>
 
+                {tableRange === 'custom' && (
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="date"
+                      value={customFrom}
+                      max={customTo || undefined}
+                      onChange={(event) => setCustomFrom(event.target.value)}
+                      aria-label="From date"
+                      className="rounded-xl border-2 border-slate-300 bg-white px-3 py-2.5 text-sm font-medium text-slate-700 transition-all focus:border-sky-500 focus:outline-none focus:ring-4 focus:ring-sky-100"
+                    />
+                    <span className="text-sm font-semibold text-slate-500">to</span>
+                    <input
+                      type="date"
+                      value={customTo}
+                      min={customFrom || undefined}
+                      onChange={(event) => setCustomTo(event.target.value)}
+                      aria-label="To date"
+                      className="rounded-xl border-2 border-slate-300 bg-white px-3 py-2.5 text-sm font-medium text-slate-700 transition-all focus:border-sky-500 focus:outline-none focus:ring-4 focus:ring-sky-100"
+                    />
+                  </div>
+                )}
+
                 <button
                   type="button"
                   onClick={handleOpenForm}
@@ -1145,23 +1339,36 @@ export default function Expenses({ modalOnly = false, onModalFinish = null }) {
         />
       )}
 
+      <AddExpenseTypePopup
+        open={showTypePopup}
+        name={newTypeName}
+        description={newTypeDescription}
+        loading={typePopupLoading}
+        error={typePopupError}
+        onNameChange={setNewTypeName}
+        onDescriptionChange={setNewTypeDescription}
+        onClose={closeTypePopup}
+        onSubmit={handleCreateExpenseType}
+      />
+
       {showForm && !isGoodsExpense && (
         <AddExpensePopup
           open={showForm}
+          isEditing={Boolean(editingId)}
           onClose={handleCloseForm}
           onSubmit={handleSubmit}
           loading={loading}
         >
           <div className="flex flex-col gap-3 md:gap-4">
-            <div className="rounded-xl border-2 border-indigo-200 bg-gradient-to-r from-blue-50 to-indigo-50 p-2.5 md:p-4">
-              <h3 className="mb-3 flex items-center gap-2 text-base font-bold text-gray-800 md:mb-4 md:text-lg">
+            <div className="rounded-2xl border border-indigo-100 bg-white p-3 shadow-sm md:p-4">
+              <h3 className="mb-3 flex items-center gap-2 border-b border-slate-100 pb-2 text-sm font-bold uppercase tracking-wide text-slate-700 md:mb-4 md:text-base">
                 <span className="flex h-6 w-6 items-center justify-center rounded-full bg-indigo-600 text-xs text-white md:h-8 md:w-8 md:text-sm">1</span>
                 Basic Details
               </h3>
 
               <div className="space-y-3 md:space-y-4">
                 <div className="flex items-center gap-2">
-                  <label className="mb-0 w-32 shrink-0 text-xs font-semibold text-gray-700 md:text-sm">Expense Date</label>
+                  <label className="mb-0 w-28 shrink-0 text-xs font-semibold text-slate-600 md:text-sm">Expense Date</label>
                   <div className="relative flex-1">
                     <CalendarDays className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-indigo-500" />
                     <input type="date" name="expenseDate" value={formData.expenseDate} onChange={handleChange} className={`${getInlineFieldClass('indigo')} pl-10`} />
@@ -1169,7 +1376,7 @@ export default function Expenses({ modalOnly = false, onModalFinish = null }) {
                 </div>
 
                 <div className="flex items-center gap-2">
-                  <label className="mb-0 w-32 shrink-0 text-xs font-semibold text-gray-700 md:text-sm">Expense Type</label>
+                  <label className="mb-0 w-28 shrink-0 text-xs font-semibold text-slate-600 md:text-sm">Expense Type</label>
                   <div
                     ref={expenseGroupSectionRef}
                     className="relative flex-1 min-w-0"
@@ -1196,10 +1403,10 @@ export default function Expenses({ modalOnly = false, onModalFinish = null }) {
                     </div>
 
                     {isExpenseGroupSectionActive && expenseGroupDropdownStyle && (
-                      <div className="fixed z-[90] overflow-hidden rounded-xl border border-amber-200 bg-white shadow-[0_18px_40px_rgba(15,23,42,0.18)]" style={expenseGroupDropdownStyle} onClick={(event) => event.stopPropagation()}>
-                        <div className="flex items-center justify-between border-b border-amber-100 bg-gradient-to-r from-amber-50 to-yellow-50 px-3 py-2">
-                          <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-amber-700">Service Expense Types</span>
-                          <span className="rounded-full bg-white px-2 py-0.5 text-[10px] font-semibold text-amber-700 shadow-sm">{expenseGroupOptions.length}</span>
+                      <div className="fixed z-[90] overflow-hidden rounded-xl border border-indigo-200 bg-white shadow-[0_18px_40px_rgba(15,23,42,0.18)]" style={expenseGroupDropdownStyle} onClick={(event) => event.stopPropagation()}>
+                        <div className="flex items-center justify-between border-b border-indigo-100 bg-gradient-to-r from-indigo-50 to-violet-50 px-3 py-2">
+                          <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-indigo-700">Service Expense Types</span>
+                          <span className="rounded-full bg-white px-2 py-0.5 text-[10px] font-semibold text-indigo-700 shadow-sm">{expenseGroupOptions.length}</span>
                         </div>
                         <div className="overflow-y-auto py-1" style={{ maxHeight: expenseGroupDropdownStyle.maxHeight }}>
                           {expenseGroupOptions.length === 0 ? (
@@ -1218,22 +1425,32 @@ export default function Expenses({ modalOnly = false, onModalFinish = null }) {
                                     selectExpenseGroup(group);
                                     setIsExpenseGroupSectionActive(false);
                                   }}
-                                  className={`flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-[13px] transition ${isActive ? 'bg-yellow-200 text-amber-950' : isSelected ? 'bg-yellow-50 text-amber-800' : 'text-slate-700 hover:bg-amber-50'}`}
+                                  className={`flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-[13px] transition ${isActive ? 'bg-indigo-100 text-indigo-950' : isSelected ? 'bg-indigo-50 text-indigo-800' : 'text-slate-700 hover:bg-indigo-50'}`}
                                 >
                                   <span className="truncate font-medium">{group.name}</span>
-                                  {isSelected && <span className="shrink-0 rounded-full border border-amber-200 bg-white px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700">Selected</span>}
+                                  {isSelected && <span className="shrink-0 rounded-full border border-indigo-200 bg-white px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-indigo-700">Selected</span>}
                                 </button>
                               );
                             })
                           )}
                         </div>
+                        <button
+                          type="button"
+                          onMouseDown={(event) => event.preventDefault()}
+                          onClick={openTypePopup}
+                          className="flex w-full items-center gap-2 border-t border-emerald-200 bg-emerald-50 px-3 py-2 text-left text-[13px] font-semibold text-emerald-700 transition hover:bg-emerald-100"
+                        >
+                          <Plus className="h-4 w-4" />
+                          Add Expense Type
+                          <span className="ml-auto text-[10px] font-medium text-emerald-600">Ctrl</span>
+                        </button>
                       </div>
                     )}
                   </div>
                 </div>
 
                 <div className="flex items-center gap-2">
-                  <label className="mb-0 w-32 shrink-0 text-xs font-semibold text-gray-700 md:text-sm">Party</label>
+                  <label className="mb-0 w-28 shrink-0 text-xs font-semibold text-slate-600 md:text-sm">Party <span className="font-normal text-slate-400">(default Cash)</span></label>
                   <div
                     ref={partySectionRef}
                     className="relative flex-1 min-w-0"
@@ -1244,15 +1461,16 @@ export default function Expenses({ modalOnly = false, onModalFinish = null }) {
                     }}
                   >
                     <div className="relative">
-                      <input ref={partyInputRef} type="text" value={partyQuery} onChange={handlePartyInputChange} onKeyDown={handlePartyInputKeyDown} className={`${getInlineFieldClass('indigo')} pr-10`} placeholder="Type party..." autoComplete="off" />
+                      <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-indigo-500" />
+                      <input ref={partyInputRef} type="text" value={partyQuery} onFocus={handlePartyFocus} onClick={handlePartyFocus} onChange={handlePartyInputChange} onKeyDown={handlePartyInputKeyDown} className={`${getInlineFieldClass('indigo')} w-full pl-9 pr-10`} placeholder="Search party..." autoComplete="off" />
                       <ChevronDown className={`pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-indigo-500 transition-transform ${isPartySectionActive ? 'rotate-180' : ''}`} />
                     </div>
 
                     {isPartySectionActive && partyDropdownStyle && (
-                      <div className="fixed z-[90] overflow-hidden rounded-xl border border-amber-200 bg-white shadow-[0_18px_40px_rgba(15,23,42,0.18)]" style={partyDropdownStyle} onClick={(event) => event.stopPropagation()}>
-                        <div className="flex items-center justify-between border-b border-amber-100 bg-gradient-to-r from-amber-50 to-yellow-50 px-3 py-2">
-                          <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-amber-700">Party List</span>
-                          <span className="rounded-full bg-white px-2 py-0.5 text-[10px] font-semibold text-amber-700 shadow-sm">{partyOptions.length}</span>
+                      <div className="fixed z-[90] overflow-hidden rounded-xl border border-indigo-200 bg-white shadow-[0_18px_40px_rgba(15,23,42,0.18)]" style={partyDropdownStyle} onClick={(event) => event.stopPropagation()}>
+                        <div className="flex items-center justify-between border-b border-indigo-100 bg-gradient-to-r from-indigo-50 to-violet-50 px-3 py-2">
+                          <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-indigo-700">Party List <span className="font-medium normal-case tracking-normal text-indigo-400">- type to search</span></span>
+                          <span className="rounded-full bg-white px-2 py-0.5 text-[10px] font-semibold text-indigo-700 shadow-sm">{partyOptions.length}</span>
                         </div>
                         <div className="overflow-y-auto py-1" style={{ maxHeight: partyDropdownStyle.maxHeight }}>
                           {partyOptions.length === 0 ? (
@@ -1271,10 +1489,13 @@ export default function Expenses({ modalOnly = false, onModalFinish = null }) {
                                     selectParty(party);
                                     setIsPartySectionActive(false);
                                   }}
-                                  className={`flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-[13px] transition ${isActive ? 'bg-yellow-200 text-amber-950' : isSelected ? 'bg-yellow-50 text-amber-800' : 'text-slate-700 hover:bg-amber-50'}`}
+                                  className={`flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-[13px] transition ${isActive ? 'bg-indigo-100 text-indigo-950' : isSelected ? 'bg-indigo-50 text-indigo-800' : 'text-slate-700 hover:bg-indigo-50'}`}
                                 >
-                                  <span className="truncate font-medium">{party.name}</span>
-                                  {isSelected && <span className="shrink-0 rounded-full border border-amber-200 bg-white px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700">Selected</span>}
+                                  <span className="min-w-0">
+                                    <span className="block truncate font-medium">{party.name}</span>
+                                    {party.mobile && <span className="block truncate text-[11px] text-slate-400">{party.mobile}</span>}
+                                  </span>
+                                  {isSelected && <span className="shrink-0 rounded-full border border-indigo-200 bg-white px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-indigo-700">Selected</span>}
                                 </button>
                               );
                             })
@@ -1287,7 +1508,7 @@ export default function Expenses({ modalOnly = false, onModalFinish = null }) {
 
                 {selectedExpenseGroup && (
                   <div className="flex items-center gap-2">
-                    <label className="mb-0 w-32 shrink-0 text-xs font-semibold text-gray-700 md:text-sm">Type</label>
+                    <label className="mb-0 w-28 shrink-0 text-xs font-semibold text-slate-600 md:text-sm">Type</label>
                     <div className="flex-1">
                       <span className="inline-flex rounded-full bg-sky-100 px-3 py-1 text-xs font-bold uppercase tracking-[0.18em] text-sky-800">Services</span>
                     </div>
@@ -1295,21 +1516,36 @@ export default function Expenses({ modalOnly = false, onModalFinish = null }) {
                 )}
 
                 <div className="flex items-center gap-2">
-                  <label className="mb-0 w-32 shrink-0 text-xs font-semibold text-gray-700 md:text-sm">Amount</label>
-                  <input type="number" name="amount" value={formData.amount} onChange={handleChange} step="0.01" className={getInlineFieldClass('indigo')} placeholder="Enter amount" required />
+                  <label className="mb-0 w-28 shrink-0 text-xs font-semibold text-slate-600 md:text-sm">{isCashExpense ? 'Amount' : 'Total Amount'}</label>
+                  <input type="number" name="amount" value={formData.amount} onChange={handleChange} onKeyDown={handleAmountKeyDown} step="0.01" className={getInlineFieldClass('indigo')} placeholder="0.00" required />
                 </div>
+
+                {!isCashExpense && (
+                  <>
+                    <div className="flex items-center gap-2">
+                      <label className="mb-0 w-28 shrink-0 text-xs font-semibold text-slate-600 md:text-sm">Paid Amount</label>
+                      <input type="number" name="paymentAmount" value={formData.paymentAmount} onChange={handleChange} min="0" max={expenseTotalAmount || undefined} step="0.01" className={getInlineFieldClass('indigo')} placeholder="0.00" />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <label className="mb-0 w-28 shrink-0 text-xs font-semibold text-slate-600 md:text-sm">Balance</label>
+                      <div className={`flex-1 rounded-xl border px-3 py-2.5 text-sm font-bold ${expenseBalanceAmount > 0 ? 'border-rose-200 bg-rose-50 text-rose-700' : 'border-emerald-200 bg-emerald-50 text-emerald-700'}`}>
+                        Rs {expenseBalanceAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
             </div>
 
-            <div className="rounded-xl border-2 border-emerald-200 bg-gradient-to-r from-green-50 to-emerald-50 p-2.5 md:p-4">
-              <h3 className="mb-3 flex items-center gap-2 text-base font-bold text-gray-800 md:mb-4 md:text-lg">
+            <div className="rounded-2xl border border-emerald-100 bg-white p-3 shadow-sm md:p-4">
+              <h3 className="mb-3 flex items-center gap-2 border-b border-slate-100 pb-2 text-sm font-bold uppercase tracking-wide text-slate-700 md:mb-4 md:text-base">
                 <span className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-600 text-xs text-white md:h-8 md:w-8 md:text-sm">2</span>
                 Payment Details
               </h3>
 
               <div className="space-y-3 md:space-y-4">
                 <div className="flex items-center gap-2">
-                  <label className="mb-0 w-32 shrink-0 text-xs font-semibold text-gray-700 md:text-sm">Method</label>
+                  <label className="mb-0 w-28 shrink-0 text-xs font-semibold text-slate-600 md:text-sm">Method</label>
                   <div
                     ref={methodSectionRef}
                     className="relative flex-1 min-w-0"
@@ -1325,10 +1561,10 @@ export default function Expenses({ modalOnly = false, onModalFinish = null }) {
                     </div>
 
                     {isMethodSectionActive && methodDropdownStyle && (
-                      <div className="fixed z-[90] overflow-hidden rounded-xl border border-amber-200 bg-white shadow-[0_18px_40px_rgba(15,23,42,0.18)]" style={methodDropdownStyle} onClick={(event) => event.stopPropagation()}>
-                        <div className="flex items-center justify-between border-b border-amber-100 bg-gradient-to-r from-amber-50 to-yellow-50 px-3 py-2">
-                          <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-amber-700">Method List</span>
-                          <span className="rounded-full bg-white px-2 py-0.5 text-[10px] font-semibold text-amber-700 shadow-sm">{filteredMethodOptions.length}</span>
+                      <div className="fixed z-[90] overflow-hidden rounded-xl border border-indigo-200 bg-white shadow-[0_18px_40px_rgba(15,23,42,0.18)]" style={methodDropdownStyle} onClick={(event) => event.stopPropagation()}>
+                        <div className="flex items-center justify-between border-b border-indigo-100 bg-gradient-to-r from-indigo-50 to-violet-50 px-3 py-2">
+                          <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-indigo-700">Method List</span>
+                          <span className="rounded-full bg-white px-2 py-0.5 text-[10px] font-semibold text-indigo-700 shadow-sm">{filteredMethodOptions.length}</span>
                         </div>
                         <div className="overflow-y-auto py-1" style={{ maxHeight: methodDropdownStyle.maxHeight }}>
                           {filteredMethodOptions.length === 0 ? (
@@ -1344,10 +1580,10 @@ export default function Expenses({ modalOnly = false, onModalFinish = null }) {
                                   onMouseDown={(event) => event.preventDefault()}
                                   onMouseEnter={() => setMethodListIndex(index)}
                                   onClick={() => selectMethod(option)}
-                                  className={`flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-[13px] transition ${isActive ? 'bg-yellow-200 text-amber-950' : isSelected ? 'bg-yellow-50 text-amber-800' : 'text-slate-700 hover:bg-amber-50'}`}
+                                  className={`flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-[13px] transition ${isActive ? 'bg-indigo-100 text-indigo-950' : isSelected ? 'bg-indigo-50 text-indigo-800' : 'text-slate-700 hover:bg-indigo-50'}`}
                                 >
                                   <span className="truncate font-medium">{option.label}</span>
-                                  {isSelected && <span className="shrink-0 rounded-full border border-amber-200 bg-white px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700">Selected</span>}
+                                  {isSelected && <span className="shrink-0 rounded-full border border-indigo-200 bg-white px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-indigo-700">Selected</span>}
                                 </button>
                               );
                             })
@@ -1359,7 +1595,7 @@ export default function Expenses({ modalOnly = false, onModalFinish = null }) {
                 </div>
 
                 <div className="flex items-center gap-2">
-                  <label className="mb-0 w-32 shrink-0 text-xs font-semibold text-gray-700 md:text-sm">Notes</label>
+                  <label className="mb-0 w-28 shrink-0 text-xs font-semibold text-slate-600 md:text-sm">Notes</label>
                   <input type="text" name="notes" value={formData.notes} onChange={handleChange} className={getInlineFieldClass('emerald')} placeholder="Optional note" />
                 </div>
               </div>
@@ -1407,6 +1643,8 @@ export default function Expenses({ modalOnly = false, onModalFinish = null }) {
                         <p className="text-xs font-medium uppercase tracking-[0.18em] text-slate-500">Notes</p>
                         <p className="mt-1 break-words text-sm text-slate-700">{expense.notes || '-'}</p>
                       </div>
+
+                      {renderExpenseActions(expense, 'pt-1')}
                     </div>
                   </article>
                 ))}
@@ -1429,6 +1667,9 @@ export default function Expenses({ modalOnly = false, onModalFinish = null }) {
                       <th className="bg-gradient-to-r from-slate-800 via-slate-700 to-slate-800 px-6 py-4 text-right text-xs font-bold uppercase tracking-wider text-white lg:px-4 lg:py-3 lg:text-[10px] xl:px-6 xl:py-4 xl:text-xs">Amount</th>
                       <th className="bg-gradient-to-r from-slate-800 via-slate-700 to-slate-800 px-6 py-4 text-center text-xs font-bold uppercase tracking-wider text-white lg:px-4 lg:py-3 lg:text-[10px] xl:px-6 xl:py-4 xl:text-xs">Method</th>
                       <th className="bg-gradient-to-r from-slate-800 via-slate-700 to-slate-800 px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-white lg:px-4 lg:py-3 lg:text-[10px] xl:px-6 xl:py-4 xl:text-xs">Notes</th>
+                      {canManageExpenses && (
+                        <th className="bg-gradient-to-r from-slate-800 via-slate-700 to-slate-800 px-6 py-4 text-center text-xs font-bold uppercase tracking-wider text-white lg:px-4 lg:py-3 lg:text-[10px] xl:px-6 xl:py-4 xl:text-xs">Actions</th>
+                      )}
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
@@ -1455,11 +1696,14 @@ export default function Expenses({ modalOnly = false, onModalFinish = null }) {
                         <td className="px-6 py-4 text-sm text-slate-700 lg:px-4 lg:py-3 lg:text-[12px] xl:px-6 xl:py-4 xl:text-sm">
                           <div className="max-w-[24rem] truncate">{expense.notes || '-'}</div>
                         </td>
+                        {canManageExpenses && (
+                          <td className="px-6 py-4 lg:px-4 lg:py-3 xl:px-6 xl:py-4">{renderExpenseActions(expense)}</td>
+                        )}
                       </tr>
                     ))}
                     {visibleExpenses.length === 0 && (
                       <tr>
-                        <td colSpan="7" className="px-6 py-16 text-center text-slate-500">
+                        <td colSpan={canManageExpenses ? 8 : 7} className="px-6 py-16 text-center text-slate-500">
                           No expenses found
                         </td>
                       </tr>

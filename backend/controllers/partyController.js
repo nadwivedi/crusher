@@ -1,6 +1,30 @@
 const mongoose = require("mongoose");
 const Party = require("../models/Party");
+const Purchase = require("../models/Purchase");
+const Expense = require("../models/Expense");
 const { scopedFilter, scopedIdFilter } = require("../utils/ownership");
+
+const isDefaultCashParty = (party) => (
+  party?.type === "cash-in-hand" && String(party?.name || "").trim().toLowerCase() === "cash"
+);
+
+// Every account gets one default "Cash" party so cash sales/purchases/expenses
+// have their own ledger. Older party-less purchases/expenses are moved onto it.
+const ensureDefaultCashParty = async (userId) => {
+  const existing = await Party.findOne({
+    userId,
+    type: "cash-in-hand",
+    name: { $regex: /^cash$/i },
+  });
+  if (existing) return existing;
+
+  const cashParty = await Party.create({ userId, name: "Cash", type: "cash-in-hand" });
+  await Promise.all([
+    Purchase.updateMany({ userId, party: null }, { $set: { party: cashParty._id } }),
+    Expense.updateMany({ userId, party: null }, { $set: { party: cashParty._id } }),
+  ]);
+  return cashParty;
+};
 
 const createParty = async (req, res) => {
   try {
@@ -19,6 +43,7 @@ const createParty = async (req, res) => {
 
 const getAllParties = async (req, res) => {
   try {
+    await ensureDefaultCashParty(req.userId);
     const parties = await Party.find(scopedFilter(req)).sort({ createdAt: -1 });
     return res.json(parties);
   } catch (error) {
@@ -86,6 +111,11 @@ const deleteParty = async (req, res) => {
   }
 
   try {
+    const existingParty = await Party.findOne(scopedIdFilter(req, id));
+    if (isDefaultCashParty(existingParty)) {
+      return res.status(400).json({ message: "The default Cash party cannot be deleted" });
+    }
+
     const party = await Party.findOneAndDelete(scopedIdFilter(req, id));
 
     if (!party) {

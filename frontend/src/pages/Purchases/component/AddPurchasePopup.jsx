@@ -196,9 +196,8 @@ export default function AddPurchasePopup({
                             onChange={handleLeadgerInputChange}
                             onKeyDown={handleLeadgerInputKeyDown}
                             className={`${inputClass} pl-9 focus:ring-indigo-500`}
-                            placeholder="Type to search party..."
+                            placeholder="Cash or search party..."
                             autoComplete="off"
-                            required
                           />
                         </div>
 

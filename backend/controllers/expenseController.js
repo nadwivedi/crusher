@@ -55,6 +55,7 @@ const createExpense = async (req, res) => {
       expenseGroup,
       party,
       amount,
+      paidAmount,
       quantity,
       unit,
       unitPrice,
@@ -197,6 +198,7 @@ const createExpense = async (req, res) => {
     }
 
     let resolvedParty = null;
+    let resolvedPartyType = "";
     if (party) {
       if (!mongoose.isValidObjectId(party)) {
         return res.status(400).json({
@@ -214,6 +216,19 @@ const createExpense = async (req, res) => {
       }
 
       resolvedParty = existingParty._id;
+      resolvedPartyType = existingParty.type;
+    }
+
+    // No party (or a cash-in-hand party) means a cash expense: fully paid.
+    const isCashExpense = !resolvedParty || resolvedPartyType === "cash-in-hand";
+    const paidAmountNumber = isCashExpense
+      ? amountNumber
+      : toNumber(paidAmount, 0);
+    if (paidAmountNumber < 0 || paidAmountNumber > amountNumber) {
+      return res.status(400).json({
+        success: false,
+        message: "Paid amount must be between 0 and the total amount",
+      });
     }
 
     if (!resolvedExpenseType) {
@@ -236,6 +251,7 @@ const createExpense = async (req, res) => {
       expenseNumber: await createExpenseNumber(expenseDate),
       party: resolvedParty,
       amount: amountNumber,
+      paidAmount: paidAmountNumber,
       quantity: goodsItems.length === 1 ? goodsItems[0].quantity : null,
       unit: goodsItems.length === 1 ? goodsItems[0].unit : "",
       unitPrice: goodsItems.length === 1 ? goodsItems[0].unitPrice : null,
@@ -356,7 +372,126 @@ const getAllExpenses = async (req, res) => {
   }
 };
 
+const populateExpense = (query) => query
+  .populate("expenseGroup", "name")
+  .populate("items.expenseGroup", "name unit")
+  .populate("party", "name type");
+
+const editExpense = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.userId;
+    if (!mongoose.isValidObjectId(id)) {
+      return res.status(400).json({ success: false, message: "Invalid expense id" });
+    }
+
+    const expense = await Expense.findOne({ _id: id, userId });
+    if (!expense) {
+      return res.status(404).json({ success: false, message: "Expense not found" });
+    }
+
+    // Goods expenses move stock, so only service expenses can be edited.
+    if (Array.isArray(expense.items) && expense.items.length > 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Goods expenses cannot be edited. Delete and add it again.",
+      });
+    }
+
+    const { expenseGroup, party, amount, paidAmount, method, expenseDate, notes } = req.body;
+
+    const amountNumber = toNumber(amount, NaN);
+    if (!Number.isFinite(amountNumber) || amountNumber <= 0) {
+      return res.status(400).json({ success: false, message: "Valid amount is required" });
+    }
+
+    if (!expenseGroup || !mongoose.isValidObjectId(expenseGroup)) {
+      return res.status(400).json({ success: false, message: "Valid expense type is required" });
+    }
+    const expenseType = await ExpenseType.findOne({ _id: expenseGroup, userId });
+    if (!expenseType) {
+      return res.status(404).json({ success: false, message: "Expense type not found" });
+    }
+
+    let partyId = null;
+    let partyType = "";
+    if (party) {
+      if (!mongoose.isValidObjectId(party)) {
+        return res.status(400).json({ success: false, message: "Invalid party id" });
+      }
+      const existingParty = await Party.findOne({ _id: party, userId });
+      if (!existingParty) {
+        return res.status(404).json({ success: false, message: "Party not found" });
+      }
+      partyId = existingParty._id;
+      partyType = existingParty.type;
+    }
+
+    const isCashExpense = !partyId || partyType === "cash-in-hand";
+    const paidAmountNumber = isCashExpense ? amountNumber : toNumber(paidAmount, 0);
+    if (paidAmountNumber < 0 || paidAmountNumber > amountNumber) {
+      return res.status(400).json({
+        success: false,
+        message: "Paid amount must be between 0 and the total amount",
+      });
+    }
+
+    expense.expenseGroup = expenseType._id;
+    expense.party = partyId;
+    expense.amount = amountNumber;
+    expense.paidAmount = paidAmountNumber;
+    expense.method = method || expense.method;
+    if (expenseDate) expense.expenseDate = expenseDate;
+    expense.notes = String(notes || "").trim();
+    await expense.save();
+
+    const savedExpense = await populateExpense(Expense.findById(expense._id));
+    return res.status(200).json({
+      success: true,
+      message: "Expense updated successfully",
+      data: savedExpense,
+    });
+  } catch (error) {
+    return res.status(400).json({
+      success: false,
+      message: error.message || "Error updating expense",
+    });
+  }
+};
+
+const deleteExpense = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.userId;
+    if (!mongoose.isValidObjectId(id)) {
+      return res.status(400).json({ success: false, message: "Invalid expense id" });
+    }
+
+    const expense = await Expense.findOneAndDelete({ _id: id, userId });
+    if (!expense) {
+      return res.status(404).json({ success: false, message: "Expense not found" });
+    }
+
+    // Goods expenses reduced stock when created; put it back.
+    for (const item of expense.items || []) {
+      await ExpenseType.findOneAndUpdate(
+        { _id: item.expenseGroup, userId },
+        { $inc: { currentStock: toNumber(item.quantity) } }
+      );
+    }
+
+    return res.status(200).json({ success: true, message: "Expense deleted successfully" });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: error.message || "Error deleting expense",
+    });
+  }
+};
+
 module.exports = {
   createExpense,
   getAllExpenses,
+  editExpense,
+  deleteExpense,
 };

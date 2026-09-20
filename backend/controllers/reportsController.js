@@ -860,8 +860,10 @@ const getDayBook = async (req, res) => {
           partyName: item.party?.name || item.expenseGroup?.name || "-",
           method: item.method || "-",
           amount: Number(item.amount || 0),
+          totalAmount: Number(item.amount || 0),
+          paidAmount: item.paidAmount == null ? Number(item.amount || 0) : Number(item.paidAmount || 0),
           inAmount: 0,
-          outAmount: Number(item.amount || 0),
+          outAmount: item.paidAmount == null ? Number(item.amount || 0) : Number(item.paidAmount || 0),
         })),
       ...boulders
         .filter((item) => withinRange(item.date || item.boulderDate || item.createdAt, fromDate, toDate))
