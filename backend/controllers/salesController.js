@@ -293,24 +293,55 @@ const getAllSales = async (req, res) => {
         { invoiceNumber: pattern },
         { customerName: pattern },
         { vehicleNo: pattern },
-        { materialType: pattern },
+        { stoneSize: pattern },
         { type: pattern },
         { notes: pattern },
       ];
     }
 
+    const material = String(req.query.material || "").trim();
+    const statsQuery = { ...query };
+    if (material) query.stoneSize = { $regex: `^${material.replace(/[^a-z0-9]/gi, "\\$&")}$`, $options: "i" };
+
     const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 50, 1), 200);
     const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
-    const [sales, total] = await Promise.all([
+    const [sales, total, statRows] = await Promise.all([
       Sales.find(query)
         .sort({ createdAt: -1 })
         .skip((page - 1) * limit)
         .limit(limit),
       Sales.countDocuments(query),
+      Sales.find(statsQuery)
+        .select("totalAmount type netWeight stoneSize pricingMode cubicMeterQty")
+        .lean(),
     ]);
+
+    const summary = { totalAmount: 0, cashAmount: 0, creditAmount: 0, totalWeight: 0 };
+    const materialMap = new Map();
+    statRows.forEach((row) => {
+      const amount = Number(row.totalAmount || 0);
+      const weight = Number(row.netWeight || 0);
+      const key = String(row.stoneSize || "unknown").trim().toLowerCase() || "unknown";
+
+      const entry = materialMap.get(key) || { materialType: key, count: 0, totalAmount: 0, totalWeight: 0, totalCubicMeter: 0 };
+      entry.count += 1;
+      entry.totalAmount += amount;
+      entry.totalWeight += weight;
+      if (row.pricingMode === "per_cubic_meter") entry.totalCubicMeter += Number(row.cubicMeterQty || 0);
+      materialMap.set(key, entry);
+
+      if (material && key !== material.toLowerCase()) return;
+      summary.totalAmount += amount;
+      summary.totalWeight += weight;
+      if (row.type === "cash") summary.cashAmount += amount;
+      else summary.creditAmount += amount;
+    });
+    const materialStats = [...materialMap.values()].sort((x, y) => y.totalAmount - x.totalAmount);
 
     return res.json({
       sales: sales.map(serializeSale),
+      summary: { ...summary, count: total },
+      materialStats,
       pagination: {
         page,
         limit,

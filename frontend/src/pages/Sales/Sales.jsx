@@ -299,14 +299,27 @@ const SALES_RANGE_OPTIONS = [
   { value: '30d', label: 'Last 30 Days' },
   { value: '90d', label: 'Last 90 Days' },
   { value: 'currentYear', label: 'Current Year' },
+  { value: 'month', label: 'Month Wise' },
   { value: 'lifetime', label: 'Lifetime' },
   { value: 'custom', label: 'Custom Range' }
 ];
 
 const SALES_PAGE_SIZE = 50;
 
+const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+const YEAR_OPTIONS = Array.from({ length: 6 }, (_, i) => new Date().getFullYear() - i);
+const formatRupees = (value) => `₹${Number(value || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
+
 // Returns { from, to } as ISO strings (either may be undefined) for the server query.
-const getRangeBounds = (range, customFrom = '', customTo = '') => {
+const getRangeBounds = (range, customFrom = '', customTo = '', month = '', year = new Date().getFullYear()) => {
+  if (range === 'month') {
+    const y = Number(year);
+    if (month === '') {
+      return { from: new Date(y, 0, 1).toISOString(), to: new Date(y, 11, 31, 23, 59, 59, 999).toISOString() };
+    }
+    const m = Number(month);
+    return { from: new Date(y, m, 1).toISOString(), to: new Date(y, m + 1, 0, 23, 59, 59, 999).toISOString() };
+  }
   if (range === 'custom') {
     const from = parseSaleDate(customFrom);
     const to = parseSaleDate(customTo);
@@ -371,6 +384,11 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
   const [tableRange, setTableRange] = useState('lifetime');
   const [customFrom, setCustomFrom] = useState('');
   const [customTo, setCustomTo] = useState('');
+  const [selectedMonth, setSelectedMonth] = useState(String(new Date().getMonth()));
+  const [selectedYear, setSelectedYear] = useState(String(new Date().getFullYear()));
+  const [materialStats, setMaterialStats] = useState([]);
+  const [materialFilter, setMaterialFilter] = useState('');
+  const [summary, setSummary] = useState({ totalAmount: 0, cashAmount: 0, creditAmount: 0, totalWeight: 0, count: 0 });
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [page, setPage] = useState(1);
   const [pagination, setPagination] = useState({ total: 0, totalPages: 1 });
@@ -421,11 +439,11 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
 
   useEffect(() => {
     setPage(1);
-  }, [debouncedSearch, tableRange, customFrom, customTo]);
+  }, [debouncedSearch, tableRange, customFrom, customTo, selectedMonth, selectedYear, materialFilter]);
 
   useEffect(() => {
     fetchSales();
-  }, [page, debouncedSearch, tableRange, customFrom, customTo]);
+  }, [page, debouncedSearch, tableRange, customFrom, customTo, selectedMonth, selectedYear, materialFilter]);
 
   useEffect(() => {
     const handleKeyDown = (event) => {
@@ -485,9 +503,10 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
       const params = {
         page,
         limit: SALES_PAGE_SIZE,
-        ...getRangeBounds(tableRange, customFrom, customTo)
+        ...getRangeBounds(tableRange, customFrom, customTo, selectedMonth, selectedYear)
       };
       if (debouncedSearch) params.search = debouncedSearch;
+      if (materialFilter) params.material = materialFilter;
 
       const response = await apiClient.get('/sales', { params });
       if (requestId !== salesRequestRef.current) return;
@@ -499,6 +518,8 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
         return;
       }
       setSales(rows);
+      setMaterialStats(Array.isArray(response?.materialStats) ? response.materialStats : []);
+      setSummary(response?.summary || { totalAmount: 0, cashAmount: 0, creditAmount: 0, totalWeight: 0, count: 0 });
       setPagination({ total: response?.pagination?.total || 0, totalPages });
       setError('');
     } catch (err) {
@@ -2507,6 +2528,32 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
                 </select>
               </div>
 
+              {tableRange === 'month' && (
+                <div className="flex items-center gap-2">
+                  <select
+                    value={selectedMonth}
+                    onChange={(e) => setSelectedMonth(e.target.value)}
+                    aria-label="Month"
+                    className="rounded-xl border-2 border-slate-300 bg-white px-3 py-2.5 text-sm font-medium text-slate-700 focus:border-sky-500 focus:outline-none focus:ring-4 focus:ring-sky-100"
+                  >
+                    <option value="">All Months</option>
+                    {MONTH_NAMES.map((name, index) => (
+                      <option key={name} value={String(index)}>{name}</option>
+                    ))}
+                  </select>
+                  <select
+                    value={selectedYear}
+                    onChange={(e) => setSelectedYear(e.target.value)}
+                    aria-label="Year"
+                    className="rounded-xl border-2 border-slate-300 bg-white px-3 py-2.5 text-sm font-medium text-slate-700 focus:border-sky-500 focus:outline-none focus:ring-4 focus:ring-sky-100"
+                  >
+                    {YEAR_OPTIONS.map((y) => (
+                      <option key={y} value={String(y)}>{y}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
               {tableRange === 'custom' && (
                 <div className="flex items-center gap-2">
                   <input
@@ -2541,6 +2588,79 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
             </div>
           </div>
         </div>
+
+        <div className="grid grid-cols-2 gap-3 border-b border-slate-100 bg-slate-50 px-6 py-4 lg:grid-cols-4">
+          {[
+            { label: 'Total Sales', value: formatRupees(summary.totalAmount), tone: 'text-emerald-700' },
+            { label: 'Cash Sale', value: formatRupees(summary.cashAmount), tone: 'text-sky-700' },
+            { label: 'Credit Sale', value: formatRupees(summary.creditAmount), tone: 'text-rose-700' },
+            { label: 'Entries / Weight', value: `${summary.count} / ${(summary.totalWeight / 1000).toLocaleString('en-IN', { maximumFractionDigits: 2 })} ton`, tone: 'text-slate-800' }
+          ].map((card) => (
+            <div key={card.label} className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{card.label}</p>
+              <p className={`mt-1 text-lg font-black ${card.tone}`}>{card.value}</p>
+            </div>
+          ))}
+        </div>
+
+        {materialStats.length > 0 && (
+          <div className="border-b border-slate-100 px-6 py-4">
+            <div className="mb-3 flex items-center justify-between">
+              <h3 className="text-sm font-black text-slate-800">Material Wise Sales</h3>
+              {materialFilter && (
+                <button
+                  onClick={() => setMaterialFilter('')}
+                  className="text-xs font-semibold text-sky-600 hover:underline"
+                >
+                  Clear filter
+                </button>
+              )}
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[520px] text-sm">
+                <thead>
+                  <tr className="text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    <th className="py-2 pr-3">#</th>
+                    <th className="py-2 pr-3">Material</th>
+                    <th className="py-2 pr-3 text-right">Entries</th>
+                    <th className="py-2 pr-3 text-right">Quantity</th>
+                    <th className="py-2 pr-3 text-right">Amount</th>
+                    <th className="py-2 text-right">Share</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {materialStats.map((item, index) => {
+                    const grandTotal = materialStats.reduce((sum, row) => sum + row.totalAmount, 0);
+                    const share = grandTotal > 0 ? (item.totalAmount / grandTotal) * 100 : 0;
+                    const active = materialFilter.toLowerCase() === item.materialType;
+                    return (
+                      <tr
+                        key={item.materialType}
+                        onClick={() => setMaterialFilter(active ? '' : item.materialType)}
+                        className={`cursor-pointer border-t border-slate-100 hover:bg-slate-50 ${active ? 'bg-sky-50' : ''}`}
+                      >
+                        <td className="py-2 pr-3 text-slate-500">{index + 1}</td>
+                        <td className="py-2 pr-3">
+                          <span className={`rounded-full px-2.5 py-0.5 text-xs font-bold uppercase ${getMaterialBadgeClass(item.materialType)}`}>
+                            {item.materialType}
+                          </span>
+                        </td>
+                        <td className="py-2 pr-3 text-right text-slate-700">{item.count}</td>
+                        <td className="py-2 pr-3 text-right text-slate-700">
+                          {(item.totalWeight / 1000).toLocaleString('en-IN', { maximumFractionDigits: 2 })} ton
+                          {item.totalCubicMeter > 0 && ` + ${item.totalCubicMeter.toLocaleString('en-IN', { maximumFractionDigits: 2 })} m³`}
+                        </td>
+                        <td className="py-2 pr-3 text-right font-bold text-slate-800">{formatRupees(item.totalAmount)}</td>
+                        <td className="py-2 text-right text-slate-500">{share.toFixed(1)}%</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            <p className="mt-2 text-xs text-slate-400">Sorted by sales amount, highest first. Click a material to filter the table below.</p>
+          </div>
+        )}
 
       {/* Sales List */}
       {loading && !showForm ? (
