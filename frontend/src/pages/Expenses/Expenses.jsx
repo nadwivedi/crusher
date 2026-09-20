@@ -44,6 +44,44 @@ const EXPENSE_METHOD_OPTIONS = [
   { value: 'other', label: 'Other' }
 ];
 
+// A goods expense splits its amount across item categories; others use their single category.
+const getExpenseCategoryAmounts = (expense) => {
+  const items = Array.isArray(expense?.items) ? expense.items : [];
+  if (items.length > 0) {
+    return items.map((item) => ({
+      name: String(item.expenseGroup?.name || item.expenseGroupName || 'Other').trim() || 'Other',
+      amount: Number(item.total || 0),
+      quantity: Number(item.quantity || 0),
+      unit: String(item.unit || item.expenseGroup?.unit || '').trim()
+    }));
+  }
+  return [{
+    name: String(expense?.expenseGroup?.name || 'Uncategorised').trim() || 'Uncategorised',
+    amount: Number(expense?.amount || 0),
+    quantity: 0,
+    unit: ''
+  }];
+};
+
+// e.g. "250 L" for one item, "Diesel: 250 L, Oil: 5 L" for several; '' when nothing has a quantity.
+const getExpenseQtyLabel = (expense) => {
+  const items = (Array.isArray(expense?.items) ? expense.items : []).filter((item) => Number(item.quantity) > 0);
+  const parts = items.map((item) => {
+    const unit = String(item.unit || item.expenseGroup?.unit || '').trim();
+    const qty = `${Number(item.quantity).toLocaleString('en-IN', { maximumFractionDigits: 2 })}${unit ? ` ${unit}` : ''}`;
+    const name = String(item.expenseGroup?.name || item.expenseGroupName || '').trim();
+    return items.length > 1 && name ? `${name}: ${qty}` : qty;
+  });
+  return parts.join(', ');
+};
+
+// Older records have no paidAmount and were fully paid.
+const getExpensePaidAmount = (expense) => {
+  const amount = Number(expense?.amount || 0);
+  const paid = expense?.paidAmount === null || expense?.paidAmount === undefined ? amount : Number(expense.paidAmount);
+  return Math.min(amount, Math.max(0, Number.isFinite(paid) ? paid : amount));
+};
+
 const formatCurrency = (value) => `Rs ${Number(value || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
 
 const formatDate = (value) => (
@@ -155,6 +193,7 @@ export default function Expenses({ modalOnly = false, onModalFinish = null }) {
   const [customTo, setCustomTo] = useState('');
   const [showCustomPicker, setShowCustomPicker] = useState(false);
   const [showMonthPicker, setShowMonthPicker] = useState(false);
+  const [categoryFilter, setCategoryFilter] = useState('');
   const [selectedMonth, setSelectedMonth] = useState(String(new Date().getMonth()));
   const [selectedYear, setSelectedYear] = useState(String(new Date().getFullYear()));
   const rangeBeforeCustomRef = useRef('lifetime');
@@ -1281,7 +1320,7 @@ export default function Expenses({ modalOnly = false, onModalFinish = null }) {
   };
 
 
-  const visibleExpenses = useMemo(() => {
+  const rangeExpenses = useMemo(() => {
     const normalizedSearch = String(search || '').trim().toLowerCase();
 
     return expenses.filter((item) => {
@@ -1301,6 +1340,50 @@ export default function Expenses({ modalOnly = false, onModalFinish = null }) {
       return haystack.includes(normalizedSearch);
     });
   }, [expenses, search, tableRange, customFrom, customTo, selectedMonth, selectedYear]);
+
+  // Category breakdown covers the whole selected period; clicking a row narrows the table to it.
+  const categoryStats = useMemo(() => {
+    const map = new Map();
+    rangeExpenses.forEach((expense) => {
+      const seenInExpense = new Set();
+      getExpenseCategoryAmounts(expense).forEach(({ name, amount, quantity, unit }) => {
+        const key = name.toLowerCase();
+        const entry = map.get(key) || { key, name, count: 0, totalAmount: 0, totalQty: 0, unit: '' };
+        if (!seenInExpense.has(key)) {
+          entry.count += 1;
+          seenInExpense.add(key);
+        }
+        entry.totalAmount += amount;
+        if (quantity > 0) {
+          entry.totalQty += quantity;
+          if (!entry.unit) entry.unit = unit;
+        }
+        map.set(key, entry);
+      });
+    });
+    return [...map.values()].sort((a, b) => b.totalAmount - a.totalAmount);
+  }, [rangeExpenses]);
+
+  // Drop a category filter that no longer exists in the selected period.
+  useEffect(() => {
+    if (categoryFilter && !categoryStats.some((item) => item.key === categoryFilter)) setCategoryFilter('');
+  }, [categoryStats, categoryFilter]);
+
+  const visibleExpenses = useMemo(() => {
+    if (!categoryFilter) return rangeExpenses;
+    return rangeExpenses.filter((expense) => (
+      getExpenseCategoryAmounts(expense).some(({ name }) => name.toLowerCase() === categoryFilter)
+    ));
+  }, [rangeExpenses, categoryFilter]);
+
+  const expenseSummary = useMemo(() => visibleExpenses.reduce((acc, expense) => {
+    const amount = Number(expense.amount || 0);
+    const paid = getExpensePaidAmount(expense);
+    acc.total += amount;
+    acc.cash += paid;
+    acc.credit += amount - paid;
+    return acc;
+  }, { total: 0, cash: 0, credit: 0 }), [visibleExpenses]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-100 via-slate-50 to-stone-100">
@@ -1376,6 +1459,81 @@ export default function Expenses({ modalOnly = false, onModalFinish = null }) {
               </div>
             </div>
           </div>
+
+          <div className="grid grid-cols-2 gap-3 border-b border-slate-100 bg-slate-50 px-6 py-4 lg:grid-cols-4">
+            {[
+              { label: 'Total Expense', value: formatCurrency(expenseSummary.total), tone: 'text-rose-700' },
+              { label: 'Cash Expense', value: formatCurrency(expenseSummary.cash), tone: 'text-emerald-700' },
+              { label: 'Credit Expense', value: formatCurrency(expenseSummary.credit), tone: 'text-amber-700' },
+              { label: 'Entries', value: String(visibleExpenses.length), tone: 'text-slate-800' }
+            ].map((card) => (
+              <div key={card.label} className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{card.label}</p>
+                <p className={`mt-1 text-lg font-black ${card.tone}`}>{card.value}</p>
+              </div>
+            ))}
+          </div>
+
+          {categoryStats.length > 0 && (
+            <div className="border-b border-slate-100 px-6 py-4">
+              <div className="mb-3 flex items-center justify-between">
+                <h3 className="text-sm font-black text-slate-800">Category Wise Expense</h3>
+                {categoryFilter && (
+                  <button
+                    type="button"
+                    onClick={() => setCategoryFilter('')}
+                    className="text-xs font-semibold text-sky-600 hover:underline"
+                  >
+                    Clear filter
+                  </button>
+                )}
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[480px] text-sm">
+                  <thead>
+                    <tr className="text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+                      <th className="py-2 pr-3">#</th>
+                      <th className="py-2 pr-3">Category</th>
+                      <th className="py-2 pr-3 text-right">Entries</th>
+                      {categoryStats.some((item) => item.totalQty > 0) && (
+                        <th className="py-2 pr-3 text-right">Quantity</th>
+                      )}
+                      <th className="py-2 pr-3 text-right">Amount</th>
+                      <th className="py-2 text-right">Share</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {categoryStats.map((item, index) => {
+                      const grandTotal = categoryStats.reduce((sum, row) => sum + row.totalAmount, 0);
+                      const share = grandTotal > 0 ? (item.totalAmount / grandTotal) * 100 : 0;
+                      const active = categoryFilter === item.key;
+                      return (
+                        <tr
+                          key={item.key}
+                          onClick={() => setCategoryFilter(active ? '' : item.key)}
+                          className={`cursor-pointer border-t border-slate-100 hover:bg-slate-50 ${active ? 'bg-sky-50' : ''}`}
+                        >
+                          <td className="py-2 pr-3 text-slate-500">{index + 1}</td>
+                          <td className="py-2 pr-3 font-semibold text-slate-800">{item.name}</td>
+                          <td className="py-2 pr-3 text-right text-slate-700">{item.count}</td>
+                          {categoryStats.some((row) => row.totalQty > 0) && (
+                            <td className="py-2 pr-3 text-right text-slate-700">
+                              {item.totalQty > 0
+                                ? `${item.totalQty.toLocaleString('en-IN', { maximumFractionDigits: 2 })}${item.unit ? ` ${item.unit}` : ''}`
+                                : ''}
+                            </td>
+                          )}
+                          <td className="py-2 pr-3 text-right font-bold text-slate-800">{formatCurrency(item.totalAmount)}</td>
+                          <td className="py-2 text-right text-slate-500">{share.toFixed(1)}%</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+              <p className="mt-2 text-xs text-slate-400">Sorted by amount, highest first. Click a category to filter the table below.</p>
+            </div>
+          )}
 
       <ExpenseTypePicker
         open={showExpenseTypePicker}
@@ -1671,6 +1829,9 @@ export default function Expenses({ modalOnly = false, onModalFinish = null }) {
                     <div className="flex items-start justify-between gap-3 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white px-4 py-3">
                       <div className="min-w-0">
                         <p className="truncate text-sm font-bold text-slate-800">{expense.expenseGroup?.name || 'Expense Type'}</p>
+                        {getExpenseQtyLabel(expense) && (
+                          <p className="truncate text-xs font-semibold text-slate-500">Qty: {getExpenseQtyLabel(expense)}</p>
+                        )}
                         <p className="mt-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">{expense.expenseNumber || '-'}</p>
                         <p className="mt-1 text-xs text-slate-500">{formatDate(expense.expenseDate)}</p>
                       </div>
@@ -1737,6 +1898,9 @@ export default function Expenses({ modalOnly = false, onModalFinish = null }) {
                         </td>
                         <td className="px-6 py-4 text-sm font-semibold text-slate-800 lg:px-4 lg:py-3 lg:text-[12px] xl:px-6 xl:py-4 xl:text-sm">
                           {expense.expenseGroup?.name || '-'}
+                          {getExpenseQtyLabel(expense) && (
+                            <div className="mt-0.5 text-xs font-medium text-slate-500">Qty: {getExpenseQtyLabel(expense)}</div>
+                          )}
                         </td>
                         <td className="px-6 py-4 text-sm text-slate-700 lg:px-4 lg:py-3 lg:text-[12px] xl:px-6 xl:py-4 xl:text-sm">{expense.party?.name || '-'}</td>
                         <td className="px-6 py-4 text-right text-sm font-black text-emerald-600 lg:px-4 lg:py-3 lg:text-[12px] xl:px-6 xl:py-4 xl:text-sm">
