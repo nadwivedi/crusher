@@ -28,6 +28,7 @@ const formatTimeForInput = (value = new Date()) => {
 };
 
 const initialFormData = {
+  entryMode: 'single',
   vehicleId: '',
   partyId: '',
   vehicleNo: '',
@@ -38,6 +39,8 @@ const initialFormData = {
   tareWeight: '',
   grossWeight: '',
   netWeight: '',
+  averageWeightTon: '',
+  tripCount: '',
   slipImg: ''
 };
 
@@ -84,6 +87,7 @@ export default function BoulderEntry({ onModalFinish = null, editingEntry = null
       : vehicle?.partyId || ''
   );
   const isEditing = Boolean(editingEntry?._id);
+  const isBulkMode = formData.entryMode === 'bulk';
 
   const selectedParty = useMemo(() => {
     const normalizedPartyName = String(formData.partyName || '').trim().toLowerCase();
@@ -100,11 +104,19 @@ export default function BoulderEntry({ onModalFinish = null, editingEntry = null
     return Number.isFinite(rate) ? rate : 0;
   }, [selectedParty]);
 
+  // Bulk mode total in kg: trips x average weight per trip (entered in tons).
+  const bulkTotalWeight = useMemo(() => {
+    const trips = Math.floor(Number(formData.tripCount || 0));
+    const averageTon = Number(formData.averageWeightTon || 0);
+    if (!Number.isFinite(trips) || trips <= 0 || !Number.isFinite(averageTon) || averageTon <= 0) return 0;
+    return trips * averageTon * 1000;
+  }, [formData.averageWeightTon, formData.tripCount]);
+
   const boulderTotalAmount = useMemo(() => {
-    const netWeight = Number(formData.netWeight || 0);
+    const netWeight = isBulkMode ? bulkTotalWeight : Number(formData.netWeight || 0);
     if (!Number.isFinite(netWeight) || netWeight <= 0) return 0;
     return (netWeight / 1000) * boulderRatePerTon;
-  }, [boulderRatePerTon, formData.netWeight]);
+  }, [boulderRatePerTon, bulkTotalWeight, formData.netWeight, isBulkMode]);
 
   useEffect(() => {
     fetchVehicles();
@@ -130,7 +142,9 @@ export default function BoulderEntry({ onModalFinish = null, editingEntry = null
       : editingEntry.vehicleId || '';
     const vehicleNo = getVehicleDisplayName(editingEntry.vehicleId) || editingEntry.vehicleNo || '';
 
+    const entryMode = editingEntry.entryMode === 'bulk' ? 'bulk' : 'single';
     setFormData({
+      entryMode,
       vehicleId,
       partyId: editingEntry.partyId || '',
       vehicleNo,
@@ -141,6 +155,8 @@ export default function BoulderEntry({ onModalFinish = null, editingEntry = null
       tareWeight: editingEntry.tareWeight === 0 ? '0' : String(editingEntry.tareWeight || ''),
       grossWeight: editingEntry.grossWeight === 0 ? '0' : String(editingEntry.grossWeight || ''),
       netWeight: editingEntry.netWeight === 0 ? '0' : String(editingEntry.netWeight || ''),
+      averageWeightTon: entryMode === 'bulk' ? String(Number(editingEntry.averageWeight || 0) / 1000) : '',
+      tripCount: entryMode === 'bulk' ? String(editingEntry.tripCount || '') : '',
       slipImg: editingEntry.slipImg || ''
     });
     setVehicleQuery(vehicleNo);
@@ -448,14 +464,19 @@ export default function BoulderEntry({ onModalFinish = null, editingEntry = null
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!formData.vehicleNo || !formData.tareWeight || !formData.grossWeight) {
+    if (isBulkMode) {
+      if (!formData.vehicleNo || bulkTotalWeight <= 0) {
+        toast.error('Please fill vehicle no, average weight and no. of trips');
+        return;
+      }
+    } else if (!formData.vehicleNo || !formData.tareWeight || !formData.grossWeight) {
       toast.error('Please fill in all required fields');
       return;
     }
     setLoading(true);
     try {
       const ensuredVehicleId = await ensureVehicleExists();
-      const payload = {
+      const basePayload = {
         vehicleId: ensuredVehicleId || formData.vehicleId || undefined,
         partyId: selectedParty?._id || formData.partyId || undefined,
         vehicleNo: formData.vehicleNo.toUpperCase(),
@@ -463,11 +484,22 @@ export default function BoulderEntry({ onModalFinish = null, editingEntry = null
         boulderDate: formData.boulderDate,
         entryTime: formData.entryTime,
         exitTime: formData.exitTime,
-        tareWeight: parseFloat(formData.tareWeight),
-        grossWeight: parseFloat(formData.grossWeight),
-        netWeight: parseFloat(formData.netWeight),
         slipImg: formData.slipImg
       };
+      const payload = isBulkMode
+        ? {
+            ...basePayload,
+            entryMode: 'bulk',
+            tripCount: Math.floor(Number(formData.tripCount)),
+            averageWeight: Number(formData.averageWeightTon) * 1000
+          }
+        : {
+            ...basePayload,
+            entryMode: 'single',
+            tareWeight: parseFloat(formData.tareWeight),
+            grossWeight: parseFloat(formData.grossWeight),
+            netWeight: parseFloat(formData.netWeight)
+          };
 
       if (isEditing) {
         await apiClient.put(`/boulders/${editingEntry._id}`, payload);
@@ -585,11 +617,12 @@ export default function BoulderEntry({ onModalFinish = null, editingEntry = null
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-base font-bold md:text-lg">{isEditing ? 'Edit Boulder Entry' : 'Add Boulder Entry'}</h2>
-              <p className="text-[11px] text-white/80 md:text-xs">Register incoming boulder weight</p>
+              <p className="text-[11px] text-white/80 md:text-xs">{isBulkMode ? 'Enter all trips of a vehicle at once' : 'Register incoming boulder weight'}</p>
             </div>
             <div className="flex items-center gap-2">
               <input ref={ocrCameraInputRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handleOcrCameraChange} tabIndex={-1} />
               <input ref={ocrFileInputRef} type="file" accept="image/*" className="hidden" onChange={handleOcrFileChange} tabIndex={-1} />
+              {!isBulkMode && (<>
               <button type="button" onClick={() => { setOcrMode('camera'); ocrCameraInputRef.current?.click(); }} disabled={isOcrLoading} className="flex items-center gap-1.5 rounded-lg border border-white/30 bg-white/15 px-2.5 py-1.5 text-xs font-semibold text-white transition hover:bg-white/25">
                 {isOcrLoading && ocrMode === 'camera' ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Camera className="h-3.5 w-3.5" />}
                 Scan Slip
@@ -598,6 +631,7 @@ export default function BoulderEntry({ onModalFinish = null, editingEntry = null
                 {isOcrLoading && ocrMode === 'upload' ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
                 Upload Slip
               </button>
+              </>)}
               <button type="button" onClick={handleClose} className="rounded-lg p-1.5 text-white transition hover:bg-white/20">
                 <X className="h-5 w-5 md:h-6 md:w-6" />
               </button>
@@ -638,7 +672,24 @@ export default function BoulderEntry({ onModalFinish = null, editingEntry = null
 
         <form onSubmit={handleSubmit} onKeyDown={(e) => handlePopupFormKeyDown(e, handleClose)} className="flex flex-1 flex-col overflow-hidden bg-slate-50">
           <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
-            
+            {/* Entry Mode Toggle */}
+            <div className="flex rounded-xl border border-slate-200 bg-white p-1 shadow-sm">
+              {[
+                { value: 'single', label: 'Single Entry', hint: 'Gross / Tare per slip' },
+                { value: 'bulk', label: 'Bulk Entry', hint: 'Avg weight x No. of trips' }
+              ].map((mode) => (
+                <button
+                  key={mode.value}
+                  type="button"
+                  onClick={() => setFormData((prev) => ({ ...prev, entryMode: mode.value }))}
+                  className={`flex-1 rounded-lg px-3 py-2 text-left transition ${formData.entryMode === mode.value ? 'bg-gradient-to-r from-blue-600 to-indigo-700 text-white shadow' : 'text-slate-600 hover:bg-slate-50'}`}
+                >
+                  <span className="block text-[13px] font-bold">{mode.label}</span>
+                  <span className={`block text-[10px] ${formData.entryMode === mode.value ? 'text-white/80' : 'text-slate-400'}`}>{mode.hint}</span>
+                </button>
+              ))}
+            </div>
+
             {/* Section 1: Primary Details (Blue) */}
             <div className="rounded-2xl border border-blue-200 bg-white p-3 shadow-sm transition hover:shadow-md">
               <h3 className="mb-3 flex items-center gap-2 text-[13px] font-bold text-blue-900">
@@ -722,6 +773,36 @@ export default function BoulderEntry({ onModalFinish = null, editingEntry = null
             </div>
 
             {/* Section 2: Weight Details (Emerald) */}
+            {isBulkMode ? (
+            <div className="rounded-2xl border border-emerald-200 bg-emerald-50/30 p-3 shadow-sm transition hover:shadow-md">
+              <h3 className="mb-3 flex items-center gap-2 text-[13px] font-bold text-emerald-900">
+                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-600 text-[10px] font-bold text-white">2</span>
+                Trip Details
+              </h3>
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                <div className="space-y-1">
+                  <label className={labelClass}>Average Weight / Trip (Ton)</label>
+                  <input type="number" name="averageWeightTon" value={formData.averageWeightTon || ''} onChange={handleChange} className={`${inputClass} focus:ring-emerald-500 font-bold`} placeholder="e.g. 10" step="0.01" min="0" />
+                </div>
+                <div className="space-y-1">
+                  <label className={labelClass}>No. of Trips</label>
+                  <input type="number" name="tripCount" value={formData.tripCount || ''} onChange={handleChange} className={`${inputClass} focus:ring-emerald-500 font-bold`} placeholder="e.g. 20" step="1" min="1" />
+                </div>
+                <div className="space-y-1">
+                  <label className={labelClass}>Total Weight (Ton)</label>
+                  <div className="relative">
+                    <Scale className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-emerald-400 pointer-events-none" />
+                    <input type="text" value={bulkTotalWeight > 0 ? (bulkTotalWeight / 1000).toLocaleString('en-IN', { maximumFractionDigits: 2 }) : ''} readOnly className={`${inputClass} pl-9 bg-emerald-50/50 font-bold text-emerald-700`} placeholder="0" />
+                  </div>
+                </div>
+              </div>
+              {bulkTotalWeight > 0 && (
+                <p className="mt-2 text-[11px] font-semibold text-emerald-800">
+                  {Math.floor(Number(formData.tripCount))} trips x {Number(formData.averageWeightTon).toLocaleString('en-IN', { maximumFractionDigits: 2 })} ton = {(bulkTotalWeight / 1000).toLocaleString('en-IN', { maximumFractionDigits: 2 })} ton ({bulkTotalWeight.toLocaleString('en-IN', { maximumFractionDigits: 2 })} kg)
+                </p>
+              )}
+            </div>
+            ) : (
             <div className="rounded-2xl border border-emerald-200 bg-emerald-50/30 p-3 shadow-sm transition hover:shadow-md">
               <h3 className="mb-3 flex items-center gap-2 text-[13px] font-bold text-emerald-900">
                 <span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-600 text-[10px] font-bold text-white">2</span>
@@ -745,6 +826,7 @@ export default function BoulderEntry({ onModalFinish = null, editingEntry = null
                 </div>
               </div>
             </div>
+            )}
 
             {/* Section 3: Pricing Summary (Purple) */}
             <div className="rounded-2xl border border-purple-200 bg-purple-50/30 p-3 shadow-sm transition hover:shadow-md">

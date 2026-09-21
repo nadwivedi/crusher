@@ -40,6 +40,21 @@ const boulderSchema = new mongoose.Schema(
       uppercase: true,
       sparse: true,
     },
+    entryMode: {
+      type: String,
+      enum: ["single", "bulk"],
+      default: "single",
+    },
+    tripCount: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    averageWeight: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
     grossWeight: {
       type: Number,
       required: true,

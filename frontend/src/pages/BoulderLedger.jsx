@@ -44,6 +44,16 @@ const normalizeFallbackEntry = (entry) => ({
   slipImg: ''
 });
 
+const isBulkEntry = (entry) => entry?.entryMode === 'bulk';
+
+const getEntryTrips = (entry) => (isBulkEntry(entry) ? Number(entry.tripCount || 0) : 1);
+
+const formatTon = (kg) => formatNumber(Number(kg || 0) / 1000);
+
+const getBulkSummary = (entry) => (
+  `${formatNumber(entry.tripCount)} trips x ${formatTon(entry.averageWeight)} ton`
+);
+
 const toInputDate = (value) => {
   const date = value instanceof Date ? value : new Date(value);
   if (Number.isNaN(date.getTime())) return '';
@@ -171,12 +181,14 @@ export default function BoulderLedger() {
   const summary = useMemo(() => {
     return filteredBoulders.reduce((acc, entry) => ({
       count: acc.count + 1,
+      trips: acc.trips + getEntryTrips(entry),
       grossWeight: acc.grossWeight + Number(entry.grossWeight || 0),
       tareWeight: acc.tareWeight + Number(entry.tareWeight || 0),
       netWeight: acc.netWeight + Number(entry.netWeight || 0),
       amount: acc.amount + Number(entry.amount || 0)
     }), {
       count: 0,
+      trips: 0,
       grossWeight: 0,
       tareWeight: 0,
       netWeight: 0,
@@ -310,11 +322,12 @@ export default function BoulderLedger() {
           </div>
         )}
 
-        <div className="mb-8 grid grid-cols-1 gap-4 md:grid-cols-5">
+        <div className="mb-8 grid grid-cols-1 gap-4 md:grid-cols-3 xl:grid-cols-6">
           <StatCard title="Entries" value={formatNumber(summary.count)} subtitle="filtered boulder entries" />
+          <StatCard title="Trips" value={formatNumber(summary.trips)} subtitle="single slips + bulk trips" />
           <StatCard title="Gross Weight" value={formatNumber(summary.grossWeight)} subtitle="total gross kg" />
           <StatCard title="Tare Weight" value={formatNumber(summary.tareWeight)} subtitle="total tare kg" />
-          <StatCard title="Net Weight" value={formatNumber(summary.netWeight)} subtitle="total net kg" />
+          <StatCard title="Net Weight" value={`${formatTon(summary.netWeight)} Ton`} subtitle={`${formatNumber(summary.netWeight)} kg total net`} />
           <StatCard title="Total Amount" value={formatCurrency(summary.amount)} subtitle="total payable amount" />
         </div>
 
@@ -416,10 +429,18 @@ export default function BoulderLedger() {
                         <span className="text-xs font-black text-slate-700 truncate max-w-[150px]">{getPartyDisplayName(entry)}</span>
                       </div>
 
+                      {isBulkEntry(entry) && (
+                        <div className="flex justify-between items-center rounded-xl border border-indigo-100 bg-indigo-50 px-4 py-2.5">
+                          <span className="text-[10px] font-bold uppercase tracking-widest text-indigo-500">Bulk Entry</span>
+                          <span className="text-xs font-black text-indigo-700">{getBulkSummary(entry)}</span>
+                        </div>
+                      )}
+
                       <div className="grid grid-cols-2 gap-3">
                         <div className="rounded-xl border border-emerald-100 bg-emerald-50 px-3 py-2.5">
                           <p className="text-[9px] font-bold uppercase tracking-widest text-emerald-600 mb-1">Net Weight</p>
                           <p className="text-sm font-black text-emerald-700">{formatNumber(entry.netWeight)} <span className="text-[10px]">KG</span></p>
+                          <p className="text-[10px] font-bold text-emerald-600">{formatTon(entry.netWeight)} Ton</p>
                         </div>
                         <div className="rounded-xl border border-rose-100 bg-rose-50 px-3 py-2.5">
                           <p className="text-[9px] font-bold uppercase tracking-widest text-rose-600 mb-1">Total Amount</p>
@@ -491,14 +512,22 @@ export default function BoulderLedger() {
                           <div className="min-w-0">
                             <p className="text-sm font-bold text-slate-800 lg:text-[12px] xl:text-sm">{entry.vehicleNo || '-'}</p>
                             <p className="mt-0.5 truncate text-xs font-medium text-slate-500">{getPartyDisplayName(entry)}</p>
+                            {isBulkEntry(entry) && (
+                              <span className="mt-1 inline-flex rounded-md border border-indigo-200 bg-indigo-50 px-1.5 py-0.5 text-[10px] font-bold text-indigo-700">
+                                Bulk · {getBulkSummary(entry)}
+                              </span>
+                            )}
                           </div>
                         </div>
                       </td>
                       <td className="px-6 py-4 text-sm font-semibold text-slate-700 lg:px-4 lg:py-3 lg:text-[12px] xl:px-6 xl:py-4 xl:text-sm">{entry.entryTime || ''}</td>
                       <td className="px-6 py-4 text-sm font-semibold text-slate-700 lg:px-4 lg:py-3 lg:text-[12px] xl:px-6 xl:py-4 xl:text-sm">{entry.exitTime || ''}</td>
-                      <td className="px-6 py-4 text-right text-sm font-semibold text-slate-700 lg:px-4 lg:py-3 lg:text-[12px] xl:px-6 xl:py-4 xl:text-sm">{formatNumber(entry.grossWeight)}</td>
-                      <td className="px-6 py-4 text-right text-sm font-semibold text-slate-700 lg:px-4 lg:py-3 lg:text-[12px] xl:px-6 xl:py-4 xl:text-sm">{formatNumber(entry.tareWeight)}</td>
-                      <td className="px-6 py-4 text-right text-sm font-black text-emerald-600 lg:px-4 lg:py-3 lg:text-[12px] xl:px-6 xl:py-4 xl:text-sm">{formatNumber(entry.netWeight)}</td>
+                      <td className="px-6 py-4 text-right text-sm font-semibold text-slate-700 lg:px-4 lg:py-3 lg:text-[12px] xl:px-6 xl:py-4 xl:text-sm">{isBulkEntry(entry) ? '-' : formatNumber(entry.grossWeight)}</td>
+                      <td className="px-6 py-4 text-right text-sm font-semibold text-slate-700 lg:px-4 lg:py-3 lg:text-[12px] xl:px-6 xl:py-4 xl:text-sm">{isBulkEntry(entry) ? '-' : formatNumber(entry.tareWeight)}</td>
+                      <td className="px-6 py-4 text-right text-sm font-black text-emerald-600 lg:px-4 lg:py-3 lg:text-[12px] xl:px-6 xl:py-4 xl:text-sm">
+                        {formatNumber(entry.netWeight)}
+                        <p className="text-[10px] font-bold text-emerald-500">{formatTon(entry.netWeight)} Ton</p>
+                      </td>
                       <td className="px-6 py-4 text-right text-sm font-semibold text-blue-700 lg:px-4 lg:py-3 lg:text-[12px] xl:px-6 xl:py-4 xl:text-sm">{formatNumber(entry.boulderRatePerTon)}</td>
                       <td className="px-6 py-4 text-right text-sm font-black text-rose-700 lg:px-4 lg:py-3 lg:text-[12px] xl:px-6 xl:py-4 xl:text-sm">{formatCurrency(entry.amount)}</td>
                       <td className="px-6 py-4 text-center lg:px-4 lg:py-3 xl:px-6 xl:py-4">

@@ -178,6 +178,30 @@ const normalizeBoulderPayload = async (payload, userId) => {
   delete normalizedPayload.vehicleWeight;
   delete normalizedPayload.boulderWeight;
 
+  // Bulk entry: one record for a whole day of trips, total = trips x average weight per trip.
+  if (normalizedPayload.entryMode === "bulk") {
+    const tripCount = Math.floor(Number(normalizedPayload.tripCount));
+    const averageWeight = Number(normalizedPayload.averageWeight);
+
+    if (!Number.isFinite(tripCount) || tripCount < 1) {
+      throw new Error("Number of trips must be at least 1");
+    }
+
+    if (!Number.isFinite(averageWeight) || averageWeight <= 0) {
+      throw new Error("Average weight per trip must be greater than 0");
+    }
+
+    normalizedPayload.tripCount = tripCount;
+    normalizedPayload.averageWeight = averageWeight;
+    normalizedPayload.netWeight = tripCount * averageWeight;
+    normalizedPayload.grossWeight = normalizedPayload.netWeight;
+    normalizedPayload.tareWeight = 0;
+  } else {
+    normalizedPayload.entryMode = "single";
+    normalizedPayload.tripCount = 0;
+    normalizedPayload.averageWeight = 0;
+  }
+
   if (normalizedPayload.boulderDate !== undefined) {
     normalizedPayload.boulderDate = new Date(normalizedPayload.boulderDate);
   }

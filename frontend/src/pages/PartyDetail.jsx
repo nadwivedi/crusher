@@ -60,6 +60,9 @@ const formatLedgerQuantity = (row) => {
   }
 
   if (row?.type === 'boulder') {
+    if (row?.entryMode === 'bulk' && Number(row?.tripCount || 0) > 0) {
+      return `${formatQuantity(row.tripCount)} trips x ${formatQuantity(Number(row.averageWeight || 0) / 1000)} ton = ${formatQuantity(quantity / 1000)} ton`;
+    }
     return formatWeightWithTon(quantity);
   }
 
