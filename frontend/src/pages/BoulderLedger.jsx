@@ -1,19 +1,19 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { CalendarDays, Eye, Pencil, RefreshCw, Search, Trash2, Truck } from 'lucide-react';
+import { CalendarDays, Eye, Pencil, RefreshCw, Search, Trash2, Truck, Inbox, X, Mountain } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import apiClient from '../utils/api';
 import { useAuth } from '../context/AuthContext';
 import BoulderEntry from './BoulderEntry/BoulderEntry';
-import CustomRangePopup, { CustomRangeButton } from '../components/CustomRangePopup';
-import MonthPickerPopup, { MonthRangeButton, getMonthRange } from '../components/MonthPickerPopup';
+import CustomRangePopup, { toLocalDateInput, formatRangeLabel } from '../components/CustomRangePopup';
+import MonthPickerPopup, { getMonthRange, formatMonthLabel } from '../components/MonthPickerPopup';
 
 const formatNumber = (value) => Number(value || 0).toLocaleString('en-IN', {
   minimumFractionDigits: 0,
   maximumFractionDigits: 2
 });
 
-const formatCurrency = (value) => `Rs ${Number(value || 0).toLocaleString('en-IN', {
-  minimumFractionDigits: 2,
+const formatCurrency = (value) => `₹${Number(value || 0).toLocaleString('en-IN', {
+  minimumFractionDigits: 0,
   maximumFractionDigits: 2
 })}`;
 
@@ -51,52 +51,97 @@ const getEntryTrips = (entry) => (isBulkEntry(entry) ? Number(entry.tripCount ||
 const formatTon = (kg) => formatNumber(Number(kg || 0) / 1000);
 
 const getBulkSummary = (entry) => (
-  `${formatNumber(entry.tripCount)} trips x ${formatTon(entry.averageWeight)} ton`
+  `${formatNumber(entry.tripCount)} trips × ${formatTon(entry.averageWeight)} T`
 );
 
-const toInputDate = (value) => {
+// Local calendar day (toISOString would shift early-morning IST times to the previous day)
+const toDayKey = (value) => {
   const date = value instanceof Date ? value : new Date(value);
   if (Number.isNaN(date.getTime())) return '';
-  return date.toISOString().split('T')[0];
+  return toLocalDateInput(date);
+};
+
+const getEntryDayKey = (entry) => toDayKey(entry.boulderDate || entry.createdAt);
+
+const daysAgoKey = (days) => {
+  const date = new Date();
+  date.setDate(date.getDate() - days);
+  return toDayKey(date);
 };
 
 const resolvePresetRange = (preset) => {
   const now = new Date();
-  const today = toInputDate(now);
+  const today = toDayKey(now);
 
-  if (preset === 'last7') {
-    const start = new Date(now);
-    start.setDate(start.getDate() - 6);
-    return { fromDate: toInputDate(start), toDate: today };
-  }
-
-  if (preset === 'last30') {
-    const start = new Date(now);
-    start.setDate(start.getDate() - 29);
-    return { fromDate: toInputDate(start), toDate: today };
-  }
-
-  if (preset === 'monthWise') {
-    const start = new Date(now.getFullYear(), now.getMonth(), 1);
-    const end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-    return { fromDate: toInputDate(start), toDate: toInputDate(end) };
-  }
-
+  if (preset === 'today') return { fromDate: today, toDate: today };
+  if (preset === 'last7') return { fromDate: daysAgoKey(6), toDate: today };
+  if (preset === 'last30') return { fromDate: daysAgoKey(29), toDate: today };
   if (preset === 'last1Year') {
     const start = new Date(now);
     start.setFullYear(start.getFullYear() - 1);
     start.setDate(start.getDate() + 1);
-    return { fromDate: toInputDate(start), toDate: today };
+    return { fromDate: toDayKey(start), toDate: today };
   }
-
   if (preset === 'yearWise') {
-    const start = new Date(now.getFullYear(), 0, 1);
-    const end = new Date(now.getFullYear(), 11, 31);
-    return { fromDate: toInputDate(start), toDate: toInputDate(end) };
+    return { fromDate: toDayKey(new Date(now.getFullYear(), 0, 1)), toDate: toDayKey(new Date(now.getFullYear(), 11, 31)) };
   }
-
   return { fromDate: '', toDate: '' };
 };
+
+const PRESETS = [
+  { key: '', label: 'All' },
+  { key: 'today', label: 'Today' },
+  { key: 'last7', label: '7 Days' },
+  { key: 'last30', label: '30 Days' },
+  { key: 'monthWise', label: 'Month' },
+  { key: 'last1Year', label: '12 Months' },
+  { key: 'yearWise', label: 'This Year' },
+  { key: 'custom', label: 'Custom' }
+];
+
+const emptyTotals = () => ({ count: 0, trips: 0, grossWeight: 0, tareWeight: 0, netWeight: 0, amount: 0 });
+
+const addToTotals = (acc, entry) => {
+  acc.count += 1;
+  acc.trips += getEntryTrips(entry);
+  acc.grossWeight += Number(entry.grossWeight || 0);
+  acc.tareWeight += Number(entry.tareWeight || 0);
+  acc.netWeight += Number(entry.netWeight || 0);
+  acc.amount += Number(entry.amount || 0);
+  return acc;
+};
+
+// Gross on top, tare below, net (the result) last — all in one cell
+function WeightStack({ entry, align = 'right' }) {
+  const bulk = isBulkEntry(entry);
+  return (
+    <div className={`flex ${align === 'left' ? 'justify-start' : 'justify-end'}`}>
+      <div className="inline-grid min-w-[170px] grid-cols-[auto_1fr] gap-x-3 text-sm tabular-nums">
+        <span className="text-xs text-slate-400">Gross</span>
+        <span className="text-right text-slate-600">{bulk ? '—' : `${formatNumber(entry.grossWeight)} kg`}</span>
+        <span className="text-xs text-slate-400">Tare</span>
+        <span className="text-right text-slate-600">{bulk ? '—' : `${formatNumber(entry.tareWeight)} kg`}</span>
+        <span className="mt-0.5 border-t border-slate-200 pt-0.5 text-xs font-semibold text-emerald-700">Net</span>
+        <span className="mt-0.5 border-t border-slate-200 pt-0.5 text-right font-bold text-emerald-700">
+          {formatNumber(entry.netWeight)} kg
+          <span className="ml-1.5 text-xs font-semibold text-emerald-600">({formatTon(entry.netWeight)} T)</span>
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function EmptyState({ title, text }) {
+  return (
+    <div className="flex flex-col items-center gap-2 px-6 py-14 text-center">
+      <span className="flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 text-slate-400">
+        <Inbox className="h-6 w-6" />
+      </span>
+      <p className="font-semibold text-slate-800">{title}</p>
+      <p className="text-sm text-slate-500">{text}</p>
+    </div>
+  );
+}
 
 export default function BoulderLedger() {
   const navigate = useNavigate();
@@ -106,6 +151,7 @@ export default function BoulderLedger() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
+  const [vehicleFilter, setVehicleFilter] = useState('');
   const [datePreset, setDatePreset] = useState('');
   const [{ fromDate, toDate }, setDateRange] = useState({ fromDate: '', toDate: '' });
   const [editingEntry, setEditingEntry] = useState(null);
@@ -158,51 +204,79 @@ export default function BoulderLedger() {
     }
   };
 
+  // ─── "Boulder crushed" snapshot, independent of the filters below ───────────
+  const snapshot = useMemo(() => {
+    const now = new Date();
+    const today = toDayKey(now);
+    const periods = [
+      { key: 'today', label: 'Today', from: today },
+      { key: 'last7', label: 'Last 7 Days', from: daysAgoKey(6) },
+      { key: 'last30', label: 'Last 30 Days', from: daysAgoKey(29) },
+      { key: 'thisMonth', label: 'This Month', from: toDayKey(new Date(now.getFullYear(), now.getMonth(), 1)) },
+      { key: 'yearWise', label: 'This Year', from: toDayKey(new Date(now.getFullYear(), 0, 1)) }
+    ].map((period) => ({ ...period, totals: emptyTotals() }));
+
+    for (const entry of boulders) {
+      const day = getEntryDayKey(entry);
+      if (!day || day > today) continue;
+      for (const period of periods) {
+        if (day >= period.from) addToTotals(period.totals, entry);
+      }
+    }
+    return periods;
+  }, [boulders]);
+
+  // ─── Entries in the selected period (search / vehicle applied after) ────────
+  const periodBoulders = useMemo(() => boulders.filter((entry) => {
+    const day = getEntryDayKey(entry);
+    if (!day) return false;
+    if (fromDate && day < fromDate) return false;
+    if (toDate && day > toDate) return false;
+    return true;
+  }), [boulders, fromDate, toDate]);
+
+  const vehicleSummary = useMemo(() => {
+    const map = new Map();
+    for (const entry of periodBoulders) {
+      const vehicleNo = String(entry.vehicleNo || '-').toUpperCase();
+      const row = map.get(vehicleNo) || { vehicleNo, parties: new Set(), lastDate: null, ...emptyTotals() };
+      addToTotals(row, entry);
+      const party = String(entry.partyName || '').trim();
+      if (party) row.parties.add(party);
+      const date = new Date(entry.boulderDate || entry.createdAt);
+      if (!row.lastDate || date > row.lastDate) row.lastDate = date;
+      map.set(vehicleNo, row);
+    }
+    return [...map.values()]
+      .map((row) => ({ ...row, parties: [...row.parties] }))
+      .sort((a, b) => b.netWeight - a.netWeight);
+  }, [periodBoulders]);
+
   const filteredBoulders = useMemo(() => {
     const normalizedSearch = String(searchTerm || '').trim().toLowerCase();
-
-    return boulders.filter((entry) => {
-      const vehicleText = String(entry.vehicleNo || '').toLowerCase();
-      const partyText = String(entry.partyName || '').toLowerCase();
-      const matchesSearch = !normalizedSearch || vehicleText.includes(normalizedSearch) || partyText.includes(normalizedSearch);
-      if (!matchesSearch) return false;
-
-      const entryDate = new Date(entry.boulderDate || entry.createdAt);
-      if (Number.isNaN(entryDate.getTime())) return false;
-      const entryDateText = toInputDate(entryDate);
-
-      if (fromDate && entryDateText < fromDate) return false;
-      if (toDate && entryDateText > toDate) return false;
-
-      return true;
+    return periodBoulders.filter((entry) => {
+      if (vehicleFilter && String(entry.vehicleNo || '').toUpperCase() !== vehicleFilter) return false;
+      if (!normalizedSearch) return true;
+      return String(entry.vehicleNo || '').toLowerCase().includes(normalizedSearch)
+        || String(entry.partyName || '').toLowerCase().includes(normalizedSearch);
     });
-  }, [boulders, searchTerm, fromDate, toDate]);
+  }, [periodBoulders, searchTerm, vehicleFilter]);
 
-  const summary = useMemo(() => {
-    return filteredBoulders.reduce((acc, entry) => ({
-      count: acc.count + 1,
-      trips: acc.trips + getEntryTrips(entry),
-      grossWeight: acc.grossWeight + Number(entry.grossWeight || 0),
-      tareWeight: acc.tareWeight + Number(entry.tareWeight || 0),
-      netWeight: acc.netWeight + Number(entry.netWeight || 0),
-      amount: acc.amount + Number(entry.amount || 0)
-    }), {
-      count: 0,
-      trips: 0,
-      grossWeight: 0,
-      tareWeight: 0,
-      netWeight: 0,
-      amount: 0
-    });
-  }, [filteredBoulders]);
+  const periodTotals = useMemo(() => periodBoulders.reduce(addToTotals, emptyTotals()), [periodBoulders]);
+  const listTotals = useMemo(() => filteredBoulders.reduce(addToTotals, emptyTotals()), [filteredBoulders]);
 
-  const StatCard = ({ title, value, subtitle }) => (
-    <div className="rounded-2xl border border-slate-100 bg-white px-5 py-4 shadow-lg">
-      <p className="text-xs font-bold uppercase tracking-wider text-slate-400">{title}</p>
-      <p className="mt-2 text-2xl font-black text-slate-800">{value}</p>
-      <p className="mt-1 text-xs text-slate-500">{subtitle}</p>
-    </div>
-  );
+  // Drop the vehicle filter if that vehicle has no entries in the new period
+  useEffect(() => {
+    if (vehicleFilter && !vehicleSummary.some((row) => row.vehicleNo === vehicleFilter)) setVehicleFilter('');
+  }, [vehicleSummary, vehicleFilter]);
+
+  const periodLabel = (() => {
+    if (datePreset === 'monthWise') return formatMonthLabel(selectedMonth, selectedYear);
+    if (datePreset === 'custom') return formatRangeLabel(fromDate, toDate);
+    if (!fromDate && !toDate) return 'All time';
+    if (fromDate === toDate) return formatDate(fromDate);
+    return `${formatDate(fromDate)} – ${formatDate(toDate)}`;
+  })();
 
   const handlePresetChange = (value) => {
     if (value === 'monthWise') {
@@ -227,7 +301,7 @@ export default function BoulderLedger() {
 
   const closeMonthPicker = () => {
     setShowMonthPicker(false);
-    // Cancelled straight after choosing "Month Wise": go back to the previous filter.
+    // Cancelled straight after choosing "Month": go back to the previous filter.
     if (rangeBeforeCustomRef.current.preset !== 'monthWise') {
       setDatePreset(rangeBeforeCustomRef.current.preset);
       setDateRange(rangeBeforeCustomRef.current.range);
@@ -247,7 +321,7 @@ export default function BoulderLedger() {
 
   const closeCustomPicker = () => {
     setShowCustomPicker(false);
-    // Cancelled straight after choosing "Custom Range": go back to the previous filter.
+    // Cancelled straight after choosing "Custom": go back to the previous filter.
     if (rangeBeforeCustomRef.current.preset !== 'custom') {
       setDatePreset(rangeBeforeCustomRef.current.preset);
       setDateRange(rangeBeforeCustomRef.current.range);
@@ -261,8 +335,20 @@ export default function BoulderLedger() {
     setShowCustomPicker(false);
   };
 
-  const handleEdit = (entry) => {
-    setEditingEntry(entry);
+  // Snapshot cards double as quick filters
+  const selectSnapshot = (key) => {
+    if (key === 'thisMonth') {
+      const now = new Date();
+      applyMonth(String(now.getMonth()), String(now.getFullYear()));
+      return;
+    }
+    handlePresetChange(key);
+  };
+
+  const isSnapshotActive = (key) => {
+    if (key !== 'thisMonth') return datePreset === key;
+    const now = new Date();
+    return datePreset === 'monthWise' && selectedMonth === String(now.getMonth()) && selectedYear === String(now.getFullYear());
   };
 
   const handleDelete = async (id) => {
@@ -281,21 +367,12 @@ export default function BoulderLedger() {
     loadBoulders();
   };
 
-  const getPartyDisplayName = (entry) => String(entry?.partyName || '').trim() || '-';
+  const getPartyDisplayName = (entry) => String(entry?.partyName || '').trim() || '—';
 
-  if (loading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-100 via-slate-50 to-stone-100">
-        <div className="text-center">
-          <RefreshCw className="mx-auto h-8 w-8 animate-spin text-sky-500" />
-          <p className="mt-4 font-semibold text-slate-600">Loading boulder ledger...</p>
-        </div>
-      </div>
-    );
-  }
+  const maxVehicleWeight = vehicleSummary[0]?.netWeight || 0;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-100 via-slate-50 to-stone-100">
+    <div className="min-h-screen bg-slate-100" style={{ fontFamily: "'Poppins', 'Inter', sans-serif" }}>
       {showMonthPicker && (
         <MonthPickerPopup
           month={selectedMonth}
@@ -308,282 +385,372 @@ export default function BoulderLedger() {
       {showCustomPicker && (
         <CustomRangePopup from={fromDate} to={toDate} onApply={applyCustomRange} onClose={closeCustomPicker} />
       )}
-      <div className="mx-auto max-w-[95%] px-4 py-6">
-        {editingEntry ? (
-          <BoulderEntry
-            editingEntry={editingEntry}
-            onModalFinish={handleCloseEdit}
-          />
-        ) : null}
+      {editingEntry && <BoulderEntry editingEntry={editingEntry} onModalFinish={handleCloseEdit} />}
+
+      <main className="mx-auto max-w-[95%] space-y-4 px-4 pt-4 pb-10 md:space-y-5">
+        {/* Header */}
+        <header className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight text-slate-900 md:text-3xl">Boulder Ledger</h1>
+            <p className="mt-0.5 text-sm text-slate-500">Boulder received for crushing, by period and by vehicle</p>
+          </div>
+          <button
+            type="button"
+            onClick={loadBoulders}
+            className="inline-flex items-center gap-2 self-start rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 md:self-auto"
+          >
+            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+            Refresh
+          </button>
+        </header>
 
         {error && (
-          <div className="mb-6 rounded-2xl border border-rose-200 bg-rose-50 px-6 py-4 text-sm font-semibold text-rose-700 shadow-lg">
-            {error}
-          </div>
+          <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700">{error}</div>
         )}
 
-        <div className="mb-8 grid grid-cols-1 gap-4 md:grid-cols-3 xl:grid-cols-6">
-          <StatCard title="Entries" value={formatNumber(summary.count)} subtitle="filtered boulder entries" />
-          <StatCard title="Trips" value={formatNumber(summary.trips)} subtitle="single slips + bulk trips" />
-          <StatCard title="Gross Weight" value={formatNumber(summary.grossWeight)} subtitle="total gross kg" />
-          <StatCard title="Tare Weight" value={formatNumber(summary.tareWeight)} subtitle="total tare kg" />
-          <StatCard title="Net Weight" value={`${formatTon(summary.netWeight)} Ton`} subtitle={`${formatNumber(summary.netWeight)} kg total net`} />
-          <StatCard title="Total Amount" value={formatCurrency(summary.amount)} subtitle="total payable amount" />
-        </div>
+        {/* Boulder crushed snapshot */}
+        <section className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 md:gap-3 lg:grid-cols-5">
+          {snapshot.map((period, index) => {
+            const active = isSnapshotActive(period.key);
+            const highlight = index === 0;
+            return (
+              <button
+                key={period.key}
+                type="button"
+                onClick={() => selectSnapshot(period.key)}
+                className={`rounded-xl border-2 p-3 text-left transition hover:shadow-md md:px-4 md:py-3.5 ${
+                  highlight ? 'border-emerald-200 bg-gradient-to-r from-emerald-50 to-teal-50' : 'border-slate-200 bg-white'
+                } ${active ? 'ring-2 ring-slate-400 ring-offset-2' : ''} ${index === 0 ? 'col-span-2 sm:col-span-1' : ''}`}
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-xs font-semibold text-slate-600 md:text-sm">{period.label}</p>
+                  {highlight && (
+                    <span className="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-600 text-white">
+                      <Mountain className="h-4 w-4" />
+                    </span>
+                  )}
+                </div>
+                <p className={`mt-1.5 text-xl font-bold leading-none tabular-nums md:text-2xl ${highlight ? 'text-emerald-700' : 'text-slate-900'}`}>
+                  {loading ? '…' : formatTon(period.totals.netWeight)}
+                  <span className="ml-1 text-sm font-semibold text-slate-400">T</span>
+                </p>
+                <p className="mt-1 text-xs text-slate-500">
+                  {formatNumber(period.totals.trips)} trips · {formatNumber(period.totals.count)} entries
+                </p>
+              </button>
+            );
+          })}
+        </section>
 
-        <div className="overflow-hidden rounded-3xl border border-slate-100 bg-white shadow-xl">
-          <div className="border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white px-6 py-5">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <h2 className="text-lg font-black text-slate-800">Boulder Ledger</h2>
-                <p className="text-sm text-slate-500">All boulder entries in one report</p>
+        {/* Filters */}
+        <section className="rounded-2xl bg-white p-3 shadow-sm ring-1 ring-slate-200 md:p-4">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex gap-1 overflow-x-auto rounded-lg bg-slate-100 p-1 [&::-webkit-scrollbar]:hidden">
+              {PRESETS.map((p) => (
+                <button
+                  key={p.key || 'all'}
+                  type="button"
+                  onClick={() => handlePresetChange(p.key)}
+                  className={`shrink-0 rounded-md px-3 py-1.5 text-sm font-semibold transition ${datePreset === p.key ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                >
+                  {p.label}
+                </button>
+              ))}
+            </div>
+            <p className="flex items-center gap-1.5 text-sm font-medium text-slate-600">
+              <CalendarDays className="h-4 w-4 text-slate-400" />
+              {periodLabel}
+            </p>
+          </div>
+
+          {/* Period totals */}
+          <dl className="mt-3 grid grid-cols-2 gap-px overflow-hidden rounded-xl bg-slate-200 ring-1 ring-slate-200 sm:grid-cols-4">
+            {[
+              { label: 'Net Boulder', value: `${formatTon(periodTotals.netWeight)} T`, tone: 'text-emerald-700' },
+              { label: 'Trips', value: formatNumber(periodTotals.trips), tone: 'text-slate-900' },
+              { label: 'Vehicles', value: formatNumber(vehicleSummary.length), tone: 'text-slate-900' },
+              { label: 'Amount', value: formatCurrency(periodTotals.amount), tone: 'text-rose-700' }
+            ].map((stat) => (
+              <div key={stat.label} className="bg-white px-3 py-2.5 md:px-4">
+                <dt className="text-xs font-medium text-slate-500">{stat.label}</dt>
+                <dd className={`mt-0.5 text-base font-bold tabular-nums md:text-lg ${stat.tone}`}>{loading ? '…' : stat.value}</dd>
               </div>
+            ))}
+          </dl>
+        </section>
 
-              <div className="flex flex-col gap-3 sm:flex-row">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+        {/* Vehicle-wise */}
+        <section className="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-slate-200">
+          <div className="border-b border-slate-100 px-4 py-3.5 md:px-5">
+            <h2 className="text-base font-bold text-slate-900">Vehicle-wise Boulder</h2>
+            <p className="text-xs text-slate-500">How much boulder each vehicle brought in {periodLabel.toLowerCase() === 'all time' ? 'overall' : 'this period'} · tap a vehicle to see its entries</p>
+          </div>
+
+          {loading ? (
+            <div className="flex justify-center py-12">
+              <div className="h-8 w-8 animate-spin rounded-full border-4 border-blue-600 border-r-transparent" />
+            </div>
+          ) : vehicleSummary.length === 0 ? (
+            <EmptyState title="No vehicles" text="No boulder came in during this period." />
+          ) : (
+            <>
+              <table className="hidden w-full text-left md:table">
+                <thead>
+                  <tr className="bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    <th className="w-12 px-5 py-2.5">#</th>
+                    <th className="px-5 py-2.5">Vehicle</th>
+                    <th className="px-5 py-2.5 text-right">Trips</th>
+                    <th className="px-5 py-2.5">Net Boulder</th>
+                    <th className="px-5 py-2.5 text-right">Amount</th>
+                    <th className="px-5 py-2.5 text-right">Last Trip</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {vehicleSummary.map((row, index) => {
+                    const selected = vehicleFilter === row.vehicleNo;
+                    const share = periodTotals.netWeight > 0 ? (row.netWeight / periodTotals.netWeight) * 100 : 0;
+                    return (
+                      <tr
+                        key={row.vehicleNo}
+                        onClick={() => setVehicleFilter(selected ? '' : row.vehicleNo)}
+                        className={`cursor-pointer transition ${selected ? 'bg-blue-50' : 'hover:bg-slate-50'}`}
+                      >
+                        <td className="px-5 py-3 text-sm font-semibold text-slate-400">{index + 1}</td>
+                        <td className="px-5 py-3">
+                          <span className="inline-block rounded-md border-2 border-slate-800 bg-amber-300 px-2 py-0.5 font-mono text-xs font-bold tracking-widest text-slate-900">
+                            {row.vehicleNo}
+                          </span>
+                          <p className="mt-1 max-w-[260px] truncate text-xs text-slate-500" title={row.parties.join(', ')}>
+                            {row.parties.join(', ') || '—'}
+                          </p>
+                        </td>
+                        <td className="px-5 py-3 text-right text-sm font-semibold tabular-nums text-slate-700">{formatNumber(row.trips)}</td>
+                        <td className="px-5 py-3">
+                          <div className="flex items-center gap-3">
+                            <span className="w-24 shrink-0 text-sm font-bold tabular-nums text-emerald-700">{formatTon(row.netWeight)} T</span>
+                            <div className="h-1.5 w-full max-w-[220px] overflow-hidden rounded-full bg-slate-100">
+                              <div className="h-full rounded-full bg-emerald-500" style={{ width: `${maxVehicleWeight > 0 ? Math.max((row.netWeight / maxVehicleWeight) * 100, 2) : 0}%` }} />
+                            </div>
+                            <span className="w-12 shrink-0 text-right text-xs text-slate-400">{share.toFixed(0)}%</span>
+                          </div>
+                        </td>
+                        <td className="px-5 py-3 text-right text-sm font-semibold tabular-nums text-slate-700">{formatCurrency(row.amount)}</td>
+                        <td className="px-5 py-3 text-right text-sm text-slate-500">{formatDate(row.lastDate)}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+
+              <ul className="divide-y divide-slate-100 md:hidden">
+                {vehicleSummary.map((row) => {
+                  const selected = vehicleFilter === row.vehicleNo;
+                  return (
+                    <li key={row.vehicleNo}>
+                      <button
+                        type="button"
+                        onClick={() => setVehicleFilter(selected ? '' : row.vehicleNo)}
+                        className={`w-full px-4 py-3 text-left ${selected ? 'bg-blue-50' : 'active:bg-slate-50'}`}
+                      >
+                        <div className="flex items-center justify-between gap-3">
+                          <span className="inline-block rounded border-2 border-slate-800 bg-amber-300 px-1.5 font-mono text-[11px] font-bold tracking-wider text-slate-900">
+                            {row.vehicleNo}
+                          </span>
+                          <span className="text-sm font-bold tabular-nums text-emerald-700">{formatTon(row.netWeight)} T</span>
+                        </div>
+                        <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-slate-100">
+                          <div className="h-full rounded-full bg-emerald-500" style={{ width: `${maxVehicleWeight > 0 ? Math.max((row.netWeight / maxVehicleWeight) * 100, 2) : 0}%` }} />
+                        </div>
+                        <p className="mt-1 truncate text-xs text-slate-500">
+                          {formatNumber(row.trips)} trips · {formatCurrency(row.amount)}{row.parties.length ? ` · ${row.parties.join(', ')}` : ''}
+                        </p>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            </>
+          )}
+        </section>
+
+        {/* Entries */}
+        <section className="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-slate-200">
+          <div className="border-b border-slate-100 px-4 py-3.5 md:px-5">
+            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+              <div>
+                <h2 className="text-base font-bold text-slate-900">Entries</h2>
+                <p className="text-xs text-slate-500">Every boulder slip in this period</p>
+              </div>
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                {vehicleFilter && (
+                  <button
+                    type="button"
+                    onClick={() => setVehicleFilter('')}
+                    className="inline-flex items-center gap-1.5 self-start rounded-full border border-slate-800 bg-slate-800 px-3 py-1 text-xs font-semibold text-white"
+                  >
+                    {vehicleFilter}
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                )}
+                <label className="relative block md:w-72">
+                  <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-slate-400">
+                    <Search className="h-4 w-4" />
+                  </span>
                   <input
-                    type="text"
+                    type="search"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    placeholder="Search vehicle or party..."
-                    className="w-full rounded-xl border-2 border-slate-400 bg-white py-2.5 pl-10 pr-4 text-sm font-medium text-slate-700 transition-all focus:border-sky-500 focus:outline-none focus:ring-4 focus:ring-sky-100 sm:w-64"
+                    placeholder="Search vehicle or party"
+                    className="w-full rounded-lg border border-slate-300 bg-white py-2 pl-9 pr-3 text-sm outline-none transition placeholder:text-slate-400 focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10"
                   />
-                </div>
-
-                <div className="relative">
-                  <CalendarDays className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                  <select
-                    value={datePreset}
-                    onChange={(e) => handlePresetChange(e.target.value)}
-                    className="w-full rounded-xl border-2 border-slate-300 bg-white py-2.5 pl-10 pr-4 text-sm font-medium text-slate-700 transition-all focus:border-sky-500 focus:outline-none focus:ring-4 focus:ring-sky-100 sm:w-52"
-                  >
-                    <option value="">All Dates</option>
-                    <option value="last7">Last 7 Days</option>
-                    <option value="last30">Last 30 Days</option>
-                    <option value="monthWise">Month Wise</option>
-                    <option value="last1Year">Last 1 Year</option>
-                    <option value="yearWise">Year Wise</option>
-                    <option value="custom">Custom Range</option>
-                  </select>
-                </div>
-
-                {datePreset === 'monthWise' && (
-                  <MonthRangeButton month={selectedMonth} year={selectedYear} onClick={() => setShowMonthPicker(true)} />
-                )}
-
-                {datePreset === 'custom' && (
-                  <CustomRangeButton from={fromDate} to={toDate} onClick={() => setShowCustomPicker(true)} />
-                )}
-
-                <button
-                  type="button"
-                  onClick={loadBoulders}
-                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-800 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-900"
-                >
-                  <RefreshCw className="h-4 w-4" />
-                  Refresh
-                </button>
+                </label>
               </div>
             </div>
           </div>
 
-          <div className="md:hidden">
-            {filteredBoulders.length > 0 ? (
-              <div className="grid grid-cols-1 gap-4 p-4">
-                {filteredBoulders.map((entry) => (
-                  <div key={entry._id} className="group relative overflow-hidden rounded-[24px] border border-slate-100 bg-white p-5 shadow-md transition-all hover:shadow-xl">
-                    <div className="flex items-start justify-between mb-4">
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-500 to-indigo-600 text-white shadow-lg shadow-sky-500/20">
-                          <Truck className="h-6 w-6" />
-                        </div>
-                        <div>
-                          <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">{formatDate(entry.boulderDate || entry.createdAt)}</p>
-                          <h3 className="text-base font-black text-slate-800">{entry.vehicleNo || '-'}</h3>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => handleEdit(entry)}
-                          className="p-2 rounded-xl border border-slate-100 bg-slate-50 text-blue-600 hover:bg-blue-50"
-                        >
-                          <Pencil size={16} />
-                        </button>
-                        {canDeleteBoulders && (
-                          <button
-                            type="button"
-                            onClick={() => handleDelete(entry._id)}
-                            className="p-2 rounded-xl border border-slate-100 bg-slate-50 text-rose-600 hover:bg-rose-50"
-                          >
-                            <Trash2 size={16} />
-                          </button>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="space-y-3">
-                      <div className="flex justify-between items-center rounded-xl bg-slate-50 px-4 py-2.5">
-                        <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Supplier</span>
-                        <span className="text-xs font-black text-slate-700 truncate max-w-[150px]">{getPartyDisplayName(entry)}</span>
-                      </div>
-
-                      {isBulkEntry(entry) && (
-                        <div className="flex justify-between items-center rounded-xl border border-indigo-100 bg-indigo-50 px-4 py-2.5">
-                          <span className="text-[10px] font-bold uppercase tracking-widest text-indigo-500">Bulk Entry</span>
-                          <span className="text-xs font-black text-indigo-700">{getBulkSummary(entry)}</span>
-                        </div>
-                      )}
-
-                      <div className="grid grid-cols-2 gap-3">
-                        <div className="rounded-xl border border-emerald-100 bg-emerald-50 px-3 py-2.5">
-                          <p className="text-[9px] font-bold uppercase tracking-widest text-emerald-600 mb-1">Net Weight</p>
-                          <p className="text-sm font-black text-emerald-700">{formatNumber(entry.netWeight)} <span className="text-[10px]">KG</span></p>
-                          <p className="text-[10px] font-bold text-emerald-600">{formatTon(entry.netWeight)} Ton</p>
-                        </div>
-                        <div className="rounded-xl border border-rose-100 bg-rose-50 px-3 py-2.5">
-                          <p className="text-[9px] font-bold uppercase tracking-widest text-rose-600 mb-1">Total Amount</p>
-                          <p className="text-sm font-black text-rose-700">{formatCurrency(entry.amount)}</p>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center justify-between pt-2 border-t border-slate-50">
-                        <div className="flex gap-4">
-                          <div>
-                            <p className="text-[9px] font-bold uppercase tracking-widest text-slate-400">Time In</p>
-                            <p className="text-[11px] font-black text-slate-600">{entry.entryTime || '-'}</p>
-                          </div>
-                          <div>
-                            <p className="text-[9px] font-bold uppercase tracking-widest text-slate-400">Time Out</p>
-                            <p className="text-[11px] font-black text-slate-600">{entry.exitTime || '-'}</p>
-                          </div>
-                        </div>
-                        {entry.slipImg && (
-                          <a
-                            href={entry.slipImg}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="flex items-center gap-1.5 rounded-lg bg-sky-500 px-3 py-1.5 text-[10px] font-bold text-white shadow-sm shadow-sky-500/20"
-                          >
-                            <Eye size={12} />
-                            SLIP
-                          </a>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="px-6 py-16 text-center">
-                <p className="text-sm font-bold text-slate-500">No entries found for the selected filters.</p>
-              </div>
-            )}
-          </div>
-
-          <div className="hidden overflow-x-auto md:block">
-            <table className="w-full min-w-[1120px]">
-              <thead>
-                <tr className="bg-gradient-to-r from-slate-800 via-slate-700 to-slate-800 text-white">
-                  <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider lg:px-4 lg:py-3 lg:text-[10px] xl:px-6 xl:py-4 xl:text-xs">Date</th>
-                  <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider lg:px-4 lg:py-3 lg:text-[10px] xl:px-6 xl:py-4 xl:text-xs">Vehicle/Party</th>
-                  <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider lg:px-4 lg:py-3 lg:text-[10px] xl:px-6 xl:py-4 xl:text-xs">Entry Time</th>
-                  <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider lg:px-4 lg:py-3 lg:text-[10px] xl:px-6 xl:py-4 xl:text-xs">Exit Time</th>
-                  <th className="px-6 py-4 text-right text-xs font-bold uppercase tracking-wider lg:px-4 lg:py-3 lg:text-[10px] xl:px-6 xl:py-4 xl:text-xs">Gross Wt</th>
-                  <th className="px-6 py-4 text-right text-xs font-bold uppercase tracking-wider lg:px-4 lg:py-3 lg:text-[10px] xl:px-6 xl:py-4 xl:text-xs">Tare Wt</th>
-                  <th className="px-6 py-4 text-right text-xs font-bold uppercase tracking-wider lg:px-4 lg:py-3 lg:text-[10px] xl:px-6 xl:py-4 xl:text-xs">Net Wt</th>
-                  <th className="px-6 py-4 text-right text-xs font-bold uppercase tracking-wider lg:px-4 lg:py-3 lg:text-[10px] xl:px-6 xl:py-4 xl:text-xs">Rate (Rs/Ton)</th>
-                  <th className="px-6 py-4 text-right text-xs font-bold uppercase tracking-wider lg:px-4 lg:py-3 lg:text-[10px] xl:px-6 xl:py-4 xl:text-xs">Amount</th>
-                  <th className="px-6 py-4 text-center text-xs font-bold uppercase tracking-wider lg:px-4 lg:py-3 lg:text-[10px] xl:px-6 xl:py-4 xl:text-xs">Slip</th>
-                  <th className="px-6 py-4 text-center text-xs font-bold uppercase tracking-wider lg:px-4 lg:py-3 lg:text-[10px] xl:px-6 xl:py-4 xl:text-xs">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {filteredBoulders.length > 0 ? (
-                  filteredBoulders.map((entry) => (
-                    <tr key={entry._id} className="transition-colors hover:bg-sky-50/50">
-                      <td className="px-6 py-4 text-sm font-medium text-slate-700 lg:px-4 lg:py-3 lg:text-[12px] xl:px-6 xl:py-4 xl:text-sm">{formatDate(entry.boulderDate || entry.createdAt)}</td>
-                      <td className="px-6 py-4 lg:px-4 lg:py-3 xl:px-6 xl:py-4">
-                        <div className="flex items-center gap-3">
-                          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-sky-400 to-cyan-500 text-white">
-                            <Truck className="h-4 w-4" />
-                          </div>
-                          <div className="min-w-0">
-                            <p className="text-sm font-bold text-slate-800 lg:text-[12px] xl:text-sm">{entry.vehicleNo || '-'}</p>
-                            <p className="mt-0.5 truncate text-xs font-medium text-slate-500">{getPartyDisplayName(entry)}</p>
+          {loading ? (
+            <div className="flex flex-col items-center gap-3 py-16">
+              <div className="h-9 w-9 animate-spin rounded-full border-4 border-blue-600 border-r-transparent" />
+              <p className="text-sm text-slate-400">Loading boulder ledger…</p>
+            </div>
+          ) : filteredBoulders.length === 0 ? (
+            <EmptyState title="No boulder entries found" text="Try changing the search or date filter." />
+          ) : (
+            <>
+              {/* Desktop table */}
+              <div className="hidden overflow-x-auto md:block">
+                <table className="w-full min-w-[960px] text-left">
+                  <thead>
+                    <tr className="bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                      <th className="px-5 py-2.5">Date</th>
+                      <th className="px-5 py-2.5">Vehicle &amp; Party</th>
+                      <th className="px-5 py-2.5 text-right">Weight</th>
+                      <th className="px-5 py-2.5 text-right">Rate / T</th>
+                      <th className="px-5 py-2.5 text-right">Amount</th>
+                      <th className="px-5 py-2.5 text-right" />
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {filteredBoulders.map((entry) => (
+                      <tr key={entry._id} className="transition hover:bg-slate-50">
+                        <td className="px-5 py-3">
+                          <p className="text-sm font-semibold text-slate-800">{formatDate(entry.boulderDate || entry.createdAt)}</p>
+                          {(entry.entryTime || entry.exitTime) && (
+                            <p className="text-xs text-slate-400">{entry.entryTime || '--'} → {entry.exitTime || '--'}</p>
+                          )}
+                        </td>
+                        <td className="px-5 py-3">
+                          <div className="flex items-center gap-2">
+                            <span className="inline-block rounded-md border-2 border-slate-800 bg-amber-300 px-2 py-0.5 font-mono text-xs font-bold tracking-widest text-slate-900">
+                              {entry.vehicleNo || '-'}
+                            </span>
                             {isBulkEntry(entry) && (
-                              <span className="mt-1 inline-flex rounded-md border border-indigo-200 bg-indigo-50 px-1.5 py-0.5 text-[10px] font-bold text-indigo-700">
+                              <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-[11px] font-semibold text-indigo-700 ring-1 ring-inset ring-indigo-200">
                                 Bulk · {getBulkSummary(entry)}
                               </span>
                             )}
                           </div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 text-sm font-semibold text-slate-700 lg:px-4 lg:py-3 lg:text-[12px] xl:px-6 xl:py-4 xl:text-sm">{entry.entryTime || ''}</td>
-                      <td className="px-6 py-4 text-sm font-semibold text-slate-700 lg:px-4 lg:py-3 lg:text-[12px] xl:px-6 xl:py-4 xl:text-sm">{entry.exitTime || ''}</td>
-                      <td className="px-6 py-4 text-right text-sm font-semibold text-slate-700 lg:px-4 lg:py-3 lg:text-[12px] xl:px-6 xl:py-4 xl:text-sm">{isBulkEntry(entry) ? '-' : formatNumber(entry.grossWeight)}</td>
-                      <td className="px-6 py-4 text-right text-sm font-semibold text-slate-700 lg:px-4 lg:py-3 lg:text-[12px] xl:px-6 xl:py-4 xl:text-sm">{isBulkEntry(entry) ? '-' : formatNumber(entry.tareWeight)}</td>
-                      <td className="px-6 py-4 text-right text-sm font-black text-emerald-600 lg:px-4 lg:py-3 lg:text-[12px] xl:px-6 xl:py-4 xl:text-sm">
-                        {formatNumber(entry.netWeight)}
-                        <p className="text-[10px] font-bold text-emerald-500">{formatTon(entry.netWeight)} Ton</p>
-                      </td>
-                      <td className="px-6 py-4 text-right text-sm font-semibold text-blue-700 lg:px-4 lg:py-3 lg:text-[12px] xl:px-6 xl:py-4 xl:text-sm">{formatNumber(entry.boulderRatePerTon)}</td>
-                      <td className="px-6 py-4 text-right text-sm font-black text-rose-700 lg:px-4 lg:py-3 lg:text-[12px] xl:px-6 xl:py-4 xl:text-sm">{formatCurrency(entry.amount)}</td>
-                      <td className="px-6 py-4 text-center lg:px-4 lg:py-3 xl:px-6 xl:py-4">
-                        {entry.slipImg ? (
-                          <a
-                            href={entry.slipImg}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="inline-flex items-center gap-1 rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700 transition hover:bg-blue-100 lg:px-2.5 lg:py-1 lg:text-[11px] xl:px-3 xl:py-1.5 xl:text-xs"
-                          >
-                            View Slip
-                          </a>
-                        ) : (
-                          <span className="text-xs text-slate-400 lg:text-[11px] xl:text-xs">-</span>
-                        )}
-                      </td>
-                      <td className="px-6 py-4 lg:px-4 lg:py-3 xl:px-6 xl:py-4">
-                        <div className="flex items-center justify-center gap-2">
-                          <button
-                            type="button"
-                            onClick={() => handleEdit(entry)}
-                            className="inline-flex items-center justify-center rounded-md border border-blue-200 bg-white px-3 py-1.5 text-[11px] font-medium text-blue-700 shadow-sm transition hover:border-blue-300 hover:bg-blue-50 lg:px-2.5 lg:py-1 lg:text-[10px] xl:px-3 xl:py-1.5 xl:text-[11px]"
-                          >
-                            Edit
-                          </button>
-                          {canDeleteBoulders && (
+                          <p className="mt-1 max-w-[280px] truncate text-xs text-slate-500">{getPartyDisplayName(entry)}</p>
+                        </td>
+                        <td className="px-5 py-3">
+                          <WeightStack entry={entry} />
+                        </td>
+                        <td className="px-5 py-3 text-right text-sm tabular-nums text-slate-600">{formatCurrency(entry.boulderRatePerTon)}</td>
+                        <td className="px-5 py-3 text-right text-sm font-bold tabular-nums text-slate-900">{formatCurrency(entry.amount)}</td>
+                        <td className="px-5 py-3">
+                          <div className="flex items-center justify-end gap-1.5">
+                            {entry.slipImg && (
+                              <a
+                                href={entry.slipImg}
+                                target="_blank"
+                                rel="noreferrer"
+                                title="View slip"
+                                className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-600 shadow-sm transition hover:border-blue-300 hover:text-blue-700"
+                              >
+                                <Eye className="h-3.5 w-3.5" />
+                                Slip
+                              </a>
+                            )}
                             <button
                               type="button"
-                              onClick={() => handleDelete(entry._id)}
-                              className="inline-flex items-center justify-center rounded-md border border-rose-200 bg-white px-3 py-1.5 text-[11px] font-medium text-rose-700 shadow-sm transition hover:border-rose-300 hover:bg-rose-50 lg:px-2.5 lg:py-1 lg:text-[10px] xl:px-3 xl:py-1.5 xl:text-[11px]"
+                              onClick={() => setEditingEntry(entry)}
+                              title="Edit"
+                              className="rounded-lg border border-slate-200 bg-white p-1.5 text-slate-500 shadow-sm transition hover:border-blue-300 hover:text-blue-700"
                             >
-                              Delete
+                              <Pencil className="h-4 w-4" />
                             </button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan={11} className="px-6 py-16 text-center">
-                      <div className="flex flex-col items-center">
-                        <div className="mb-4 rounded-full bg-slate-100 p-4">
-                          <Truck className="h-8 w-8 text-slate-400" />
-                        </div>
-                        <p className="text-lg font-semibold text-slate-600">No boulder entries found</p>
-                        <p className="mt-1 text-sm text-slate-400">Try changing the search or date filter</p>
+                            {canDeleteBoulders && (
+                              <button
+                                type="button"
+                                onClick={() => handleDelete(entry._id)}
+                                title="Delete"
+                                className="rounded-lg border border-slate-200 bg-white p-1.5 text-slate-500 shadow-sm transition hover:border-rose-300 hover:text-rose-600"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Mobile list */}
+              <ul className="divide-y divide-slate-100 md:hidden">
+                {filteredBoulders.map((entry) => (
+                  <li key={entry._id} className="px-4 py-3">
+                    <div className="flex items-start gap-3">
+                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600 ring-1 ring-inset ring-emerald-200">
+                        <Truck className="h-4 w-4" />
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <span className="inline-block rounded border-2 border-slate-800 bg-amber-300 px-1.5 font-mono text-[11px] font-bold tracking-wider text-slate-900">
+                          {entry.vehicleNo || '-'}
+                        </span>
+                        <p className="mt-0.5 truncate text-xs text-slate-500">{getPartyDisplayName(entry)}</p>
+                        {isBulkEntry(entry) && (
+                          <p className="text-[11px] font-semibold text-indigo-700">Bulk · {getBulkSummary(entry)}</p>
+                        )}
                       </div>
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
+                      <div className="shrink-0 text-right">
+                        <p className="text-sm font-bold tabular-nums text-slate-900">{formatCurrency(entry.amount)}</p>
+                        <p className="text-[11px] text-slate-400">{formatDate(entry.boulderDate || entry.createdAt)}</p>
+                      </div>
+                    </div>
+                    <div className="mt-2 ml-12">
+                      <WeightStack entry={entry} align="left" />
+                    </div>
+                    <div className="mt-2 flex items-center justify-end gap-1.5">
+                      {entry.slipImg && (
+                        <a href={entry.slipImg} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-1 text-xs font-semibold text-slate-600">
+                          <Eye className="h-3.5 w-3.5" /> Slip
+                        </a>
+                      )}
+                      <button type="button" onClick={() => setEditingEntry(entry)} className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-1 text-xs font-semibold text-slate-600">
+                        <Pencil className="h-3.5 w-3.5" /> Edit
+                      </button>
+                      {canDeleteBoulders && (
+                        <button type="button" onClick={() => handleDelete(entry._id)} className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-1 text-xs font-semibold text-rose-600">
+                          <Trash2 className="h-3.5 w-3.5" /> Delete
+                        </button>
+                      )}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+
+              <div className="flex flex-col gap-1 border-t border-slate-100 px-4 py-2.5 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between md:px-5">
+                <span>Showing {filteredBoulders.length} of {periodBoulders.length} entries</span>
+                <span className="font-semibold text-slate-700">
+                  {formatNumber(listTotals.trips)} trips · {formatTon(listTotals.netWeight)} T · {formatCurrency(listTotals.amount)}
+                </span>
+              </div>
+            </>
+          )}
+        </section>
+      </main>
     </div>
   );
 }

@@ -100,6 +100,7 @@ const parseSaleDate = (value) => {
 
 const getInitialFormData = () => ({
   saleDate: formatDateForInput(),
+  invoiceNumber: '',
   entryTime: '',
   exitTime: '',
   party: '',
@@ -1968,7 +1969,7 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
   const handleOcrFill = (data) => {
     if (!data) return;
 
-    const { vehicleNo: ocrRaw, materialType, grossWeight, tareWeight, netWeight, saleDate, entryTime, exitTime } = data;
+    const { vehicleNo: ocrRaw, materialType, grossWeight, tareWeight, netWeight, saleDate, entryTime, exitTime, slipNo } = data;
     const upperOcrRaw = String(ocrRaw || '').trim().toUpperCase();
 
     // Vehicle No
@@ -2010,7 +2011,7 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
       const matched = MATERIAL_TYPE_OPTIONS.find((opt) => opt.value === normalizedMat);
       if (matched) {
         setMaterialQuery(getMaterialDisplayName(matched));
-        const configuredRate = getCrusherMaterialRate(user, matched.value, prev.pricingMode);
+        const configuredRate = getCrusherMaterialRate(user, matched.value, formData.pricingMode);
           setFormData((prev) => ({
             ...prev,
             materialType: matched.value,
@@ -2046,6 +2047,11 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
           totalAmount: total,
         };
       });
+    }
+
+    // Slip number from the weighbridge slip, unless one was already typed
+    if (slipNo) {
+      setFormData((prev) => (prev.invoiceNumber ? prev : { ...prev, invoiceNumber: String(slipNo).trim().toUpperCase() }));
     }
 
     // Sale Date
@@ -2107,6 +2113,7 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
         partyId: formData.party,
         vehicleId: ensuredVehicleId || formData.vehicleId || undefined,
         vehicleNo: String(formData.vehicleNo || '').trim().toUpperCase(),
+        invoiceNumber: String(formData.invoiceNumber || '').trim().toUpperCase(),
         stoneSize: formData.materialType,
         entryTime: String(formData.entryTime || '').trim(),
         exitTime: String(formData.exitTime || '').trim(),

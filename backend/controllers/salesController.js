@@ -229,6 +229,18 @@ const createInvoiceNumber = async (userId, saleDateValue) => {
   return `INV-${invoiceYear}-${String(counter.seq).padStart(4, "0")}`;
 };
 
+const normalizeInvoiceNumber = (value) => String(value || "").trim().toUpperCase().slice(0, 40);
+
+// Returns an error message when another sale of this user already uses the number
+const findInvoiceNumberConflict = async (userId, invoiceNumber, excludeId = null) => {
+  const query = { userId, invoiceNumber };
+  if (excludeId) query._id = { $ne: excludeId };
+  const existing = await Sales.findOne(query).select("_id");
+  return existing ? `Invoice / Slip No ${invoiceNumber} is already used by another sale` : "";
+};
+
+const isDuplicateInvoiceError = (error) => error?.code === 11000 && /invoiceNumber/.test(String(error?.message || ""));
+
 const createSales = async (req, res) => {
   try {
     const breakdown = getSalePaymentBreakdown(req.body.totalAmount, req.body.paidAmount);
@@ -242,11 +254,18 @@ const createSales = async (req, res) => {
       throw new Error("Party not found");
     }
 
+    // A typed invoice / slip number wins; otherwise fall back to auto numbering
+    const manualInvoiceNumber = normalizeInvoiceNumber(normalizedBody.invoiceNumber);
+    if (manualInvoiceNumber) {
+      const conflict = await findInvoiceNumberConflict(req.userId, manualInvoiceNumber);
+      if (conflict) return res.status(409).json({ message: conflict });
+    }
+
     const payload = {
       ...normalizedBody,
       userId: req.userId,
       saleDate: normalizedBody.saleDate || new Date(),
-      invoiceNumber: await createInvoiceNumber(req.userId, normalizedBody.saleDate),
+      invoiceNumber: manualInvoiceNumber || await createInvoiceNumber(req.userId, normalizedBody.saleDate),
       paidAmount: breakdown.paidAmount,
       type: breakdown.type,
     };
@@ -255,6 +274,9 @@ const createSales = async (req, res) => {
     await syncSaleAutoReceipts(sales, req.userId);
     return res.status(201).json(serializeSale(sales));
   } catch (error) {
+    if (isDuplicateInvoiceError(error)) {
+      return res.status(409).json({ message: "This Invoice / Slip No is already used by another sale" });
+    }
     return res.status(400).json({
       message: "Failed to create sales",
       error: error.message,
@@ -400,7 +422,14 @@ const editSales = async (req, res) => {
     }
 
     const updatePayload = await resolveSalesVehicle(normalizeSalesPayload(req.body), req.userId);
+    // Allow correcting the invoice / slip number; a blank value keeps the existing one
+    const nextInvoiceNumber = normalizeInvoiceNumber(updatePayload.invoiceNumber);
     delete updatePayload.invoiceNumber;
+    if (nextInvoiceNumber && nextInvoiceNumber !== sales.invoiceNumber) {
+      const conflict = await findInvoiceNumberConflict(req.userId, nextInvoiceNumber, sales._id);
+      if (conflict) return res.status(409).json({ message: conflict });
+      updatePayload.invoiceNumber = nextInvoiceNumber;
+    }
 
     if (Object.prototype.hasOwnProperty.call(updatePayload, "partyId")) {
       if (!updatePayload.partyId || !mongoose.Types.ObjectId.isValid(updatePayload.partyId)) {
@@ -431,6 +460,9 @@ const editSales = async (req, res) => {
 
     return res.json(serializeSale(sales));
   } catch (error) {
+    if (isDuplicateInvoiceError(error)) {
+      return res.status(409).json({ message: "This Invoice / Slip No is already used by another sale" });
+    }
     return res.status(400).json({
       message: "Failed to update sales",
       error: error.message,

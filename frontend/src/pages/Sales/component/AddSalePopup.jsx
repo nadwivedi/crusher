@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { Building2, CalendarDays, Package, Truck, Camera, Upload, Loader2, Eye, AlertCircle, Check, X } from 'lucide-react';
+import { Building2, CalendarDays, Hash, Package, Truck, Camera, Upload, Loader2, Eye, AlertCircle, Check, X } from 'lucide-react';
 import apiClient from '../../../utils/api';
 import { handlePopupFormKeyDown } from '../../../utils/popupFormKeyboard';
 import { useFloatingDropdownPosition } from '../../../utils/useFloatingDropdownPosition';
@@ -240,13 +240,32 @@ export default function AddSalePopup({
                 <span className="flex h-5 w-5 items-center justify-center rounded-full bg-blue-600 text-[10px] font-bold text-white">1</span>
                 Primary Details
               </h3>
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-4">
                 {/* Invoice Date */}
                 <div className="space-y-1">
                   <label className={labelClass}>Invoice Date</label>
                   <div className="relative">
                     <CalendarDays className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 pointer-events-none" />
                     <input type="date" name="saleDate" value={formData.saleDate} onChange={handleInputChange} onKeyDown={handleSelectEnterMoveNext} autoFocus className={`${inputClass} pl-9 focus:ring-blue-500`} />
+                  </div>
+                </div>
+
+                {/* Invoice / Slip No */}
+                <div className="space-y-1">
+                  <label className={labelClass}>Invoice / Slip No</label>
+                  <div className="relative">
+                    <Hash className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 pointer-events-none" />
+                    <input
+                      type="text"
+                      name="invoiceNumber"
+                      value={formData.invoiceNumber || ''}
+                      onChange={handleInputChange}
+                      onKeyDown={handleSelectEnterMoveNext}
+                      maxLength={40}
+                      autoComplete="off"
+                      className={`${inputClass} pl-9 uppercase focus:ring-blue-500`}
+                      placeholder={editingId ? 'Keep current' : 'Auto if left blank'}
+                    />
                   </div>
                 </div>
 

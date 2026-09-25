@@ -213,6 +213,7 @@ Extract fields from this weighbridge SALE slip. Return ONLY a valid JSON object,
 ${VEHICLE_NO_PROMPT}
 
 Fields to extract:
+- slipNo: the slip / serial / ticket / invoice number printed on the slip (e.g. "Sr No", "Slip No", "Ticket No", "RST No"), or "" if none
 - vehicleNo: vehicle registration number (9 or 10 chars, no spaces)
 - materialType: stone type (60MM, 40MM, 20MM, 10MM, 6MM, 4MM, WMM, GSB, DUST)
 - grossWeight: GROSS weight in kg (number only)
@@ -223,12 +224,13 @@ Fields to extract:
 - time2: second time seen on the slip (HH:MM format, 24h, or "" if only one time visible)
 
 Return ONLY:
-{"vehicleNo":"","materialType":"","grossWeight":0,"tareWeight":0,"netWeight":0,"saleDate":"","time1":"","time2":""}`;
+{"slipNo":"","vehicleNo":"","materialType":"","grossWeight":0,"tareWeight":0,"netWeight":0,"saleDate":"","time1":"","time2":""}`;
 
     const parsed = await callGroq(apiKey, dataUrl, prompt);
     const { entryTime, exitTime } = resolveEntryAndExitTimes(parsed.time1, parsed.time2);
 
     return res.json({
+      slipNo:       String(parsed.slipNo || "").trim().replace(/\s+/g, "").toUpperCase().slice(0, 40),
       vehicleNo:    normalizeVehicleNo(parsed.vehicleNo),
       materialType: normalizeMaterial(parsed.materialType),
       grossWeight:  Number(parsed.grossWeight) || 0,
