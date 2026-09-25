@@ -121,28 +121,45 @@ const normalizeVehicleNo = (raw = "") => {
 
 // ─── Shared Groq Caller ───────────────────────────────────────────────────────
 
+// Llama 4 Scout was retired by Groq; Qwen 3.8 is the current vision-capable model.
+// Override with GROQ_VISION_MODEL if Groq changes its lineup again.
+const GROQ_VISION_MODEL = process.env.GROQ_VISION_MODEL || "qwen/qwen3.8-27b";
+
 const callGroq = async (apiKey, dataUrl, prompt) => {
-  const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      model: "meta-llama/llama-4-scout-17b-16e-instruct",
-      messages: [
-        {
-          role: "user",
-          content: [
-            { type: "image_url", image_url: { url: dataUrl } },
-            { type: "text", text: prompt },
-          ],
-        },
-      ],
-      max_tokens: 256,
-      temperature: 0,
-    }),
+  const body = JSON.stringify({
+    model: GROQ_VISION_MODEL,
+    messages: [
+      {
+        role: "user",
+        content: [
+          { type: "image_url", image_url: { url: dataUrl } },
+          { type: "text", text: prompt },
+        ],
+      },
+    ],
+    max_tokens: 1024,
+    temperature: 0,
+    // Qwen is a reasoning model — keep <think> output out of the content we parse
+    reasoning_format: "hidden",
   });
+
+  // Retry briefly on rate-limit / over-capacity responses
+  let response;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body,
+    });
+    if (response.status !== 429 && response.status !== 503) break;
+    if (attempt === 2) break;
+    const retryAfterSec = Number(response.headers.get("retry-after"));
+    const waitMs = retryAfterSec > 0 ? Math.min(retryAfterSec * 1000, 20000) : 1000 * 2 ** attempt;
+    await new Promise((r) => setTimeout(r, waitMs));
+  }
 
   if (!response.ok) {
     const errText = await response.text();
@@ -150,7 +167,8 @@ const callGroq = async (apiKey, dataUrl, prompt) => {
   }
 
   const groqData = await response.json();
-  const rawContent = groqData?.choices?.[0]?.message?.content || "";
+  const rawContent = (groqData?.choices?.[0]?.message?.content || "")
+    .replace(/<think>[\s\S]*?<\/think>/g, "");
   const jsonMatch = rawContent.match(/\{[\s\S]*\}/);
   if (!jsonMatch) {
     throw new Error(`Could not parse OCR JSON. Raw: ${rawContent}`);

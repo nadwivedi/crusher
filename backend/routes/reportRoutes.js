@@ -8,6 +8,7 @@ const {
   getDashboardAnalytics,
   getDieselConsumptionReport,
   getPaymentReport,
+  getProfitLossReport,
 } = require("../controllers/reportsController");
 const auth = require("../middleware/auth");
 
@@ -23,5 +24,6 @@ router.get("/stock-ledger", getStockLedger);
 router.get("/dashboard-analytics", getDashboardAnalytics);
 router.get("/diesel-consumption", getDieselConsumptionReport);
 router.get("/payment-report", getPaymentReport);
+router.get("/profit-loss", getProfitLossReport);
 
 module.exports = router;

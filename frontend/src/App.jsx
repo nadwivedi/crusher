@@ -29,6 +29,7 @@ import BoulderLedger from './pages/BoulderLedger';
 import MaterialUsedLedger from './pages/MaterialUsedLedger';
 import DieselConsumptionReport from './pages/Reports/DieselConsumptionReport';
 import ReportsPlaceholder from './pages/ReportsPlaceholder';
+import ProfitLossReport from './pages/Reports/ProfitLossReport';
 import DayBook from './pages/DayBook';
 import Analytics from './pages/Analytics';
 import Setting from './pages/Setting';
@@ -315,10 +316,7 @@ function App() {
           path="/reports/profit-loss-report"
           element={
             <ProtectedRoute>
-              <ReportsPlaceholder
-                title="Profit And Loss Report"
-                description="Profit and loss statement will be shown here after the report is implemented."
-              />
+              <ProfitLossReport />
             </ProtectedRoute>
           }
         />

@@ -954,6 +954,7 @@ const getDashboardAnalytics = async (req, res) => {
     const [boulders, expenses, sales, parties, purchases, receipts, payments] = await Promise.all([
       Boulder.find(scopedFilter(req)).select("netWeight boulderDate createdAt partyId amount").lean(),
       Expense.find(scopedFilter(req)).select("amount expenseDate createdAt expenseGroup").populate("expenseGroup", "name").lean(),
+      Sales.find(scopedFilter(req)).select("stoneSize netWeight materialWeight totalAmount paidAmount saleDate createdAt partyId type").lean(),
       Party.find(scopedFilter(req)).select("name openingBalance openingBalanceType").lean(),
       Purchase.find(scopedFilter(req)).select("totalAmount purchaseDate createdAt party type").lean(),
       Receipt.find(scopedFilter(req)).select("amount receiptDate createdAt party").lean(),
@@ -1340,7 +1341,117 @@ const getPaymentReport = async (req, res) => {
   }
 };
 
+const getProfitLossReport = async (req, res) => {
+  const fromDate = toDateBoundary(req.query.fromDate, false);
+  const toDate = toDateBoundary(req.query.toDate, true);
+
+  const dateQuery = (field) => {
+    if (!fromDate && !toDate) return {};
+    const range = {};
+    if (fromDate) range.$gte = fromDate;
+    if (toDate) range.$lte = toDate;
+    return { [field]: range };
+  };
+
+  try {
+    const [sales, expenses, purchases] = await Promise.all([
+      Sales.find(scopedFilter(req, dateQuery("saleDate")))
+        .select("stoneSize netWeight totalAmount saleDate createdAt")
+        .lean(),
+      Expense.find(scopedFilter(req, dateQuery("expenseDate")))
+        .populate("expenseGroup", "name")
+        .populate("items.expenseGroup", "name")
+        .populate("party", "name")
+        .sort({ expenseDate: -1, createdAt: -1 })
+        .lean(),
+      Purchase.find(scopedFilter(req, dateQuery("purchaseDate")))
+        .populate("party", "name")
+        .sort({ purchaseDate: -1, createdAt: -1 })
+        .lean(),
+    ]);
+
+    // Sales grouped by material
+    const materialMap = new Map();
+    let totalSales = 0;
+    let totalSalesQty = 0;
+    for (const sale of sales) {
+      const material = String(sale.stoneSize || "other").toUpperCase();
+      const amount = toNumber(sale.totalAmount);
+      const quantity = toNumber(sale.netWeight);
+      totalSales += amount;
+      totalSalesQty += quantity;
+      const row = materialMap.get(material) || { name: material, count: 0, quantity: 0, amount: 0 };
+      row.count += 1;
+      row.quantity += quantity;
+      row.amount += amount;
+      materialMap.set(material, row);
+    }
+
+    // Expenses (plus purchases, which the Expenses page also counts) as flat rows
+    const expenseRows = expenses.map((expense) => {
+      const items = Array.isArray(expense.items) ? expense.items : [];
+      const itemNames = items
+        .map((item) => item.expenseGroup?.name || item.expenseGroupName)
+        .filter(Boolean);
+      return {
+        _id: expense._id,
+        kind: "expense",
+        date: expense.expenseDate || expense.createdAt,
+        number: expense.expenseNumber || "-",
+        category: expense.expenseGroup?.name || itemNames[0] || "Uncategorized",
+        // Goods expenses can hold several groups; split them for the category breakdown
+        splits: items.length > 0
+          ? items.map((item) => ({
+            category: item.expenseGroup?.name || item.expenseGroupName || "Uncategorized",
+            amount: toNumber(item.total),
+          }))
+          : null,
+        detail: itemNames.length > 1 ? itemNames.join(", ") : "",
+        partyName: expense.party?.name || "",
+        amount: toNumber(expense.amount),
+        method: expense.method || "",
+        notes: expense.notes || "",
+      };
+    });
+
+    const purchaseRows = purchases.map((purchase) => ({
+      _id: purchase._id,
+      kind: "purchase",
+      date: purchase.purchaseDate || purchase.createdAt,
+      number: formatPurchaseNumber(purchase.purchaseNumber),
+      category: "Purchases",
+      splits: null,
+      detail: (purchase.items || []).map((item) => item.productName).filter(Boolean).join(", "),
+      partyName: purchase.party?.name || "",
+      amount: toNumber(purchase.totalAmount),
+      method: String(purchase.type || "").includes("cash") ? "cash" : "credit",
+      notes: purchase.notes || "",
+    }));
+
+    const expenseEntries = [...expenseRows, ...purchaseRows]
+      .sort((a, b) => new Date(b.date) - new Date(a.date));
+
+    return res.json({
+      fromDate,
+      toDate,
+      sales: {
+        total: totalSales,
+        count: sales.length,
+        quantity: totalSalesQty,
+        byMaterial: Array.from(materialMap.values()).sort((a, b) => b.amount - a.amount),
+      },
+      expenses: expenseEntries,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      message: "Failed to fetch profit and loss report",
+      error: error.message,
+    });
+  }
+};
+
 module.exports = {
+  getProfitLossReport,
   getDayBook,
   getOutstanding,
   getPartyLedger,
