@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
-  Mountain, FileText, Wallet, HandCoins, Send, ShoppingCart, PackageMinus, Layers
+  Mountain, FileText, Wallet, HandCoins, Send, ShoppingCart, PackageMinus, Layers,
+  ArrowDownLeft, ArrowUpRight
 } from 'lucide-react';
 import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid,
@@ -78,6 +79,22 @@ const TOOLTIP_STYLE = { borderRadius: 12, border: '1px solid #e2e8f0', boxShadow
 const CHART_BLUE = '#2563eb';
 const CHART_GREEN = '#10b981';
 const CHART_AMBER = '#f59e0b';
+
+/** One line of the cash flow statement: label (+ hint) on the left, amount on the right. */
+function FlowRow({ label, hint, value, dot, total = false, valueClass = 'text-slate-800' }) {
+  return (
+    <div className={`flex items-center justify-between gap-3 ${total ? 'border-t border-slate-200 pt-2.5' : ''}`}>
+      <div className="flex min-w-0 items-center gap-2">
+        {dot && <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${dot}`} />}
+        <div className="min-w-0">
+          <p className={`truncate text-sm ${total ? 'font-bold text-slate-900' : 'font-medium text-slate-700'}`}>{label}</p>
+          {hint && <p className="truncate text-[11px] text-slate-500">{hint}</p>}
+        </div>
+      </div>
+      <p className={`shrink-0 whitespace-nowrap text-sm ${total ? 'font-bold' : 'font-semibold'} ${valueClass}`}>{value}</p>
+    </div>
+  );
+}
 
 export default function Dashboard() {
   const location = useLocation();
@@ -163,6 +180,17 @@ export default function Dashboard() {
   const trendText = byMonth ? 'by month' : trendIsPadded ? 'last 7 days' : 'by day';
   const tickFormat = (d) => formatDate(d, byMonth ? { month: 'short' } : { day: '2-digit', month: 'short' });
   const labelFormat = (d) => formatDate(d, byMonth ? { month: 'long', year: 'numeric' } : FULL_DATE);
+
+  const salesAmount = data?.sales?.amount || 0;
+  const cashSales = data?.sales?.cashAmount || 0;
+  const creditSales = data?.sales?.creditAmount || 0;
+  const cashShare = salesAmount > 0 ? (cashSales / salesAmount) * 100 : 0;
+  const creditShare = salesAmount > 0 ? (creditSales / salesAmount) * 100 : 0;
+  const moneyIn = data?.cashFlow?.moneyIn || {};
+  const moneyOut = data?.cashFlow?.moneyOut || {};
+  const netCash = data?.cashFlow?.net || 0;
+  const netTone = netCash >= 0 ? 'text-emerald-700' : 'text-rose-700';
+  const netText = `${netCash >= 0 ? '+' : '−'} ${fmt(Math.abs(netCash))}`;
 
   const materialSales = data?.sales?.byMaterial || [];
   const hasCubicSales = materialSales.some((row) => row.cubicMeterQty > 0);
@@ -288,6 +316,79 @@ export default function Dashboard() {
               <span className="min-w-0 truncate text-[13px] font-semibold text-slate-700 group-hover:text-slate-900">{entry.label}</span>
             </button>
           ))}
+        </div>
+      </section>
+
+      {/* Cash flow */}
+      <section className="panel">
+        <div className="panel-header flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h3 className="text-sm font-bold text-slate-900">Cash Flow</h3>
+            <p className="text-xs text-slate-500">Money that actually came in and went out · {periodText}</p>
+          </div>
+          <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-bold ring-1 ring-inset ${netCash >= 0 ? 'bg-emerald-50 ring-emerald-200' : 'bg-rose-50 ring-rose-200'} ${netTone}`}>
+            Net {netText}
+          </span>
+        </div>
+
+        <div className="grid grid-cols-1 divide-y divide-slate-100 lg:grid-cols-3 lg:divide-x lg:divide-y-0">
+          {/* Sales: how much was cash, how much is still credit */}
+          <div className="space-y-3 p-4 md:p-5">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Total Sales</p>
+              <p className="text-2xl font-bold leading-tight text-slate-900">{fmt(salesAmount)}</p>
+            </div>
+            <div className="flex h-2.5 gap-0.5 overflow-hidden rounded-full bg-slate-100">
+              <div className="rounded-full bg-emerald-500" style={{ width: `${cashShare}%` }} />
+              <div className="rounded-full bg-amber-400" style={{ width: `${creditShare}%` }} />
+            </div>
+            <FlowRow dot="bg-emerald-500" label="Cash sales" hint={`${fmtNum(Math.round(cashShare))}% · received with the sale`} value={fmt(cashSales)} valueClass="text-emerald-700" />
+            <FlowRow dot="bg-amber-400" label="Credit sales" hint={`${fmtNum(Math.round(creditShare))}% · still to be collected`} value={fmt(creditSales)} valueClass="text-amber-700" />
+          </div>
+
+          {/* Money in */}
+          <div className="space-y-3 p-4 md:p-5">
+            <div className="flex items-center gap-3">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-white">
+                <ArrowDownLeft size={20} />
+              </span>
+              <div className="min-w-0">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Money In</p>
+                <p className="truncate text-2xl font-bold leading-tight text-emerald-700">{fmt(moneyIn.total)}</p>
+              </div>
+            </div>
+            <FlowRow label="Cash from sales" hint="Paid at the time of sale" value={fmt(moneyIn.sales)} />
+            <FlowRow label="Receipts" hint="Collected from parties" value={fmt(moneyIn.receipts)} />
+            <FlowRow total label="Total money in" value={fmt(moneyIn.total)} valueClass="text-emerald-700" />
+          </div>
+
+          {/* Money out */}
+          <div className="space-y-3 p-4 md:p-5">
+            <div className="flex items-center gap-3">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-rose-600 text-white">
+                <ArrowUpRight size={20} />
+              </span>
+              <div className="min-w-0">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Money Out</p>
+                <p className="truncate text-2xl font-bold leading-tight text-rose-700">{fmt(moneyOut.total)}</p>
+              </div>
+            </div>
+            <FlowRow label="Expenses paid" hint={`of ${fmt(data?.expenses?.amount)} expenses`} value={fmt(moneyOut.expenses)} />
+            <FlowRow label="Payments" hint="Paid to parties" value={fmt(moneyOut.payments)} />
+            <FlowRow label="Purchases paid" hint={`of ${fmt(data?.purchases?.amount)} purchases`} value={fmt(moneyOut.purchases)} />
+            <FlowRow total label="Total money out" value={fmt(moneyOut.total)} valueClass="text-rose-700" />
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-1 border-t border-slate-100 bg-slate-50 px-4 py-3 md:px-5">
+          <p className="text-sm font-bold text-slate-900">Net Cash Flow</p>
+          <p className="text-sm text-slate-600">
+            <span className="font-semibold text-emerald-700">{fmt(moneyIn.total)}</span>
+            <span className="mx-1.5 text-slate-400">in −</span>
+            <span className="font-semibold text-rose-700">{fmt(moneyOut.total)}</span>
+            <span className="mx-1.5 text-slate-400">out =</span>
+            <span className={`text-base font-bold ${netTone}`}>{netText}</span>
+          </p>
         </div>
       </section>
 

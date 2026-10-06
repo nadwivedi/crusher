@@ -1249,9 +1249,9 @@ const getDashboardSummary = async (req, res) => {
 
     const [boulders, sales, expenses, purchases, receipts, payments] = await Promise.all([
       Boulder.find(scopedFilter(req, between("boulderDate", trendFrom))).select("netWeight amount entryMode tripCount boulderDate").lean(),
-      Sales.find(scopedFilter(req, between("saleDate", trendFrom))).select("netWeight totalAmount saleDate stoneSize pricingMode cubicMeterQty").lean(),
-      Expense.find(scopedFilter(req, between("expenseDate", trendFrom))).select("amount expenseDate").lean(),
-      Purchase.find(scopedFilter(req, between("purchaseDate", fromDate))).select("totalAmount").lean(),
+      Sales.find(scopedFilter(req, between("saleDate", trendFrom))).select("netWeight totalAmount paidAmount saleDate stoneSize pricingMode cubicMeterQty").lean(),
+      Expense.find(scopedFilter(req, between("expenseDate", trendFrom))).select("amount paidAmount expenseDate").lean(),
+      Purchase.find(scopedFilter(req, between("purchaseDate", fromDate))).select("totalAmount paidAmount").lean(),
       Receipt.find(scopedFilter(req, between("receiptDate", fromDate))).select("amount").lean(),
       Payment.find(scopedFilter(req, between("paymentDate", fromDate))).select("amount").lean(),
     ]);
@@ -1284,7 +1284,8 @@ const getDashboardSummary = async (req, res) => {
       boulder.count += 1;
     }
 
-    const salesTotals = { amount: 0, netWeight: 0, count: 0 };
+    // cashAmount + creditAmount = amount. receivedAmount is the money taken with the sale (can exceed the bill).
+    const salesTotals = { amount: 0, netWeight: 0, count: 0, cashAmount: 0, creditAmount: 0, receivedAmount: 0 };
     const materialMap = new Map();
     for (const item of sales) {
       const date = new Date(item.saleDate);
@@ -1295,6 +1296,10 @@ const getDashboardSummary = async (req, res) => {
       salesTotals.amount += amount;
       salesTotals.netWeight += netWeight;
       salesTotals.count += 1;
+      const saleAmounts = getSaleAmounts(item);
+      salesTotals.cashAmount += saleAmounts.appliedAmount;
+      salesTotals.creditAmount += saleAmounts.pendingAmount;
+      salesTotals.receivedAmount += saleAmounts.paidAmount;
 
       const material = String(item.stoneSize || "other").trim().toLowerCase();
       const row = materialMap.get(material) || { material, count: 0, netWeight: 0, cubicMeterQty: 0, amount: 0 };
@@ -1305,17 +1310,29 @@ const getDashboardSummary = async (req, res) => {
       materialMap.set(material, row);
     }
 
-    const expenseTotals = { amount: 0, count: 0 };
+    const expenseTotals = { amount: 0, paidAmount: 0, count: 0 };
     for (const item of expenses) {
       const date = new Date(item.expenseDate);
       const amount = toNumber(item.amount);
       addToTrend(date, "expenses", amount);
       if (date < fromDate) continue;
       expenseTotals.amount += amount;
+      // Older expenses have no paidAmount and were fully paid
+      expenseTotals.paidAmount += item.paidAmount == null ? amount : toNumber(item.paidAmount);
       expenseTotals.count += 1;
     }
 
     const sumOf = (items, field) => items.reduce((total, item) => total + toNumber(item[field]), 0);
+
+    // Money that actually moved, same rules as the day book's In / Out columns
+    const moneyIn = { sales: salesTotals.receivedAmount, receipts: sumOf(receipts, "amount") };
+    moneyIn.total = moneyIn.sales + moneyIn.receipts;
+    const moneyOut = {
+      expenses: expenseTotals.paidAmount,
+      payments: sumOf(payments, "amount"),
+      purchases: sumOf(purchases, "paidAmount"),
+    };
+    moneyOut.total = moneyOut.expenses + moneyOut.payments + moneyOut.purchases;
 
     return res.json({
       fromDate,
@@ -1327,9 +1344,10 @@ const getDashboardSummary = async (req, res) => {
         byMaterial: Array.from(materialMap.values()).sort((a, b) => b.amount - a.amount),
       },
       expenses: expenseTotals,
-      purchases: { amount: sumOf(purchases, "totalAmount"), count: purchases.length },
-      receipts: { amount: sumOf(receipts, "amount"), count: receipts.length },
-      payments: { amount: sumOf(payments, "amount"), count: payments.length },
+      purchases: { amount: sumOf(purchases, "totalAmount"), paidAmount: moneyOut.purchases, count: purchases.length },
+      receipts: { amount: moneyIn.receipts, count: receipts.length },
+      payments: { amount: moneyOut.payments, count: payments.length },
+      cashFlow: { moneyIn, moneyOut, net: moneyIn.total - moneyOut.total },
       trend: Array.from(buckets.values()),
     });
   } catch (error) {
