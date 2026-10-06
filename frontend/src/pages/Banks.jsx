@@ -64,7 +64,7 @@ export default function Banks() {
       }
 
       event.preventDefault();
-      navigate('/masters');
+      navigate('/');
     };
 
     window.addEventListener('keydown', handleKeyDown);

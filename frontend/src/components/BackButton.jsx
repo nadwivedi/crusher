@@ -16,8 +16,9 @@ export default function BackButton() {
     else navigate('/');
   };
 
+  // Desktop only: on mobile the layout's top bar has its own back button.
   return (
-    <div className="bg-slate-100">
+    <div className="hidden bg-slate-100 lg:block">
       <div className="mx-auto max-w-[95%] px-4 pt-4">
         <button
           type="button"

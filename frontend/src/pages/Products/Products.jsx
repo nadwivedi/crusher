@@ -35,7 +35,7 @@ export default function Products() {
       }
 
       event.preventDefault();
-      navigate('/masters');
+      navigate('/');
     };
 
     window.addEventListener('keydown', handleKeyDown);

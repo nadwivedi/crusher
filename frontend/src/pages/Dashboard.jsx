@@ -1,0 +1,425 @@
+import { useEffect, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import {
+  Mountain, FileText, Wallet, HandCoins, Send, ShoppingCart, PackageMinus, Layers
+} from 'lucide-react';
+import {
+  LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid,
+  Tooltip, ResponsiveContainer, Legend
+} from 'recharts';
+import apiClient from '../utils/api';
+import StatCard from '../components/StatCard';
+import Segmented from '../components/Segmented';
+
+const fmt = (n) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(n || 0);
+const fmtNum = (n) => new Intl.NumberFormat('en-IN', { maximumFractionDigits: 2 }).format(n || 0);
+const toTons = (kg) => Number(kg || 0) / 1000;
+// Sizes read as "20mm"; named materials (dust, wmm, gsb) read better in capitals
+const formatMaterial = (name) => (/^\d/.test(name) ? name : String(name || '-').toUpperCase());
+const fmtShortAmount = (v) => {
+  if (v >= 100000) return `₹${fmtNum(v / 100000)}L`;
+  if (v >= 1000) return `₹${fmtNum(v / 1000)}K`;
+  return `₹${v}`;
+};
+
+const toInputDate = (date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+const daysAgo = (days) => {
+  const date = new Date();
+  date.setDate(date.getDate() - days);
+  return date;
+};
+const formatDate = (value, options) => new Date(`${value}T00:00:00`).toLocaleDateString('en-GB', options);
+const FULL_DATE = { day: 'numeric', month: 'short', year: 'numeric' };
+
+const RANGES = [
+  { key: 'today', label: 'Today', get: () => [new Date(), new Date()] },
+  { key: 'yesterday', label: 'Yesterday', get: () => [daysAgo(1), daysAgo(1)] },
+  { key: 'last7', label: 'Last 7 Days', get: () => [daysAgo(6), new Date()] },
+  { key: 'last30', label: 'Last 30 Days', get: () => [daysAgo(29), new Date()] },
+  { key: 'year', label: 'This Year', get: () => [new Date(new Date().getFullYear(), 0, 1), new Date()] },
+  { key: 'custom', label: 'Custom' },
+];
+
+const rangeLabel = (from, to) => from === to
+  ? formatDate(from, FULL_DATE)
+  : `${formatDate(from, FULL_DATE)} – ${formatDate(to, FULL_DATE)}`;
+
+// Entry popups are opened by App.jsx from these router-state flags while on "/".
+const QUICK_ENTRIES = [
+  { label: 'Boulder Entry', stateKey: 'homeQuickBoulder', icon: Mountain, tone: 'bg-blue-50 text-blue-700 ring-blue-100' },
+  { label: 'New Sale', stateKey: 'homeQuickSale', icon: FileText, tone: 'bg-emerald-50 text-emerald-700 ring-emerald-100' },
+  { label: 'New Expense', stateKey: 'homeQuickExpense', icon: Wallet, tone: 'bg-amber-50 text-amber-700 ring-amber-100' },
+  { label: 'Money Received', stateKey: 'homeQuickReceipt', icon: HandCoins, tone: 'bg-teal-50 text-teal-700 ring-teal-100' },
+  { label: 'Money Paid', stateKey: 'homeQuickPayment', icon: Send, tone: 'bg-rose-50 text-rose-700 ring-rose-100' },
+  { label: 'Material Used', stateKey: 'homeQuickMaterialUsed', icon: PackageMinus, tone: 'bg-indigo-50 text-indigo-700 ring-indigo-100' },
+];
+const MORE_ENTRIES = [
+  { label: 'Purchase Return', stateKey: 'homeQuickPurchaseReturn' },
+  { label: 'Sale Return', path: '/sale-return' },
+  { label: 'Stock Adjustment', path: '/stock-adjustment' },
+];
+const QUICK_STATE_KEYS = [
+  'homeQuickBoulder', 'homeQuickSale', 'homeQuickPurchase', 'homeQuickPayment',
+  'homeQuickReceipt', 'homeQuickMaterialUsed', 'homeQuickPurchaseReturn', 'homeQuickExpense'
+];
+const quickEntryState = (currentState, stateKey) => ({
+  ...(currentState || {}),
+  ...Object.fromEntries(QUICK_STATE_KEYS.map((key) => [key, key === stateKey]))
+});
+
+// Shared chart styling
+const AXIS_TICK = { fontSize: 11, fill: '#64748b' };
+const TOOLTIP_STYLE = { borderRadius: 12, border: '1px solid #e2e8f0', boxShadow: '0 10px 25px -12px rgba(15,23,42,0.25)', fontSize: 12 };
+const CHART_BLUE = '#2563eb';
+const CHART_GREEN = '#10b981';
+const CHART_AMBER = '#f59e0b';
+
+export default function Dashboard() {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [rangeKey, setRangeKey] = useState('today');
+  const [range, setRange] = useState(() => ({ from: toInputDate(new Date()), to: toInputDate(new Date()) }));
+  const [custom, setCustom] = useState(range);
+
+  const entryPopupOpen = QUICK_STATE_KEYS.some((key) => location.state?.[key]);
+
+  // Reloads when the range changes and again once an entry popup closes, so new entries show up in the totals.
+  useEffect(() => {
+    if (entryPopupOpen) return undefined;
+
+    let ignore = false;
+    setLoading(true);
+    apiClient.get('/reports/dashboard-summary', { params: { fromDate: range.from, toDate: range.to } })
+      .then((response) => {
+        if (ignore) return;
+        setData(response);
+        setError('');
+      })
+      .catch((err) => {
+        if (!ignore) setError(err?.message || 'Unable to load dashboard');
+      })
+      .finally(() => {
+        if (!ignore) setLoading(false);
+      });
+
+    return () => { ignore = true; };
+  }, [range, entryPopupOpen]);
+
+  const openQuickEntry = (entry) => {
+    if (entry.path) {
+      navigate(entry.path);
+      return;
+    }
+
+    navigate('/', { replace: true, state: quickEntryState(location.state, entry.stateKey) });
+  };
+
+  // Alt + 6 opens a new expense (Alt + 1-4 are handled in ProtectedRoute)
+  useEffect(() => {
+    const handleKeyDown = (event) => {
+      if (event.key !== '6' || !event.altKey || event.ctrlKey || event.metaKey || event.defaultPrevented) return;
+
+      const tagName = event.target?.tagName?.toLowerCase();
+      const isTyping = tagName === 'input' || tagName === 'textarea' || tagName === 'select' || event.target?.isContentEditable;
+      if (isTyping || document.querySelector('.fixed.inset-0.z-50')) return;
+
+      event.preventDefault();
+      navigate('/', { replace: true, state: quickEntryState(location.state, 'homeQuickExpense') });
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [location.state, navigate]);
+
+  const selectRange = (key) => {
+    setRangeKey(key);
+    const preset = RANGES.find((r) => r.key === key);
+    if (preset?.get) {
+      const [from, to] = preset.get();
+      setRange({ from: toInputDate(from), to: toInputDate(to) });
+    } else {
+      setCustom(range);
+    }
+  };
+
+  const customValid = custom.from && custom.to && custom.from <= custom.to;
+  const applyCustom = () => { if (customValid) setRange({ ...custom }); };
+
+  const periodLabel = RANGES.find((r) => r.key === rangeKey)?.label;
+  const periodText = rangeKey === 'custom' ? 'Selected range' : periodLabel;
+
+  const trend = (data?.trend || []).map((row) => ({ ...row, boulderTons: toTons(row.boulder) }));
+  const byMonth = data?.groupBy === 'month';
+  // Short ranges are padded to a week by the API so the charts are not a single point
+  const trendIsPadded = trend.length > 0 && trend[0].date < range.from;
+  const trendText = byMonth ? 'by month' : trendIsPadded ? 'last 7 days' : 'by day';
+  const tickFormat = (d) => formatDate(d, byMonth ? { month: 'short' } : { day: '2-digit', month: 'short' });
+  const labelFormat = (d) => formatDate(d, byMonth ? { month: 'long', year: 'numeric' } : FULL_DATE);
+
+  const materialSales = data?.sales?.byMaterial || [];
+  const hasCubicSales = materialSales.some((row) => row.cubicMeterQty > 0);
+  const materialTotals = materialSales.reduce((totals, row) => ({
+    count: totals.count + row.count,
+    netWeight: totals.netWeight + row.netWeight,
+    cubicMeterQty: totals.cubicMeterQty + row.cubicMeterQty,
+  }), { count: 0, netWeight: 0, cubicMeterQty: 0 });
+
+  const kpis = [
+    {
+      icon: Mountain, label: 'Boulder Crushed', tone: 'blue',
+      value: `${fmtNum(toTons(data?.boulder?.netWeight))} tons`,
+      hint: `${fmtNum(data?.boulder?.trips)} trips · ${periodText}`
+    },
+    {
+      icon: FileText, label: 'Sales', tone: 'emerald',
+      value: fmt(data?.sales?.amount),
+      hint: `${fmtNum(toTons(data?.sales?.netWeight))} tons in ${fmtNum(data?.sales?.count)} sales · ${periodText}`
+    },
+    {
+      icon: Wallet, label: 'Expenses', tone: 'amber',
+      value: fmt(data?.expenses?.amount),
+      hint: `${fmtNum(data?.expenses?.count)} entries · ${periodText}`
+    },
+    {
+      icon: HandCoins, label: 'Money Received', tone: 'teal',
+      value: fmt(data?.receipts?.amount),
+      hint: `${fmtNum(data?.receipts?.count)} receipts · ${periodText}`
+    },
+    {
+      icon: Send, label: 'Money Paid', tone: 'rose',
+      value: fmt(data?.payments?.amount),
+      hint: `${fmtNum(data?.payments?.count)} payments · ${periodText}`
+    },
+    {
+      icon: ShoppingCart, label: 'Purchases', tone: 'indigo',
+      value: fmt(data?.purchases?.amount),
+      hint: `${fmtNum(data?.purchases?.count)} bills · ${periodText}`
+    },
+  ];
+
+  return (
+    <div className="page-fade-in space-y-4 px-3 pb-8 pt-4 md:space-y-5 lg:px-6 lg:pt-5">
+      {/* Header + date range filter */}
+      <div className="page-header">
+        <div>
+          <h1 className="page-title">Dashboard</h1>
+          <p className="page-subtitle">
+            {periodLabel} · {rangeLabel(range.from, range.to)}
+          </p>
+        </div>
+        <Segmented options={RANGES} value={rangeKey} onChange={selectRange} />
+      </div>
+
+      {rangeKey === 'custom' && (
+        <div className="card flex flex-wrap items-end gap-3">
+          <div>
+            <label className="label">From</label>
+            <input type="date" className="input" value={custom.from} max={custom.to || undefined}
+              onChange={(e) => setCustom({ ...custom, from: e.target.value })} />
+          </div>
+          <div>
+            <label className="label">To</label>
+            <input type="date" className="input" value={custom.to} min={custom.from || undefined}
+              onChange={(e) => setCustom({ ...custom, to: e.target.value })} />
+          </div>
+          <button type="button" className="btn-primary" onClick={applyCustom} disabled={!customValid}>Apply</button>
+          {!customValid && <p className="pb-2 text-xs font-medium text-rose-600">"From" date must be on or before "To" date</p>}
+        </div>
+      )}
+
+      {error && (
+        <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700">
+          {error}
+        </div>
+      )}
+
+      {loading && !data ? (
+        <div className="flex flex-col items-center gap-3 py-16">
+          <div className="h-9 w-9 animate-spin rounded-full border-4 border-primary-600 border-r-transparent" />
+          <p className="text-sm text-slate-400">Loading dashboard…</p>
+        </div>
+      ) : (
+      <div className={`space-y-4 transition-opacity md:space-y-5 ${loading ? 'pointer-events-none opacity-50' : ''}`}>
+
+      {/* KPI cards */}
+      <section className="grid grid-cols-2 gap-2.5 md:gap-4 lg:grid-cols-3">
+        {kpis.map((kpi) => <StatCard key={kpi.label} {...kpi} />)}
+      </section>
+
+      {/* Quick entry */}
+      <section className="panel">
+        <div className="panel-header flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h3 className="text-sm font-bold text-slate-900">Quick Entry</h3>
+            <p className="text-xs text-slate-500">Add today's entries without leaving the dashboard</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {MORE_ENTRIES.map((entry) => (
+              <button
+                key={entry.label}
+                type="button"
+                onClick={() => openQuickEntry(entry)}
+                className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-100"
+              >
+                {entry.label}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-2.5 p-3 md:grid-cols-3 md:gap-3 md:p-4 xl:grid-cols-6">
+          {QUICK_ENTRIES.map(({ icon: Icon, ...entry }) => (
+            <button
+              key={entry.stateKey}
+              type="button"
+              onClick={() => openQuickEntry(entry)}
+              className="group flex items-center gap-2.5 rounded-xl border border-slate-200 bg-white p-2.5 text-left transition hover:border-primary-300 hover:bg-primary-50/40 hover:shadow-md"
+            >
+              <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ring-1 ring-inset ${entry.tone}`}>
+                <Icon size={18} />
+              </span>
+              <span className="min-w-0 truncate text-[13px] font-semibold text-slate-700 group-hover:text-slate-900">{entry.label}</span>
+            </button>
+          ))}
+        </div>
+      </section>
+
+      {/* Material-wise sales */}
+      <section className="panel">
+        <div className="panel-header flex items-center justify-between gap-3">
+          <div>
+            <h3 className="text-sm font-bold text-slate-900">Material-wise Sales</h3>
+            <p className="text-xs text-slate-500">Quantity and amount sold per material · {periodText}</p>
+          </div>
+          {materialSales.length > 0 && (
+            <span className="shrink-0 rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-200">
+              {materialSales.length} material{materialSales.length > 1 ? 's' : ''}
+            </span>
+          )}
+        </div>
+        {materialSales.length > 0 ? (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left">
+              <thead>
+                <tr>
+                  <th className="tbl-head">Material</th>
+                  <th className="tbl-head hidden text-right sm:table-cell">Sales</th>
+                  <th className="tbl-head text-right">Quantity</th>
+                  {hasCubicSales && <th className="tbl-head text-right">Cubic Meter</th>}
+                  <th className="tbl-head text-right">Amount</th>
+                  <th className="tbl-head hidden md:table-cell">Share of Sales</th>
+                </tr>
+              </thead>
+              <tbody>
+                {materialSales.map((row) => {
+                  const share = data.sales.amount > 0 ? (row.amount / data.sales.amount) * 100 : 0;
+                  return (
+                    <tr key={row.material} className="tbl-row">
+                      <td className="tbl-cell">
+                        <div className="flex items-center gap-3">
+                          <span className="hidden h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-100 sm:flex">
+                            <Layers size={18} />
+                          </span>
+                          <span className="font-semibold text-slate-800">{formatMaterial(row.material)}</span>
+                        </div>
+                      </td>
+                      <td className="tbl-cell hidden text-right sm:table-cell">{fmtNum(row.count)}</td>
+                      <td className="tbl-cell whitespace-nowrap text-right font-semibold text-slate-800">{fmtNum(toTons(row.netWeight))} tons</td>
+                      {hasCubicSales && (
+                        <td className="tbl-cell whitespace-nowrap text-right">{row.cubicMeterQty > 0 ? `${fmtNum(row.cubicMeterQty)} m³` : '-'}</td>
+                      )}
+                      <td className="tbl-cell whitespace-nowrap text-right font-semibold text-emerald-700">{fmt(row.amount)}</td>
+                      <td className="tbl-cell hidden md:table-cell">
+                        <div className="flex items-center gap-2">
+                          <div className="h-2 w-32 overflow-hidden rounded-full bg-slate-100">
+                            <div className="h-full rounded-full bg-emerald-500" style={{ width: `${share}%` }} />
+                          </div>
+                          <span className="text-xs font-medium text-slate-500">{fmtNum(Math.round(share))}%</span>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+              <tfoot>
+                <tr className="border-t border-slate-200 bg-slate-50">
+                  <td className="tbl-cell font-bold text-slate-900">Total</td>
+                  <td className="tbl-cell hidden text-right font-bold text-slate-900 sm:table-cell">{fmtNum(materialTotals.count)}</td>
+                  <td className="tbl-cell whitespace-nowrap text-right font-bold text-slate-900">{fmtNum(toTons(materialTotals.netWeight))} tons</td>
+                  {hasCubicSales && (
+                    <td className="tbl-cell whitespace-nowrap text-right font-bold text-slate-900">{fmtNum(materialTotals.cubicMeterQty)} m³</td>
+                  )}
+                  <td className="tbl-cell whitespace-nowrap text-right font-bold text-emerald-700">{fmt(data.sales.amount)}</td>
+                  <td className="tbl-cell hidden md:table-cell" />
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        ) : (
+          <div className="flex flex-col items-center gap-2 px-6 py-10 text-center">
+            <span className="flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 text-slate-400">
+              <Layers size={22} />
+            </span>
+            <p className="text-sm font-semibold text-slate-800">No sales in this period</p>
+            <p className="text-xs text-slate-500">Material-wise totals appear here once a sale is added.</p>
+          </div>
+        )}
+      </section>
+
+      {/* Charts */}
+      <div className="grid grid-cols-1 gap-4 md:gap-5 lg:grid-cols-2">
+        <section className="panel">
+          <div className="panel-header">
+            <h3 className="text-sm font-bold text-slate-900">Boulder Crushed</h3>
+            <p className="text-xs text-slate-500">Tons {trendText}</p>
+          </div>
+          <div className="p-3 md:p-4">
+            <ResponsiveContainer width="100%" height={240}>
+              <BarChart data={trend}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+                <XAxis dataKey="date" tick={AXIS_TICK} tickFormatter={tickFormat} axisLine={false} tickLine={false} />
+                <YAxis tick={AXIS_TICK} axisLine={false} tickLine={false} width={44} />
+                <Tooltip
+                  cursor={{ fill: '#f1f5f9' }}
+                  contentStyle={TOOLTIP_STYLE}
+                  formatter={(v) => [`${fmtNum(v)} tons`, 'Boulder']}
+                  labelFormatter={labelFormat}
+                />
+                <Bar dataKey="boulderTons" fill={CHART_BLUE} radius={[4, 4, 0, 0]} maxBarSize={36} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </section>
+
+        <section className="panel">
+          <div className="panel-header">
+            <h3 className="text-sm font-bold text-slate-900">Sales vs Expenses</h3>
+            <p className="text-xs text-slate-500">Amount {trendText}</p>
+          </div>
+          <div className="p-3 md:p-4">
+            <ResponsiveContainer width="100%" height={240}>
+              <LineChart data={trend}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+                <XAxis dataKey="date" tick={AXIS_TICK} tickFormatter={tickFormat} axisLine={false} tickLine={false} />
+                <YAxis tick={AXIS_TICK} axisLine={false} tickLine={false} width={52} tickFormatter={fmtShortAmount} />
+                <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v, n) => [fmt(v), n]} labelFormatter={labelFormat} />
+                <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 12 }} />
+                <Line type="monotone" dataKey="sales" stroke={CHART_GREEN} strokeWidth={2} dot={{ r: 3 }} name="Sales" />
+                <Line type="monotone" dataKey="expenses" stroke={CHART_AMBER} strokeWidth={2} dot={{ r: 3 }} name="Expenses" />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </section>
+      </div>
+      </div>
+      )}
+    </div>
+  );
+}

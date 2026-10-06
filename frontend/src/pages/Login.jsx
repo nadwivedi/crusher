@@ -34,7 +34,7 @@ export default function Login() {
 
     if (result.success) {
       toast.success(loginType === 'staff' ? 'Staff Login successful!' : 'Login successful!');
-      navigate('/stock');
+      navigate('/');
     } else {
       toast.error(result.message);
     }
@@ -66,7 +66,7 @@ export default function Login() {
 
     if (result.success) {
       toast.success('Registration successful! Welcome aboard.');
-      navigate('/stock');
+      navigate('/');
     } else {
       toast.error(result.message);
     }

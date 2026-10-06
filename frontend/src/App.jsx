@@ -1,7 +1,7 @@
 import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
 import Login from './pages/Login';
-import Home from './pages/Home';
+import Dashboard from './pages/Dashboard';
 import Products from './pages/Products/Products';
 import StockDetail from './pages/StockDetail';
 import StockGroups from './pages/StockGroups';
@@ -17,24 +17,21 @@ import PartyDetail from './pages/PartyDetail';
 import Expenses from './pages/Expenses/Expenses';
 import ExpenseTypes from './pages/ExpenseGroups';
 import BoulderEntry from './pages/BoulderEntry/BoulderEntry';
-import MastersHub from './pages/MastersHub';
 import StockAdjustment from './pages/StockAdjustment';
 import SaleReturn from './pages/SaleReturn/SaleReturn';
 import PurchaseReturn from './pages/PurchaseReturn/PurchaseReturn';
 import ReportsHub from './pages/ReportsHub';
-import ReportsDashboard from './pages/ReportsDashboard';
 import StockLedger from './pages/StockLedger';
 import PartyLedger from './pages/PartyLedger';
 import BoulderLedger from './pages/BoulderLedger';
 import MaterialUsedLedger from './pages/MaterialUsedLedger';
 import DieselConsumptionReport from './pages/Reports/DieselConsumptionReport';
-import ReportsPlaceholder from './pages/ReportsPlaceholder';
 import ProfitLossReport from './pages/Reports/ProfitLossReport';
 import DayBook from './pages/DayBook';
 import Analytics from './pages/Analytics';
 import Setting from './pages/Setting';
 import ProtectedRoute from './components/ProtectedRoute';
-import BackButton from './components/BackButton';
+import AppLayout from './components/AppLayout';
 import { hasFeatureAccess } from './utils/featureAccess';
 
 function App() {
@@ -74,7 +71,6 @@ function App() {
 
   return (
     <>
-      {isAuthenticated && <BackButton />}
       <Routes location={location}>
         {/* Public Routes */}
         <Route
@@ -82,360 +78,74 @@ function App() {
           element={isAuthenticated ? <Navigate to="/" /> : <Login />}
         />
 
-        {/* Legacy dashboard route */}
-        <Route
-          path="/dashboard"
-          element={
-            <ProtectedRoute>
-              <Navigate to="/" replace />
-            </ProtectedRoute>
-          }
-        />
+        {/* Everything else sits inside the sidebar layout */}
+        <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
+          <Route path="/" element={<Dashboard />} />
+          <Route path="/dashboard" element={<Navigate to="/" replace />} />
 
-        <Route
-          path="/"
-          element={
-            <ProtectedRoute>
-              <Home />
-            </ProtectedRoute>
-          }
-        />
+          {/* Masters (listed in the sidebar) */}
+          <Route path="/masters" element={<Navigate to="/party" replace />} />
+          <Route path="/party" element={<Party />} />
+          <Route path="/party/:id" element={<PartyDetail />} />
+          <Route path="/leadger" element={<Navigate to="/party" replace />} />
+          <Route path="/stock" element={<Products />} />
+          <Route path="/stock/:id" element={<StockDetail />} />
+          <Route path="/products" element={<Navigate to="/stock" replace />} />
+          <Route path="/stock-groups" element={<StockGroups />} />
+          <Route path="/vehicle" element={<Vehicle />} />
+          <Route path="/banks" element={<Banks />} />
+          <Route path="/expense-types" element={<ExpenseTypes />} />
+          <Route path="/expense-groups" element={<Navigate to="/expense-types" replace />} />
 
-        <Route
-          path="/masters"
-          element={
-            <ProtectedRoute>
-              <MastersHub />
-            </ProtectedRoute>
-          }
-        />
+          {/* Entry popups opened by URL */}
+          <Route path="/sales" element={<Sales modalOnly onModalFinish={closeVoucherRouteToHub} />} />
+          <Route path="/purchases" element={<Purchases modalOnly onModalFinish={closeVoucherRouteToHub} />} />
+          <Route path="/payments" element={<Payments modalOnly onModalFinish={closeVoucherRouteToHub} />} />
+          <Route path="/receipts" element={<Receipts modalOnly onModalFinish={closeVoucherRouteToHub} />} />
+          <Route path="/expenses" element={<Expenses modalOnly onModalFinish={closeVoucherRouteToHub} />} />
+          <Route path="/material-used" element={<MaterialUsed modalOnly onModalFinish={closeVoucherRouteToHub} />} />
+          <Route path="/purchase-return" element={<PurchaseReturn modalOnly onModalFinish={closeVoucherRouteToHub} />} />
+          <Route
+            path="/sale-return"
+            element={canViewSaleReturn
+              ? <SaleReturn modalOnly onModalFinish={closeVoucherRouteToHub} />
+              : <Navigate to="/" replace />}
+          />
+          <Route
+            path="/stock-adjustment"
+            element={canViewStockAdjustment
+              ? <StockAdjustment modalOnly onModalFinish={closeVoucherRouteToHub} />
+              : <Navigate to="/" replace />}
+          />
+          <Route path="/stock-adjustments" element={<Navigate to="/stock-adjustment" replace />} />
 
-        <Route
-          path="/stock-groups"
-          element={
-            <ProtectedRoute>
-              <StockGroups />
-            </ProtectedRoute>
-          }
-        />
+          {/* Overview + reports */}
+          <Route path="/day-book" element={<DayBook />} />
+          <Route path="/analytics" element={<Analytics />} />
+          <Route path="/reports" element={<ReportsHub />} />
+          <Route path="/reports-hub" element={<Navigate to="/reports" replace />} />
+          <Route path="/reports/party-ledger" element={<PartyLedger />} />
+          <Route path="/reports/stock-ledger" element={<StockLedger />} />
+          <Route path="/reports/boulder-ledger" element={<BoulderLedger />} />
+          <Route path="/reports/material-used-ledger" element={<MaterialUsedLedger />} />
+          <Route path="/reports/diesel-consumption" element={<DieselConsumptionReport />} />
+          <Route path="/reports/sales-report" element={<Sales />} />
+          <Route
+            path="/reports/sale-return-report"
+            element={canViewSaleReturn ? <SaleReturn /> : <Navigate to="/reports" replace />}
+          />
+          <Route
+            path="/reports/stock-adjustment-report"
+            element={canViewStockAdjustment ? <StockAdjustment /> : <Navigate to="/reports" replace />}
+          />
+          <Route path="/reports/receipt-report" element={<Receipts />} />
+          <Route path="/reports/expense-report" element={<Expenses />} />
+          <Route path="/reports/payment-report" element={<Payments />} />
+          <Route path="/reports/profit-loss-report" element={<ProfitLossReport />} />
 
-        <Route
-          path="/banks"
-          element={
-            <ProtectedRoute>
-              <Banks />
-            </ProtectedRoute>
-          }
-        />
+          <Route path="/settings" element={<Setting />} />
+        </Route>
 
-        <Route
-          path="/vehicle"
-          element={
-            <ProtectedRoute>
-              <Vehicle />
-            </ProtectedRoute>
-          }
-        />
-
-        <Route
-          path="/stock"
-          element={
-            <ProtectedRoute>
-              <Products />
-            </ProtectedRoute>
-          }
-        />
-
-        <Route path="/stock-adjustments" element={<Navigate to="/stock-adjustment" replace />} />
-
-        <Route
-          path="/stock/:id"
-          element={
-            <ProtectedRoute>
-              <StockDetail />
-            </ProtectedRoute>
-          }
-        />
-
-        <Route path="/products" element={<Navigate to="/stock" replace />} />
-
-        <Route
-          path="/purchases"
-          element={
-            <ProtectedRoute>
-              <Purchases modalOnly onModalFinish={closeVoucherRouteToHub} />
-            </ProtectedRoute>
-          }
-        />
-
-        <Route
-          path="/material-used"
-          element={
-            <ProtectedRoute>
-              <MaterialUsed modalOnly onModalFinish={closeVoucherRouteToHub} />
-            </ProtectedRoute>
-          }
-        />
-
-        <Route
-          path="/sales"
-          element={
-            <ProtectedRoute>
-              <Sales modalOnly onModalFinish={closeVoucherRouteToHub} />
-            </ProtectedRoute>
-          }
-        />
-
-        <Route
-          path="/day-book"
-          element={
-            <ProtectedRoute>
-              <DayBook />
-            </ProtectedRoute>
-          }
-        />
-
-        <Route
-          path="/analytics"
-          element={
-            <ProtectedRoute>
-              <Analytics />
-            </ProtectedRoute>
-          }
-        />
-
-        <Route
-          path="/reports"
-          element={
-            <ProtectedRoute>
-              <ReportsHub />
-            </ProtectedRoute>
-          }
-        />
-
-        <Route
-          path="/reports/party-ledger"
-          element={
-            <ProtectedRoute>
-              <PartyLedger />
-            </ProtectedRoute>
-          }
-        />
-
-        <Route
-          path="/reports/stock-ledger"
-          element={
-            <ProtectedRoute>
-              <StockLedger />
-            </ProtectedRoute>
-          }
-        />
-
-        <Route
-          path="/reports/boulder-ledger"
-          element={
-            <ProtectedRoute>
-              <BoulderLedger />
-            </ProtectedRoute>
-          }
-        />
-
-        <Route
-          path="/reports/material-used-ledger"
-          element={
-            <ProtectedRoute>
-              <MaterialUsedLedger />
-            </ProtectedRoute>
-          }
-        />
-        
-        <Route
-          path="/reports/diesel-consumption"
-          element={
-            <ProtectedRoute>
-              <DieselConsumptionReport />
-            </ProtectedRoute>
-          }
-        />
-
-        <Route
-          path="/reports/sales-report"
-          element={
-            <ProtectedRoute>
-              <Sales />
-            </ProtectedRoute>
-          }
-        />
-
-        <Route
-          path="/reports/sale-return-report"
-          element={
-            <ProtectedRoute>
-              {canViewSaleReturn ? <SaleReturn /> : <Navigate to="/reports" replace />}
-            </ProtectedRoute>
-          }
-        />
-
-        <Route
-          path="/reports/stock-adjustment-report"
-          element={
-            <ProtectedRoute>
-              {canViewStockAdjustment ? <StockAdjustment /> : <Navigate to="/reports" replace />}
-            </ProtectedRoute>
-          }
-        />
-
-        <Route
-          path="/reports/receipt-report"
-          element={
-            <ProtectedRoute>
-              <Receipts />
-            </ProtectedRoute>
-          }
-        />
-
-        <Route
-          path="/reports/expense-report"
-          element={
-            <ProtectedRoute>
-              <Expenses />
-            </ProtectedRoute>
-          }
-        />
-
-        <Route
-          path="/reports/payment-report"
-          element={
-            <ProtectedRoute>
-              <Payments />
-            </ProtectedRoute>
-          }
-        />
-
-        <Route
-          path="/reports/profit-loss-report"
-          element={
-            <ProtectedRoute>
-              <ProfitLossReport />
-            </ProtectedRoute>
-          }
-        />
-
-        <Route
-          path="/reports-hub"
-          element={
-            <ProtectedRoute>
-              <Navigate to="/reports" replace />
-            </ProtectedRoute>
-          }
-        />
-
-        <Route
-          path="/payments"
-          element={
-            <ProtectedRoute>
-              <Payments modalOnly onModalFinish={closeVoucherRouteToHub} />
-            </ProtectedRoute>
-          }
-        />
-
-        <Route
-          path="/receipts"
-          element={
-            <ProtectedRoute>
-              <Receipts modalOnly onModalFinish={closeVoucherRouteToHub} />
-            </ProtectedRoute>
-          }
-        />
-
-        <Route
-          path="/expenses"
-          element={
-            <ProtectedRoute>
-              <Expenses modalOnly onModalFinish={closeVoucherRouteToHub} />
-            </ProtectedRoute>
-          }
-        />
-
-        <Route
-          path="/expense-types"
-          element={
-            <ProtectedRoute>
-              <ExpenseTypes />
-            </ProtectedRoute>
-          }
-        />
-
-        <Route path="/expense-groups" element={<Navigate to="/expense-types" replace />} />
-
-        <Route
-          path="/party"
-          element={
-            <ProtectedRoute>
-              <Party />
-            </ProtectedRoute>
-          }
-        />
-
-        <Route
-          path="/party/:id"
-          element={
-            <ProtectedRoute>
-              <PartyDetail />
-            </ProtectedRoute>
-          }
-        />
-
-        <Route
-          path="/leadger"
-          element={
-            <ProtectedRoute>
-              <Navigate to="/party" replace />
-            </ProtectedRoute>
-          }
-        />
-
-        <Route
-          path="/stock-adjustment"
-          element={
-            <ProtectedRoute>
-              {canViewStockAdjustment
-                ? <StockAdjustment modalOnly onModalFinish={closeVoucherRouteToHub} />
-                : <Navigate to="/" replace />}
-            </ProtectedRoute>
-          }
-        />
-
-        <Route
-          path="/sale-return"
-          element={
-            <ProtectedRoute>
-              {canViewSaleReturn
-                ? <SaleReturn modalOnly onModalFinish={closeVoucherRouteToHub} />
-                : <Navigate to="/" replace />}
-            </ProtectedRoute>
-          }
-        />
-
-        <Route
-          path="/purchase-return"
-          element={
-            <ProtectedRoute>
-              <PurchaseReturn modalOnly onModalFinish={closeVoucherRouteToHub} />
-            </ProtectedRoute>
-          }
-        />
-
-        <Route
-          path="/settings"
-          element={
-            <ProtectedRoute>
-              <Setting />
-            </ProtectedRoute>
-          }
-        />
-
-        {/* Redirect to stock */}
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
 

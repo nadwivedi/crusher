@@ -6,6 +6,7 @@ const {
   getPartyLedgerEntryDetail,
   getStockLedger,
   getDashboardAnalytics,
+  getDashboardSummary,
   getDieselConsumptionReport,
   getPaymentReport,
   getProfitLossReport,
@@ -22,6 +23,7 @@ router.get("/party-ledger", getPartyLedger);
 router.get("/party-ledger-entry-detail", getPartyLedgerEntryDetail);
 router.get("/stock-ledger", getStockLedger);
 router.get("/dashboard-analytics", getDashboardAnalytics);
+router.get("/dashboard-summary", getDashboardSummary);
 router.get("/diesel-consumption", getDieselConsumptionReport);
 router.get("/payment-report", getPaymentReport);
 router.get("/profit-loss", getProfitLossReport);

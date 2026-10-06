@@ -1217,6 +1217,129 @@ const getDashboardAnalytics = async (req, res) => {
   }
 };
 
+const toDayKey = (date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
+// Totals for the dashboard cards over a date range (defaults to today), plus a trend for the charts.
+const getDashboardSummary = async (req, res) => {
+  try {
+    const now = new Date();
+    const fromDate = toDateBoundary(req.query.fromDate) || toDateBoundary(now);
+    const toDate = toDateBoundary(req.query.toDate, true) || toDateBoundary(now, true);
+
+    if (fromDate > toDate) {
+      return res.status(400).json({ message: "From date must be on or before to date" });
+    }
+
+    const rangeDays = Math.round((toDate - fromDate) / (24 * 60 * 60 * 1000));
+    const groupBy = rangeDays > 62 ? "month" : "day";
+
+    // A single day would be a one-bar chart, so the trend always covers at least a week.
+    const trendFrom = new Date(fromDate);
+    if (rangeDays < 7) {
+      trendFrom.setTime(toDateBoundary(toDate).getTime());
+      trendFrom.setDate(trendFrom.getDate() - 6);
+    }
+
+    const between = (field, start) => ({ [field]: { $gte: start, $lte: toDate } });
+
+    const [boulders, sales, expenses, purchases, receipts, payments] = await Promise.all([
+      Boulder.find(scopedFilter(req, between("boulderDate", trendFrom))).select("netWeight amount entryMode tripCount boulderDate").lean(),
+      Sales.find(scopedFilter(req, between("saleDate", trendFrom))).select("netWeight totalAmount saleDate stoneSize pricingMode cubicMeterQty").lean(),
+      Expense.find(scopedFilter(req, between("expenseDate", trendFrom))).select("amount expenseDate").lean(),
+      Purchase.find(scopedFilter(req, between("purchaseDate", fromDate))).select("totalAmount").lean(),
+      Receipt.find(scopedFilter(req, between("receiptDate", fromDate))).select("amount").lean(),
+      Payment.find(scopedFilter(req, between("paymentDate", fromDate))).select("amount").lean(),
+    ]);
+
+    const bucketKey = (date) => (groupBy === "month" ? `${toDayKey(date).slice(0, 7)}-01` : toDayKey(date));
+    const buckets = new Map();
+    const cursor = new Date(trendFrom);
+    if (groupBy === "month") cursor.setDate(1);
+    while (cursor <= toDate) {
+      const key = bucketKey(cursor);
+      buckets.set(key, { date: key, boulder: 0, sales: 0, expenses: 0 });
+      if (groupBy === "month") cursor.setMonth(cursor.getMonth() + 1);
+      else cursor.setDate(cursor.getDate() + 1);
+    }
+
+    const addToTrend = (date, field, value) => {
+      const bucket = buckets.get(bucketKey(date));
+      if (bucket) bucket[field] += value;
+    };
+
+    const boulder = { netWeight: 0, trips: 0, amount: 0, count: 0 };
+    for (const item of boulders) {
+      const date = new Date(item.boulderDate);
+      const netWeight = toNumber(item.netWeight);
+      addToTrend(date, "boulder", netWeight);
+      if (date < fromDate) continue;
+      boulder.netWeight += netWeight;
+      boulder.trips += item.entryMode === "bulk" ? toNumber(item.tripCount) : 1;
+      boulder.amount += toNumber(item.amount);
+      boulder.count += 1;
+    }
+
+    const salesTotals = { amount: 0, netWeight: 0, count: 0 };
+    const materialMap = new Map();
+    for (const item of sales) {
+      const date = new Date(item.saleDate);
+      const amount = toNumber(item.totalAmount);
+      addToTrend(date, "sales", amount);
+      if (date < fromDate) continue;
+      const netWeight = toNumber(item.netWeight);
+      salesTotals.amount += amount;
+      salesTotals.netWeight += netWeight;
+      salesTotals.count += 1;
+
+      const material = String(item.stoneSize || "other").trim().toLowerCase();
+      const row = materialMap.get(material) || { material, count: 0, netWeight: 0, cubicMeterQty: 0, amount: 0 };
+      row.count += 1;
+      row.netWeight += netWeight;
+      if (item.pricingMode === "per_cubic_meter") row.cubicMeterQty += toNumber(item.cubicMeterQty);
+      row.amount += amount;
+      materialMap.set(material, row);
+    }
+
+    const expenseTotals = { amount: 0, count: 0 };
+    for (const item of expenses) {
+      const date = new Date(item.expenseDate);
+      const amount = toNumber(item.amount);
+      addToTrend(date, "expenses", amount);
+      if (date < fromDate) continue;
+      expenseTotals.amount += amount;
+      expenseTotals.count += 1;
+    }
+
+    const sumOf = (items, field) => items.reduce((total, item) => total + toNumber(item[field]), 0);
+
+    return res.json({
+      fromDate,
+      toDate,
+      groupBy,
+      boulder,
+      sales: {
+        ...salesTotals,
+        byMaterial: Array.from(materialMap.values()).sort((a, b) => b.amount - a.amount),
+      },
+      expenses: expenseTotals,
+      purchases: { amount: sumOf(purchases, "totalAmount"), count: purchases.length },
+      receipts: { amount: sumOf(receipts, "amount"), count: receipts.length },
+      payments: { amount: sumOf(payments, "amount"), count: payments.length },
+      trend: Array.from(buckets.values()),
+    });
+  } catch (error) {
+    return res.status(500).json({
+      message: "Failed to load dashboard summary",
+      error: error.message,
+    });
+  }
+};
+
 const getDieselConsumptionReport = async (req, res) => {
   const { userId } = req;
   const fromDate = toDateBoundary(req.query.fromDate, false);
@@ -1458,6 +1581,7 @@ module.exports = {
   getPartyLedgerEntryDetail,
   getStockLedger,
   getDashboardAnalytics,
+  getDashboardSummary,
   getDieselConsumptionReport,
   getPaymentReport,
 };
