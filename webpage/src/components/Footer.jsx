@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { Mail, Phone, MapPin } from 'lucide-react';
+import { landingPages } from '../data/landingPages';
 
 const InstagramIcon = (props) => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
@@ -25,7 +26,7 @@ const Footer = () => {
   return (
     <footer className="border-t border-white/10 bg-brand-navy pt-9 pb-6 text-white lg:pt-10 lg:pb-8">
       <div className="w-full max-w-5xl mx-auto px-4 sm:px-5 lg:px-6 xl:max-w-6xl">
-        <div className="mb-7 grid gap-7 sm:grid-cols-2 md:grid-cols-4 lg:gap-6">
+        <div className="mb-7 grid gap-7 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 lg:gap-6">
 
           {/* Brand Info */}
           <div>
@@ -56,6 +57,18 @@ const Footer = () => {
               <li><Link to="/about" className="text-white/50 hover:text-brand-orange transition-colors">About Us</Link></li>
               <li><Link to="/pricing" className="text-white/50 hover:text-brand-orange transition-colors">Pricing</Link></li>
               <li><Link to="/contact" className="text-white/50 hover:text-brand-orange transition-colors">Contact</Link></li>
+            </ul>
+          </div>
+
+          {/* Solutions */}
+          <div>
+            <h4 className="mb-2.5 text-[0.6875rem] font-semibold uppercase tracking-wider text-white/80">
+              Solutions
+            </h4>
+            <ul className="space-y-1.5 text-xs sm:text-[0.8125rem]">
+              {landingPages.map(({ slug, navLabel }) => (
+                <li key={slug}><Link to={`/${slug}`} className="text-white/50 hover:text-brand-orange transition-colors">{navLabel}</Link></li>
+              ))}
             </ul>
           </div>
 

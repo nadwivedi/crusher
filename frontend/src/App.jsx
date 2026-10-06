@@ -30,6 +30,7 @@ import ProfitLossReport from './pages/Reports/ProfitLossReport';
 import DayBook from './pages/DayBook';
 import Analytics from './pages/Analytics';
 import Setting from './pages/Setting';
+import Payroll from './pages/Payroll/Payroll';
 import ProtectedRoute from './components/ProtectedRoute';
 import AppLayout from './components/AppLayout';
 import { hasFeatureAccess } from './utils/featureAccess';
@@ -142,6 +143,8 @@ function App() {
           <Route path="/reports/expense-report" element={<Expenses />} />
           <Route path="/reports/payment-report" element={<Payments />} />
           <Route path="/reports/profit-loss-report" element={<ProfitLossReport />} />
+
+          <Route path="/payroll" element={<Payroll />} />
 
           <Route path="/settings" element={<Setting />} />
         </Route>

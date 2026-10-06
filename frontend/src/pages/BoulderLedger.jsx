@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { CalendarDays, Eye, Pencil, RefreshCw, Search, Trash2, Truck, Inbox, X, Mountain } from 'lucide-react';
+import { CalendarDays, Eye, Pencil, Plus, RefreshCw, Search, Trash2, Truck, Inbox, X, Mountain } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import apiClient from '../utils/api';
 import { useAuth } from '../context/AuthContext';
@@ -155,6 +155,7 @@ export default function BoulderLedger() {
   const [datePreset, setDatePreset] = useState('');
   const [{ fromDate, toDate }, setDateRange] = useState({ fromDate: '', toDate: '' });
   const [editingEntry, setEditingEntry] = useState(null);
+  const [showAddEntry, setShowAddEntry] = useState(false);
   const [showCustomPicker, setShowCustomPicker] = useState(false);
   const [showMonthPicker, setShowMonthPicker] = useState(false);
   const [selectedMonth, setSelectedMonth] = useState(String(new Date().getMonth()));
@@ -163,14 +164,17 @@ export default function BoulderLedger() {
 
   useEffect(() => {
     const handleKeyDown = (event) => {
-      if (event.key === 'Escape' && !showCustomPicker && !showMonthPicker) {
+      // With an entry popup open, Esc closes the popup instead of leaving the page.
+      // defaultPrevented covers the popup's own Esc handler, which has already closed it by the time this runs.
+      if (event.defaultPrevented) return;
+      if (event.key === 'Escape' && !showCustomPicker && !showMonthPicker && !showAddEntry && !editingEntry) {
         navigate('/');
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [navigate, showCustomPicker, showMonthPicker]);
+  }, [navigate, showCustomPicker, showMonthPicker, showAddEntry, editingEntry]);
 
   useEffect(() => {
     loadBoulders();
@@ -367,6 +371,11 @@ export default function BoulderLedger() {
     loadBoulders();
   };
 
+  const handleCloseAdd = () => {
+    setShowAddEntry(false);
+    loadBoulders();
+  };
+
   const getPartyDisplayName = (entry) => String(entry?.partyName || '').trim() || '—';
 
   const maxVehicleWeight = vehicleSummary[0]?.netWeight || 0;
@@ -386,6 +395,7 @@ export default function BoulderLedger() {
         <CustomRangePopup from={fromDate} to={toDate} onApply={applyCustomRange} onClose={closeCustomPicker} />
       )}
       {editingEntry && <BoulderEntry editingEntry={editingEntry} onModalFinish={handleCloseEdit} />}
+      {showAddEntry && <BoulderEntry onModalFinish={handleCloseAdd} />}
 
       <main className="mx-auto max-w-[95%] space-y-4 px-4 pt-4 pb-10 md:space-y-5">
         {/* Header */}
@@ -394,14 +404,24 @@ export default function BoulderLedger() {
             <h1 className="text-2xl font-bold tracking-tight text-slate-900 md:text-3xl">Boulder Ledger</h1>
             <p className="mt-0.5 text-sm text-slate-500">Boulder received for crushing, by period and by vehicle</p>
           </div>
-          <button
-            type="button"
-            onClick={loadBoulders}
-            className="inline-flex items-center gap-2 self-start rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 md:self-auto"
-          >
-            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-            Refresh
-          </button>
+          <div className="flex items-center gap-2 self-start md:self-auto">
+            <button
+              type="button"
+              onClick={() => setShowAddEntry(true)}
+              className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-3.5 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700"
+            >
+              <Plus className="h-4 w-4" />
+              Add Boulder
+            </button>
+            <button
+              type="button"
+              onClick={loadBoulders}
+              className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+            >
+              <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+              Refresh
+            </button>
+          </div>
         </header>
 
         {error && (

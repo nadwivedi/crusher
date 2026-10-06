@@ -632,7 +632,7 @@ export default function BoulderEntry({ onModalFinish = null, editingEntry = null
                 Upload Slip
               </button>
               </>)}
-              <button type="button" onClick={handleClose} className="rounded-lg p-1.5 text-white transition hover:bg-white/20">
+              <button type="button" onClick={handleClose} aria-label="Close popup" className="rounded-lg p-1.5 text-white transition hover:bg-white/20">
                 <X className="h-5 w-5 md:h-6 md:w-6" />
               </button>
             </div>

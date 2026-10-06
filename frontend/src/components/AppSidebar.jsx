@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import {
   LayoutDashboard, BookOpenText, ChartNoAxesCombined, Mountain, FileText, HandCoins, Send, Wallet,
-  PackageMinus, ChartColumn, Users, Layers, Scale, Boxes, Truck, Landmark, Tags,
+  PackageMinus, IdCard, ChartColumn, Users, Layers, Scale, Boxes, Truck, Landmark, Tags,
   Settings, LogOut, X
 } from 'lucide-react';
 import Logo from './Logo';
@@ -26,6 +26,7 @@ const navGroups = [
       { to: '/reports/payment-report', icon: Send, label: 'Money Paid' },
       { to: '/reports/expense-report', icon: Wallet, label: 'Expenses' },
       { to: '/reports/material-used-ledger', icon: PackageMinus, label: 'Material Used' },
+      { to: '/payroll', icon: IdCard, label: 'Payroll' },
     ]
   },
   {

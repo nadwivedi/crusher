@@ -6,7 +6,7 @@ import Seo from '../components/Seo';
 const plans = [
   {
     name: 'Basic',
-    price: 'Rs 2,999',
+    price: 'Rs 4,999',
     period: '/ year',
     badge: 'Starter',
     popular: false,
@@ -23,7 +23,7 @@ const plans = [
   },
   {
     name: 'Advanced',
-    price: 'Rs 4,999',
+    price: 'Rs 6,999',
     period: '/ year',
     badge: 'Most Popular',
     popular: true,
@@ -40,7 +40,7 @@ const plans = [
   },
   {
     name: 'Enterprise',
-    price: 'Rs 6,999',
+    price: 'Rs 8,999',
     period: '/ year',
     badge: 'Best Value',
     popular: false,
@@ -81,7 +81,7 @@ export default function Pricing() {
     <div className="w-full bg-white">
       <Seo
         title="CrusherBook Pricing - Affordable Stone Crusher ERP Plans"
-        description="CrusherBook ERP pricing: Basic Rs 2,999, Advanced Rs 4,999 with AI entry & alerts, Enterprise Rs 6,999. All include 14-day free trial. Start today!"
+        description="CrusherBook ERP pricing: Basic Rs 4,999, Advanced Rs 6,999 with AI entry & alerts, Enterprise Rs 8,999. All include 14-day free trial. Start today!"
         path="/pricing"
         keywords={[
           'crusher software pricing',
@@ -97,21 +97,21 @@ export default function Pricing() {
             '@context': 'https://schema.org',
             '@type': 'PriceSpecification',
             priceCurrency: 'INR',
-            price: '2999',
+            price: '4999',
             pricingCategory: 'Basic Plan',
           },
           {
             '@context': 'https://schema.org',
             '@type': 'PriceSpecification',
             priceCurrency: 'INR',
-            price: '4999',
+            price: '6999',
             pricingCategory: 'Advanced Plan',
           },
           {
             '@context': 'https://schema.org',
             '@type': 'PriceSpecification',
             priceCurrency: 'INR',
-            price: '6999',
+            price: '8999',
             pricingCategory: 'Enterprise Plan',
           },
         ]}

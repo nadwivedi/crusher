@@ -28,6 +28,32 @@
            hover:from-primary-800 hover:to-primary-700 focus:outline-none focus-visible:ring-4 focus-visible:ring-primary-600/20
            disabled:opacity-50;
   }
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white
+           px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100
+           focus:outline-none focus-visible:ring-4 focus-visible:ring-primary-600/10 disabled:opacity-50;
+  }
+  .btn-sm {
+    @apply px-3 py-1.5 text-xs;
+  }
+  .icon-btn {
+    @apply rounded-lg p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700;
+  }
+  .badge-green {
+    @apply inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-200;
+  }
+  .badge-red {
+    @apply inline-flex items-center rounded-full bg-rose-50 px-2 py-0.5 text-[11px] font-semibold text-rose-700 ring-1 ring-inset ring-rose-200;
+  }
+  .badge-orange {
+    @apply inline-flex items-center rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-700 ring-1 ring-inset ring-amber-200;
+  }
+  .badge-blue {
+    @apply inline-flex items-center rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-semibold text-blue-700 ring-1 ring-inset ring-blue-200;
+  }
+  .badge-gray {
+    @apply inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600 ring-1 ring-inset ring-slate-200;
+  }
   .card {
     @apply rounded-2xl bg-white p-4 shadow-xs ring-1 ring-slate-200 md:p-5;
   }

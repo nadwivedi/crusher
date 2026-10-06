@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
-import { CalendarDays, Package, RefreshCw, Search, Truck } from 'lucide-react';
+import { CalendarDays, Package, Plus, RefreshCw, Search, Truck } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import apiClient from '../utils/api';
+import MaterialUsed from './MaterialUsed';
 
 const formatNumber = (value) => Number(value || 0).toLocaleString('en-IN', {
   minimumFractionDigits: 0,
@@ -66,16 +67,20 @@ export default function MaterialUsedLedger() {
   const [searchTerm, setSearchTerm] = useState('');
   const [datePreset, setDatePreset] = useState('');
   const [{ fromDate, toDate }, setDateRange] = useState({ fromDate: '', toDate: '' });
+  const [showAddEntry, setShowAddEntry] = useState(false);
 
   useEffect(() => {
     const handleKeyDown = (event) => {
-      if (event.key === 'Escape') {
+      // With the entry popup open, Esc closes the popup instead of leaving the page.
+      // defaultPrevented covers the popup's own Esc handler, which has already closed it by the time this runs.
+      if (event.defaultPrevented) return;
+      if (event.key === 'Escape' && !showAddEntry) {
         navigate('/');
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [navigate]);
+  }, [navigate, showAddEntry]);
 
   useEffect(() => {
     loadEntries();
@@ -138,6 +143,11 @@ export default function MaterialUsedLedger() {
     setDateRange(resolvePresetRange(value));
   };
 
+  const handleCloseAdd = () => {
+    setShowAddEntry(false);
+    loadEntries();
+  };
+
   const StatCard = ({ title, value, subtitle }) => (
     <div className="rounded-2xl border border-slate-100 bg-white px-5 py-4 shadow-lg">
       <p className="text-xs font-bold uppercase tracking-wider text-slate-400">{title}</p>
@@ -159,6 +169,8 @@ export default function MaterialUsedLedger() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-100 via-slate-50 to-stone-100">
+      {showAddEntry && <MaterialUsed modalOnly onModalFinish={handleCloseAdd} />}
+
       <div className="mx-auto max-w-[95%] px-4 py-6">
         {error && (
           <div className="mb-6 rounded-2xl border border-rose-200 bg-rose-50 px-6 py-4 text-sm font-semibold text-rose-700 shadow-lg">
@@ -179,7 +191,7 @@ export default function MaterialUsedLedger() {
                 <p className="text-sm text-slate-500">All consumed material details in one report</p>
               </div>
 
-              <div className="flex flex-col gap-3 sm:flex-row">
+              <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:justify-end">
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                   <input
@@ -207,14 +219,26 @@ export default function MaterialUsedLedger() {
                   </select>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={loadEntries}
-                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-800 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-900"
-                >
-                  <RefreshCw className="h-4 w-4" />
-                  Refresh
-                </button>
+                {/* Kept together so the two buttons wrap to the next line as a pair */}
+                <div className="flex gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setShowAddEntry(true)}
+                    className="inline-flex flex-1 items-center justify-center gap-2 whitespace-nowrap rounded-xl bg-sky-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-sky-700 sm:flex-none"
+                  >
+                    <Plus className="h-4 w-4" />
+                    Add Material Used
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={loadEntries}
+                    className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-slate-800 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-900 sm:flex-none"
+                  >
+                    <RefreshCw className="h-4 w-4" />
+                    Refresh
+                  </button>
+                </div>
               </div>
             </div>
           </div>

@@ -7,6 +7,8 @@ import About from './pages/About';
 import Contact from './pages/Contact';
 import Pricing from './pages/Pricing';
 import Features from './pages/Features';
+import KeywordLanding from './pages/KeywordLanding';
+import { landingPages } from './data/landingPages';
 
 function App() {
   return (
@@ -19,6 +21,9 @@ function App() {
           <Route path="/about" element={<About />} />
           <Route path="/pricing" element={<Pricing />} />
           <Route path="/contact" element={<Contact />} />
+          {landingPages.map(({ slug }) => (
+            <Route key={slug} path={`/${slug}`} element={<KeywordLanding key={slug} slug={slug} />} />
+          ))}
         </Routes>
       </main>
       <Footer />
