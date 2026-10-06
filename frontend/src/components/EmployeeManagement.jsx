@@ -1,14 +1,25 @@
 import React, { useState, useEffect } from 'react';
 import apiClient from '../utils/api';
 import { toast } from 'react-toastify';
-import { Shield, Plus, Edit2, Trash2, Key, Check, X } from 'lucide-react';
+import { Plus, Edit2, Trash2 } from 'lucide-react';
+
+const MAX_STAFF = 5;
+
+const HISTORY_LIMITS = [
+  { value: 7, label: 'Last 7 days' },
+  { value: 28, label: 'Last 28 days' },
+  { value: 90, label: 'Last 3 months' },
+  { value: 365, label: 'Last 1 year' },
+  { value: 'all', label: 'All data' }
+];
+const historyLabel = (value) => HISTORY_LIMITS.find((item) => String(item.value) === String(value))?.label || `Last ${value} days`;
 
 export default function EmployeeManagement() {
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState(null);
   const [isAdding, setIsAdding] = useState(false);
-  
+
   const [formData, setFormData] = useState({
     name: '',
     mobile: '',
@@ -66,12 +77,12 @@ export default function EmployeeManagement() {
       try {
         const payload = { ...formData };
         if (!payload.password) delete payload.password; // Don't send empty pass
-        
+
         await apiClient.patch(`/employees/${editingId}`, payload);
         toast.success("Employee updated!");
         fetchEmployees();
         resetForm();
-      } catch (e) { toast.error(e?.response?.data?.message || "Update failed"); }
+      } catch (e) { toast.error(e?.message || "Update failed"); }
     } else {
       if (!formData.password) { toast.error('Password required for new employee'); return;}
       try {
@@ -79,7 +90,7 @@ export default function EmployeeManagement() {
         toast.success("Employee added!");
         fetchEmployees();
         resetForm();
-      } catch (e) { toast.error(e?.response?.data?.message || "Failed to add"); }
+      } catch (e) { toast.error(e?.message || "Failed to add"); }
     }
   };
 
@@ -92,117 +103,110 @@ export default function EmployeeManagement() {
     } catch (e) { toast.error("Failed to delete"); }
   };
 
+  const handleToggleAccess = (emp) => {
+    if (!window.confirm(emp.isActive ? "Revoke access for this employee?" : "Restore access?")) return;
+    apiClient.patch(`/employees/${emp._id}`, { isActive: !emp.isActive }).then(fetchEmployees);
+  };
+
+  const setPermission = (key) => (e) => setFormData({ ...formData, permissions: { ...formData.permissions, [key]: e.target.checked } });
+
   return (
-    <div className="bg-white rounded-2xl border border-slate-200/60 p-4 md:p-6 shadow-sm relative w-full mb-6">
-      <div className="flex justify-between items-center mb-6">
-        <div>
-          <h3 className="text-lg font-bold flex items-center gap-2">
-            <Shield className="w-5 h-5 text-indigo-500" /> Staff Access Controls
-          </h3>
-          <p className="text-xs text-slate-500 mt-1">Manage up to 5 employee logins, permissions, and history limits.</p>
+    <section className="panel">
+      <div className="panel-header flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <h2 className="text-sm font-bold text-slate-900">Staff Logins</h2>
+          <p className="text-xs text-slate-500">Up to {MAX_STAFF} logins for your staff. Choose what each one can see and do.</p>
         </div>
-        {!isAdding && employees.length < 5 && (
-          <button onClick={() => setIsAdding(true)} className="flex items-center gap-1 bg-indigo-50 text-indigo-600 px-3 py-1.5 rounded-lg text-sm font-semibold hover:bg-indigo-100">
-            <Plus className="w-4 h-4"/> Add Staff
+        {!isAdding && employees.length < MAX_STAFF && (
+          <button type="button" onClick={() => setIsAdding(true)} className="btn-primary btn-sm shrink-0">
+            <Plus size={16} /> Add Staff
           </button>
         )}
       </div>
 
       {isAdding && (
-        <form onSubmit={handleSubmit} className="bg-slate-50 p-4 rounded-xl mb-6 border border-slate-200">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+        <form onSubmit={handleSubmit} className="space-y-4 border-b border-slate-100 bg-slate-50 p-4 md:p-5">
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 md:gap-4">
             <div>
-              <label className="text-xs font-semibold text-slate-700 block mb-1">Name</label>
-              <input type="text" value={formData.name} onChange={e=>setFormData({...formData, name: e.target.value})} required className="w-full border p-2 rounded-lg text-sm" />
+              <label className="label">Name</label>
+              <input type="text" value={formData.name} onChange={e=>setFormData({...formData, name: e.target.value})} required className="input" />
             </div>
             <div>
-              <label className="text-xs font-semibold text-slate-700 block mb-1">Mobile Login ID</label>
-              <input type="text" value={formData.mobile} onChange={e=>setFormData({...formData, mobile: e.target.value})} required className="w-full border p-2 rounded-lg text-sm" />
+              <label className="label">Mobile (used to log in)</label>
+              <input type="text" value={formData.mobile} onChange={e=>setFormData({...formData, mobile: e.target.value})} required className="input" />
             </div>
             <div>
-              <label className="text-xs font-semibold text-slate-700 block mb-1">{editingId ? "Reset Password (Optional)" : "Password"}</label>
-              <input type="text" placeholder="Min 6 chars" value={formData.password} onChange={e=>setFormData({...formData, password: e.target.value})} className="w-full border p-2 rounded-lg text-sm" />
+              <label className="label">{editingId ? "New Password (leave blank to keep)" : "Password"}</label>
+              <input type="text" placeholder="Min 6 chars" value={formData.password} onChange={e=>setFormData({...formData, password: e.target.value})} className="input" />
             </div>
             <div>
-              <label className="text-xs font-semibold text-slate-700 block mb-1">Visible History Limit</label>
-              <select value={formData.historyLimitDays} onChange={e=>setFormData({...formData, historyLimitDays: e.target.value})} className="w-full border p-2 rounded-lg text-sm bg-white">
-                <option value={7}>Last 7 Days (Default)</option>
-                <option value={28}>Last 28 Days</option>
-                <option value={90}>Last 3 Months</option>
-                <option value={365}>Last 1 Year</option>
-                <option value="all">Unlimited (All Data)</option>
+              <label className="label">Can see entries from</label>
+              <select value={formData.historyLimitDays} onChange={e=>setFormData({...formData, historyLimitDays: e.target.value})} className="input">
+                {HISTORY_LIMITS.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
               </select>
             </div>
           </div>
 
-          <div className="mb-4">
-            <label className="text-xs font-semibold text-slate-700 block mb-2">Access Rights</label>
-            <div className="flex flex-wrap gap-4">
-              <label className="flex items-center gap-2 text-sm bg-white border px-3 py-1.5 rounded-lg">
-                <input type="checkbox" checked={formData.permissions.view} readOnly disabled className="accent-indigo-500" /> Read Only
+          <div>
+            <label className="label">Allowed to</label>
+            <div className="flex flex-wrap gap-2">
+              <label className="flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-500">
+                <input type="checkbox" checked={formData.permissions.view} readOnly disabled className="accent-primary-600" /> View
               </label>
-              <label className="flex items-center gap-2 text-sm bg-white border px-3 py-1.5 rounded-lg cursor-pointer">
-                <input type="checkbox" checked={formData.permissions.add} onChange={e=>setFormData({...formData, permissions: {...formData.permissions, add: e.target.checked}})} className="accent-indigo-500" /> Create / Add
+              <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700">
+                <input type="checkbox" checked={formData.permissions.add} onChange={setPermission('add')} className="accent-primary-600" /> Add entries
               </label>
-              <label className="flex items-center gap-2 text-sm bg-white border px-3 py-1.5 rounded-lg cursor-pointer">
-                <input type="checkbox" checked={formData.permissions.edit} onChange={e=>setFormData({...formData, permissions: {...formData.permissions, edit: e.target.checked}})} className="accent-indigo-500" /> Edit / Update
+              <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700">
+                <input type="checkbox" checked={formData.permissions.edit} onChange={setPermission('edit')} className="accent-primary-600" /> Edit entries
               </label>
             </div>
           </div>
 
-          <div className="flex gap-2 justify-end pt-2 border-t">
-            <button type="button" onClick={resetForm} className="px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-200 rounded-lg transition">Cancel</button>
-            <button type="submit" className="px-4 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition">Save Employee</button>
+          <div className="flex justify-end gap-2">
+            <button type="button" onClick={resetForm} className="btn-secondary">Cancel</button>
+            <button type="submit" className="btn-primary">{editingId ? 'Update Staff' : 'Save Staff'}</button>
           </div>
         </form>
       )}
 
       {loading ? (
-        <div className="text-center py-4 text-slate-400 text-sm">Loading staff members...</div>
-      ) : employees.length === 0 && !isAdding ? (
-        <div className="text-center py-6 text-slate-400 text-sm border-2 border-dashed rounded-xl">No employees added yet.</div>
+        <p className="px-4 py-8 text-center text-sm text-slate-400">Loading staff...</p>
+      ) : employees.length === 0 ? (
+        !isAdding && <p className="px-4 py-8 text-center text-sm text-slate-500">No staff logins yet. Use "Add Staff" to create one.</p>
       ) : (
-        <div className="space-y-3">
+        <ul className="divide-y divide-slate-100">
           {employees.map(emp => (
-            <div key={emp._id} className={`flex flex-col md:flex-row justify-between items-start md:items-center p-3 rounded-xl border ${!emp.isActive ? 'bg-slate-50 opacity-60' : 'bg-white'}`}>
-              <div>
-                <div className="flex items-center gap-2">
-                  <h4 className="font-bold text-slate-800">{emp.name}</h4>
-                  {!emp.isActive && <span className="bg-rose-100 text-rose-700 text-[10px] px-2 py-0.5 rounded-full font-bold">REVOKED</span>}
+            <li key={emp._id} className={`flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between md:px-5 ${emp.isActive ? '' : 'bg-slate-50'}`}>
+              <div className={`min-w-0 ${emp.isActive ? '' : 'opacity-60'}`}>
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="font-semibold text-slate-800">{emp.name}</p>
+                  {!emp.isActive && <span className="badge-red">Access revoked</span>}
                 </div>
-                <div className="flex gap-4 mt-1">
-                  <span className="text-xs text-slate-500 font-mono">{emp.mobile}</span>
-                  <span className="text-[10px] uppercase font-bold text-sky-600 tracking-wider">
-                    {emp.historyLimitDays === 'all' ? 'All Data View' : `${emp.historyLimitDays}d View`}
-                  </span>
-                </div>
-                <div className="flex gap-2 mt-2">
-                  <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${emp.permissions.view ? 'bg-green-100 text-green-700' : 'bg-slate-100'}`}>VIEW</span>
-                  <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${emp.permissions.add ? 'bg-green-100 text-green-700' : 'bg-slate-100'}`}>ADD</span>
-                  <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${emp.permissions.edit ? 'bg-green-100 text-green-700' : 'bg-slate-100'}`}>EDIT</span>
+                <p className="mt-0.5 text-xs text-slate-500">
+                  {emp.mobile} · Sees {historyLabel(emp.historyLimitDays).toLowerCase()}
+                </p>
+                <div className="mt-1.5 flex flex-wrap gap-1.5">
+                  <span className="badge-gray">View</span>
+                  {emp.permissions.add && <span className="badge-green">Add</span>}
+                  {emp.permissions.edit && <span className="badge-green">Edit</span>}
                 </div>
               </div>
 
-              <div className="flex gap-2 mt-4 md:mt-0">
-                 <button onClick={() => {
-                   const confirmRevoke = window.confirm(emp.isActive ? "Revoke access for this employee?" : "Restore access?");
-                   if(confirmRevoke) {
-                     apiClient.patch(`/employees/${emp._id}`, { isActive: !emp.isActive }).then(fetchEmployees);
-                   }
-                 }} className="p-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg transition text-xs font-semibold">
-                   {emp.isActive ? 'Revoke Login' : 'Restore'}
-                 </button>
-                 <button onClick={() => handleEdit(emp)} className="p-2 bg-amber-50 hover:bg-amber-100 text-amber-600 rounded-lg transition" title="Edit Rights">
-                   <Edit2 className="w-4 h-4"/>
-                 </button>
-                 <button onClick={() => handleDelete(emp._id)} className="p-2 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-lg transition" title="Delete">
-                   <Trash2 className="w-4 h-4"/>
-                 </button>
+              <div className="flex shrink-0 items-center gap-1">
+                <button type="button" onClick={() => handleToggleAccess(emp)} className="btn-secondary btn-sm">
+                  {emp.isActive ? 'Revoke Login' : 'Restore Login'}
+                </button>
+                <button type="button" onClick={() => handleEdit(emp)} className="icon-btn hover:bg-blue-50 hover:text-blue-600" title="Edit">
+                  <Edit2 size={16} />
+                </button>
+                <button type="button" onClick={() => handleDelete(emp._id)} className="icon-btn hover:bg-rose-50 hover:text-rose-600" title="Delete">
+                  <Trash2 size={16} />
+                </button>
               </div>
-            </div>
+            </li>
           ))}
-        </div>
+        </ul>
       )}
-    </div>
+    </section>
   );
 }
