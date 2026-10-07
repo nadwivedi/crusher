@@ -5,7 +5,6 @@ import Dashboard from './pages/Dashboard';
 import Products from './pages/Products/Products';
 import StockDetail from './pages/StockDetail';
 import StockGroups from './pages/StockGroups';
-import Banks from './pages/Banks';
 import Vehicle from './pages/Vehicle';
 import Sales from './pages/Sales/Sales';
 import Purchases from './pages/Purchases/Purchases';
@@ -31,6 +30,8 @@ import DayBook from './pages/DayBook';
 import Analytics from './pages/Analytics';
 import Setting from './pages/Setting';
 import Payroll from './pages/Payroll/Payroll';
+import Accounts from './pages/Accounts/Accounts';
+import AccountLedger from './pages/Accounts/AccountLedger';
 import ProtectedRoute from './components/ProtectedRoute';
 import AppLayout from './components/AppLayout';
 import { hasFeatureAccess } from './utils/featureAccess';
@@ -94,7 +95,7 @@ function App() {
           <Route path="/products" element={<Navigate to="/stock" replace />} />
           <Route path="/stock-groups" element={<StockGroups />} />
           <Route path="/vehicle" element={<Vehicle />} />
-          <Route path="/banks" element={<Banks />} />
+          <Route path="/banks" element={<Navigate to="/accounts" replace />} />
           <Route path="/expense-types" element={<ExpenseTypes />} />
           <Route path="/expense-groups" element={<Navigate to="/expense-types" replace />} />
 
@@ -144,6 +145,8 @@ function App() {
           <Route path="/reports/payment-report" element={<Payments />} />
           <Route path="/reports/profit-loss-report" element={<ProfitLossReport />} />
 
+          <Route path="/accounts" element={<Accounts />} />
+          <Route path="/accounts/:id" element={<AccountLedger />} />
           <Route path="/payroll" element={<Payroll />} />
 
           <Route path="/settings" element={<Setting />} />

@@ -4,6 +4,7 @@ import apiClient from '../../../utils/api';
 import { handlePopupFormKeyDown } from '../../../utils/popupFormKeyboard';
 import { useFloatingDropdownPosition } from '../../../utils/useFloatingDropdownPosition';
 import DocumentScannerPreview from '../../../components/DocumentScannerPreview';
+import AccountSelect from '../../../components/AccountSelect';
 
 export default function AddSalePopup({
   showForm,
@@ -13,6 +14,8 @@ export default function AddSalePopup({
   formData,
   currentItem,
   products,
+  accounts = [],
+  defaultAccountId = '',
   popupFieldClass,
   popupLabelClass,
   leadgerSectionRef,
@@ -410,7 +413,7 @@ export default function AddSalePopup({
                 Pricing & Payment Details
               </h3>
               <div className="space-y-3">
-                <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
                   <div className="space-y-1">
                     <label className={labelClass}>{formData.pricingMode === 'per_ton' ? 'Rate Per Ton' : 'Rate Per M3'}</label>
                     <input type="number" name="rate" value={formData.rate || ''} onChange={handleInputChange} onKeyDown={handleSelectEnterMoveNext} className={`${inputClass} focus:ring-purple-500 font-bold`} placeholder="0.00" step="0.01" />
@@ -422,6 +425,10 @@ export default function AddSalePopup({
                   <div className="space-y-1">
                     <label className={labelClass}>Paid Amount</label>
                     <input ref={paidAmountInputRef} type="number" name="paidAmount" value={formData.paidAmount || ''} onChange={handleInputChange} onKeyDown={handlePaidAmountEnterSubmit} className={`${inputClass} focus:ring-purple-500 font-bold text-emerald-700`} placeholder="0.00" step="0.01" />
+                  </div>
+                  <div className="space-y-1">
+                    <label className={labelClass}>Received In</label>
+                    <AccountSelect accounts={accounts} defaultAccountId={defaultAccountId} value={formData.account} onChange={handleInputChange} className={`${inputClass} focus:ring-purple-500 font-bold`} />
                   </div>
                 </div>
 

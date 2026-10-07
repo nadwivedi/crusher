@@ -5,6 +5,7 @@ const Receipt = require("../models/Receipt");
 const Party = require("../models/Party");
 const Vehicle = require("../models/Vehicle");
 const { scopedFilter, scopedIdFilter } = require("../utils/ownership");
+const { resolveAccountId } = require("../utils/accounts");
 
 const SALE_TYPES = {
   CREDIT: "credit",
@@ -268,6 +269,7 @@ const createSales = async (req, res) => {
       invoiceNumber: manualInvoiceNumber || await createInvoiceNumber(req.userId, normalizedBody.saleDate),
       paidAmount: breakdown.paidAmount,
       type: breakdown.type,
+      account: await resolveAccountId(req.userId, normalizedBody.account),
     };
 
     const sales = await Sales.create(payload);
@@ -449,6 +451,10 @@ const editSales = async (req, res) => {
       ? updatePayload.paidAmount
       : sales.paidAmount;
     const breakdown = getSalePaymentBreakdown(nextTotalAmount, nextPaidAmount);
+
+    if (Object.prototype.hasOwnProperty.call(updatePayload, "account")) {
+      updatePayload.account = await resolveAccountId(req.userId, updatePayload.account);
+    }
 
     Object.assign(sales, updatePayload, {
       paidAmount: breakdown.paidAmount,

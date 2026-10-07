@@ -5,6 +5,7 @@ const Stock = require("../models/Stock");
 const Counter = require("../models/Counter");
 const Party = require("../models/Party");
 const { scopedFilter, scopedIdFilter } = require("../utils/ownership");
+const { resolveAccountId } = require("../utils/accounts");
 
 const PURCHASE_TYPES = {
   PURCHASE: "purchase",
@@ -177,6 +178,7 @@ const createPurchase = async (req, res) => {
       totalAmount,
       paidAmount: breakdown.paidAmount,
       type: breakdown.type,
+      account: await resolveAccountId(req.userId, req.body.account),
       notes: String(req.body.notes || "").trim(),
     });
 
@@ -282,6 +284,9 @@ const updatePurchase = async (req, res) => {
     const breakdown = getPurchasePaymentBreakdown(purchase.totalAmount, nextPaidAmount);
     purchase.paidAmount = breakdown.paidAmount;
     purchase.type = breakdown.type;
+    if (Object.prototype.hasOwnProperty.call(req.body, "account")) {
+      purchase.account = await resolveAccountId(req.userId, req.body.account);
+    }
     purchase.notes = String(req.body.notes || "").trim();
 
     await purchase.save();

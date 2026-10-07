@@ -94,6 +94,12 @@ const salesSchema = new mongoose.Schema(
       default: 0,
       min: 0,
     },
+    // Cash / bank account the money moved through. Empty on older entries, which count under Cash Account.
+    account: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Bank",
+      default: null,
+    },
     type: {
       type: String,
       enum: ["cash", "credit", "partial"],

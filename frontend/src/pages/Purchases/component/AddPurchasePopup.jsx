@@ -2,12 +2,15 @@ import { useEffect, useRef, useState } from 'react';
 import { Building2, CalendarDays, Package, Plus, Upload } from 'lucide-react';
 import { handlePopupFormKeyDown } from '../../../utils/popupFormKeyboard';
 import { useFloatingDropdownPosition } from '../../../utils/useFloatingDropdownPosition';
+import AccountSelect from '../../../components/AccountSelect';
 
 export default function AddPurchasePopup({
   showForm,
   editingId,
   loading,
   isCashParty,
+  accounts = [],
+  defaultAccountId = '',
   formData,
   currentItem,
   products,
@@ -526,6 +529,14 @@ export default function AddPurchasePopup({
                                 className={`${inputClass} text-right ${(Boolean(editingId) || isCashParty) ? 'bg-gray-100 text-gray-500' : 'bg-white'} focus:ring-emerald-500`}
                                 placeholder="0.00"
                               />
+                            </td>
+                          </tr>
+                          <tr className="bg-white">
+                            <td colSpan={4} className="border-t border-emerald-100 px-3 py-3 text-right text-[12px] font-bold uppercase tracking-wide text-slate-700">
+                              Paid From
+                            </td>
+                            <td className="border-t border-emerald-100 px-3 py-2">
+                              <AccountSelect accounts={accounts} defaultAccountId={defaultAccountId} value={formData.account} onChange={handleInputChange} className={`${inputClass} bg-white focus:ring-emerald-500`} />
                             </td>
                           </tr>
                         </tbody>

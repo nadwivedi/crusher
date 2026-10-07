@@ -39,10 +39,16 @@ const receiptSchema = new mongoose.Schema(
       min: 1,
       required: true,
     },
+    // Name of the account, kept for display. `account` below is what the account ledger uses.
     method: {
       type: String,
       trim: true,
       default: "Cash Account",
+    },
+    account: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Bank",
+      default: null,
     },
     receiptDate: {
       type: Date,

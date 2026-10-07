@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import PayrollPopup from './PayrollPopup';
+import FormPopup from '../../../components/FormPopup';
 import { PAYMENT_MODES, fmt, monthLabel, toDateKey } from '../payrollUtils';
 
 /** Pay salary for the selected month, or give an advance. type: 'salary' | 'advance' */
@@ -27,7 +27,7 @@ export default function PaymentPopup({ type, salaryRows, monthKey, defaultEmploy
   };
 
   return (
-    <PayrollPopup
+    <FormPopup
       title={isSalary ? 'Pay Salary' : 'Give Advance'}
       subtitle={isSalary ? `Salary for ${monthLabel(monthKey)}` : 'Advance is cut from that month\'s salary'}
       submitLabel={isSalary ? 'Pay Salary' : 'Give Advance'}
@@ -93,6 +93,6 @@ export default function PaymentPopup({ type, salaryRows, monthKey, defaultEmploy
         <label className="label">Notes</label>
         <input className="input" value={notes} onChange={(event) => setNotes(event.target.value)} placeholder="Optional" />
       </div>
-    </PayrollPopup>
+    </FormPopup>
   );
 }

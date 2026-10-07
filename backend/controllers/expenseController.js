@@ -4,6 +4,7 @@ const ExpenseType = require("../models/ExpenseType");
 const Purchase = require("../models/Purchase");
 const Party = require("../models/Party");
 const Counter = require("../models/Counter");
+const { resolveAccountId } = require("../utils/accounts");
 
 const toNumber = (value, fallback = 0) => {
   const parsed = Number(value);
@@ -256,6 +257,7 @@ const createExpense = async (req, res) => {
       unit: goodsItems.length === 1 ? goodsItems[0].unit : "",
       unitPrice: goodsItems.length === 1 ? goodsItems[0].unitPrice : null,
       items: goodsItems.map(({ currentStock, ...item }) => item),
+      account: await resolveAccountId(userId, req.body.account),
       method: method || "cash",
       expenseDate: expenseDate || new Date(),
       notes: String(notes || "").trim(),
@@ -264,7 +266,8 @@ const createExpense = async (req, res) => {
     const savedExpense = await Expense.findById(expense._id)
       .populate("expenseGroup", "name")
       .populate("items.expenseGroup", "name unit")
-      .populate("party", "name type");
+      .populate("party", "name type")
+      .populate("account", "name");
 
     return res.status(201).json({
       success: true,
@@ -305,6 +308,7 @@ const getAllExpenses = async (req, res) => {
       .populate("expenseGroup", "name")
       .populate("items.expenseGroup", "name unit")
       .populate("party", "name type")
+      .populate("account", "name")
       .sort({ expenseDate: -1, createdAt: -1 });
 
     if (!resolvedExpenseTypeId) {
@@ -375,7 +379,8 @@ const getAllExpenses = async (req, res) => {
 const populateExpense = (query) => query
   .populate("expenseGroup", "name")
   .populate("items.expenseGroup", "name unit")
-  .populate("party", "name type");
+  .populate("party", "name type")
+  .populate("account", "name");
 
 const editExpense = async (req, res) => {
   try {
@@ -441,6 +446,9 @@ const editExpense = async (req, res) => {
     expense.amount = amountNumber;
     expense.paidAmount = paidAmountNumber;
     expense.method = method || expense.method;
+    if (Object.prototype.hasOwnProperty.call(req.body, "account")) {
+      expense.account = await resolveAccountId(userId, req.body.account);
+    }
     if (expenseDate) expense.expenseDate = expenseDate;
     expense.notes = String(notes || "").trim();
     await expense.save();

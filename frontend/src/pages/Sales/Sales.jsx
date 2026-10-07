@@ -5,6 +5,7 @@ import { toast } from 'react-toastify';
 import apiClient from '../../utils/api';
 import { useAuth } from '../../context/AuthContext';
 import { getSmartVehicleMatch, normalizeVehicleValue } from '../../utils/vehicleMatching';
+import useAccounts from '../../utils/useAccounts';
 import AddPartyPopup from '../Party/component/AddPartyPopup';
 import AddProductPopup from '../Products/component/AddProductPopup';
 import AddVehiclePopup from '../Vehicle/component/AddVehiclePopup';
@@ -118,6 +119,7 @@ const getInitialFormData = () => ({
   rate: '',
   totalAmount: 0,
   paidAmount: '',
+  account: '',
   slipImg: '',
   notes: '',
   items: []
@@ -352,6 +354,7 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
   const location = useLocation();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { accounts, defaultAccountId } = useAccounts();
   const canManageSales = user?.role !== 'employee' && (user?.role === 'owner' || user?.permissions?.edit);
   const canCreateSales = user?.role === 'owner' || user?.permissions?.add;
   const initialFormData = getInitialFormData();
@@ -2125,6 +2128,7 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
         rate: Number(formData.rate || 0),
         totalAmount: Number(formData.totalAmount || 0),
         paidAmount: Number(formData.paidAmount || 0),
+        account: formData.account || defaultAccountId || undefined,
         slipImg: String(formData.slipImg || '').trim(),
         saleDate: saleDateTime.toISOString(),
         saleTime: formData.saleTime || ''
@@ -2193,6 +2197,7 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
           rate: sale.rate || '',
         totalAmount: sale.totalAmount || 0,
         paidAmount: sale.paidAmount ?? '',
+        account: sale.account?._id || sale.account || '',
         slipImg: sale.slipImg || ''
       });
       setLeadgerQuery(resolvedLeadgerName);
@@ -2301,6 +2306,8 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
           formData={formData}
           currentItem={currentItem}
           products={products}
+          accounts={accounts}
+          defaultAccountId={defaultAccountId}
           popupFieldClass={popupFieldClass}
           popupLabelClass={popupLabelClass}
           leadgerSectionRef={leadgerSectionRef}
@@ -2438,6 +2445,8 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
         formData={formData}
         currentItem={currentItem}
         products={products}
+        accounts={accounts}
+        defaultAccountId={defaultAccountId}
         popupFieldClass={popupFieldClass}
         popupLabelClass={popupLabelClass}
         popupSectionClass={popupSectionClass}

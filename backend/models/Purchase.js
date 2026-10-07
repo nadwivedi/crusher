@@ -81,6 +81,12 @@ const purchaseSchema = new mongoose.Schema(
       min: 0,
       default: 0,
     },
+    // Cash / bank account the money moved through. Empty on older entries, which count under Cash Account.
+    account: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Bank",
+      default: null,
+    },
     type: {
       type: String,
       enum: ["purchase", "cash purchase", "credit purchase"],

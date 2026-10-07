@@ -39,10 +39,16 @@ const paymentSchema = new mongoose.Schema(
       trim: true,
       required: true,
     },
+    // Name of the account, kept for display. `account` below is what the account ledger uses.
     method: {
       type: String,
       trim: true,
       default: "Cash Account",
+    },
+    account: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Bank",
+      default: null,
     },
     paymentDate: {
       type: Date,

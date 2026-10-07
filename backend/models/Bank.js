@@ -12,10 +12,15 @@ const bankSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
+    type: {
+      type: String,
+      enum: ["cash", "bank"],
+      default: "bank",
+    },
+    // Opening balance. The current balance is worked out from the entries made against the account.
     totalBalance: {
       type: Number,
       default: 0,
-      min: 0,
     },
     notes: {
       type: String,

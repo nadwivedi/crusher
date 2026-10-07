@@ -3,6 +3,7 @@ const Receipt = require("../models/Receipt");
 const Sales = require("../models/Sales");
 const Party = require("../models/Party");
 const { scopedFilter, scopedIdFilter } = require("../utils/ownership");
+const { resolveAccountByIdOrName } = require("../utils/accounts");
 
 const toNumber = (value, fallback = 0) => {
   const parsed = Number(value);
@@ -68,6 +69,7 @@ const createReceipt = async (req, res) => {
       resolvedParty = resolvedParty || sale.partyId || null;
     }
 
+    const account = await resolveAccountByIdOrName(req.userId, req.body.account, req.body.method);
     const receiptNumber = await getNextReceiptNumber(req.userId);
     const receipt = await Receipt.create({
       userId: req.userId,
@@ -76,7 +78,8 @@ const createReceipt = async (req, res) => {
       refId: resolvedRefId,
       amount,
       receiptNumber,
-      method: String(req.body.method || "Cash Account").trim() || "Cash Account",
+      method: account?.name || String(req.body.method || "Cash Account").trim() || "Cash Account",
+      account: account?._id || null,
       receiptDate: req.body.receiptDate ? new Date(req.body.receiptDate) : new Date(),
       notes: String(req.body.notes || "").trim(),
     });

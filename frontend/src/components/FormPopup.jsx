@@ -1,10 +1,10 @@
 import { X } from 'lucide-react';
 
 /**
- * Popup shell for payroll forms: gradient header, scrollable body, footer with Cancel + submit.
+ * Popup shell for simple forms: gradient header, scrollable body, footer with Cancel + submit.
  * Uses the app's popup conventions ("fixed inset-0 z-50" + a "Close popup" button) so Esc closes it.
  */
-export default function PayrollPopup({ title, subtitle, submitLabel = 'Save', onSubmit, onClose, maxWidth = 'max-w-md', children }) {
+export default function FormPopup({ title, subtitle, submitLabel = 'Save', onSubmit, onClose, maxWidth = 'max-w-md', children }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-2 md:p-4" onClick={onClose}>
       <form

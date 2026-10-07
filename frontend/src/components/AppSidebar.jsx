@@ -24,6 +24,7 @@ const navGroups = [
       { to: '/reports/sales-report', icon: FileText, label: 'Sales' },
       { to: '/reports/receipt-report', icon: HandCoins, label: 'Money Received' },
       { to: '/reports/payment-report', icon: Send, label: 'Money Paid' },
+      { to: '/accounts', icon: Landmark, label: 'Cash & Bank' },
       { to: '/reports/expense-report', icon: Wallet, label: 'Expenses' },
       { to: '/reports/material-used-ledger', icon: PackageMinus, label: 'Material Used' },
       { to: '/payroll', icon: IdCard, label: 'Payroll' },
@@ -44,7 +45,6 @@ const navGroups = [
       { to: '/party', icon: Users, label: 'Party' },
       { to: '/stock', icon: Boxes, label: 'Stock Items' },
       { to: '/vehicle', icon: Truck, label: 'Vehicles' },
-      { to: '/banks', icon: Landmark, label: 'Banks' },
       { to: '/expense-types', icon: Tags, label: 'Expense Types' },
     ]
   }

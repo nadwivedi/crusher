@@ -73,6 +73,12 @@ const expenseSchema = new mongoose.Schema(
       type: [expenseItemSchema],
       default: [],
     },
+    // Cash / bank account the money moved through. Empty on older entries, which count under Cash Account.
+    account: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Bank",
+      default: null,
+    },
     method: {
       type: String,
       enum: ["cash", "bank", "upi", "card", "credit", "other"],

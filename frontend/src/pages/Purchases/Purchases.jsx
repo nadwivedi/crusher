@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { ShoppingCart, IndianRupee, Search } from 'lucide-react';
 import { toast } from 'react-toastify';
 import apiClient from '../../utils/api';
+import useAccounts from '../../utils/useAccounts';
 import AddPartyPopup from '../Party/component/AddPartyPopup';
 import AddProductPopup from '../Products/component/AddProductPopup';
 import AddPurchasePopup from './component/AddPurchasePopup';
@@ -29,6 +30,7 @@ export default function Purchases({ modalOnly = false, onModalFinish = null }) {
   const toastOptions = { autoClose: 1200 };
   const location = useLocation();
   const navigate = useNavigate();
+  const { accounts, defaultAccountId } = useAccounts();
   const formatDateInput = (dateValue = new Date()) => {
     const date = dateValue instanceof Date ? dateValue : new Date(dateValue);
     if (Number.isNaN(date.getTime())) return '';
@@ -98,6 +100,7 @@ export default function Purchases({ modalOnly = false, onModalFinish = null }) {
     invoiceLink: '',
     notes: '',
     paymentAmount: '',
+    account: '',
     paymentMethod: 'cash',
     paymentDate: new Date().toISOString().split('T')[0],
     paymentNotes: '',
@@ -970,6 +973,7 @@ export default function Purchases({ modalOnly = false, onModalFinish = null }) {
         totalAmount: Number(formData.totalAmount || 0),
         invoiceLink: formData.invoiceLink || '',
         paymentAmount: entryPaymentAmount,
+        account: formData.account || defaultAccountId || undefined,
         paymentMethod: formData.paymentMethod || 'cash',
         paymentDate: formData.paymentDate ? new Date(formData.paymentDate) : new Date(),
         paymentNotes: formData.paymentNotes || '',
@@ -1033,6 +1037,7 @@ export default function Purchases({ modalOnly = false, onModalFinish = null }) {
       invoiceLink: purchase.invoiceLink || '',
       notes: purchase.notes || '',
       paymentAmount: String(Number(purchase.paidAmount || 0)),
+      account: purchase.account?._id || purchase.account || '',
       paymentMethod: purchase.paymentMethod || 'cash',
       paymentDate: purchase.purchaseDate ? new Date(purchase.purchaseDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
       paymentNotes: '',
@@ -1147,6 +1152,8 @@ export default function Purchases({ modalOnly = false, onModalFinish = null }) {
           editingId={editingId}
           loading={loading}
           isCashParty={isCashParty}
+          accounts={accounts}
+          defaultAccountId={defaultAccountId}
           formData={formData}
           currentItem={currentItem}
           products={products}
@@ -1256,6 +1263,8 @@ export default function Purchases({ modalOnly = false, onModalFinish = null }) {
         editingId={editingId}
         loading={loading}
         isCashParty={isCashParty}
+        accounts={accounts}
+        defaultAccountId={defaultAccountId}
         formData={formData}
         currentItem={currentItem}
         products={products}

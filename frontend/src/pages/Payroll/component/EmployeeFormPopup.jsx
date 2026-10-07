@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import PayrollPopup from './PayrollPopup';
+import FormPopup from '../../../components/FormPopup';
 import { ROLES } from '../sampleData';
 import { SALARY_TYPES, toDateKey } from '../payrollUtils';
 
@@ -20,7 +20,7 @@ export default function EmployeeFormPopup({ employee = null, onSave, onClose }) 
   };
 
   return (
-    <PayrollPopup
+    <FormPopup
       title={employee ? 'Edit Employee' : 'Add Employee'}
       subtitle={employee ? 'Update employee and salary details' : 'Add a worker to your payroll'}
       submitLabel={employee ? 'Update' : 'Save Employee'}
@@ -77,6 +77,6 @@ export default function EmployeeFormPopup({ employee = null, onSave, onClose }) 
           </div>
         </div>
       </div>
-    </PayrollPopup>
+    </FormPopup>
   );
 }

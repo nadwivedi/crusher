@@ -5,6 +5,7 @@ import { toast } from 'react-toastify';
 import apiClient from '../../utils/api';
 import { useAuth } from '../../context/AuthContext';
 import { useFloatingDropdownPosition } from '../../utils/useFloatingDropdownPosition';
+import useAccounts from '../../utils/useAccounts';
 import Purchases from '../Purchases/Purchases';
 import CustomRangePopup, { CustomRangeButton } from '../../components/CustomRangePopup';
 import MonthPickerPopup, { MonthRangeButton, getMonthRange } from '../../components/MonthPickerPopup';
@@ -25,7 +26,7 @@ const getInitialForm = () => ({
   party: '',
   amount: '',
   paymentAmount: '',
-  method: 'cash',
+  account: '',
   expenseDate: new Date().toISOString().split('T')[0],
   notes: ''
 });
@@ -34,15 +35,6 @@ const getInitialGoodsItem = () => ({
   quantity: '',
   unitPrice: ''
 });
-
-const EXPENSE_METHOD_OPTIONS = [
-  { value: 'cash', label: 'Cash' },
-  { value: 'bank', label: 'Bank' },
-  { value: 'upi', label: 'UPI' },
-  { value: 'card', label: 'Card' },
-  { value: 'credit', label: 'Credit' },
-  { value: 'other', label: 'Other' }
-];
 
 // A goods expense splits its amount across item categories; others use their single category.
 const getExpenseCategoryAmounts = (expense) => {
@@ -186,6 +178,13 @@ export default function Expenses({ modalOnly = false, onModalFinish = null }) {
   const [error, setError] = useState('');
   const [search, setSearch] = useState('');
   const { user } = useAuth();
+  // The "Paid From" list: one option per cash / bank account, Cash Account by default
+  const { accounts, defaultAccountId } = useAccounts();
+  const accountOptions = useMemo(
+    () => accounts.map((account) => ({ value: String(account._id), label: account.name })),
+    [accounts]
+  );
+  const defaultAccountLabel = accountOptions.find((option) => option.value === String(defaultAccountId))?.label || 'Cash Account';
   const canManageExpenses = user?.role !== 'employee' && (user?.role === 'owner' || user?.permissions?.edit);
   const [editingId, setEditingId] = useState(null);
   const [tableRange, setTableRange] = useState('lifetime');
@@ -216,7 +215,7 @@ export default function Expenses({ modalOnly = false, onModalFinish = null }) {
   const methodSectionRef = useRef(null);
   const [expenseGroupQuery, setExpenseGroupQuery] = useState('');
   const [partyQuery, setPartyQuery] = useState(CASH_PARTY.name);
-  const [methodQuery, setMethodQuery] = useState('Cash');
+  const [methodQuery, setMethodQuery] = useState('Cash Account');
   const [expenseGroupListIndex, setExpenseGroupListIndex] = useState(-1);
   const [partyListIndex, setPartyListIndex] = useState(-1);
   const [methodListIndex, setMethodListIndex] = useState(0);
@@ -424,11 +423,9 @@ export default function Expenses({ modalOnly = false, onModalFinish = null }) {
   }, [formData.party, parties]);
 
   const selectedMethodLabel = useMemo(() => {
-    const selectedOption = EXPENSE_METHOD_OPTIONS.find(
-      (option) => option.value === String(formData.method || 'cash').trim().toLowerCase()
-    );
-    return selectedOption?.label || EXPENSE_METHOD_OPTIONS[0].label;
-  }, [formData.method]);
+    const selectedId = String(formData.account || defaultAccountId || '');
+    return accountOptions.find((option) => option.value === selectedId)?.label || defaultAccountLabel;
+  }, [accountOptions, defaultAccountId, defaultAccountLabel, formData.account]);
 
   const availableExpenseGroups = useMemo(() => {
     if (expenseEntryType === 'purchase' || goodsItems.length > 0) return goodsExpenseGroups;
@@ -511,19 +508,19 @@ export default function Expenses({ modalOnly = false, onModalFinish = null }) {
       && normalized
       && normalized === normalizedSelectedMethod
     ) {
-      return EXPENSE_METHOD_OPTIONS;
+      return accountOptions;
     }
 
-    if (!normalized) return EXPENSE_METHOD_OPTIONS;
+    if (!normalized) return accountOptions;
 
-    const startsWith = EXPENSE_METHOD_OPTIONS.filter((option) => normalizeText(option.label).startsWith(normalized));
-    const includes = EXPENSE_METHOD_OPTIONS.filter((option) => (
+    const startsWith = accountOptions.filter((option) => normalizeText(option.label).startsWith(normalized));
+    const includes = accountOptions.filter((option) => (
       !normalizeText(option.label).startsWith(normalized)
       && normalizeText(option.label).includes(normalized)
     ));
 
     return [...startsWith, ...includes];
-  }, [isMethodSectionActive, methodQuery, selectedMethodLabel]);
+  }, [accountOptions, isMethodSectionActive, methodQuery, selectedMethodLabel]);
 
   const expenseGroupDropdownStyle = useFloatingDropdownPosition(
     expenseGroupSectionRef,
@@ -650,7 +647,7 @@ export default function Expenses({ modalOnly = false, onModalFinish = null }) {
   const findExactMethod = (value) => {
     const normalized = normalizeText(value);
     if (!normalized) return null;
-    return EXPENSE_METHOD_OPTIONS.find((option) => normalizeText(option.label) === normalized) || null;
+    return accountOptions.find((option) => normalizeText(option.label) === normalized) || null;
   };
 
   const selectExpenseGroup = (group) => {
@@ -685,7 +682,7 @@ export default function Expenses({ modalOnly = false, onModalFinish = null }) {
     if (!option) return;
 
     setMethodQuery(option.label);
-    setFormData((prev) => ({ ...prev, method: option.value }));
+    setFormData((prev) => ({ ...prev, account: option.value }));
     setMethodListIndex(
       Math.max(filteredMethodOptions.findIndex((item) => item.value === option.value), 0)
     );
@@ -745,7 +742,7 @@ export default function Expenses({ modalOnly = false, onModalFinish = null }) {
 
     const exactMatch = findExactMethod(value);
     if (exactMatch) {
-      setFormData((prev) => ({ ...prev, method: exactMatch.value }));
+      setFormData((prev) => ({ ...prev, account: exactMatch.value }));
     }
   };
 
@@ -935,7 +932,7 @@ export default function Expenses({ modalOnly = false, onModalFinish = null }) {
 
       const activeOption = methodListIndex >= 0 ? filteredMethodOptions[methodListIndex] : null;
       const exactMatch = findExactMethod(methodQuery);
-      const matchedOption = activeOption || exactMatch || filteredMethodOptions[0] || EXPENSE_METHOD_OPTIONS[0];
+      const matchedOption = activeOption || exactMatch || filteredMethodOptions[0] || accountOptions[0];
       if (matchedOption) {
         selectMethod(matchedOption);
       }
@@ -986,7 +983,7 @@ export default function Expenses({ modalOnly = false, onModalFinish = null }) {
     setPartyQuery(CASH_PARTY.name);
     setPartyListIndex(-1);
     setIsPartySectionActive(false);
-    setMethodQuery(EXPENSE_METHOD_OPTIONS[0].label);
+    setMethodQuery(defaultAccountLabel);
     setMethodListIndex(0);
     setIsMethodSectionActive(false);
     setError('');
@@ -1032,7 +1029,7 @@ export default function Expenses({ modalOnly = false, onModalFinish = null }) {
     setPartyQuery(CASH_PARTY.name);
     setPartyListIndex(-1);
     setIsPartySectionActive(false);
-    setMethodQuery(EXPENSE_METHOD_OPTIONS[0].label);
+    setMethodQuery(defaultAccountLabel);
     setMethodListIndex(0);
     setIsMethodSectionActive(false);
 
@@ -1042,7 +1039,8 @@ export default function Expenses({ modalOnly = false, onModalFinish = null }) {
   };
 
   const handleEdit = (expense) => {
-    const methodValue = expense.method || 'cash';
+    // Entries saved before accounts existed have none and count under the default account
+    const accountId = String(expense.account?._id || expense.account || defaultAccountId || '');
     setEditingId(expense._id);
     setExpenseEntryType('normal');
     setShowExpenseTypePicker(false);
@@ -1051,13 +1049,13 @@ export default function Expenses({ modalOnly = false, onModalFinish = null }) {
       party: expense.party?._id || '',
       amount: String(expense.amount ?? ''),
       paymentAmount: String(expense.paidAmount ?? expense.amount ?? ''),
-      method: methodValue,
+      account: accountId,
       expenseDate: formatDateForInput(expense.expenseDate),
       notes: expense.notes || ''
     });
     setExpenseGroupQuery(expense.expenseGroup?.name || '');
     setPartyQuery(expense.party?.name || CASH_PARTY.name);
-    setMethodQuery(EXPENSE_METHOD_OPTIONS.find((option) => option.value === methodValue)?.label || 'Cash');
+    setMethodQuery(accountOptions.find((option) => option.value === accountId)?.label || defaultAccountLabel);
     setError('');
     setShowForm(true);
   };
@@ -1283,12 +1281,16 @@ export default function Expenses({ modalOnly = false, onModalFinish = null }) {
 
     try {
       setLoading(true);
+      const paidFromAccountId = formData.account || defaultAccountId;
+      const paidFromAccount = accounts.find((account) => String(account._id) === String(paidFromAccountId));
       const payload = {
         expenseGroup: isGoodsExpense ? expenseItems[0]?.expenseGroup : formData.expenseGroup,
         party: formData.party || null,
         amount: resolvedAmount,
         paidAmount: isGoodsExpense || isCashExpense ? resolvedAmount : expensePaidAmount,
-        method: formData.method,
+        account: paidFromAccountId || null,
+        // Older screens still read method: a cash account counts as cash, any other as bank
+        method: paidFromAccount?.type === 'cash' || !paidFromAccount ? 'cash' : 'bank',
         expenseDate: formData.expenseDate ? new Date(formData.expenseDate) : new Date(),
         notes: formData.notes,
         items: isGoodsExpense
@@ -1333,6 +1335,7 @@ export default function Expenses({ modalOnly = false, onModalFinish = null }) {
         item.expenseGroup?.name,
         item.party?.name,
         item.method,
+        item.account?.name,
         item.notes,
         formatDate(item.expenseDate)
       ].join(' ').toLowerCase();
@@ -1757,7 +1760,7 @@ export default function Expenses({ modalOnly = false, onModalFinish = null }) {
 
               <div className="space-y-3 md:space-y-4">
                 <div className="flex items-center gap-2">
-                  <label className="mb-0 w-28 shrink-0 text-xs font-semibold text-slate-600 md:text-sm">Method</label>
+                  <label className="mb-0 w-28 shrink-0 text-xs font-semibold text-slate-600 md:text-sm">Paid From</label>
                   <div
                     ref={methodSectionRef}
                     className="relative flex-1 min-w-0"
@@ -1768,23 +1771,23 @@ export default function Expenses({ modalOnly = false, onModalFinish = null }) {
                     }}
                   >
                     <div className="relative">
-                      <input ref={methodInputRef} type="text" value={methodQuery} onChange={handleMethodInputChange} onKeyDown={handleMethodInputKeyDown} className={`${getInlineFieldClass('emerald')} pr-10`} placeholder="Select method..." autoComplete="off" />
+                      <input ref={methodInputRef} type="text" value={methodQuery} onChange={handleMethodInputChange} onKeyDown={handleMethodInputKeyDown} className={`${getInlineFieldClass('emerald')} pr-10`} placeholder="Select account..." autoComplete="off" />
                       <ChevronDown className={`pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-emerald-500 transition-transform ${isMethodSectionActive ? 'rotate-180' : ''}`} />
                     </div>
 
                     {isMethodSectionActive && methodDropdownStyle && (
                       <div className="fixed z-[90] overflow-hidden rounded-xl border border-indigo-200 bg-white shadow-[0_18px_40px_rgba(15,23,42,0.18)]" style={methodDropdownStyle} onClick={(event) => event.stopPropagation()}>
                         <div className="flex items-center justify-between border-b border-indigo-100 bg-gradient-to-r from-indigo-50 to-violet-50 px-3 py-2">
-                          <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-indigo-700">Method List</span>
+                          <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-indigo-700">Account List</span>
                           <span className="rounded-full bg-white px-2 py-0.5 text-[10px] font-semibold text-indigo-700 shadow-sm">{filteredMethodOptions.length}</span>
                         </div>
                         <div className="overflow-y-auto py-1" style={{ maxHeight: methodDropdownStyle.maxHeight }}>
                           {filteredMethodOptions.length === 0 ? (
-                            <div className="px-3 py-3 text-center text-[13px] text-slate-500">No matching methods found.</div>
+                            <div className="px-3 py-3 text-center text-[13px] text-slate-500">No matching account found.</div>
                           ) : (
                             filteredMethodOptions.map((option, index) => {
                               const isActive = index === methodListIndex;
-                              const isSelected = String(formData.method || 'cash') === String(option.value);
+                              const isSelected = String(formData.account || defaultAccountId || '') === String(option.value);
                               return (
                                 <button
                                   key={option.value}
@@ -1848,9 +1851,9 @@ export default function Expenses({ modalOnly = false, onModalFinish = null }) {
                       </div>
 
                       <div className="flex items-center justify-between gap-3 rounded-xl bg-slate-50 px-3 py-2.5">
-                        <span className="text-xs font-medium uppercase tracking-[0.18em] text-slate-500">Method</span>
+                        <span className="text-xs font-medium uppercase tracking-[0.18em] text-slate-500">Paid From</span>
                         <span className={`inline-flex rounded-md px-2.5 py-1 text-xs font-semibold capitalize ${getMethodBadgeClass(expense.method)}`}>
-                          {expense.method}
+                          {expense.account?.name || expense.method}
                         </span>
                       </div>
 
@@ -1880,7 +1883,7 @@ export default function Expenses({ modalOnly = false, onModalFinish = null }) {
                       <th className="bg-gradient-to-r from-slate-800 via-slate-700 to-slate-800 px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-white lg:px-4 lg:py-3 lg:text-[10px] xl:px-6 xl:py-4 xl:text-xs">Expense Type</th>
                       <th className="bg-gradient-to-r from-slate-800 via-slate-700 to-slate-800 px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-white lg:px-4 lg:py-3 lg:text-[10px] xl:px-6 xl:py-4 xl:text-xs">Party</th>
                       <th className="bg-gradient-to-r from-slate-800 via-slate-700 to-slate-800 px-6 py-4 text-right text-xs font-bold uppercase tracking-wider text-white lg:px-4 lg:py-3 lg:text-[10px] xl:px-6 xl:py-4 xl:text-xs">Amount</th>
-                      <th className="bg-gradient-to-r from-slate-800 via-slate-700 to-slate-800 px-6 py-4 text-center text-xs font-bold uppercase tracking-wider text-white lg:px-4 lg:py-3 lg:text-[10px] xl:px-6 xl:py-4 xl:text-xs">Method</th>
+                      <th className="bg-gradient-to-r from-slate-800 via-slate-700 to-slate-800 px-6 py-4 text-center text-xs font-bold uppercase tracking-wider text-white lg:px-4 lg:py-3 lg:text-[10px] xl:px-6 xl:py-4 xl:text-xs">Paid From</th>
                       <th className="bg-gradient-to-r from-slate-800 via-slate-700 to-slate-800 px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-white lg:px-4 lg:py-3 lg:text-[10px] xl:px-6 xl:py-4 xl:text-xs">Notes</th>
                       {canManageExpenses && (
                         <th className="bg-gradient-to-r from-slate-800 via-slate-700 to-slate-800 px-6 py-4 text-center text-xs font-bold uppercase tracking-wider text-white lg:px-4 lg:py-3 lg:text-[10px] xl:px-6 xl:py-4 xl:text-xs">Actions</th>
@@ -1908,7 +1911,7 @@ export default function Expenses({ modalOnly = false, onModalFinish = null }) {
                         </td>
                         <td className="px-6 py-4 text-center lg:px-4 lg:py-3 xl:px-6 xl:py-4">
                           <span className={`inline-flex rounded-md px-2.5 py-1 text-xs font-semibold capitalize lg:px-2 lg:py-0.5 lg:text-[10px] xl:px-2.5 xl:py-1 xl:text-xs ${getMethodBadgeClass(expense.method)}`}>
-                            {expense.method}
+                            {expense.account?.name || expense.method}
                           </span>
                         </td>
                         <td className="px-6 py-4 text-sm text-slate-700 lg:px-4 lg:py-3 lg:text-[12px] xl:px-6 xl:py-4 xl:text-sm">

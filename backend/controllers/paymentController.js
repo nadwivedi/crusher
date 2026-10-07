@@ -4,6 +4,7 @@ const Purchase = require("../models/Purchase");
 const Counter = require("../models/Counter");
 const Party = require("../models/Party");
 const { scopedFilter, scopedIdFilter } = require("../utils/ownership");
+const { resolveAccountByIdOrName } = require("../utils/accounts");
 
 const toNumber = (value, fallback = 0) => {
   const parsed = Number(value);
@@ -85,6 +86,7 @@ const createPayment = async (req, res) => {
       resolvedParty = resolvedParty || purchase.party || null;
     }
 
+    const account = await resolveAccountByIdOrName(req.userId, req.body.account, req.body.method);
     const paymentNumber = await createPaymentNumber(req.userId, req.body.paymentDate);
     const payment = await Payment.create({
       userId: req.userId,
@@ -94,7 +96,8 @@ const createPayment = async (req, res) => {
       originPurchaseId: null,
       amount,
       paymentNumber,
-      method: String(req.body.method || "Cash Account").trim() || "Cash Account",
+      method: account?.name || String(req.body.method || "Cash Account").trim() || "Cash Account",
+      account: account?._id || null,
       paymentDate: req.body.paymentDate ? new Date(req.body.paymentDate) : new Date(),
       notes: String(req.body.notes || "").trim(),
       paymentSource: "manual",
