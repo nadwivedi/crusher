@@ -19,10 +19,10 @@ const startOfMonth = () => new Date(new Date().getFullYear(), new Date().getMont
 
 // `get` returns [from, to]; no `get` means the whole history
 const RANGES = [
-  { key: 'month', label: 'This Month', get: () => [startOfMonth(), new Date()] },
+  { key: 'month', label: 'This Month', shortLabel: 'Month', get: () => [startOfMonth(), new Date()] },
   { key: 'today', label: 'Today', get: () => [new Date(), new Date()] },
-  { key: 'last7', label: 'Last 7 Days', get: () => [daysAgo(6), new Date()] },
-  { key: 'last30', label: 'Last 30 Days', get: () => [daysAgo(29), new Date()] },
+  { key: 'last7', label: 'Last 7 Days', shortLabel: '7 Days', get: () => [daysAgo(6), new Date()] },
+  { key: 'last30', label: 'Last 30 Days', shortLabel: '30 Days', get: () => [daysAgo(29), new Date()] },
   { key: 'all', label: 'All' },
   { key: 'custom', label: 'Custom' }
 ];

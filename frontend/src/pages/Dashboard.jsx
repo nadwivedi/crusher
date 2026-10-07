@@ -40,9 +40,9 @@ const FULL_DATE = { day: 'numeric', month: 'short', year: 'numeric' };
 const RANGES = [
   { key: 'today', label: 'Today', get: () => [new Date(), new Date()] },
   { key: 'yesterday', label: 'Yesterday', get: () => [daysAgo(1), daysAgo(1)] },
-  { key: 'last7', label: 'Last 7 Days', get: () => [daysAgo(6), new Date()] },
-  { key: 'last30', label: 'Last 30 Days', get: () => [daysAgo(29), new Date()] },
-  { key: 'year', label: 'This Year', get: () => [new Date(new Date().getFullYear(), 0, 1), new Date()] },
+  { key: 'last7', label: 'Last 7 Days', shortLabel: '7 Days', get: () => [daysAgo(6), new Date()] },
+  { key: 'last30', label: 'Last 30 Days', shortLabel: '30 Days', get: () => [daysAgo(29), new Date()] },
+  { key: 'year', label: 'This Year', shortLabel: 'Year', get: () => [new Date(new Date().getFullYear(), 0, 1), new Date()] },
   { key: 'custom', label: 'Custom' },
 ];
 
@@ -278,8 +278,9 @@ export default function Dashboard() {
       <div className={`space-y-4 transition-opacity md:space-y-5 ${loading ? 'pointer-events-none opacity-50' : ''}`}>
 
       {/* KPI cards */}
-      <section className="grid grid-cols-2 gap-2.5 md:gap-4 lg:grid-cols-3">
-        {kpis.map((kpi) => <StatCard key={kpi.label} {...kpi} />)}
+      {/* Three in a row on every screen; the compact tile keeps them readable on phones */}
+      <section className="grid grid-cols-3 gap-2 md:gap-4">
+        {kpis.map((kpi) => <StatCard key={kpi.label} compact {...kpi} />)}
       </section>
 
       {/* Quick entry */}
