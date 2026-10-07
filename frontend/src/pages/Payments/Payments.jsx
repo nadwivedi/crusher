@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Wallet, IndianRupee, Search } from 'lucide-react';
+import { Wallet, IndianRupee } from 'lucide-react';
+import MoneyVoucherList from '../../components/MoneyVoucherList';
 import { toast } from 'react-toastify';
 import apiClient from '../../utils/api';
 import { useAuth } from '../../context/AuthContext';
@@ -809,269 +810,78 @@ export default function Payments({ modalOnly = false, onModalFinish = null }) {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-purple-50">
-      <div className="w-full px-3 pb-8 pt-4 md:px-4 lg:px-6 lg:pt-4">
-        {error && (
-          <div className="mb-6 rounded-lg border border-red-200 bg-red-50 p-4 text-red-700">
-            {error}
-          </div>
-        )}
-
-        <div className="mb-5 mt-1 grid grid-cols-1 gap-2 sm:gap-4 md:grid-cols-2 xl:flex xl:justify-start">
-          <div className="group relative overflow-hidden rounded-xl bg-white p-2.5 shadow-sm ring-1 ring-slate-200/50 transition-all hover:shadow-md sm:rounded-2xl sm:p-5 xl:min-w-[220px] xl:w-fit">
-            <div className="flex items-start justify-between gap-2">
-              <div className="min-w-0">
-                <p className="text-[10px] font-medium leading-tight text-slate-500 sm:text-xs">Total Payments</p>
-                <p className="mt-1 text-base font-bold leading-tight text-slate-800 sm:mt-2 sm:text-2xl">{payments.length}</p>
-              </div>
-              <div className="hidden h-12 w-12 items-center justify-center rounded-xl bg-blue-50 text-blue-600 transition-transform group-hover:scale-110 sm:flex">
-                <Wallet className="h-6 w-6" />
-              </div>
-            </div>
-            <div className="absolute inset-x-0 bottom-0 h-0.5 bg-gradient-to-r from-blue-500 to-cyan-400 opacity-80 sm:h-1" />
-          </div>
-
-          <div className="group relative overflow-hidden rounded-xl bg-white p-2.5 shadow-sm ring-1 ring-slate-200/50 transition-all hover:shadow-md sm:rounded-2xl sm:p-5 xl:min-w-[220px] xl:w-fit">
-            <div className="flex items-start justify-between gap-2">
-              <div className="min-w-0">
-                <p className="text-[10px] font-medium leading-tight text-slate-500 sm:text-xs">Amount Paid</p>
-                <p className="mt-1 text-base font-bold leading-tight text-slate-800 sm:mt-2 sm:text-2xl">
-                  Rs {totalPayments.toFixed(2)}
-                </p>
-              </div>
-              <div className="hidden h-12 w-12 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 transition-transform group-hover:scale-110 sm:flex">
-                <IndianRupee className="h-6 w-6" />
-              </div>
-            </div>
-            <div className="absolute inset-x-0 bottom-0 h-0.5 bg-gradient-to-r from-emerald-500 to-teal-400 opacity-80 sm:h-1" />
-          </div>
-
-          <div className="group relative overflow-hidden rounded-xl bg-white p-2.5 shadow-sm ring-1 ring-slate-200/50 transition-all hover:shadow-md sm:rounded-2xl sm:p-5 xl:min-w-[220px] xl:w-fit">
-            <div className="flex items-start justify-between gap-2">
-              <div className="min-w-0">
-                <p className="text-[10px] font-medium leading-tight text-slate-500 sm:text-xs">Total Payable</p>
-                <p className="mt-1 text-base font-bold leading-tight text-slate-800 sm:mt-2 sm:text-2xl">
-                  Rs {totalPayable.toFixed(2)}
-                </p>
-              </div>
-              <div className="hidden h-12 w-12 items-center justify-center rounded-xl bg-amber-50 text-amber-600 transition-transform group-hover:scale-110 sm:flex">
-                <IndianRupee className="h-6 w-6" />
-              </div>
-            </div>
-            <div className="absolute inset-x-0 bottom-0 h-0.5 bg-gradient-to-r from-amber-500 to-orange-400 opacity-80 sm:h-1" />
-          </div>
-        </div>
-
-        <AddPaymentPopup
-          showForm={showForm}
-          loading={loading}
-          formData={formData}
-          parties={parties}
-          paymentAccountOptions={paymentAccountOptions}
-          paymentAccountSectionRef={paymentAccountSectionRef}
-          partySectionRef={partySectionRef}
-          paymentAccountQuery={paymentAccountQuery}
-          partyQuery={partyQuery}
-          paymentAccountListIndex={paymentAccountListIndex}
-          partyListIndex={partyListIndex}
-          filteredPaymentAccounts={filteredPaymentAccounts}
-          filteredParties={filteredParties}
-          isPaymentAccountSectionActive={isPaymentAccountSectionActive}
-          isPartySectionActive={isPartySectionActive}
-          purchaseOptions={purchaseOptions}
-          purchasePaymentMap={purchasePaymentMap}
-          setFormData={setFormData}
-          setPaymentAccountListIndex={setPaymentAccountListIndex}
-          setPartyListIndex={setPartyListIndex}
-          setIsPaymentAccountSectionActive={setIsPaymentAccountSectionActive}
-          setIsPartySectionActive={setIsPartySectionActive}
-          getPartyDisplayName={getPartyDisplayName}
-          handleCloseForm={handleCloseForm}
-          handleSubmit={handleSubmit}
-          handleChange={handleChange}
-          handlePaymentDateBlur={handlePaymentDateBlur}
-          handlePaymentAccountFocus={handlePaymentAccountFocus}
-          handlePartyFocus={handlePartyFocus}
-          handlePaymentAccountInputChange={handlePaymentAccountInputChange}
-          handlePartyInputChange={handlePartyInputChange}
-          handlePaymentAccountInputKeyDown={handlePaymentAccountInputKeyDown}
-          handlePartyInputKeyDown={handlePartyInputKeyDown}
-          selectPaymentAccount={selectPaymentAccount}
-          selectParty={selectParty}
-        />
-
-        <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl">
-          <div className="border-b border-gray-200 bg-gradient-to-r from-indigo-50 via-purple-50 to-pink-50 px-6 py-5">
-            <div className="flex flex-col gap-2 lg:flex-row lg:items-center">
-              <div className="relative w-full lg:w-[22%] lg:min-w-[260px]">
-                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                <input
-                  type="text"
-                  placeholder="Search payments..."
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  className="w-full rounded-lg border border-gray-300 bg-white py-2.5 pl-9 pr-4 text-sm text-slate-700 outline-none transition focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
-                />
-              </div>
-
-              <select
-                value={dateFilter}
-                onChange={(e) => setDateFilter(e.target.value)}
-                className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm text-slate-700 outline-none transition focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 lg:w-[22%] lg:min-w-[260px]"
-              >
-                <option value="">Payment History - All Time</option>
-                <option value="7d">Payment History - 7 Days</option>
-                <option value="30d">Payment History - 30 Days</option>
-                <option value="3m">Payment History - 3 Months</option>
-                <option value="6m">Payment History - 6 Months</option>
-                <option value="1y">Payment History - 1 Year</option>
-              </select>
-
-              <button
-                type="button"
-                onClick={handleOpenForm}
-                className="inline-flex flex-col items-center justify-center whitespace-nowrap rounded-lg bg-slate-800 px-6 py-2.5 text-white shadow-sm transition hover:bg-slate-900"
-              >
-                <span className="text-sm font-semibold">+ New Payment</span>
-                <span className="text-[11px] font-medium text-slate-300">Money Paid</span>
-              </button>
-            </div>
-          </div>
-
-          {loading && !showForm ? (
-            <div className="px-6 py-10 text-center text-slate-500">Loading...</div>
-          ) : (
-            <div className="rounded-[20px] border border-slate-200 bg-[radial-gradient(circle_at_top_right,rgba(148,163,184,0.16),transparent_28%),linear-gradient(180deg,rgba(255,255,255,0.98)_0%,rgba(241,245,249,0.96)_100%)] p-3 shadow-[0_18px_36px_rgba(15,23,42,0.08)] sm:p-5">
-              <div className="space-y-3 md:hidden">
-                {payments.map((payment) => (
-                  <article
-                    key={payment._id}
-                    className="overflow-hidden rounded-2xl border border-cyan-200 bg-white shadow-[0_16px_32px_rgba(8,47,73,0.10)]"
-                  >
-                    <div className="flex items-start justify-between gap-3 border-b border-cyan-900/20 bg-[linear-gradient(135deg,#0f766e_0%,#0d9488_38%,#0891b2_72%,#0284c7_100%)] px-4 py-3 text-white">
-                      <div className="min-w-0">
-                        <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-cyan-100">
-                          {formatPaymentNumber(payment.paymentNumber)}
-                        </p>
-                        <p className="truncate text-sm font-bold text-white">{getPartyDisplayName(payment.party) || 'Walk-in / Unassigned'}</p>
-                        <p className="mt-1 text-xs text-cyan-100">
-                          {formatDisplayDate(payment.paymentDate)}
-                        </p>
-                      </div>
-                      <div className="rounded-xl border border-white/20 bg-white/10 px-3 py-1.5 text-right">
-                        <p className="text-[10px] uppercase tracking-[0.18em] text-cyan-100">Amount</p>
-                        <p className="mt-1 text-sm font-bold text-white">Rs {Number(payment.amount || 0).toFixed(2)}</p>
-                      </div>
-                    </div>
-
-                    <div className="space-y-3 px-4 py-4 text-sm">
-                      <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5">
-                        <p className="text-xs font-medium uppercase tracking-[0.18em] text-slate-500">Method</p>
-                        <p className="mt-1 break-words text-sm font-medium text-slate-700">{payment.method || '-'}</p>
-                      </div>
-
-                      <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5">
-                        <p className="text-xs font-medium uppercase tracking-[0.18em] text-slate-500">Reference</p>
-                        <p className="mt-1 break-words text-sm text-slate-700">
-                          {payment.refType === 'purchase' ? 'Against Purchase' : 'On Account'}
-                        </p>
-                      </div>
-
-                      <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5">
-                        <p className="text-xs font-medium uppercase tracking-[0.18em] text-slate-500">Notes</p>
-                        <p className="mt-1 break-words text-sm text-slate-700">{payment.notes || '-'}</p>
-                      </div>
-
-                      {canDeletePayments && (
-                        <div className="flex justify-end">
-                          <button
-                            type="button"
-                            onClick={() => handleDelete(payment._id)}
-                            className="inline-flex items-center justify-center rounded-md border border-rose-200 bg-white px-3 py-1.5 text-[11px] font-medium text-rose-700 shadow-sm transition hover:border-rose-300 hover:bg-rose-50"
-                          >
-                            Delete
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  </article>
-                ))}
-
-                {payments.length === 0 && (
-                  <div className="rounded-2xl border border-dashed border-slate-300 bg-white/80 px-6 py-10 text-center text-slate-500">
-                    No payments found
-                  </div>
-                )}
-              </div>
-
-              <div className="hidden overflow-x-auto md:block">
-                <table className="w-full min-w-[920px] overflow-hidden whitespace-nowrap border-separate border-spacing-0 text-left text-sm">
-                  <thead className="bg-[linear-gradient(135deg,#0f766e_0%,#0d9488_38%,#0891b2_72%,#0284c7_100%)] text-white">
-                    <tr>
-                      <th className="border-y-2 border-l-2 border-r border-black px-4 py-3.5 text-center text-sm font-semibold shadow-[inset_0_-1px_0_rgba(148,163,184,0.2)]">No.</th>
-                      <th className="border-y-2 border-r border-black px-4 py-3.5 text-center text-sm font-semibold shadow-[inset_0_-1px_0_rgba(148,163,184,0.2)]">Date</th>
-                      <th className="border-y-2 border-r border-black px-4 py-3.5 text-sm font-semibold shadow-[inset_0_-1px_0_rgba(148,163,184,0.2)]">Party</th>
-                      <th className="border-y-2 border-r border-black px-4 py-3.5 text-sm font-semibold shadow-[inset_0_-1px_0_rgba(148,163,184,0.2)]">Amount</th>
-                      <th className="border-y-2 border-r border-black px-4 py-3.5 text-sm font-semibold shadow-[inset_0_-1px_0_rgba(148,163,184,0.2)]">Method</th>
-                      <th className="border-y-2 border-r border-black px-4 py-3.5 text-sm font-semibold shadow-[inset_0_-1px_0_rgba(148,163,184,0.2)]">Reference</th>
-                      <th className="border-y-2 border-r border-black px-4 py-3.5 text-sm font-semibold shadow-[inset_0_-1px_0_rgba(148,163,184,0.2)]">Notes</th>
-                      {canDeletePayments && (
-                        <th className="border-y-2 border-r-2 border-black px-4 py-3.5 text-center text-sm font-semibold shadow-[inset_0_-1px_0_rgba(148,163,184,0.2)]">Actions</th>
-                      )}
-                    </tr>
-                  </thead>
-                  <tbody className="bg-[linear-gradient(180deg,rgba(255,255,255,0.94)_0%,rgba(248,250,252,0.98)_100%)] text-slate-600">
-                    {payments.map((payment) => (
-                      <tr key={payment._id} className="transition-colors duration-150 hover:bg-slate-200/45">
-                        <td className="border border-slate-400 px-4 py-3 text-center font-semibold text-slate-800">
-                          {formatPaymentNumber(payment.paymentNumber)}
-                        </td>
-                        <td className="border border-slate-400 px-4 py-3 text-center font-medium text-slate-700">
-                          {formatDisplayDate(payment.paymentDate)}
-                        </td>
-                        <td className="border border-slate-400 px-4 py-3 font-semibold text-slate-800">
-                          {getPartyDisplayName(payment.party) || '-'}
-                        </td>
-                        <td className="border border-slate-400 px-4 py-3 font-semibold text-emerald-700">
-                          Rs {Number(payment.amount || 0).toFixed(2)}
-                        </td>
-                        <td className="border border-slate-400 px-4 py-3 text-slate-700">
-                          {payment.method || '-'}
-                        </td>
-                        <td className="border border-slate-400 px-4 py-3 text-slate-700">
-                          {payment.refType === 'purchase' ? 'Against Purchase' : 'On Account'}
-                        </td>
-                        <td className="border border-slate-400 px-4 py-3">
-                          <div className="max-w-[24rem] truncate">{payment.notes || '-'}</div>
-                        </td>
-                        {canDeletePayments && (
-                          <td className="border border-slate-400 px-4 py-3 text-center">
-                            <button
-                              type="button"
-                              onClick={() => handleDelete(payment._id)}
-                              className="inline-flex items-center justify-center rounded-md border border-rose-200 bg-white px-3 py-1.5 text-[11px] font-medium text-rose-700 shadow-sm transition hover:border-rose-300 hover:bg-rose-50"
-                            >
-                              Delete
-                            </button>
-                          </td>
-                        )}
-                      </tr>
-                    ))}
-                    {payments.length === 0 && (
-                      <tr>
-                        <td colSpan={canDeletePayments ? 8 : 7} className="border border-slate-400 px-6 py-10 text-center text-slate-500">
-                          No payments found
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
+    <MoneyVoucherList
+      title="Money Paid"
+      subtitle="Money paid to your parties"
+      addLabel="New Payment"
+      onAdd={handleOpenForm}
+      error={error}
+      stats={[
+        { icon: Wallet, label: 'Payments', tone: 'blue', value: String(payments.length), hint: 'Entries in this list' },
+        { icon: IndianRupee, label: 'Amount Paid', tone: 'rose', amount: totalPayments, hint: 'Total of this list' },
+        { icon: IndianRupee, label: 'Total Payable', tone: 'amber', amount: totalPayable, hint: 'Purchases minus payments' }
+      ]}
+      listTitle="Payments"
+      accountLabel="Paid From"
+      amountClass="text-rose-700"
+      search={search}
+      onSearchChange={setSearch}
+      searchPlaceholder="Search payments..."
+      dateFilter={dateFilter}
+      onDateFilterChange={setDateFilter}
+      loading={loading && !showForm}
+      rows={payments.map((payment) => ({
+        id: payment._id,
+        number: formatPaymentNumber(payment.paymentNumber),
+        date: formatDisplayDate(payment.paymentDate),
+        party: payment.party ? getPartyDisplayName(payment.party) : '',
+        account: payment.method,
+        reference: payment.refType === 'purchase' ? 'Against Purchase' : 'On Account',
+        notes: payment.notes,
+        amount: Number(payment.amount || 0)
+      }))}
+      emptyTitle="No payments found"
+      emptyHint='Use "New Payment" to record money you paid.'
+      canDelete={canDeletePayments}
+      onDelete={handleDelete}
+    >
+      <AddPaymentPopup
+        showForm={showForm}
+        loading={loading}
+        formData={formData}
+        parties={parties}
+        paymentAccountOptions={paymentAccountOptions}
+        paymentAccountSectionRef={paymentAccountSectionRef}
+        partySectionRef={partySectionRef}
+        paymentAccountQuery={paymentAccountQuery}
+        partyQuery={partyQuery}
+        paymentAccountListIndex={paymentAccountListIndex}
+        partyListIndex={partyListIndex}
+        filteredPaymentAccounts={filteredPaymentAccounts}
+        filteredParties={filteredParties}
+        isPaymentAccountSectionActive={isPaymentAccountSectionActive}
+        isPartySectionActive={isPartySectionActive}
+        purchaseOptions={purchaseOptions}
+        purchasePaymentMap={purchasePaymentMap}
+        setFormData={setFormData}
+        setPaymentAccountListIndex={setPaymentAccountListIndex}
+        setPartyListIndex={setPartyListIndex}
+        setIsPaymentAccountSectionActive={setIsPaymentAccountSectionActive}
+        setIsPartySectionActive={setIsPartySectionActive}
+        getPartyDisplayName={getPartyDisplayName}
+        handleCloseForm={handleCloseForm}
+        handleSubmit={handleSubmit}
+        handleChange={handleChange}
+        handlePaymentDateBlur={handlePaymentDateBlur}
+        handlePaymentAccountFocus={handlePaymentAccountFocus}
+        handlePartyFocus={handlePartyFocus}
+        handlePaymentAccountInputChange={handlePaymentAccountInputChange}
+        handlePartyInputChange={handlePartyInputChange}
+        handlePaymentAccountInputKeyDown={handlePaymentAccountInputKeyDown}
+        handlePartyInputKeyDown={handlePartyInputKeyDown}
+        selectPaymentAccount={selectPaymentAccount}
+        selectParty={selectParty}
+      />
+    </MoneyVoucherList>
   );
 }
-

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Receipt, IndianRupee, Search } from 'lucide-react';
+import { Receipt, IndianRupee } from 'lucide-react';
+import MoneyVoucherList from '../../components/MoneyVoucherList';
 import { toast } from 'react-toastify';
 import apiClient from '../../utils/api';
 import { useAuth } from '../../context/AuthContext';
@@ -182,7 +183,8 @@ export default function Receipts({ modalOnly = false, onModalFinish = null }) {
           fromDate: fromDate || undefined
         }
       });
-      setReceipts(response.data || []);
+      // The receipts API sends the list itself, not wrapped in { data }
+      setReceipts(Array.isArray(response) ? response : (response?.data || []));
       setError('');
     } catch (err) {
       setError(err.message || 'Error fetching receipts');
@@ -769,267 +771,76 @@ export default function Receipts({ modalOnly = false, onModalFinish = null }) {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-purple-50">
-      <div className="w-full px-3 pb-8 pt-4 md:px-4 lg:px-6 lg:pt-4">
-        {error && (
-          <div className="mb-6 rounded-lg border border-red-200 bg-red-50 p-4 text-red-700">
-            {error}
-          </div>
-        )}
-
-        <div className="mb-5 mt-1 grid grid-cols-1 gap-2 sm:gap-4 md:grid-cols-2 xl:flex xl:justify-start">
-          <div className="group relative overflow-hidden rounded-xl bg-white p-2.5 shadow-sm ring-1 ring-slate-200/50 transition-all hover:shadow-md sm:rounded-2xl sm:p-5 xl:min-w-[220px] xl:w-fit">
-            <div className="flex items-start justify-between gap-2">
-              <div className="min-w-0">
-                <p className="text-[10px] font-medium leading-tight text-slate-500 sm:text-xs">Total Receipts</p>
-                <p className="mt-1 text-base font-bold leading-tight text-slate-800 sm:mt-2 sm:text-2xl">{receipts.length}</p>
-              </div>
-              <div className="hidden h-12 w-12 items-center justify-center rounded-xl bg-blue-50 text-blue-600 transition-transform group-hover:scale-110 sm:flex">
-                <Receipt className="h-6 w-6" />
-              </div>
-            </div>
-            <div className="absolute inset-x-0 bottom-0 h-0.5 bg-gradient-to-r from-blue-500 to-cyan-400 opacity-80 sm:h-1" />
-          </div>
-
-          <div className="group relative overflow-hidden rounded-xl bg-white p-2.5 shadow-sm ring-1 ring-slate-200/50 transition-all hover:shadow-md sm:rounded-2xl sm:p-5 xl:min-w-[220px] xl:w-fit">
-            <div className="flex items-start justify-between gap-2">
-              <div className="min-w-0">
-                <p className="text-[10px] font-medium leading-tight text-slate-500 sm:text-xs">Amount Received</p>
-                <p className="mt-1 text-base font-bold leading-tight text-slate-800 sm:mt-2 sm:text-2xl">
-                  Rs {totalReceipts.toFixed(2)}
-                </p>
-              </div>
-              <div className="hidden h-12 w-12 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 transition-transform group-hover:scale-110 sm:flex">
-                <IndianRupee className="h-6 w-6" />
-              </div>
-            </div>
-            <div className="absolute inset-x-0 bottom-0 h-0.5 bg-gradient-to-r from-emerald-500 to-teal-400 opacity-80 sm:h-1" />
-          </div>
-
-          <div className="group relative overflow-hidden rounded-xl bg-white p-2.5 shadow-sm ring-1 ring-slate-200/50 transition-all hover:shadow-md sm:rounded-2xl sm:p-5 xl:min-w-[220px] xl:w-fit">
-            <div className="flex items-start justify-between gap-2">
-              <div className="min-w-0">
-                <p className="text-[10px] font-medium leading-tight text-slate-500 sm:text-xs">Total Receivable</p>
-                <p className="mt-1 text-base font-bold leading-tight text-slate-800 sm:mt-2 sm:text-2xl">
-                  Rs {totalReceivable.toFixed(2)}
-                </p>
-              </div>
-              <div className="hidden h-12 w-12 items-center justify-center rounded-xl bg-amber-50 text-amber-600 transition-transform group-hover:scale-110 sm:flex">
-                <IndianRupee className="h-6 w-6" />
-              </div>
-            </div>
-            <div className="absolute inset-x-0 bottom-0 h-0.5 bg-gradient-to-r from-amber-500 to-orange-400 opacity-80 sm:h-1" />
-          </div>
-        </div>
-
-        <AddReceiptPopup
-          showForm={showForm}
-          loading={loading}
-          formData={formData}
-          parties={parties}
-          receiptAccountOptions={receiptAccountOptions}
-          partySectionRef={partySectionRef}
-          receiptAccountSectionRef={receiptAccountSectionRef}
-          partyQuery={partyQuery}
-          receiptAccountQuery={receiptAccountQuery}
-          partyListIndex={partyListIndex}
-          receiptAccountListIndex={receiptAccountListIndex}
-          filteredParties={filteredParties}
-          filteredReceiptAccounts={filteredReceiptAccounts}
-          isPartySectionActive={isPartySectionActive}
-          isReceiptAccountSectionActive={isReceiptAccountSectionActive}
-          setFormData={setFormData}
-          setPartyListIndex={setPartyListIndex}
-          setReceiptAccountListIndex={setReceiptAccountListIndex}
-          setIsPartySectionActive={setIsPartySectionActive}
-          setIsReceiptAccountSectionActive={setIsReceiptAccountSectionActive}
-          getPartyDisplayName={getPartyDisplayName}
-          handleCloseForm={handleCloseForm}
-          handleSubmit={handleSubmit}
-          handleChange={handleChange}
-          handleReceiptDateBlur={handleReceiptDateBlur}
-          handlePartyFocus={handlePartyFocus}
-          handleReceiptAccountFocus={handleReceiptAccountFocus}
-          handlePartyInputChange={handlePartyInputChange}
-          handleReceiptAccountInputChange={handleReceiptAccountInputChange}
-          handlePartyInputKeyDown={handlePartyInputKeyDown}
-          handleReceiptAccountInputKeyDown={handleReceiptAccountInputKeyDown}
-          selectParty={selectParty}
-          selectReceiptAccount={selectReceiptAccount}
-        />
-
-        <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl">
-          <div className="border-b border-gray-200 bg-gradient-to-r from-indigo-50 via-purple-50 to-pink-50 px-6 py-5">
-            <div className="flex flex-col gap-2 lg:flex-row lg:items-center">
-              <div className="relative w-full lg:w-[22%] lg:min-w-[260px]">
-                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                <input
-                  type="text"
-                  placeholder="Search receipts..."
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  className="w-full rounded-lg border border-gray-300 bg-white py-2.5 pl-9 pr-4 text-sm text-slate-700 outline-none transition focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
-                />
-              </div>
-
-              <select
-                value={dateFilter}
-                onChange={(e) => setDateFilter(e.target.value)}
-                className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm text-slate-700 outline-none transition focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 lg:w-[22%] lg:min-w-[260px]"
-              >
-                <option value="">Receipt History - All Time</option>
-                <option value="7d">Receipt History - 7 Days</option>
-                <option value="30d">Receipt History - 30 Days</option>
-                <option value="3m">Receipt History - 3 Months</option>
-                <option value="6m">Receipt History - 6 Months</option>
-                <option value="1y">Receipt History - 1 Year</option>
-              </select>
-
-              <button
-                type="button"
-                onClick={handleOpenForm}
-                className="inline-flex flex-col items-center justify-center whitespace-nowrap rounded-lg bg-slate-800 px-6 py-2.5 text-white shadow-sm transition hover:bg-slate-900"
-              >
-                <span className="text-sm font-semibold">+ New Receipt</span>
-                <span className="text-[11px] font-medium text-slate-300">Money Received</span>
-              </button>
-            </div>
-          </div>
-
-          {loading && !showForm ? (
-            <div className="px-6 py-10 text-center text-slate-500">Loading...</div>
-          ) : (
-            <div className="rounded-[20px] border border-slate-200 bg-[radial-gradient(circle_at_top_right,rgba(148,163,184,0.16),transparent_28%),linear-gradient(180deg,rgba(255,255,255,0.98)_0%,rgba(241,245,249,0.96)_100%)] p-3 shadow-[0_18px_36px_rgba(15,23,42,0.08)] sm:p-5">
-              <div className="space-y-3 md:hidden">
-                {receipts.map((receipt) => (
-                  <article
-                    key={receipt._id}
-                    className="overflow-hidden rounded-2xl border border-cyan-200 bg-white shadow-[0_16px_32px_rgba(8,47,73,0.10)]"
-                  >
-                    <div className="flex items-start justify-between gap-3 border-b border-cyan-900/20 bg-[linear-gradient(135deg,#0f766e_0%,#0d9488_38%,#0891b2_72%,#0284c7_100%)] px-4 py-3 text-white">
-                      <div className="min-w-0">
-                        <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-cyan-100">
-                          {formatReceiptNumber(receipt.receiptNumber)}
-                        </p>
-                        <p className="truncate text-sm font-bold text-white">{getPartyDisplayName(receipt.party) || 'Walk-in / Unassigned'}</p>
-                        <p className="mt-1 text-xs text-cyan-100">
-                          {formatDisplayDate(receipt.receiptDate)}
-                        </p>
-                      </div>
-                      <div className="rounded-xl border border-white/20 bg-white/10 px-3 py-1.5 text-right">
-                        <p className="text-[10px] uppercase tracking-[0.18em] text-cyan-100">Amount</p>
-                        <p className="mt-1 text-sm font-bold text-white">Rs {Number(receipt.amount || 0).toFixed(2)}</p>
-                      </div>
-                    </div>
-
-                    <div className="space-y-3 px-4 py-4 text-sm">
-                      <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5">
-                        <p className="text-xs font-medium uppercase tracking-[0.18em] text-slate-500">Receipt Account</p>
-                        <p className="mt-1 break-words text-sm font-medium text-slate-700">{receipt.method || '-'}</p>
-                      </div>
-
-                      <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5">
-                        <p className="text-xs font-medium uppercase tracking-[0.18em] text-slate-500">Reference</p>
-                        <p className="mt-1 break-words text-sm text-slate-700">
-                          {receipt.refType === 'sale' ? 'Against Sale' : 'On Account'}
-                        </p>
-                      </div>
-
-                      <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5">
-                        <p className="text-xs font-medium uppercase tracking-[0.18em] text-slate-500">Notes</p>
-                        <p className="mt-1 break-words text-sm text-slate-700">{receipt.notes || '-'}</p>
-                      </div>
-
-                      {canDeleteReceipts && (
-                        <div className="flex justify-end">
-                          <button
-                            type="button"
-                            onClick={() => handleDelete(receipt._id)}
-                            className="inline-flex items-center justify-center rounded-md border border-rose-200 bg-white px-3 py-1.5 text-[11px] font-medium text-rose-700 shadow-sm transition hover:border-rose-300 hover:bg-rose-50"
-                          >
-                            Delete
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  </article>
-                ))}
-
-                {receipts.length === 0 && (
-                  <div className="rounded-2xl border border-dashed border-slate-300 bg-white/80 px-6 py-10 text-center text-slate-500">
-                    No receipts found
-                  </div>
-                )}
-              </div>
-
-              <div className="hidden overflow-x-auto md:block">
-                <table className="w-full min-w-[920px] overflow-hidden whitespace-nowrap border-separate border-spacing-0 text-left text-sm">
-                  <thead className="bg-[linear-gradient(135deg,#0f766e_0%,#0d9488_38%,#0891b2_72%,#0284c7_100%)] text-white">
-                    <tr>
-                      <th className="border-y-2 border-l-2 border-r border-black px-4 py-3.5 text-center text-sm font-semibold shadow-[inset_0_-1px_0_rgba(148,163,184,0.2)]">No.</th>
-                      <th className="border-y-2 border-r border-black px-4 py-3.5 text-center text-sm font-semibold shadow-[inset_0_-1px_0_rgba(148,163,184,0.2)]">Date</th>
-                      <th className="border-y-2 border-r border-black px-4 py-3.5 text-sm font-semibold shadow-[inset_0_-1px_0_rgba(148,163,184,0.2)]">Party</th>
-                      <th className="border-y-2 border-r border-black px-4 py-3.5 text-sm font-semibold shadow-[inset_0_-1px_0_rgba(148,163,184,0.2)]">Amount</th>
-                      <th className="border-y-2 border-r border-black px-4 py-3.5 text-sm font-semibold shadow-[inset_0_-1px_0_rgba(148,163,184,0.2)]">Receipt Account</th>
-                      <th className="border-y-2 border-r border-black px-4 py-3.5 text-sm font-semibold shadow-[inset_0_-1px_0_rgba(148,163,184,0.2)]">Reference</th>
-                      <th className="border-y-2 border-r border-black px-4 py-3.5 text-sm font-semibold shadow-[inset_0_-1px_0_rgba(148,163,184,0.2)]">Notes</th>
-                      {canDeleteReceipts && (
-                        <th className="border-y-2 border-r-2 border-black px-4 py-3.5 text-center text-sm font-semibold shadow-[inset_0_-1px_0_rgba(148,163,184,0.2)]">Actions</th>
-                      )}
-                    </tr>
-                  </thead>
-                  <tbody className="bg-[linear-gradient(180deg,rgba(255,255,255,0.94)_0%,rgba(248,250,252,0.98)_100%)] text-slate-600">
-                    {receipts.map((receipt) => (
-                      <tr key={receipt._id} className="transition-colors duration-150 hover:bg-slate-200/45">
-                        <td className="border border-slate-400 px-4 py-3 text-center font-semibold text-slate-800">
-                          {formatReceiptNumber(receipt.receiptNumber)}
-                        </td>
-                        <td className="border border-slate-400 px-4 py-3 text-center font-medium text-slate-700">
-                          {formatDisplayDate(receipt.receiptDate)}
-                        </td>
-                        <td className="border border-slate-400 px-4 py-3 font-semibold text-slate-800">
-                          {getPartyDisplayName(receipt.party) || '-'}
-                        </td>
-                        <td className="border border-slate-400 px-4 py-3 font-semibold text-emerald-700">
-                          Rs {Number(receipt.amount || 0).toFixed(2)}
-                        </td>
-                        <td className="border border-slate-400 px-4 py-3 text-slate-700">
-                          {receipt.method || '-'}
-                        </td>
-                        <td className="border border-slate-400 px-4 py-3 text-slate-700">
-                          {receipt.refType === 'sale' ? 'Against Sale' : 'On Account'}
-                        </td>
-                        <td className="border border-slate-400 px-4 py-3">
-                          <div className="max-w-[24rem] truncate">{receipt.notes || '-'}</div>
-                        </td>
-                        {canDeleteReceipts && (
-                          <td className="border border-slate-400 px-4 py-3 text-center">
-                            <button
-                              type="button"
-                              onClick={() => handleDelete(receipt._id)}
-                              className="inline-flex items-center justify-center rounded-md border border-rose-200 bg-white px-3 py-1.5 text-[11px] font-medium text-rose-700 shadow-sm transition hover:border-rose-300 hover:bg-rose-50"
-                            >
-                              Delete
-                            </button>
-                          </td>
-                        )}
-                      </tr>
-                    ))}
-                    {receipts.length === 0 && (
-                      <tr>
-                        <td colSpan={canDeleteReceipts ? 8 : 7} className="border border-slate-400 px-6 py-10 text-center text-slate-500">
-                          No receipts found
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
+    <MoneyVoucherList
+      title="Money Received"
+      subtitle="Money collected from your parties"
+      addLabel="New Receipt"
+      onAdd={handleOpenForm}
+      error={error}
+      stats={[
+        { icon: Receipt, label: 'Receipts', tone: 'blue', value: String(receipts.length), hint: 'Entries in this list' },
+        { icon: IndianRupee, label: 'Amount Received', tone: 'emerald', amount: totalReceipts, hint: 'Total of this list' },
+        { icon: IndianRupee, label: 'Total Receivable', tone: 'amber', amount: totalReceivable, hint: 'Sales minus receipts' }
+      ]}
+      listTitle="Receipts"
+      accountLabel="Received In"
+      amountClass="text-emerald-700"
+      search={search}
+      onSearchChange={setSearch}
+      searchPlaceholder="Search receipts..."
+      dateFilter={dateFilter}
+      onDateFilterChange={setDateFilter}
+      loading={loading && !showForm}
+      rows={receipts.map((receipt) => ({
+        id: receipt._id,
+        number: formatReceiptNumber(receipt.receiptNumber),
+        date: formatDisplayDate(receipt.receiptDate),
+        party: receipt.party ? getPartyDisplayName(receipt.party) : '',
+        account: receipt.method,
+        reference: receipt.refType === 'sale' ? 'Against Sale' : 'On Account',
+        notes: receipt.notes,
+        amount: Number(receipt.amount || 0)
+      }))}
+      emptyTitle="No receipts found"
+      emptyHint='Use "New Receipt" to record money you received.'
+      canDelete={canDeleteReceipts}
+      onDelete={handleDelete}
+    >
+      <AddReceiptPopup
+        showForm={showForm}
+        loading={loading}
+        formData={formData}
+        parties={parties}
+        receiptAccountOptions={receiptAccountOptions}
+        partySectionRef={partySectionRef}
+        receiptAccountSectionRef={receiptAccountSectionRef}
+        partyQuery={partyQuery}
+        receiptAccountQuery={receiptAccountQuery}
+        partyListIndex={partyListIndex}
+        receiptAccountListIndex={receiptAccountListIndex}
+        filteredParties={filteredParties}
+        filteredReceiptAccounts={filteredReceiptAccounts}
+        isPartySectionActive={isPartySectionActive}
+        isReceiptAccountSectionActive={isReceiptAccountSectionActive}
+        setFormData={setFormData}
+        setPartyListIndex={setPartyListIndex}
+        setReceiptAccountListIndex={setReceiptAccountListIndex}
+        setIsPartySectionActive={setIsPartySectionActive}
+        setIsReceiptAccountSectionActive={setIsReceiptAccountSectionActive}
+        getPartyDisplayName={getPartyDisplayName}
+        handleCloseForm={handleCloseForm}
+        handleSubmit={handleSubmit}
+        handleChange={handleChange}
+        handleReceiptDateBlur={handleReceiptDateBlur}
+        handlePartyFocus={handlePartyFocus}
+        handleReceiptAccountFocus={handleReceiptAccountFocus}
+        handlePartyInputChange={handlePartyInputChange}
+        handleReceiptAccountInputChange={handleReceiptAccountInputChange}
+        handlePartyInputKeyDown={handlePartyInputKeyDown}
+        handleReceiptAccountInputKeyDown={handleReceiptAccountInputKeyDown}
+        selectParty={selectParty}
+        selectReceiptAccount={selectReceiptAccount}
+      />
+    </MoneyVoucherList>
   );
 }
-
