@@ -69,6 +69,10 @@ const createReceipt = async (req, res) => {
       resolvedParty = resolvedParty || sale.partyId || null;
     }
 
+    if (!resolvedParty) {
+      return res.status(400).json({ message: "Select the party the money was received from" });
+    }
+
     const account = await resolveAccountByIdOrName(req.userId, req.body.account, req.body.method);
     const receiptNumber = await getNextReceiptNumber(req.userId);
     const receipt = await Receipt.create({

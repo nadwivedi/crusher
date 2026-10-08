@@ -1,13 +1,38 @@
-import { Building2, CalendarDays, Wallet } from 'lucide-react';
+import { Check, ChevronDown } from 'lucide-react';
+import FormPopup from '../../../components/FormPopup';
 import { handlePopupFormKeyDown } from '../../../utils/popupFormKeyboard';
 import { useFloatingDropdownPosition } from '../../../utils/useFloatingDropdownPosition';
+
+/** Search list under a type-to-search box. The highlighted row follows the arrow keys; the picked one gets a tick. */
+function OptionList({ style, options, activeIndex, emptyText, getKey, getLabel, isSelected, onHover, onPick }) {
+  return (
+    <div className="fixed z-[80] overflow-hidden rounded-lg bg-white shadow-xl ring-1 ring-slate-200" style={style} onClick={(event) => event.stopPropagation()}>
+      <div className="overflow-y-auto py-1" style={{ maxHeight: style.maxHeight }}>
+        {options.length === 0 ? (
+          <p className="px-3 py-2.5 text-sm text-slate-500">{emptyText}</p>
+        ) : options.map((option, index) => (
+          <button
+            key={getKey(option)}
+            type="button"
+            onMouseDown={(event) => event.preventDefault()}
+            onMouseEnter={() => onHover(index)}
+            onClick={() => onPick(option)}
+            className={`flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm transition ${index === activeIndex ? 'bg-primary-50 text-primary-900' : 'text-slate-700'}`}
+          >
+            <span className="min-w-0 truncate font-medium">{getLabel(option)}</span>
+            {isSelected(option) && <Check size={16} className="shrink-0 text-primary-600" />}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 export default function AddReceiptPopup({
   showForm,
   loading,
+  error = '',
   formData,
-  parties,
-  receiptAccountOptions,
   partySectionRef,
   receiptAccountSectionRef,
   partyQuery,
@@ -18,7 +43,6 @@ export default function AddReceiptPopup({
   filteredReceiptAccounts,
   isPartySectionActive,
   isReceiptAccountSectionActive,
-  setFormData,
   setPartyListIndex,
   setReceiptAccountListIndex,
   setIsPartySectionActive,
@@ -26,8 +50,7 @@ export default function AddReceiptPopup({
   getPartyDisplayName,
   handleCloseForm,
   handleSubmit,
-  handleChange
-  ,
+  handleChange,
   handleReceiptDateBlur,
   handlePartyFocus,
   handleReceiptAccountFocus,
@@ -38,298 +61,163 @@ export default function AddReceiptPopup({
   selectParty,
   selectReceiptAccount
 }) {
-  const inputClass = 'w-full rounded-lg border border-gray-300 bg-white px-2.5 py-1.5 text-[13px] text-gray-800 focus:border-transparent focus:outline-none focus:ring-2';
   const partyDropdownStyle = useFloatingDropdownPosition(partySectionRef, isPartySectionActive, [filteredParties.length, partyListIndex]);
   const receiptAccountDropdownStyle = useFloatingDropdownPosition(receiptAccountSectionRef, isReceiptAccountSectionActive, [filteredReceiptAccounts.length, receiptAccountListIndex]);
 
   if (!showForm) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-2 backdrop-blur-[1.5px] md:p-4" onClick={handleCloseForm}>
-      <div
-        className="flex max-h-[78vh] w-full max-w-[32rem] flex-col overflow-hidden rounded-xl bg-white shadow-2xl ring-1 ring-slate-200/80 md:rounded-2xl"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-3 py-2.5 text-white md:px-4 md:py-3">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-base font-bold md:text-xl">
-                New Receipt
-                <span className="ml-2 text-sm font-medium text-slate-200 md:text-base">Money Received</span>
-              </h2>
-            </div>
+    <FormPopup
+      title="New Receipt"
+      subtitle="Money received from a party"
+      submitLabel={loading ? 'Saving...' : 'Save Receipt'}
+      submitDisabled={loading}
+      maxWidth="max-w-lg"
+      onSubmit={handleSubmit}
+      onClose={handleCloseForm}
+      onKeyDown={(event) => handlePopupFormKeyDown(event, handleCloseForm)}
+    >
+      {error && <p className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-medium text-rose-700">{error}</p>}
 
-            <button
-              type="button"
-              onClick={handleCloseForm}
-              className="rounded-lg p-1.5 text-white transition hover:bg-white/20"
-              aria-label="Close popup"
-            >
-              <svg className="h-5 w-5 md:h-6 md:w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className="label" htmlFor="receipt-date-input">Date</label>
+          <input
+            id="receipt-date-input"
+            className="input"
+            type="text"
+            name="receiptDate"
+            value={formData.receiptDate}
+            onChange={handleChange}
+            onBlur={handleReceiptDateBlur}
+            placeholder="DD/MM/YYYY"
+            inputMode="numeric"
+            autoComplete="off"
+            autoFocus
+          />
+        </div>
+        <div>
+          <label className="label" htmlFor="receipt-amount-input">Amount <span className="text-rose-500">*</span></label>
+          <div className="relative">
+            <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-sm font-semibold text-slate-400">₹</span>
+            <input
+              id="receipt-amount-input"
+              className="input pl-7 font-semibold text-emerald-700"
+              type="number"
+              name="amount"
+              value={formData.amount}
+              onChange={handleChange}
+              step="0.01"
+              placeholder="0"
+              required
+            />
           </div>
         </div>
-
-        <form
-          id="receipt-form"
-          onSubmit={handleSubmit}
-          onKeyDown={(e) => handlePopupFormKeyDown(e, handleCloseForm)}
-          className="flex flex-col overflow-hidden"
-        >
-          <div className="overflow-y-auto p-2.5 md:p-4">
-            <div className="flex flex-col gap-3 md:gap-4">
-              <div className="rounded-xl border-2 border-indigo-200 bg-gradient-to-r from-blue-50 to-indigo-50 p-2.5 md:p-4">
-                <h3 className="mb-2.5 flex items-center gap-2 text-sm font-bold text-gray-800 md:mb-3 md:text-base">
-                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-indigo-600 text-[10px] text-white md:h-6 md:w-6 md:text-xs">1</span>
-                  Receipt Details
-                </h3>
-
-                <div className="grid grid-cols-1 gap-2.5 md:grid-cols-2 md:gap-3">
-                  <div>
-                    <label className="mb-1 block text-[11px] font-semibold text-gray-700 md:text-xs">Receipt Date</label>
-                    <div className="relative">
-                      <CalendarDays className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-indigo-400" />
-                      <input
-                        type="text"
-                        name="receiptDate"
-                        value={formData.receiptDate}
-                        onChange={handleChange}
-                        onBlur={handleReceiptDateBlur}
-                        className={`${inputClass} pl-10 focus:ring-indigo-500`}
-                        placeholder="DD/MM/YYYY"
-                        inputMode="numeric"
-                        autoFocus
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="mb-1 block text-[11px] font-semibold text-gray-700 md:text-xs">
-                      Amount <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="number"
-                      name="amount"
-                      value={formData.amount}
-                      onChange={handleChange}
-                      step="0.01"
-                      className={`${inputClass} font-semibold focus:ring-indigo-500`}
-                      placeholder="Enter receipt amount"
-                      required
-                    />
-                  </div>
-
-                  <div className="relative">
-                    <label className="mb-1 block text-[11px] font-semibold text-gray-700 md:text-xs">Party Name</label>
-                    <div
-                      ref={partySectionRef}
-                      className="relative"
-                      onFocusCapture={handlePartyFocus}
-                      onBlurCapture={(event) => {
-                        const nextFocused = event.relatedTarget;
-                        if (partySectionRef.current && nextFocused instanceof Node && partySectionRef.current.contains(nextFocused)) return;
-                        setIsPartySectionActive(false);
-                      }}
-                    >
-                      <div className="relative">
-                        <Building2 className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-indigo-400" />
-                        <input
-                          type="text"
-                          value={partyQuery}
-                          onChange={handlePartyInputChange}
-                          onKeyDown={handlePartyInputKeyDown}
-                          className={`${inputClass} pl-9 focus:ring-indigo-500`}
-                          placeholder="Type to search party..."
-                          autoComplete="off"
-                        />
-                      </div>
-
-                      {isPartySectionActive && partyDropdownStyle && (
-                        <div
-                          className="fixed z-[80] overflow-hidden rounded-xl border border-amber-200 bg-white shadow-[0_18px_40px_rgba(15,23,42,0.18)]"
-                          style={partyDropdownStyle}
-                          onClick={(event) => event.stopPropagation()}
-                        >
-                          <div className="flex items-center justify-between border-b border-amber-100 bg-gradient-to-r from-amber-50 to-yellow-50 px-3 py-2">
-                            <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-amber-700">Party List</span>
-                            <span className="rounded-full bg-white px-2 py-0.5 text-[10px] font-semibold text-amber-700 shadow-sm">
-                              {filteredParties.length}
-                            </span>
-                          </div>
-                          <div className="overflow-y-auto py-1" style={{ maxHeight: partyDropdownStyle.maxHeight }}>
-                            {filteredParties.length === 0 ? (
-                              <div className="px-3 py-3 text-center text-[13px] text-slate-500">
-                                No matching parties found.
-                              </div>
-                            ) : (
-                              filteredParties.map((party, index) => {
-                                const isActive = index === partyListIndex;
-                                const isSelected = String(formData.party || '') === String(party._id);
-
-                                return (
-                                  <button
-                                    key={party._id}
-                                    type="button"
-                                    onMouseDown={(event) => event.preventDefault()}
-                                    onMouseEnter={() => setPartyListIndex(index)}
-                                    onClick={() => {
-                                      selectParty(party);
-                                      setIsPartySectionActive(false);
-                                    }}
-                                    className={`flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-[13px] transition ${
-                                      isActive
-                                        ? 'bg-yellow-200 text-amber-950'
-                                        : isSelected
-                                        ? 'bg-yellow-50 text-amber-800'
-                                        : 'text-slate-700 hover:bg-amber-50'
-                                    }`}
-                                  >
-                                    <span className="truncate font-medium">{getPartyDisplayName(party)}</span>
-                                    {isSelected && (
-                                      <span className="shrink-0 rounded-full border border-amber-200 bg-white px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700">
-                                        Selected
-                                      </span>
-                                    )}
-                                  </button>
-                                );
-                              })
-                            )}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="relative">
-                    <label className="mb-1 block text-[11px] font-semibold text-gray-700 md:text-xs">Receipt Account</label>
-                    <div
-                      ref={receiptAccountSectionRef}
-                      className="relative"
-                      onFocusCapture={handleReceiptAccountFocus}
-                      onBlurCapture={(event) => {
-                        const nextFocused = event.relatedTarget;
-                        if (receiptAccountSectionRef.current && nextFocused instanceof Node && receiptAccountSectionRef.current.contains(nextFocused)) return;
-                        setIsReceiptAccountSectionActive(false);
-                      }}
-                    >
-                      <div className="relative">
-                        <Wallet className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-indigo-400" />
-                        <input
-                          type="text"
-                          value={receiptAccountQuery}
-                          onChange={handleReceiptAccountInputChange}
-                          onKeyDown={handleReceiptAccountInputKeyDown}
-                          className={`${inputClass} pl-9 focus:ring-indigo-500`}
-                          placeholder="Type to search account..."
-                          autoComplete="off"
-                        />
-                      </div>
-
-                      {isReceiptAccountSectionActive && receiptAccountDropdownStyle && (
-                        <div
-                          className="fixed z-[80] overflow-hidden rounded-xl border border-indigo-200 bg-white shadow-[0_18px_40px_rgba(15,23,42,0.18)]"
-                          style={receiptAccountDropdownStyle}
-                          onClick={(event) => event.stopPropagation()}
-                        >
-                          <div className="flex items-center justify-between border-b border-indigo-100 bg-gradient-to-r from-indigo-50 to-blue-50 px-3 py-2">
-                            <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-indigo-700">Accounts</span>
-                            <span className="rounded-full bg-white px-2 py-0.5 text-[10px] font-semibold text-indigo-700 shadow-sm">
-                              {filteredReceiptAccounts.length}
-                            </span>
-                          </div>
-                          <div className="overflow-y-auto py-1" style={{ maxHeight: receiptAccountDropdownStyle.maxHeight }}>
-                            {filteredReceiptAccounts.length === 0 ? (
-                              <div className="px-3 py-3 text-center text-[13px] text-slate-500">
-                                No matching accounts found.
-                              </div>
-                            ) : (
-                              filteredReceiptAccounts.map((accountName, index) => {
-                                const isActive = index === receiptAccountListIndex;
-                                const isSelected = formData.method === accountName;
-
-                                return (
-                                  <button
-                                    key={accountName}
-                                    type="button"
-                                    onMouseDown={(event) => event.preventDefault()}
-                                    onMouseEnter={() => setReceiptAccountListIndex(index)}
-                                    onClick={() => {
-                                      selectReceiptAccount(accountName);
-                                      setIsReceiptAccountSectionActive(false);
-                                    }}
-                                    className={`flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-[13px] transition ${
-                                      isActive
-                                        ? 'bg-indigo-200 text-indigo-950'
-                                        : isSelected
-                                        ? 'bg-indigo-50 text-indigo-800'
-                                        : 'text-slate-700 hover:bg-indigo-50'
-                                    }`}
-                                  >
-                                    <span className="truncate font-medium">{accountName}</span>
-                                    {isSelected && (
-                                      <span className="shrink-0 rounded-full border border-indigo-200 bg-white px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-indigo-700">
-                                        Selected
-                                      </span>
-                                    )}
-                                  </button>
-                                );
-                              })
-                            )}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="md:col-span-2">
-                    <label className="mb-1 block text-[11px] font-semibold text-gray-700 md:text-xs">Notes</label>
-                    <input
-                      type="text"
-                      name="notes"
-                      value={formData.notes}
-                      onChange={handleChange}
-                      onKeyDown={(event) => {
-                        if (event.key !== 'Enter' || event.shiftKey) return;
-                        event.preventDefault();
-                        event.currentTarget.form?.requestSubmit();
-                      }}
-                      className={`${inputClass} focus:ring-indigo-500`}
-                      placeholder="Optional note"
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="flex flex-col items-center justify-between gap-2 border-t border-gray-200 bg-gray-50 px-3 py-2.5 md:flex-row md:px-4 md:py-3">
-            <div className="text-[11px] text-gray-600 md:text-xs">
-              <kbd className="rounded bg-gray-200 px-1.5 py-0.5 font-mono text-[10px]">Esc</kbd> to close
-            </div>
-
-            <div className="flex w-full gap-2 md:w-auto">
-              <button
-                type="button"
-                onClick={handleCloseForm}
-                className="flex-1 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-100 md:flex-none md:px-5"
-              >
-                Cancel
-              </button>
-
-              <button
-                type="submit"
-                form="receipt-form"
-                disabled={loading}
-                className="flex-1 rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 px-5 py-2 text-sm font-semibold text-white transition hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-50 md:flex-none md:px-6"
-              >
-                {loading ? 'Saving...' : 'Save Receipt'}
-              </button>
-            </div>
-          </div>
-        </form>
       </div>
-    </div>
+
+      <div>
+        <label className="label" htmlFor="receipt-party-input">Received From <span className="text-rose-500">*</span></label>
+        <div
+          ref={partySectionRef}
+          className="relative"
+          onFocusCapture={handlePartyFocus}
+          onBlurCapture={(event) => {
+            // Moving into the list itself keeps it open
+            if (partySectionRef.current?.contains(event.relatedTarget)) return;
+            setIsPartySectionActive(false);
+          }}
+        >
+          <input
+            id="receipt-party-input"
+            className="input pr-10"
+            type="text"
+            value={partyQuery}
+            onChange={handlePartyInputChange}
+            onKeyDown={handlePartyInputKeyDown}
+            placeholder="Type to search party"
+            autoComplete="off"
+          />
+          <ChevronDown className={`pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 transition-transform ${isPartySectionActive ? 'rotate-180' : ''}`} />
+
+          {isPartySectionActive && partyDropdownStyle && (
+            <OptionList
+              style={partyDropdownStyle}
+              options={filteredParties}
+              activeIndex={partyListIndex}
+              emptyText="No matching party found."
+              getKey={(party) => party._id}
+              getLabel={getPartyDisplayName}
+              isSelected={(party) => String(formData.party || '') === String(party._id)}
+              onHover={setPartyListIndex}
+              onPick={(party) => {
+                selectParty(party);
+                setIsPartySectionActive(false);
+              }}
+            />
+          )}
+        </div>
+      </div>
+
+      <div>
+        <label className="label" htmlFor="receipt-account-input">Received In</label>
+        <div
+          ref={receiptAccountSectionRef}
+          className="relative"
+          onFocusCapture={handleReceiptAccountFocus}
+          onBlurCapture={(event) => {
+            if (receiptAccountSectionRef.current?.contains(event.relatedTarget)) return;
+            setIsReceiptAccountSectionActive(false);
+          }}
+        >
+          <input
+            id="receipt-account-input"
+            className="input pr-10"
+            type="text"
+            value={receiptAccountQuery}
+            onChange={handleReceiptAccountInputChange}
+            onKeyDown={handleReceiptAccountInputKeyDown}
+            placeholder="Cash or bank account"
+            autoComplete="off"
+          />
+          <ChevronDown className={`pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 transition-transform ${isReceiptAccountSectionActive ? 'rotate-180' : ''}`} />
+
+          {isReceiptAccountSectionActive && receiptAccountDropdownStyle && (
+            <OptionList
+              style={receiptAccountDropdownStyle}
+              options={filteredReceiptAccounts}
+              activeIndex={receiptAccountListIndex}
+              emptyText="No matching account found."
+              getKey={(accountName) => accountName}
+              getLabel={(accountName) => accountName}
+              isSelected={(accountName) => formData.method === accountName}
+              onHover={setReceiptAccountListIndex}
+              onPick={(accountName) => {
+                selectReceiptAccount(accountName);
+                setIsReceiptAccountSectionActive(false);
+              }}
+            />
+          )}
+        </div>
+      </div>
+
+      <div>
+        <label className="label" htmlFor="receipt-notes-input">Notes</label>
+        <input
+          id="receipt-notes-input"
+          className="input"
+          type="text"
+          name="notes"
+          value={formData.notes}
+          onChange={handleChange}
+          onKeyDown={(event) => {
+            // Last field: Enter saves
+            if (event.key !== 'Enter' || event.shiftKey) return;
+            event.preventDefault();
+            event.currentTarget.form?.requestSubmit();
+          }}
+          placeholder="Optional"
+        />
+      </div>
+    </FormPopup>
   );
 }
