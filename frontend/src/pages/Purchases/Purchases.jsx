@@ -647,14 +647,15 @@ export default function Purchases({ modalOnly = false, onModalFinish = null }) {
     );
 
     if (shouldHighlightSelectedProduct) {
+      // Row 0 is "done adding items"; product N sits on row N + 1
       const selectedIndex = filteredProducts.findIndex((item) => String(item._id) === String(currentItem.product));
-      setProductListIndex(selectedIndex >= 0 ? selectedIndex : 0);
+      setProductListIndex(selectedIndex >= 0 ? selectedIndex + 1 : 0);
       return;
     }
 
     setProductListIndex((prev) => {
       if (prev < 0) return 0;
-      if (prev >= filteredProducts.length) return filteredProducts.length - 1;
+      if (prev > filteredProducts.length) return filteredProducts.length;
       return prev;
     });
   }, [showForm, filteredProducts, isProductSectionActive, productQuery, selectedProductName, currentItem.product]);
@@ -720,8 +721,9 @@ export default function Purchases({ modalOnly = false, onModalFinish = null }) {
         productName: getProductDisplayName(exactProduct),
         unit: String(exactProduct.unit || '').trim()
       }));
+      // Row 0 of the product list is "done adding items", so products are highlighted from row 1
       const exactIndex = getMatchingProducts(value).findIndex((item) => String(item._id) === String(exactProduct._id));
-      setProductListIndex(exactIndex >= 0 ? exactIndex : 0);
+      setProductListIndex(exactIndex >= 0 ? exactIndex + 1 : 1);
       return;
     }
 
@@ -733,7 +735,7 @@ export default function Purchases({ modalOnly = false, onModalFinish = null }) {
       productName: firstMatch ? getProductDisplayName(firstMatch) : '',
       unit: firstMatch ? String(firstMatch.unit || '').trim() : ''
     }));
-    setProductListIndex(firstMatch ? 0 : -1);
+    setProductListIndex(firstMatch ? 1 : -1);
   };
 
   const handleProductInputKeyDown = (e, moveToPaymentSection) => {
@@ -1142,15 +1144,11 @@ export default function Purchases({ modalOnly = false, onModalFinish = null }) {
   if (modalOnly) {
     return (
       <>
-        {error && (
-          <div className="fixed left-4 right-4 top-4 z-[60] rounded-lg border border-red-200 bg-red-50 p-4 text-red-700 shadow-lg md:left-auto md:right-4 md:w-[26rem]">
-            {error}
-          </div>
-        )}
         <AddPurchasePopup
           showForm={showForm}
           editingId={editingId}
           loading={loading}
+          error={error}
           isCashParty={isCashParty}
           accounts={accounts}
           defaultAccountId={defaultAccountId}
@@ -1262,6 +1260,7 @@ export default function Purchases({ modalOnly = false, onModalFinish = null }) {
         showForm={showForm}
         editingId={editingId}
         loading={loading}
+        error={showForm ? error : ''}
         isCashParty={isCashParty}
         accounts={accounts}
         defaultAccountId={defaultAccountId}
