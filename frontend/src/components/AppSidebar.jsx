@@ -1,10 +1,10 @@
 import { useEffect } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import {
   LayoutDashboard, BookOpenText, ChartNoAxesCombined, Mountain, FileText, HandCoins, Send, Wallet,
   PackageMinus, IdCard, ChartColumn, Users, Layers, Scale, Boxes, Truck, Landmark, Tags,
-  Settings, LogOut, X, Waypoints
+  Settings, X, Waypoints, ShoppingCart
 } from 'lucide-react';
 import Logo from './Logo';
 
@@ -22,6 +22,7 @@ const navGroups = [
     items: [
       { to: '/reports/boulder-ledger', icon: Mountain, label: 'Boulder' },
       { to: '/reports/sales-report', icon: FileText, label: 'Sales' },
+      { to: '/reports/purchase-report', icon: ShoppingCart, label: 'Purchases' },
       { to: '/transport', icon: Waypoints, label: 'Transport' },
       { to: '/reports/receipt-report', icon: HandCoins, label: 'Money Received' },
       { to: '/reports/payment-report', icon: Send, label: 'Money Paid' },
@@ -86,11 +87,9 @@ const NavItem = ({ to, icon: Icon, label, isActive }) => (
 );
 
 export default function AppSidebar({ mobileOpen = false, onClose }) {
-  const { user, logout } = useAuth();
-  const navigate = useNavigate();
+  const { user } = useAuth();
   const location = useLocation();
   const activePath = getActivePath(location.pathname);
-  const displayName = String(user?.companyName || `${user?.firstName || ''} ${user?.lastName || ''}`).trim() || 'User';
 
   // Close the mobile drawer after navigating
   useEffect(() => {
@@ -115,11 +114,6 @@ export default function AppSidebar({ mobileOpen = false, onClose }) {
       document.body.style.overflow = prevOverflow;
     };
   }, [mobileOpen, onClose]);
-
-  const handleLogout = () => {
-    logout();
-    navigate('/login');
-  };
 
   const content = (
     <div className="relative flex h-full flex-col">
@@ -156,27 +150,9 @@ export default function AppSidebar({ mobileOpen = false, onClose }) {
         ))}
       </div>
 
-      {/* Settings / User / Logout */}
-      <div className="flex-none space-y-2 border-t border-slate-200 p-3">
+      {/* Settings */}
+      <div className="flex-none border-t border-slate-200 p-3">
         <NavItem to={SETTINGS_PATH} icon={Settings} label="Settings" isActive={activePath === SETTINGS_PATH} />
-        <div className="flex items-center gap-3 rounded-xl bg-slate-50 px-3 py-2 ring-1 ring-inset ring-slate-100">
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary-600 text-sm font-bold text-white">
-            {displayName[0].toUpperCase()}
-          </span>
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-[13px] font-semibold text-slate-800">{displayName}</p>
-            <p className="truncate text-[11px] capitalize text-slate-400">{user?.role}</p>
-          </div>
-          <button
-            type="button"
-            onClick={handleLogout}
-            title="Logout"
-            aria-label="Logout"
-            className="shrink-0 rounded-lg p-2 text-slate-400 transition hover:bg-rose-50 hover:text-rose-600"
-          >
-            <LogOut size={18} />
-          </button>
-        </div>
       </div>
     </div>
   );

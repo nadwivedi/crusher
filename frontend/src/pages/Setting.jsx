@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { toast } from 'react-toastify';
 import { useNavigate } from 'react-router-dom';
+import { LogOut } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import EmployeeManagement from '../components/EmployeeManagement';
 
@@ -39,7 +40,7 @@ function RateInput({ name, value, onChange }) {
 }
 
 export default function Setting() {
-  const { user, updateUserSettings } = useAuth();
+  const { user, updateUserSettings, logout } = useAuth();
   const navigate = useNavigate();
   const [materialRates, setMaterialRates] = useState(() => readUserMaterialRates(user));
   const [saving, setSaving] = useState(false);
@@ -82,6 +83,11 @@ export default function Setting() {
     { label: 'District', value: user?.district }
   ];
 
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
+  };
+
   const handleMaterialRateChange = (event) => {
     const { name, value } = event.target;
     setMaterialRates((current) => ({ ...current, [name]: value }));
@@ -114,10 +120,13 @@ export default function Setting() {
           <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-primary-700 to-primary-500 text-xl font-bold text-white shadow-lg shadow-primary-700/20">
             {displayName[0].toUpperCase()}
           </div>
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             <h2 className="truncate text-base font-bold text-slate-900">{displayName}</h2>
             {user?.role && <span className="badge-green capitalize">{user.role}</span>}
           </div>
+          <button type="button" className="btn-secondary shrink-0 hover:border-rose-300 hover:bg-rose-50 hover:text-rose-700" onClick={handleLogout}>
+            <LogOut size={16} /> Logout
+          </button>
         </div>
         <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-3 border-t border-slate-100 pt-4 md:grid-cols-4">
           {accountDetails.map((detail) => (

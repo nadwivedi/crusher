@@ -55,6 +55,7 @@ const rangeLabel = (from, to) => from === to
 const QUICK_ENTRIES = [
   { label: 'Boulder Entry', stateKey: 'homeQuickBoulder', icon: Mountain, tone: 'bg-blue-50 text-blue-700 ring-blue-100' },
   { label: 'New Sale', stateKey: 'homeQuickSale', icon: FileText, tone: 'bg-emerald-50 text-emerald-700 ring-emerald-100' },
+  { label: 'New Purchase', stateKey: 'homeQuickPurchase', icon: ShoppingCart, tone: 'bg-violet-50 text-violet-700 ring-violet-100' },
   { label: 'New Expense', stateKey: 'homeQuickExpense', icon: Wallet, tone: 'bg-amber-50 text-amber-700 ring-amber-100' },
   { label: 'Money Received', stateKey: 'homeQuickReceipt', icon: HandCoins, tone: 'bg-teal-50 text-teal-700 ring-teal-100' },
   { label: 'Money Paid', stateKey: 'homeQuickPayment', icon: Send, tone: 'bg-rose-50 text-rose-700 ring-rose-100' },
@@ -314,7 +315,7 @@ export default function Dashboard() {
       </section>
 
       {/* Quick entry: the app's blue as a band of colour, with white tiles on it */}
-      <section className="panel bg-gradient-to-r from-primary-700 to-primary-600 ring-primary-700">
+      <section className="panel @container bg-gradient-to-r from-primary-700 to-primary-600 ring-primary-700">
         <div className="panel-header py-3 flex flex-wrap items-center justify-between gap-2 border-white/15">
           <div>
             <h3 className="text-sm font-bold text-white">Quick Entry</h3>
@@ -333,7 +334,8 @@ export default function Dashboard() {
             ))}
           </div>
         </div>
-        <div className="grid grid-cols-2 gap-2 p-2.5 md:grid-cols-3 md:gap-2.5 md:p-3 xl:grid-cols-6">
+        {/* Columns follow the panel's own width (not the screen's), so a tile is always wide enough for its label */}
+        <div className="grid grid-cols-2 gap-2 p-2.5 @xl:grid-cols-3 @3xl:grid-cols-4 @[84rem]:grid-cols-7 md:gap-2.5 md:p-3">
           {QUICK_ENTRIES.map(({ icon: Icon, ...entry }) => (
             <button
               key={entry.stateKey}
@@ -344,7 +346,7 @@ export default function Dashboard() {
               <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ring-1 ring-inset ${entry.tone}`}>
                 <Icon size={17} />
               </span>
-              <span className="min-w-0 truncate text-[13px] font-semibold text-slate-700 group-hover:text-slate-900">{entry.label}</span>
+              <span className="min-w-0 text-[13px] font-semibold leading-tight text-slate-700 group-hover:text-slate-900">{entry.label}</span>
             </button>
           ))}
         </div>
