@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { ChevronDown, Store, Truck, User } from 'lucide-react';
 import FormPopup from '../../../components/FormPopup';
+import FormSection from '../../../components/FormSection';
 import { handlePopupFormKeyDown } from '../../../utils/popupFormKeyboard';
 
 const TYPE_OPTIONS = [
@@ -60,6 +61,9 @@ function PartyForm({ editingId, loading, formData, error, handleCloseForm, handl
 
   const setField = (name, value) => handleChange({ target: { name, value } });
 
+  // Sections are numbered in the order they show for this party type
+  let sectionNumber = 0;
+
   return (
     <FormPopup
       title={editingId ? 'Edit Party' : 'Add Party'}
@@ -73,85 +77,97 @@ function PartyForm({ editingId, loading, formData, error, handleCloseForm, handl
     >
       {error && <p className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-medium text-rose-700">{error}</p>}
 
-      {isCashParty ? (
-        <p className="rounded-lg bg-slate-50 px-3 py-2 text-xs font-medium text-slate-600 ring-1 ring-inset ring-slate-200">
-          This is a cash party. Cash sales, purchases and expenses are kept under it.
-        </p>
-      ) : (
-        <div>
-          <label className="label">Party Type <span className="text-rose-500">*</span></label>
-          <div className="grid grid-cols-3 gap-2">
-            {TYPE_OPTIONS.map((option) => {
-              const active = formData.type === option.value;
-              return (
-                <button
-                  key={option.value}
-                  type="button"
-                  onClick={() => setField('type', option.value)}
-                  aria-pressed={active}
-                  className={`rounded-lg border px-1 py-2 transition sm:px-3 sm:text-left ${active ? 'border-primary-600 bg-primary-600 text-white' : INACTIVE_OPTION_CLASS}`}
-                >
-                  {/* Phones: icon above the name so "Transporter" fits. Wider screens: icon beside it. */}
-                  <span className="flex flex-col items-center gap-1 text-xs font-semibold sm:flex-row sm:gap-1.5 sm:text-sm">
-                    <option.Icon size={16} className="shrink-0" />
-                    <span>{option.label}</span>
-                  </span>
-                  <span className={`mt-0.5 hidden text-[11px] sm:block ${active ? 'text-primary-100' : 'text-slate-400'}`}>{option.hint}</span>
-                </button>
-              );
-            })}
+      <FormSection number={++sectionNumber} title="Party Details" tone="blue">
+        {isCashParty ? (
+          <p className="rounded-lg bg-white px-3 py-2 text-xs font-medium text-slate-600 ring-1 ring-inset ring-slate-200">
+            This is a cash party. Cash sales, purchases and expenses are kept under it.
+          </p>
+        ) : (
+          <div>
+            <label className="label">Party Type <span className="text-rose-500">*</span></label>
+            <div className="grid grid-cols-3 gap-2">
+              {TYPE_OPTIONS.map((option) => {
+                const active = formData.type === option.value;
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() => setField('type', option.value)}
+                    aria-pressed={active}
+                    className={`rounded-lg border px-1 py-2 transition sm:px-3 sm:text-left ${active ? 'border-primary-600 bg-primary-600 text-white' : INACTIVE_OPTION_CLASS}`}
+                  >
+                    {/* Phones: icon above the name so "Transporter" fits. Wider screens: icon beside it. */}
+                    <span className="flex flex-col items-center gap-1 text-xs font-semibold sm:flex-row sm:gap-1.5 sm:text-sm">
+                      <option.Icon size={16} className="shrink-0" />
+                      <span>{option.label}</span>
+                    </span>
+                    <span className={`mt-0.5 hidden text-[11px] sm:block ${active ? 'text-primary-100' : 'text-slate-400'}`}>{option.hint}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-5">
+          <div className="sm:col-span-3">
+            <label className="label" htmlFor="party-name-input">Party Name <span className="text-rose-500">*</span></label>
+            <input
+              id="party-name-input"
+              className="input"
+              type="text"
+              name="name"
+              value={formData.name}
+              onChange={handleChange}
+              placeholder="e.g. Sharma Construction"
+              autoComplete="off"
+              autoFocus
+              required
+            />
+          </div>
+          <div className="sm:col-span-2">
+            <label className="label" htmlFor="party-mobile-input">Mobile Number</label>
+            <input
+              id="party-mobile-input"
+              className="input"
+              type="tel"
+              name="mobile"
+              value={formData.mobile}
+              onChange={handleChange}
+              inputMode="numeric"
+              pattern="[0-9]{10}"
+              maxLength={10}
+              placeholder="10 digits"
+              autoComplete="off"
+            />
           </div>
         </div>
-      )}
+      </FormSection>
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-5">
-        <div className="sm:col-span-3">
-          <label className="label" htmlFor="party-name-input">Party Name <span className="text-rose-500">*</span></label>
-          <input
-            id="party-name-input"
-            className="input"
-            type="text"
-            name="name"
-            value={formData.name}
-            onChange={handleChange}
-            placeholder="e.g. Sharma Construction"
-            autoComplete="off"
-            autoFocus
-            required
-          />
-        </div>
-        <div className="sm:col-span-2">
-          <label className="label" htmlFor="party-mobile-input">Mobile Number</label>
-          <input
-            id="party-mobile-input"
-            className="input"
-            type="tel"
-            name="mobile"
-            value={formData.mobile}
-            onChange={handleChange}
-            inputMode="numeric"
-            pattern="[0-9]{10}"
-            maxLength={10}
-            placeholder="10 digits"
-            autoComplete="off"
-          />
-        </div>
-      </div>
-
-      <div>
-        <label className="label" htmlFor="party-opening-balance-input">Opening Balance (₹)</label>
+      <FormSection
+        number={++sectionNumber}
+        title="Opening Balance"
+        tone="sky"
+        hint={hasOpeningBalance && openingBalanceOption
+          ? openingBalanceOption.hint
+          : 'Old balance with this party before you started entries here. Leave blank if there is none.'}
+      >
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-5 sm:gap-3">
-          <input
-            id="party-opening-balance-input"
-            className="input sm:col-span-2"
-            type="number"
-            name="openingBalance"
-            value={formData.openingBalance ?? ''}
-            onChange={handleChange}
-            min="0"
-            step="0.01"
-            placeholder="0"
-          />
+          <div className="relative sm:col-span-2">
+            <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-sm font-semibold text-slate-400">₹</span>
+            <input
+              id="party-opening-balance-input"
+              className="input pl-7"
+              type="number"
+              name="openingBalance"
+              value={formData.openingBalance ?? ''}
+              onChange={handleChange}
+              min="0"
+              step="0.01"
+              placeholder="0"
+              aria-label="Opening balance"
+            />
+          </div>
           <div className="grid grid-cols-2 gap-2 sm:col-span-3">
             {OPENING_BALANCE_OPTIONS.map((option) => {
               const active = hasOpeningBalance && formData.openingBalanceType === option.value;
@@ -162,7 +178,7 @@ function PartyForm({ editingId, loading, formData, error, handleCloseForm, handl
                   onClick={() => setField('openingBalanceType', option.value)}
                   aria-pressed={active}
                   disabled={!hasOpeningBalance}
-                  className={`rounded-lg border px-3 py-2 text-sm font-semibold transition disabled:border-slate-200 disabled:bg-slate-50 disabled:text-slate-400 ${active ? option.activeClass : INACTIVE_OPTION_CLASS}`}
+                  className={`rounded-lg border px-3 py-2 text-sm font-semibold transition disabled:border-slate-200 disabled:bg-white/60 disabled:text-slate-400 ${active ? option.activeClass : INACTIVE_OPTION_CLASS}`}
                 >
                   {option.label}
                 </button>
@@ -170,50 +186,45 @@ function PartyForm({ editingId, loading, formData, error, handleCloseForm, handl
             })}
           </div>
         </div>
-        <p className="mt-1 text-xs text-slate-500">
-          {hasOpeningBalance && openingBalanceOption
-            ? openingBalanceOption.hint
-            : 'Old balance with this party before you started entries here. Leave blank if there is none.'}
-        </p>
-      </div>
+      </FormSection>
 
       {formData.type === 'supplier' && (
-        <div className="border-t border-slate-100 pt-3 md:pt-4">
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-5">
+        <FormSection number={++sectionNumber} title="Boulder Rate" tone="indigo" hint="Filled in for you on every boulder entry from this supplier.">
+          <div className="grid grid-cols-1 sm:grid-cols-5">
             <div className="sm:col-span-2">
-              <RateInput name="boulderRatePerTon" label="Boulder Rate" value={formData.boulderRatePerTon} onChange={handleChange} />
+              <RateInput name="boulderRatePerTon" label="Rate per ton" value={formData.boulderRatePerTon} onChange={handleChange} />
             </div>
-            <p className="self-end pb-2.5 text-xs text-slate-500 sm:col-span-3">Filled in for you on every boulder entry from this supplier.</p>
           </div>
-        </div>
+        </FormSection>
       )}
 
       {!isCashParty && (
-        <div className="border-t border-slate-100 pt-3 md:pt-4">
-          <button
-            type="button"
-            onClick={() => setRatesToggled(!ratesOpen)}
-            aria-expanded={ratesOpen}
-            className="flex w-full items-center justify-between gap-3 text-left"
-          >
-            <span className="min-w-0">
-              <span className="block text-sm font-semibold text-slate-900">
-                Special Sale Rates
-                {!ratesOpen && filledRateCount > 0 && <span className="badge-blue ml-2 align-middle">{filledRateCount} set</span>}
-              </span>
-              <span className="block text-xs text-slate-500">Only if this party gets its own price. Blank uses your normal rate.</span>
-            </span>
-            <ChevronDown size={18} className={`shrink-0 text-slate-400 transition-transform ${ratesOpen ? 'rotate-180' : ''}`} />
-          </button>
-
+        <FormSection
+          number={++sectionNumber}
+          title="Special Sale Rates"
+          tone="emerald"
+          hint="Only if this party gets its own price. Blank uses your normal rate."
+          action={(
+            <button
+              type="button"
+              onClick={() => setRatesToggled(!ratesOpen)}
+              aria-expanded={ratesOpen}
+              className="flex shrink-0 items-center gap-1.5 rounded-lg px-2 py-1 text-xs font-semibold text-slate-600 transition hover:bg-white/70"
+            >
+              {!ratesOpen && filledRateCount > 0 && <span className="badge-blue">{filledRateCount} set</span>}
+              {ratesOpen ? 'Hide' : 'Show'}
+              <ChevronDown size={16} className={`transition-transform ${ratesOpen ? 'rotate-180' : ''}`} />
+            </button>
+          )}
+        >
           {ratesOpen && (
-            <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
               {SALE_RATE_FIELDS.map((field) => (
                 <RateInput key={field.name} name={field.name} label={field.label} value={formData[field.name]} onChange={handleChange} />
               ))}
             </div>
           )}
-        </div>
+        </FormSection>
       )}
     </FormPopup>
   );

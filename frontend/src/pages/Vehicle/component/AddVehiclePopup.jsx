@@ -3,6 +3,7 @@ import { ChevronDown, Plus } from 'lucide-react';
 import { toast } from 'react-toastify';
 import apiClient from '../../../utils/api';
 import FormPopup from '../../../components/FormPopup';
+import FormSection from '../../../components/FormSection';
 import AddPartyPopup from '../../Party/component/AddPartyPopup';
 import { handlePopupFormKeyDown } from '../../../utils/popupFormKeyboard';
 import { useFloatingDropdownPosition } from '../../../utils/useFloatingDropdownPosition';
@@ -67,7 +68,6 @@ export default function AddVehiclePopup({ vehicle, onClose, onSave, onVehicleSav
   const [partyPopupError, setPartyPopupError] = useState('');
   const partySectionRef = useRef(null);
   const partyInputRef = useRef(null);
-  const afterPartyRef = useRef(null);
   const isEditing = Boolean(vehicle?._id);
   const ownership = formData.ownership || 'party';
   const isOwnVehicle = ownership === 'own';
@@ -169,7 +169,7 @@ export default function AddVehiclePopup({ vehicle, onClose, onSave, onVehicleSav
     if (moveNext) {
       // The fields after the party depend on the ownership, so move on once they have rendered
       requestAnimationFrame(() => {
-        const next = afterPartyRef.current?.querySelector('select, input');
+        const next = document.getElementById('vehicle-hire-basis-input') || document.getElementById('vehicle-unladen-weight-input');
         next?.focus();
         next?.select?.();
       });
@@ -343,127 +343,128 @@ export default function AddVehiclePopup({ vehicle, onClose, onSave, onVehicleSav
       >
         {error && <p className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-medium text-rose-700">{error}</p>}
 
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <div>
-            <label className="label" htmlFor="vehicle-number-input">Vehicle Number <span className="text-rose-500">*</span></label>
-            <input
-              id="vehicle-number-input"
-              className="input font-mono uppercase placeholder:font-sans placeholder:normal-case"
-              type="text"
-              name="vehicleNo"
-              value={formData.vehicleNo}
-              onChange={handleChange}
-              placeholder="e.g. CG04AB1234"
-              autoComplete="off"
-              autoFocus
-              required
-            />
-          </div>
-          <div>
-            <label className="label">Used For</label>
-            <div className="grid grid-cols-2 gap-2">
-              {VEHICLE_TYPE_OPTIONS.map((option) => (
-                <button
-                  key={option.value}
-                  type="button"
-                  onClick={() => setFormData((prev) => ({ ...prev, vehicleType: option.value }))}
-                  aria-pressed={formData.vehicleType === option.value}
-                  className={`min-h-[2.5rem] whitespace-nowrap rounded-lg border px-2 py-2 text-sm font-semibold transition ${formData.vehicleType === option.value ? ACTIVE_OPTION_CLASS : INACTIVE_OPTION_CLASS}`}
-                >
-                  {option.label}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        <div>
-          <label className="label">Whose Vehicle</label>
-          <div className="grid grid-cols-3 gap-2">
-            {VEHICLE_OWNERSHIP_OPTIONS.map((option) => {
-              const active = ownership === option.value;
-              return (
-                <button
-                  key={option.value}
-                  type="button"
-                  onClick={() => selectOwnership(option.value)}
-                  aria-pressed={active}
-                  className={`rounded-lg border px-1 py-2 text-center transition sm:px-3 sm:text-left ${active ? ACTIVE_OPTION_CLASS : INACTIVE_OPTION_CLASS}`}
-                >
-                  <span className="block text-xs font-semibold sm:text-sm">{option.label}</span>
-                  <span className={`mt-0.5 hidden text-[11px] sm:block ${active ? 'text-primary-100' : 'text-slate-400'}`}>{option.hint}</span>
-                </button>
-              );
-            })}
-          </div>
-          {isOwnVehicle && (
-            <p className="mt-1.5 text-xs text-slate-500">Your own vehicle. Add a transport charge on a sale, or give it on rent from the Transport page.</p>
-          )}
-        </div>
-
-        {!isOwnVehicle && (
-          <div>
-            <div className="mb-1 flex items-center justify-between">
-              <label className="label mb-0" htmlFor="vehicle-party-input">
-                {isHiredVehicle ? 'Transporter' : 'Owner / Party'} <span className="text-rose-500">*</span>
-              </label>
-              {/* Keeping focus in the search box keeps the typed name, which becomes the new party's name */}
-              <button type="button" onMouseDown={(event) => event.preventDefault()} onClick={openInlinePartyForm} className="inline-flex items-center gap-1 text-xs font-semibold text-primary-600 hover:underline">
-                <Plus size={14} /> {isHiredVehicle ? 'New Transporter' : 'New Party'}
-              </button>
-            </div>
-            <div
-              ref={partySectionRef}
-              className="relative"
-              onBlurCapture={(event) => {
-                // The new-party popup takes the focus; the typed name must survive that
-                if (showPartyForm || partySectionRef.current?.contains(event.relatedTarget)) return;
-                setPartyQuery(getPartyLabel(selectedParty));
-                setIsPartyDropdownOpen(false);
-              }}
-            >
+        <FormSection number={1} title="Vehicle Details" tone="blue">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div>
+              <label className="label" htmlFor="vehicle-number-input">Vehicle Number <span className="text-rose-500">*</span></label>
               <input
-                id="vehicle-party-input"
-                ref={partyInputRef}
-                className="input pr-10"
+                id="vehicle-number-input"
+                className="input font-mono uppercase placeholder:font-sans placeholder:normal-case"
                 type="text"
-                value={partyQuery}
-                onChange={handlePartyInputChange}
-                onFocus={handlePartyFocus}
-                onKeyDown={handlePartyInputKeyDown}
-                placeholder={isHiredVehicle ? 'Type to search transporter' : 'Type to search party'}
+                name="vehicleNo"
+                value={formData.vehicleNo}
+                onChange={handleChange}
+                placeholder="e.g. CG04AB1234"
                 autoComplete="off"
+                autoFocus
+                required
               />
-              <ChevronDown className={`pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 transition-transform ${isPartyDropdownOpen ? 'rotate-180' : ''}`} />
-
-              {isPartyDropdownOpen && partyDropdownStyle && (
-                <div className="fixed z-[80] overflow-hidden rounded-lg bg-white shadow-xl ring-1 ring-slate-200" style={partyDropdownStyle} onClick={(event) => event.stopPropagation()}>
-                  <div className="overflow-y-auto py-1" style={{ maxHeight: partyDropdownStyle.maxHeight }}>
-                    {filteredPartyOptions.length === 0 ? (
-                      <button type="button" onMouseDown={(event) => event.preventDefault()} onClick={openInlinePartyForm} className="w-full px-3 py-2.5 text-left text-sm text-slate-500 hover:bg-slate-50">
-                        No match. <span className="font-semibold text-primary-600">Add {partyQuery.trim() ? `"${toTitleCase(partyQuery.trim())}"` : 'a new party'}</span>
-                      </button>
-                    ) : filteredPartyOptions.map((party, index) => (
-                      <button
-                        key={party._id}
-                        type="button"
-                        onMouseDown={(event) => event.preventDefault()}
-                        onMouseEnter={() => setPartyListIndex(index)}
-                        onClick={() => selectParty(party, true)}
-                        className={`flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm transition ${index === partyListIndex ? 'bg-primary-50 text-primary-900' : 'text-slate-700'}`}
-                      >
-                        <span className="min-w-0 truncate font-medium">{getPartyLabel(party)}</span>
-                        <span className="shrink-0 text-[11px] capitalize text-slate-400">{party.type}</span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
+            </div>
+            <div>
+              <label className="label">Used For</label>
+              <div className="grid grid-cols-2 gap-2">
+                {VEHICLE_TYPE_OPTIONS.map((option) => (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() => setFormData((prev) => ({ ...prev, vehicleType: option.value }))}
+                    aria-pressed={formData.vehicleType === option.value}
+                    className={`min-h-[2.5rem] whitespace-nowrap rounded-lg border px-2 py-2 text-sm font-semibold transition ${formData.vehicleType === option.value ? ACTIVE_OPTION_CLASS : INACTIVE_OPTION_CLASS}`}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
-        )}
+        </FormSection>
 
-        <div ref={afterPartyRef} className="space-y-3 md:space-y-4">
+        <FormSection number={2} title="Ownership" tone="sky">
+          <div>
+            <div className="grid grid-cols-3 gap-2">
+              {VEHICLE_OWNERSHIP_OPTIONS.map((option) => {
+                const active = ownership === option.value;
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() => selectOwnership(option.value)}
+                    aria-pressed={active}
+                    className={`rounded-lg border px-1 py-2 text-center transition sm:px-3 sm:text-left ${active ? ACTIVE_OPTION_CLASS : INACTIVE_OPTION_CLASS}`}
+                  >
+                    <span className="block text-xs font-semibold sm:text-sm">{option.label}</span>
+                    <span className={`mt-0.5 hidden text-[11px] sm:block ${active ? 'text-primary-100' : 'text-slate-400'}`}>{option.hint}</span>
+                  </button>
+                );
+              })}
+            </div>
+            {isOwnVehicle && (
+              <p className="mt-1.5 text-xs text-slate-500">Your own vehicle. Add a transport charge on a sale, or give it on rent from the Transport page.</p>
+            )}
+          </div>
+
+          {!isOwnVehicle && (
+            <div>
+              <div className="mb-1 flex items-center justify-between">
+                <label className="label mb-0" htmlFor="vehicle-party-input">
+                  {isHiredVehicle ? 'Transporter' : 'Owner / Party'} <span className="text-rose-500">*</span>
+                </label>
+                {/* Keeping focus in the search box keeps the typed name, which becomes the new party's name */}
+                <button type="button" onMouseDown={(event) => event.preventDefault()} onClick={openInlinePartyForm} className="inline-flex items-center gap-1 text-xs font-semibold text-primary-600 hover:underline">
+                  <Plus size={14} /> {isHiredVehicle ? 'New Transporter' : 'New Party'}
+                </button>
+              </div>
+              <div
+                ref={partySectionRef}
+                className="relative"
+                onBlurCapture={(event) => {
+                  // The new-party popup takes the focus; the typed name must survive that
+                  if (showPartyForm || partySectionRef.current?.contains(event.relatedTarget)) return;
+                  setPartyQuery(getPartyLabel(selectedParty));
+                  setIsPartyDropdownOpen(false);
+                }}
+              >
+                <input
+                  id="vehicle-party-input"
+                  ref={partyInputRef}
+                  className="input pr-10"
+                  type="text"
+                  value={partyQuery}
+                  onChange={handlePartyInputChange}
+                  onFocus={handlePartyFocus}
+                  onKeyDown={handlePartyInputKeyDown}
+                  placeholder={isHiredVehicle ? 'Type to search transporter' : 'Type to search party'}
+                  autoComplete="off"
+                />
+                <ChevronDown className={`pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 transition-transform ${isPartyDropdownOpen ? 'rotate-180' : ''}`} />
+
+                {isPartyDropdownOpen && partyDropdownStyle && (
+                  <div className="fixed z-[80] overflow-hidden rounded-lg bg-white shadow-xl ring-1 ring-slate-200" style={partyDropdownStyle} onClick={(event) => event.stopPropagation()}>
+                    <div className="overflow-y-auto py-1" style={{ maxHeight: partyDropdownStyle.maxHeight }}>
+                      {filteredPartyOptions.length === 0 ? (
+                        <button type="button" onMouseDown={(event) => event.preventDefault()} onClick={openInlinePartyForm} className="w-full px-3 py-2.5 text-left text-sm text-slate-500 hover:bg-slate-50">
+                          No match. <span className="font-semibold text-primary-600">Add {partyQuery.trim() ? `"${toTitleCase(partyQuery.trim())}"` : 'a new party'}</span>
+                        </button>
+                      ) : filteredPartyOptions.map((party, index) => (
+                        <button
+                          key={party._id}
+                          type="button"
+                          onMouseDown={(event) => event.preventDefault()}
+                          onMouseEnter={() => setPartyListIndex(index)}
+                          onClick={() => selectParty(party, true)}
+                          className={`flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm transition ${index === partyListIndex ? 'bg-primary-50 text-primary-900' : 'text-slate-700'}`}
+                        >
+                          <span className="min-w-0 truncate font-medium">{getPartyLabel(party)}</span>
+                          <span className="shrink-0 text-[11px] capitalize text-slate-400">{party.type}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
           {isHiredVehicle && (
             <div>
               <div className="grid grid-cols-2 gap-3">
@@ -486,27 +487,26 @@ export default function AddVehiclePopup({ vehicle, onClose, onSave, onVehicleSav
               <p className="mt-1 text-xs text-slate-500">Filled in for you when this vehicle is used on a sale or a transport entry.</p>
             </div>
           )}
+        </FormSection>
 
-          <div className="border-t border-slate-100 pt-3 md:pt-4">
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="label" htmlFor="vehicle-unladen-weight-input">Unladen Weight</label>
-                <div className="relative">
-                  <input id="vehicle-unladen-weight-input" className="input pr-10" type="number" name="unladenWeight" value={formData.unladenWeight || ''} onChange={handleChange} min="0" step="0.01" placeholder="Optional" />
-                  <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-xs font-semibold text-slate-400">kg</span>
-                </div>
-              </div>
-              <div>
-                <label className="label" htmlFor="vehicle-capacity-cubic-meter-input">Truck Capacity</label>
-                <div className="relative">
-                  <input id="vehicle-capacity-cubic-meter-input" className="input pr-10" type="number" name="capacityCubicMeter" value={formData.capacityCubicMeter || ''} onChange={handleChange} min="0" step="0.01" placeholder="Optional" />
-                  <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-xs font-semibold text-slate-400">m³</span>
-                </div>
+        <FormSection number={3} title="Weight & Capacity" tone="emerald" hint="Both are optional. On a sale they fill the tare weight and the cubic meter quantity.">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="label" htmlFor="vehicle-unladen-weight-input">Unladen Weight</label>
+              <div className="relative">
+                <input id="vehicle-unladen-weight-input" className="input pr-10" type="number" name="unladenWeight" value={formData.unladenWeight || ''} onChange={handleChange} min="0" step="0.01" placeholder="Optional" />
+                <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-xs font-semibold text-slate-400">kg</span>
               </div>
             </div>
-            <p className="mt-1 text-xs text-slate-500">Both are optional. On a sale they fill the tare weight and the cubic meter quantity.</p>
+            <div>
+              <label className="label" htmlFor="vehicle-capacity-cubic-meter-input">Truck Capacity</label>
+              <div className="relative">
+                <input id="vehicle-capacity-cubic-meter-input" className="input pr-10" type="number" name="capacityCubicMeter" value={formData.capacityCubicMeter || ''} onChange={handleChange} min="0" step="0.01" placeholder="Optional" />
+                <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-xs font-semibold text-slate-400">m³</span>
+              </div>
+            </div>
           </div>
-        </div>
+        </FormSection>
       </FormPopup>
 
       <AddPartyPopup

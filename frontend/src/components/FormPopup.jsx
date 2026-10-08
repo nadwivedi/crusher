@@ -15,11 +15,11 @@ export default function FormPopup({ title, subtitle, submitLabel = 'Save', submi
         onSubmit={(event) => { event.preventDefault(); onSubmit(event); }}
         onKeyDown={onKeyDown}
       >
-        <div className="flex-shrink-0 bg-gradient-to-r from-primary-700 to-primary-500 p-3 text-white md:px-5 md:py-4">
+        <div className="flex-shrink-0 bg-gradient-to-r from-[#1f2a3c] via-[#27374f] to-[#314866] p-3 text-white md:px-5 md:py-4">
           <div className="flex items-center justify-between gap-3">
             <div className="min-w-0">
               <h2 className="truncate text-lg font-bold md:text-xl">{title}</h2>
-              {subtitle && <p className="mt-0.5 text-xs text-primary-100 md:text-sm">{subtitle}</p>}
+              {subtitle && <p className="mt-0.5 text-xs text-slate-300 md:text-sm">{subtitle}</p>}
             </div>
             <button type="button" onClick={onClose} aria-label="Close popup" className="shrink-0 rounded-lg p-1.5 text-white transition hover:bg-white/20 md:p-2">
               <X size={22} />
