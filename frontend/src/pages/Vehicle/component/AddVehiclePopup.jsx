@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ChevronDown, Scale, Truck } from 'lucide-react';
+import { ChevronDown, Plus } from 'lucide-react';
 import { toast } from 'react-toastify';
 import apiClient from '../../../utils/api';
+import FormPopup from '../../../components/FormPopup';
 import AddPartyPopup from '../../Party/component/AddPartyPopup';
 import { handlePopupFormKeyDown } from '../../../utils/popupFormKeyboard';
 import { useFloatingDropdownPosition } from '../../../utils/useFloatingDropdownPosition';
 import { TRANSPORT_BASIS_OPTIONS, VEHICLE_OWNERSHIP_OPTIONS, getBasisUnit } from '../../../utils/transport';
+
 const initialFormData = {
   partyId: '',
   vehicleNo: '',
@@ -17,69 +19,15 @@ const initialFormData = {
   hireRate: ''
 };
 
-const FIELD_SELECTOR = [
-  'input:not([type="hidden"]):not([disabled]):not([readonly])',
-  'select:not([disabled]):not([readonly])',
-  'textarea:not([disabled]):not([readonly])'
-].join(', ');
-
 const VEHICLE_TYPE_OPTIONS = [
-  {
-    value: 'sales',
-    label: 'Sales',
-    description: 'Use for delivery and outward dispatch vehicles.'
-  },
-  {
-    value: 'boulder',
-    label: 'Boulder Load',
-    description: 'Use for boulder transport and quarry inward loads.'
-  }
+  { value: 'sales', label: 'Sales' },
+  { value: 'boulder', label: 'Boulder Load' }
 ];
 
-const getInlineFieldClass = (tone = 'indigo') => {
-  const focusTone = tone === 'emerald'
-    ? 'focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200'
-    : 'focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200';
-
-  return `w-full flex-1 min-w-0 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-bold text-gray-900 transition-all placeholder:font-normal placeholder:text-gray-400 focus:outline-none ${focusTone}`;
-};
-
-const isVisibleField = (element) => {
-  if (!element) return false;
-  if (element.tabIndex === -1) return false;
-
-  const style = window.getComputedStyle(element);
-  return style.display !== 'none' && style.visibility !== 'hidden';
-};
-
-const getFormFields = (form) => (
-  Array.from(form.querySelectorAll(FIELD_SELECTOR)).filter(isVisibleField)
-);
-
-const focusNextField = (currentElement) => {
-  if (!(currentElement instanceof HTMLElement)) return;
-
-  const form = currentElement.closest('form');
-  if (!form) return;
-
-  const fields = getFormFields(form);
-  const currentIndex = fields.indexOf(currentElement);
-  if (currentIndex === -1) return;
-
-  const nextField = fields[currentIndex + 1];
-  if (!(nextField instanceof HTMLElement)) return;
-
-  nextField.focus();
-  if (nextField instanceof HTMLInputElement && typeof nextField.select === 'function') {
-    nextField.select();
-  }
-};
+const ACTIVE_OPTION_CLASS = 'border-primary-600 bg-primary-600 text-white';
+const INACTIVE_OPTION_CLASS = 'border-slate-300 bg-white text-slate-700 hover:bg-slate-100';
 
 const getPartyLabel = (party) => party?.partyName || party?.name || '';
-
-const getVehicleTypeLabel = (typeValue) => (
-  VEHICLE_TYPE_OPTIONS.find((option) => option.value === typeValue)?.label || ''
-);
 
 const getInitialPartyFormData = (type = 'customer') => ({
   type,
@@ -104,11 +52,12 @@ const toTitleCase = (value) => String(value || '')
   .toLowerCase()
   .replace(/\b[a-z]/g, (char) => char.toUpperCase());
 
+/** Add or edit a vehicle. Opened from the vehicle master and from the sale and boulder forms. */
 export default function AddVehiclePopup({ vehicle, onClose, onSave, onVehicleSaved = null, defaultVehicleType = 'sales' }) {
   const [formData, setFormData] = useState(vehicle || initialFormData);
   const [parties, setParties] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [errors, setErrors] = useState({});
+  const [error, setError] = useState('');
   const [partyQuery, setPartyQuery] = useState('');
   const [partyListIndex, setPartyListIndex] = useState(0);
   const [isPartyDropdownOpen, setIsPartyDropdownOpen] = useState(false);
@@ -116,13 +65,9 @@ export default function AddVehiclePopup({ vehicle, onClose, onSave, onVehicleSav
   const [partyFormData, setPartyFormData] = useState(getInitialPartyFormData());
   const [partyPopupLoading, setPartyPopupLoading] = useState(false);
   const [partyPopupError, setPartyPopupError] = useState('');
-  const [vehicleTypeQuery, setVehicleTypeQuery] = useState('');
-  const [vehicleTypeListIndex, setVehicleTypeListIndex] = useState(0);
-  const [isVehicleTypeDropdownOpen, setIsVehicleTypeDropdownOpen] = useState(false);
   const partySectionRef = useRef(null);
   const partyInputRef = useRef(null);
-  const vehicleTypeSectionRef = useRef(null);
-  const vehicleTypeInputRef = useRef(null);
+  const afterPartyRef = useRef(null);
   const isEditing = Boolean(vehicle?._id);
   const ownership = formData.ownership || 'party';
   const isOwnVehicle = ownership === 'own';
@@ -138,13 +83,19 @@ export default function AddVehiclePopup({ vehicle, onClose, onSave, onVehicleSav
       try {
         const response = await apiClient.get('/parties');
         setParties(Array.isArray(response) ? response : []);
-      } catch (error) {
-        console.error('Error fetching parties:', error);
+      } catch (fetchError) {
+        console.error('Error fetching parties:', fetchError);
       }
     };
 
     fetchParties();
   }, []);
+
+  // A hired vehicle is picked from transporters first; the cash party never owns a vehicle
+  const partyOptions = useMemo(() => parties
+    .filter((party) => party.type !== 'cash-in-hand')
+    .sort((a, b) => (isHiredVehicle ? Number(b.type === 'transporter') - Number(a.type === 'transporter') : 0)),
+  [parties, isHiredVehicle]);
 
   const selectedParty = useMemo(
     () => parties.find((party) => party._id === formData.partyId) || null,
@@ -153,75 +104,27 @@ export default function AddVehiclePopup({ vehicle, onClose, onSave, onVehicleSav
 
   const filteredPartyOptions = useMemo(() => {
     const normalized = String(partyQuery || '').trim().toLowerCase();
-    const selectedLabel = String(getPartyLabel(selectedParty) || '').trim().toLowerCase();
+    const selectedLabel = getPartyLabel(selectedParty).trim().toLowerCase();
 
-    if (isPartyDropdownOpen && normalized && normalized === selectedLabel) {
-      return parties;
-    }
+    // Opening the list on an already picked party shows everything, not just that party
+    if (!normalized || normalized === selectedLabel) return partyOptions;
 
-    if (!normalized) return parties;
-
-    const startsWith = parties.filter((party) => getPartyLabel(party).toLowerCase().startsWith(normalized));
-    const includes = parties.filter((party) => (
+    const startsWith = partyOptions.filter((party) => getPartyLabel(party).toLowerCase().startsWith(normalized));
+    const includes = partyOptions.filter((party) => (
       !getPartyLabel(party).toLowerCase().startsWith(normalized)
       && getPartyLabel(party).toLowerCase().includes(normalized)
     ));
 
     return [...startsWith, ...includes];
-  }, [isPartyDropdownOpen, parties, partyQuery, selectedParty]);
-
-  const filteredVehicleTypeOptions = useMemo(() => {
-    const normalized = String(vehicleTypeQuery || '').trim().toLowerCase();
-    const selectedLabel = String(getVehicleTypeLabel(formData.vehicleType) || '').trim().toLowerCase();
-
-    if (isVehicleTypeDropdownOpen && normalized && normalized === selectedLabel) {
-      return VEHICLE_TYPE_OPTIONS;
-    }
-
-    if (!normalized) return VEHICLE_TYPE_OPTIONS;
-
-    const startsWith = VEHICLE_TYPE_OPTIONS.filter((option) => option.label.toLowerCase().startsWith(normalized));
-    const includes = VEHICLE_TYPE_OPTIONS.filter((option) => (
-      !option.label.toLowerCase().startsWith(normalized)
-      && option.label.toLowerCase().includes(normalized)
-    ));
-
-    return [...startsWith, ...includes];
-  }, [formData.vehicleType, isVehicleTypeDropdownOpen, vehicleTypeQuery]);
+  }, [partyOptions, partyQuery, selectedParty]);
 
   useEffect(() => {
     setPartyQuery(getPartyLabel(selectedParty));
   }, [selectedParty]);
 
   useEffect(() => {
-    setVehicleTypeQuery(getVehicleTypeLabel(formData.vehicleType));
-  }, [formData.vehicleType]);
-
-  useEffect(() => {
-    if (filteredPartyOptions.length === 0) {
-      setPartyListIndex(-1);
-      return;
-    }
-
-    setPartyListIndex((prev) => {
-      if (prev < 0) return 0;
-      if (prev >= filteredPartyOptions.length) return filteredPartyOptions.length - 1;
-      return prev;
-    });
+    setPartyListIndex((prev) => Math.min(Math.max(prev, 0), filteredPartyOptions.length - 1));
   }, [filteredPartyOptions]);
-
-  useEffect(() => {
-    if (filteredVehicleTypeOptions.length === 0) {
-      setVehicleTypeListIndex(-1);
-      return;
-    }
-
-    setVehicleTypeListIndex((prev) => {
-      if (prev < 0) return 0;
-      if (prev >= filteredVehicleTypeOptions.length) return filteredVehicleTypeOptions.length - 1;
-      return prev;
-    });
-  }, [filteredVehicleTypeOptions]);
 
   const partyDropdownStyle = useFloatingDropdownPosition(
     partySectionRef,
@@ -229,47 +132,30 @@ export default function AddVehiclePopup({ vehicle, onClose, onSave, onVehicleSav
     [filteredPartyOptions.length, partyListIndex]
   );
 
-  const vehicleTypeDropdownStyle = useFloatingDropdownPosition(
-    vehicleTypeSectionRef,
-    isVehicleTypeDropdownOpen,
-    [filteredVehicleTypeOptions.length, vehicleTypeListIndex]
-  );
-
-  const clearError = (name) => {
-    setErrors((prev) => (prev[name] ? { ...prev, [name]: '' } : prev));
-  };
-
   const handleChange = (event) => {
     const { name, value } = event.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
-    clearError(name);
+    setError('');
   };
 
   const selectOwnership = (value) => {
     setFormData((prev) => ({ ...prev, ownership: value, partyId: value === 'own' ? '' : prev.partyId }));
-    clearError('partyId');
-  };
-
-  const setVehicleTypeValue = (value) => {
-    setFormData((prev) => ({ ...prev, vehicleType: value }));
-    clearError('vehicleType');
+    setError('');
   };
 
   const handlePartyFocus = () => {
     setIsPartyDropdownOpen(true);
-    setPartyQuery(getPartyLabel(selectedParty));
-    const selectedIndex = parties.findIndex((party) => party._id === formData.partyId);
+    const selectedIndex = filteredPartyOptions.findIndex((party) => party._id === formData.partyId);
     setPartyListIndex(selectedIndex >= 0 ? selectedIndex : 0);
   };
 
   const handlePartyInputChange = (event) => {
-    const nextValue = event.target.value;
-    setPartyQuery(nextValue);
+    setPartyQuery(event.target.value);
     setIsPartyDropdownOpen(true);
     if (formData.partyId) {
       setFormData((prev) => ({ ...prev, partyId: '' }));
     }
-    clearError('partyId');
+    setError('');
   };
 
   const selectParty = (party, moveNext = false) => {
@@ -277,73 +163,52 @@ export default function AddVehiclePopup({ vehicle, onClose, onSave, onVehicleSav
 
     setFormData((prev) => ({ ...prev, partyId: party._id }));
     setPartyQuery(getPartyLabel(party));
-    setPartyListIndex(Math.max(parties.findIndex((item) => item._id === party._id), 0));
     setIsPartyDropdownOpen(false);
-    clearError('partyId');
+    setError('');
 
     if (moveNext) {
-      focusNextField(partyInputRef.current);
+      // The fields after the party depend on the ownership, so move on once they have rendered
+      requestAnimationFrame(() => {
+        const next = afterPartyRef.current?.querySelector('select, input');
+        next?.focus();
+        next?.select?.();
+      });
     }
   };
 
   const openInlinePartyForm = () => {
-    setPartyFormData((prev) => ({
+    setPartyFormData({
       ...getInitialPartyFormData(isHiredVehicle ? 'transporter' : 'customer'),
-      name: toTitleCase(partyQuery || prev.name || '')
-    }));
+      name: selectedParty ? '' : toTitleCase(partyQuery)
+    });
     setPartyPopupError('');
     setIsPartyDropdownOpen(false);
     setShowPartyForm(true);
   };
 
-  const closeInlinePartyForm = (shouldRefocusParty = true) => {
+  const closeInlinePartyForm = () => {
     setShowPartyForm(false);
-    setPartyFormData(getInitialPartyFormData());
     setPartyPopupError('');
-
-    if (!shouldRefocusParty) return;
-
-    requestAnimationFrame(() => {
-      partyInputRef.current?.focus();
-      partyInputRef.current?.select?.();
-      setIsPartyDropdownOpen(true);
-    });
+    requestAnimationFrame(() => partyInputRef.current?.focus());
   };
 
   const handlePartyPopupChange = (event) => {
     const { name, value } = event.target;
 
     if (name === 'name') {
-      setPartyFormData((prev) => ({ ...prev, [name]: toTitleCase(value) }));
+      setPartyFormData((prev) => ({ ...prev, name: toTitleCase(value) }));
       return;
     }
 
     if (name === 'mobile') {
-      const normalized = String(value || '').replace(/\D/g, '').slice(0, 10);
-      setPartyFormData((prev) => ({ ...prev, [name]: normalized }));
-      return;
-    }
-
-    if (name === 'pincode') {
-      const normalized = String(value || '').replace(/\D/g, '').slice(0, 6);
-      setPartyFormData((prev) => ({ ...prev, [name]: normalized }));
-      return;
-    }
-
-    if (name === 'openingBalance') {
-      setPartyFormData((prev) => ({ ...prev, [name]: value }));
-      return;
-    }
-
-    if (['tenMmRate', 'twentyMmRate', 'fortyMmRate', 'wmmRate', 'gsbRate', 'dustRate', 'boulderRatePerTon'].includes(name)) {
-      setPartyFormData((prev) => ({ ...prev, [name]: value }));
+      setPartyFormData((prev) => ({ ...prev, mobile: String(value || '').replace(/\D/g, '').slice(0, 10) }));
       return;
     }
 
     if (name === 'type') {
       setPartyFormData((prev) => ({
         ...prev,
-        [name]: value,
+        type: value,
         openingBalanceType: prev.openingBalance ? prev.openingBalanceType : (['supplier', 'transporter'].includes(value) ? 'payable' : 'receivable')
       }));
       return;
@@ -367,14 +232,10 @@ export default function AddVehiclePopup({ vehicle, onClose, onSave, onVehicleSav
 
     setPartyPopupLoading(true);
     try {
-      const payload = {
-        type: String(partyFormData.type || '').trim(),
+      const createdParty = await apiClient.post('/parties', {
+        type: partyFormData.type,
         name: String(partyFormData.name || '').trim(),
         mobile: String(partyFormData.mobile || '').trim(),
-        email: String(partyFormData.email || '').trim(),
-        address: String(partyFormData.address || '').trim(),
-        state: String(partyFormData.state || '').trim(),
-        pincode: String(partyFormData.pincode || '').trim(),
         openingBalance: Number(partyFormData.openingBalance || 0),
         openingBalanceType: String(partyFormData.openingBalanceType || 'receivable'),
         tenMmRate: Number(partyFormData.tenMmRate || 0),
@@ -384,52 +245,25 @@ export default function AddVehiclePopup({ vehicle, onClose, onSave, onVehicleSav
         gsbRate: Number(partyFormData.gsbRate || 0),
         dustRate: Number(partyFormData.dustRate || 0),
         boulderRatePerTon: Number(partyFormData.boulderRatePerTon || 0)
-      };
-
-      const createdParty = await apiClient.post('/parties', payload);
-      setParties((prev) => [
-        createdParty,
-        ...prev.filter((item) => String(item._id) !== String(createdParty._id))
-      ]);
-      selectParty(createdParty);
+      });
+      setParties((prev) => [createdParty, ...prev.filter((item) => String(item._id) !== String(createdParty._id))]);
+      setShowPartyForm(false);
+      selectParty(createdParty, true);
       toast.success('Party created successfully');
-      closeInlinePartyForm(true);
-    } catch (error) {
-      setPartyPopupError(error.message || 'Error creating party');
+    } catch (submitError) {
+      setPartyPopupError(submitError.message || 'Error creating party');
     } finally {
       setPartyPopupLoading(false);
     }
   };
 
   const handlePartyInputKeyDown = (event) => {
-    if (event.key === 'Control' && !event.altKey && !event.metaKey) {
-      event.preventDefault();
-      event.stopPropagation();
-      openInlinePartyForm();
-      return;
-    }
-
-    if (event.key === 'ArrowDown') {
+    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
       event.preventDefault();
       event.stopPropagation();
       setIsPartyDropdownOpen(true);
-      if (filteredPartyOptions.length === 0) return;
-      setPartyListIndex((prev) => {
-        if (prev < 0) return 0;
-        return Math.min(prev + 1, filteredPartyOptions.length - 1);
-      });
-      return;
-    }
-
-    if (event.key === 'ArrowUp') {
-      event.preventDefault();
-      event.stopPropagation();
-      setIsPartyDropdownOpen(true);
-      if (filteredPartyOptions.length === 0) return;
-      setPartyListIndex((prev) => {
-        if (prev < 0) return 0;
-        return Math.max(prev - 1, 0);
-      });
+      const step = event.key === 'ArrowDown' ? 1 : -1;
+      setPartyListIndex((prev) => Math.min(Math.max(prev + step, 0), filteredPartyOptions.length - 1));
       return;
     }
 
@@ -442,13 +276,8 @@ export default function AddVehiclePopup({ vehicle, onClose, onSave, onVehicleSav
         return;
       }
 
-      const activeOption = partyListIndex >= 0 ? filteredPartyOptions[partyListIndex] : null;
-      const exactMatch = parties.find((party) => getPartyLabel(party).toLowerCase() === partyQuery.trim().toLowerCase());
-      const matchedOption = activeOption || exactMatch || filteredPartyOptions[0] || null;
-
-      if (matchedOption) {
-        selectParty(matchedOption, true);
-      }
+      const matchedOption = filteredPartyOptions[partyListIndex] || filteredPartyOptions[0] || null;
+      if (matchedOption) selectParty(matchedOption, true);
       return;
     }
 
@@ -460,107 +289,15 @@ export default function AddVehiclePopup({ vehicle, onClose, onSave, onVehicleSav
     }
   };
 
-  const handleVehicleTypeFocus = () => {
-    setIsVehicleTypeDropdownOpen(true);
-    setVehicleTypeQuery(getVehicleTypeLabel(formData.vehicleType));
-    const selectedIndex = VEHICLE_TYPE_OPTIONS.findIndex((option) => option.value === formData.vehicleType);
-    setVehicleTypeListIndex(selectedIndex >= 0 ? selectedIndex : 0);
-  };
+  const handleSubmit = async () => {
+    if (loading) return;
 
-  const handleVehicleTypeInputChange = (event) => {
-    const nextValue = event.target.value;
-    setVehicleTypeQuery(nextValue);
-    setIsVehicleTypeDropdownOpen(true);
-
-    const exactMatch = VEHICLE_TYPE_OPTIONS.find((option) => option.label.toLowerCase() === nextValue.trim().toLowerCase());
-    if (exactMatch) {
-      setVehicleTypeValue(exactMatch.value);
-    }
-  };
-
-  const selectVehicleType = (option, moveNext = false) => {
-    if (!option) return;
-
-    setVehicleTypeValue(option.value);
-    setVehicleTypeQuery(option.label);
-    setVehicleTypeListIndex(Math.max(VEHICLE_TYPE_OPTIONS.findIndex((item) => item.value === option.value), 0));
-    setIsVehicleTypeDropdownOpen(false);
-
-    if (moveNext) {
-      focusNextField(vehicleTypeInputRef.current);
-    }
-  };
-
-  const handleVehicleTypeInputKeyDown = (event) => {
-    if (event.key === 'ArrowDown') {
-      event.preventDefault();
-      event.stopPropagation();
-      setIsVehicleTypeDropdownOpen(true);
-      if (filteredVehicleTypeOptions.length === 0) return;
-      setVehicleTypeListIndex((prev) => {
-        if (prev < 0) return 0;
-        return Math.min(prev + 1, filteredVehicleTypeOptions.length - 1);
-      });
+    if (!String(formData.vehicleNo || '').trim()) {
+      setError('Vehicle number is required');
       return;
     }
-
-    if (event.key === 'ArrowUp') {
-      event.preventDefault();
-      event.stopPropagation();
-      setIsVehicleTypeDropdownOpen(true);
-      if (filteredVehicleTypeOptions.length === 0) return;
-      setVehicleTypeListIndex((prev) => {
-        if (prev < 0) return 0;
-        return Math.max(prev - 1, 0);
-      });
-      return;
-    }
-
-    if (event.key === 'Enter') {
-      event.preventDefault();
-      event.stopPropagation();
-
-      if (!isVehicleTypeDropdownOpen) {
-        setIsVehicleTypeDropdownOpen(true);
-        return;
-      }
-
-      const activeOption = vehicleTypeListIndex >= 0 ? filteredVehicleTypeOptions[vehicleTypeListIndex] : null;
-      const exactMatch = VEHICLE_TYPE_OPTIONS.find((option) => option.label.toLowerCase() === vehicleTypeQuery.trim().toLowerCase());
-      const matchedOption = activeOption || exactMatch || filteredVehicleTypeOptions[0] || null;
-
-      if (matchedOption) {
-        selectVehicleType(matchedOption, true);
-      }
-      return;
-    }
-
-    if (event.key === 'Escape' && isVehicleTypeDropdownOpen) {
-      event.preventDefault();
-      event.stopPropagation();
-      setVehicleTypeQuery(getVehicleTypeLabel(formData.vehicleType));
-      setIsVehicleTypeDropdownOpen(false);
-    }
-  };
-
-  const validate = () => {
-    const newErrors = {};
     if (!isOwnVehicle && !formData.partyId) {
-      newErrors.partyId = isHiredVehicle ? 'Please select the transporter' : 'Please select an owner / party';
-    }
-    if (!String(formData.vehicleNo || '').trim()) newErrors.vehicleNo = 'Vehicle number is required';
-    if (!String(formData.unladenWeight || '').trim()) newErrors.unladenWeight = 'Unladen weight is required';
-    if (!String(formData.capacityCubicMeter || '').trim()) newErrors.capacityCubicMeter = 'Truck cubic meter is required';
-    if (!formData.vehicleType) newErrors.vehicleType = 'Please select vehicle type';
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
-  const handleSubmit = async (event) => {
-    event.preventDefault();
-
-    if (!validate()) {
-      toast.error('Please fill in all required fields');
+      setError(isHiredVehicle ? 'Please select the transporter' : 'Please select the owner / party');
       return;
     }
 
@@ -568,399 +305,209 @@ export default function AddVehiclePopup({ vehicle, onClose, onSave, onVehicleSav
     try {
       const payload = {
         partyId: isOwnVehicle ? '' : formData.partyId,
-        vehicleNo: String(formData.vehicleNo || '').toUpperCase(),
-        unladenWeight: parseFloat(formData.unladenWeight),
-        capacityCubicMeter: parseFloat(formData.capacityCubicMeter),
+        vehicleNo: String(formData.vehicleNo || '').trim().toUpperCase(),
+        unladenWeight: Number(formData.unladenWeight || 0),
+        capacityCubicMeter: Number(formData.capacityCubicMeter || 0),
         vehicleType: formData.vehicleType || 'sales',
         ownership,
         hireBasis: formData.hireBasis || 'per_ton',
         hireRate: isHiredVehicle ? Number(formData.hireRate || 0) : 0
       };
 
-      if (isEditing) {
-        const updatedVehicle = await apiClient.put(`/vehicles/${vehicle._id}`, payload);
-        toast.success('Vehicle updated successfully');
-        if (typeof onVehicleSaved === 'function') {
-          onVehicleSaved(updatedVehicle);
-        }
-      } else {
-        const createdVehicle = await apiClient.post('/vehicles', payload);
-        toast.success('Vehicle created successfully');
-        if (typeof onVehicleSaved === 'function') {
-          onVehicleSaved(createdVehicle);
-        }
-      }
+      const savedVehicle = isEditing
+        ? await apiClient.put(`/vehicles/${vehicle._id}`, payload)
+        : await apiClient.post('/vehicles', payload);
+      toast.success(isEditing ? 'Vehicle updated successfully' : 'Vehicle created successfully');
 
+      if (typeof onVehicleSaved === 'function') onVehicleSaved(savedVehicle);
       if (onSave) onSave();
       if (onClose) onClose();
-    } catch (error) {
-      toast.error(error.response?.data?.message || 'Error saving vehicle');
+    } catch (submitError) {
+      setError(/duplicate key/i.test(submitError?.error || '') ? 'This vehicle number is already added' : submitError?.message || 'Error saving vehicle');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-2 backdrop-blur-[1.5px] md:p-4" onClick={onClose}>
-      <div
-        className="flex max-h-[92vh] w-full max-w-[42rem] flex-col overflow-hidden rounded-xl bg-white shadow-2xl ring-1 ring-slate-200/80 md:rounded-2xl"
-        onClick={(event) => event.stopPropagation()}
+    <>
+      <FormPopup
+        title={isEditing ? 'Edit Vehicle' : 'Add Vehicle'}
+        subtitle="A party's vehicle, your own, or one hired from a transporter"
+        submitLabel={loading ? 'Saving...' : isEditing ? 'Update Vehicle' : 'Save Vehicle'}
+        submitDisabled={loading}
+        maxWidth="max-w-xl"
+        onSubmit={handleSubmit}
+        onClose={onClose}
+        onKeyDown={(event) => handlePopupFormKeyDown(event, onClose)}
       >
-        <div className="flex-shrink-0 border-b border-white/15 bg-gradient-to-r from-cyan-700 via-blue-700 to-indigo-700 px-3 py-1.5 text-white md:px-4 md:py-2">
-          <div className="flex items-center justify-between">
-            <div className="flex items-start gap-3">
-              <div className="flex h-7 w-7 items-center justify-center rounded-md bg-white/20 text-white ring-1 ring-white/30 md:h-8 md:w-8">
-                <Truck className="h-4 w-4 md:h-5 md:w-5" />
-              </div>
-              <div>
-                <h2 className="text-base font-bold md:text-xl">{isEditing ? 'Edit Vehicle' : 'Add New Vehicle'}</h2>
-                <p className="mt-0.5 text-[11px] text-cyan-100 md:text-xs">Create or update vehicle details in a simple format.</p>
-              </div>
+        {error && <p className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-medium text-rose-700">{error}</p>}
+
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div>
+            <label className="label" htmlFor="vehicle-number-input">Vehicle Number <span className="text-rose-500">*</span></label>
+            <input
+              id="vehicle-number-input"
+              className="input font-mono uppercase placeholder:font-sans placeholder:normal-case"
+              type="text"
+              name="vehicleNo"
+              value={formData.vehicleNo}
+              onChange={handleChange}
+              placeholder="e.g. CG04AB1234"
+              autoComplete="off"
+              autoFocus
+              required
+            />
+          </div>
+          <div>
+            <label className="label">Used For</label>
+            <div className="grid grid-cols-2 gap-2">
+              {VEHICLE_TYPE_OPTIONS.map((option) => (
+                <button
+                  key={option.value}
+                  type="button"
+                  onClick={() => setFormData((prev) => ({ ...prev, vehicleType: option.value }))}
+                  aria-pressed={formData.vehicleType === option.value}
+                  className={`min-h-[2.5rem] whitespace-nowrap rounded-lg border px-2 py-2 text-sm font-semibold transition ${formData.vehicleType === option.value ? ACTIVE_OPTION_CLASS : INACTIVE_OPTION_CLASS}`}
+                >
+                  {option.label}
+                </button>
+              ))}
             </div>
-            <button
-              type="button"
-              onClick={onClose}
-              className="rounded-lg p-1.5 text-white transition hover:bg-white/25 md:p-2"
-              aria-label="Close popup"
-            >
-              <svg className="h-5 w-5 md:h-6 md:w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
           </div>
         </div>
 
-        <form
-          id="vehicle-form"
-          onSubmit={handleSubmit}
-          onKeyDown={(event) => handlePopupFormKeyDown(event, onClose)}
-          className="flex flex-1 flex-col overflow-hidden"
-        >
-          <div className="flex-1 overflow-y-auto p-2.5 md:p-4">
-            <div className="flex flex-col gap-3 md:gap-4">
-              {(errors.partyId || errors.vehicleNo || errors.unladenWeight || errors.capacityCubicMeter || errors.vehicleType) ? (
-                <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-700">
-                  Please fix the highlighted vehicle fields.
-                </div>
-              ) : null}
-
-              <div className="rounded-xl border-2 border-indigo-200 bg-gradient-to-r from-blue-50 to-indigo-50 p-2.5 md:p-4">
-                <h3 className="mb-3 flex items-center gap-2 text-base font-bold text-gray-800 md:mb-4 md:text-lg">
-                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-indigo-600 text-xs text-white md:h-8 md:w-8 md:text-sm">1</span>
-                  Vehicle Details
-                </h3>
-
-                <div className="grid grid-cols-1 gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,0.8fr)] md:gap-x-2 md:gap-y-4">
-                  <div className="min-w-0">
-                    <label htmlFor="vehicle-number-input" className="mb-1.5 block text-xs font-semibold text-gray-700 sm:text-sm">
-                      Vehicle Number <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      id="vehicle-number-input"
-                      type="text"
-                      name="vehicleNo"
-                      value={formData.vehicleNo}
-                      onChange={handleChange}
-                      className={`${getInlineFieldClass('indigo')} font-mono uppercase`}
-                      placeholder="Enter vehicle number"
-                      autoFocus
-                      required
-                    />
-                    {errors.vehicleNo ? <p className="mt-1 text-xs text-red-500">{errors.vehicleNo}</p> : null}
-                  </div>
-
-                  <div className="min-w-0">
-                    <label htmlFor="vehicle-type-input" className="mb-1.5 block text-xs font-semibold text-gray-700 sm:text-sm">
-                      Vehicle Type <span className="text-red-500">*</span>
-                    </label>
-                    <div
-                      ref={vehicleTypeSectionRef}
-                      className="relative min-w-0 w-full"
-                      onBlurCapture={(event) => {
-                        const nextFocused = event.relatedTarget;
-                        if (vehicleTypeSectionRef.current && nextFocused instanceof Node && vehicleTypeSectionRef.current.contains(nextFocused)) return;
-                        setVehicleTypeQuery(getVehicleTypeLabel(formData.vehicleType));
-                        setIsVehicleTypeDropdownOpen(false);
-                      }}
-                    >
-                      <div className="relative">
-                        <input
-                          id="vehicle-type-input"
-                          ref={vehicleTypeInputRef}
-                          type="text"
-                          value={vehicleTypeQuery}
-                          onChange={handleVehicleTypeInputChange}
-                          onFocus={handleVehicleTypeFocus}
-                          onKeyDown={handleVehicleTypeInputKeyDown}
-                          className={`${getInlineFieldClass('indigo')} pr-10`}
-                          placeholder="Choose vehicle type"
-                          autoComplete="off"
-                          required
-                        />
-                        <ChevronDown className={`pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-indigo-500 transition-transform ${isVehicleTypeDropdownOpen ? 'rotate-180' : ''}`} />
-                      </div>
-
-                      {isVehicleTypeDropdownOpen && vehicleTypeDropdownStyle && (
-                        <div className="fixed z-[80] overflow-hidden rounded-xl border border-amber-200 bg-white shadow-[0_18px_40px_rgba(15,23,42,0.18)]" style={vehicleTypeDropdownStyle} onClick={(event) => event.stopPropagation()}>
-                          <div className="flex items-center justify-between border-b border-amber-100 bg-gradient-to-r from-amber-50 to-yellow-50 px-3 py-2">
-                            <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-amber-700">Type List</span>
-                            <span className="rounded-full bg-white px-2 py-0.5 text-[10px] font-semibold text-amber-700 shadow-sm">{(filteredVehicleTypeOptions.length > 0 ? filteredVehicleTypeOptions : VEHICLE_TYPE_OPTIONS).length}</span>
-                          </div>
-                          <div className="overflow-y-auto py-1" style={{ maxHeight: vehicleTypeDropdownStyle.maxHeight }}>
-                            {(filteredVehicleTypeOptions.length > 0 ? filteredVehicleTypeOptions : VEHICLE_TYPE_OPTIONS).map((option, index) => {
-                              const isActive = index === vehicleTypeListIndex;
-                              const isSelected = String(formData.vehicleType || '') === String(option.value);
-                              return (
-                                <button
-                                  key={option.value}
-                                  type="button"
-                                  onMouseDown={(event) => event.preventDefault()}
-                                  onMouseEnter={() => setVehicleTypeListIndex(index)}
-                                  onClick={() => selectVehicleType(option, true)}
-                                  className={`flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-[13px] transition ${isActive ? 'bg-yellow-200 text-amber-950' : isSelected ? 'bg-yellow-50 text-amber-800' : 'text-slate-700 hover:bg-amber-50'}`}
-                                >
-                                  <div className="min-w-0">
-                                    <p className="truncate font-medium">{option.label}</p>
-                                    <p className={`mt-0.5 text-[11px] ${isActive ? 'text-amber-900' : isSelected ? 'text-amber-700' : 'text-slate-500'}`}>{option.description}</p>
-                                  </div>
-                                  {isSelected ? <span className="shrink-0 rounded-full border border-amber-200 bg-white px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700">Selected</span> : null}
-                                </button>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                    {errors.vehicleType ? <p className="mt-1 text-xs text-red-500">{errors.vehicleType}</p> : null}
-                  </div>
-
-                </div>
-              </div>
-
-              <div className="rounded-xl border-2 border-emerald-200 bg-gradient-to-r from-green-50 to-emerald-50 p-2.5 md:p-4">
-                <h3 className="mb-3 flex items-center gap-2 text-base font-bold text-gray-800 md:mb-4 md:text-lg">
-                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-600 text-xs text-white md:h-8 md:w-8 md:text-sm">2</span>
-                  Ownership Details
-                </h3>
-
-                <div className="mb-3 grid grid-cols-3 gap-2">
-                  {VEHICLE_OWNERSHIP_OPTIONS.map((option) => (
-                    <button
-                      key={option.value}
-                      type="button"
-                      onClick={() => selectOwnership(option.value)}
-                      aria-pressed={ownership === option.value}
-                      className={`rounded-lg border px-2 py-1.5 text-center transition ${
-                        ownership === option.value
-                          ? 'border-emerald-600 bg-emerald-600 text-white shadow-sm'
-                          : 'border-gray-300 bg-white text-gray-700 hover:bg-emerald-50'
-                      }`}
-                    >
-                      <span className="block text-xs font-bold sm:text-sm">{option.label}</span>
-                      <span className={`hidden text-[11px] sm:block ${ownership === option.value ? 'text-emerald-100' : 'text-gray-400'}`}>{option.hint}</span>
-                    </button>
-                  ))}
-                </div>
-
-                {isOwnVehicle ? (
-                  <p className="text-xs font-medium text-emerald-800">This is your own vehicle. On a sale you can add a transport charge for the party, and you can give it on rent from the Transport page.</p>
-                ) : (
-                <div className="min-w-0">
-                  <div className="relative mb-1 min-h-[16px]">
-                    <label htmlFor="vehicle-party-input" className="block text-xs font-semibold text-gray-700 sm:text-sm">
-                      {isHiredVehicle ? 'Transporter' : 'Owner / Party'} <span className="text-red-500">*</span>
-                    </label>
-                    {isPartyDropdownOpen && (
-                      <button
-                        type="button"
-                        onClick={openInlinePartyForm}
-                        className="absolute right-0 -top-2 inline-flex items-center gap-1 rounded-md border border-emerald-200 bg-white px-2 py-1 text-[10px] font-semibold text-emerald-700 transition hover:bg-emerald-50"
-                      >
-                        <span className="rounded bg-emerald-100 px-1.5 py-0.5 font-mono text-[9px] text-emerald-700">Ctrl</span>
-                        New Party
-                      </button>
-                    )}
-                  </div>
-                  <div
-                    ref={partySectionRef}
-                    className="relative min-w-0 w-full"
-                    onBlurCapture={(event) => {
-                      const nextFocused = event.relatedTarget;
-                      if (partySectionRef.current && nextFocused instanceof Node && partySectionRef.current.contains(nextFocused)) return;
-                      setPartyQuery(getPartyLabel(selectedParty));
-                      setIsPartyDropdownOpen(false);
-                    }}
-                  >
-                    <div className="relative">
-                      <input
-                        id="vehicle-party-input"
-                        ref={partyInputRef}
-                        type="text"
-                        value={partyQuery}
-                        onChange={handlePartyInputChange}
-                        onFocus={handlePartyFocus}
-                        onKeyDown={handlePartyInputKeyDown}
-                        className={`${getInlineFieldClass('emerald')} pr-10`}
-                        placeholder={isHiredVehicle ? 'Choose transporter' : 'Choose owner / party'}
-                        autoComplete="off"
-                        required
-                      />
-                      <ChevronDown className={`pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-emerald-500 transition-transform ${isPartyDropdownOpen ? 'rotate-180' : ''}`} />
-                    </div>
-
-                    {isPartyDropdownOpen && partyDropdownStyle && (
-                      <div className="fixed z-[80] overflow-hidden rounded-xl border border-amber-200 bg-white shadow-[0_18px_40px_rgba(15,23,42,0.18)]" style={partyDropdownStyle} onClick={(event) => event.stopPropagation()}>
-                        <div className="flex items-center justify-between border-b border-amber-100 bg-gradient-to-r from-amber-50 to-yellow-50 px-3 py-2">
-                          <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-amber-700">Party List</span>
-                          <span className="rounded-full bg-white px-2 py-0.5 text-[10px] font-semibold text-amber-700 shadow-sm">{(filteredPartyOptions.length > 0 ? filteredPartyOptions : parties).length}</span>
-                        </div>
-                        <div className="overflow-y-auto py-1" style={{ maxHeight: partyDropdownStyle.maxHeight }}>
-                          {(filteredPartyOptions.length > 0 ? filteredPartyOptions : parties).length === 0 ? (
-                            <div className="px-3 py-3 text-center text-[13px] text-slate-500">
-                              <p>No matching parties found.</p>
-                              <button
-                                type="button"
-                                onMouseDown={(event) => event.preventDefault()}
-                                onClick={openInlinePartyForm}
-                                className="mt-2 inline-flex items-center gap-2 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-[12px] font-semibold text-emerald-700 transition hover:bg-emerald-100"
-                              >
-                                Create New Party
-                                <span className="rounded bg-white px-1.5 py-0.5 font-mono text-[10px] text-emerald-700">Ctrl</span>
-                              </button>
-                            </div>
-                          ) : (
-                            (filteredPartyOptions.length > 0 ? filteredPartyOptions : parties).map((party, index) => {
-                              const isActive = index === partyListIndex;
-                              const isSelected = String(formData.partyId || '') === String(party._id);
-                              return (
-                                <button
-                                  key={party._id}
-                                  type="button"
-                                  onMouseDown={(event) => event.preventDefault()}
-                                  onMouseEnter={() => setPartyListIndex(index)}
-                                  onClick={() => selectParty(party, true)}
-                                  className={`flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-[13px] transition ${isActive ? 'bg-yellow-200 text-amber-950' : isSelected ? 'bg-yellow-50 text-amber-800' : 'text-slate-700 hover:bg-amber-50'}`}
-                                >
-                                  <div className="min-w-0">
-                                    <p className="truncate font-medium">{getPartyLabel(party)}</p>
-                                    <p className={`mt-0.5 text-[11px] ${isActive ? 'text-amber-900' : isSelected ? 'text-amber-700' : 'text-slate-500'}`}>{party.mobile ? `Mobile: ${party.mobile}` : 'Party account'}</p>
-                                  </div>
-                                  {isSelected ? <span className="shrink-0 rounded-full border border-amber-200 bg-white px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700">Selected</span> : null}
-                                </button>
-                              );
-                            })
-                          )}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                  {errors.partyId ? <p className="mt-1 text-xs text-red-500">{errors.partyId}</p> : null}
-                </div>
-                )}
-
-                {isHiredVehicle && (
-                  <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
-                    <div className="min-w-0">
-                      <label htmlFor="vehicle-hire-basis-input" className="mb-1.5 block text-xs font-semibold text-gray-700 sm:text-sm">Pay Transporter</label>
-                      <select id="vehicle-hire-basis-input" name="hireBasis" value={formData.hireBasis || 'per_ton'} onChange={handleChange} className={getInlineFieldClass('emerald')}>
-                        {TRANSPORT_BASIS_OPTIONS.map((option) => (
-                          <option key={option.value} value={option.value}>{option.label}</option>
-                        ))}
-                      </select>
-                    </div>
-                    <div className="min-w-0">
-                      <label htmlFor="vehicle-hire-rate-input" className="mb-1.5 block text-xs font-semibold text-gray-700 sm:text-sm">
-                        {hireUnit ? `Rate (Rs / ${hireUnit})` : 'Fixed Amount (Rs)'}
-                      </label>
-                      <input
-                        id="vehicle-hire-rate-input"
-                        type="number"
-                        name="hireRate"
-                        value={formData.hireRate ?? ''}
-                        onChange={handleChange}
-                        min="0"
-                        step="0.01"
-                        className={getInlineFieldClass('emerald')}
-                        placeholder="0.00"
-                      />
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              <div className="rounded-xl border-2 border-amber-200 bg-gradient-to-r from-amber-50 to-orange-50 p-2.5 md:p-4">
-                <h3 className="mb-3 flex items-center gap-2 text-base font-bold text-gray-800 md:mb-4 md:text-lg">
-                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-amber-600 text-xs text-white md:h-8 md:w-8 md:text-sm">3</span>
-                  Weight Details
-                </h3>
-
-                <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                  <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:gap-2">
-                    <label htmlFor="vehicle-unladen-weight-input" className="shrink-0 text-xs font-semibold text-gray-700 sm:w-32 sm:text-sm">Unladen Weight</label>
-                    <div className="relative flex-1">
-                      <input
-                        id="vehicle-unladen-weight-input"
-                        type="number"
-                        name="unladenWeight"
-                        value={formData.unladenWeight}
-                        onChange={handleChange}
-                        min="0"
-                        step="0.01"
-                        className={`${getInlineFieldClass('emerald')} pr-12`}
-                        placeholder="0.00"
-                        required
-                      />
-                      <Scale className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-amber-500" />
-                    </div>
-                  </div>
-
-                  <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:gap-2">
-                    <label htmlFor="vehicle-capacity-cubic-meter-input" className="shrink-0 text-xs font-semibold text-gray-700 sm:w-32 sm:text-sm">Truck Cubic Meter</label>
-                    <div className="relative flex-1">
-                      <input
-                        id="vehicle-capacity-cubic-meter-input"
-                        type="number"
-                        name="capacityCubicMeter"
-                        value={formData.capacityCubicMeter}
-                        onChange={handleChange}
-                        min="0"
-                        step="0.01"
-                        className={`${getInlineFieldClass('emerald')} pr-14`}
-                        placeholder="0.00"
-                        required
-                      />
-                      <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold uppercase tracking-wide text-amber-600">
-                        m3
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="flex min-w-0 flex-col justify-center gap-1 rounded-lg bg-white/60 px-3 py-2 md:col-span-2">
-                    <p className="text-xs font-semibold uppercase tracking-[0.14em] text-amber-700">Unit</p>
-                    <p className="text-sm font-bold text-slate-800">Kilogram (kg) and Cubic Meter (m3)</p>
-                    <p className="text-xs text-slate-500">Store both the empty vehicle weight and the truck load capacity in cubic meters while saving the vehicle.</p>
-                  </div>
-                </div>
-                {errors.unladenWeight ? <p className="mt-2 text-xs text-red-500">{errors.unladenWeight}</p> : null}
-                {errors.capacityCubicMeter ? <p className="mt-2 text-xs text-red-500">{errors.capacityCubicMeter}</p> : null}
-              </div>
-            </div>
+        <div>
+          <label className="label">Whose Vehicle</label>
+          <div className="grid grid-cols-3 gap-2">
+            {VEHICLE_OWNERSHIP_OPTIONS.map((option) => {
+              const active = ownership === option.value;
+              return (
+                <button
+                  key={option.value}
+                  type="button"
+                  onClick={() => selectOwnership(option.value)}
+                  aria-pressed={active}
+                  className={`rounded-lg border px-1 py-2 text-center transition sm:px-3 sm:text-left ${active ? ACTIVE_OPTION_CLASS : INACTIVE_OPTION_CLASS}`}
+                >
+                  <span className="block text-xs font-semibold sm:text-sm">{option.label}</span>
+                  <span className={`mt-0.5 hidden text-[11px] sm:block ${active ? 'text-primary-100' : 'text-slate-400'}`}>{option.hint}</span>
+                </button>
+              );
+            })}
           </div>
+          {isOwnVehicle && (
+            <p className="mt-1.5 text-xs text-slate-500">Your own vehicle. Add a transport charge on a sale, or give it on rent from the Transport page.</p>
+          )}
+        </div>
 
-          <div className="flex shrink-0 flex-col items-center justify-between gap-2 border-t border-gray-200 bg-gray-50 px-3 py-2 md:flex-row md:px-4">
-            <div className="text-[11px] text-gray-600 md:text-xs">
-              <kbd className="rounded bg-gray-200 px-2 py-1 text-xs font-mono">Esc</kbd> to close
-            </div>
-
-            <div className="flex w-full gap-2 md:w-auto">
-              <button type="button" onClick={onClose} className="flex-1 rounded-lg border border-gray-300 bg-white px-4 py-1.5 text-sm font-semibold text-gray-700 transition hover:bg-gray-100 md:flex-none md:px-5">Cancel</button>
-              <button type="submit" form="vehicle-form" disabled={loading} className="flex-1 rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 px-5 py-1.5 text-sm font-semibold text-white transition hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-50 md:flex-none md:px-6">
-                {loading ? 'Saving...' : isEditing ? 'Update Vehicle' : 'Save Vehicle'}
+        {!isOwnVehicle && (
+          <div>
+            <div className="mb-1 flex items-center justify-between">
+              <label className="label mb-0" htmlFor="vehicle-party-input">
+                {isHiredVehicle ? 'Transporter' : 'Owner / Party'} <span className="text-rose-500">*</span>
+              </label>
+              {/* Keeping focus in the search box keeps the typed name, which becomes the new party's name */}
+              <button type="button" onMouseDown={(event) => event.preventDefault()} onClick={openInlinePartyForm} className="inline-flex items-center gap-1 text-xs font-semibold text-primary-600 hover:underline">
+                <Plus size={14} /> {isHiredVehicle ? 'New Transporter' : 'New Party'}
               </button>
             </div>
+            <div
+              ref={partySectionRef}
+              className="relative"
+              onBlurCapture={(event) => {
+                // The new-party popup takes the focus; the typed name must survive that
+                if (showPartyForm || partySectionRef.current?.contains(event.relatedTarget)) return;
+                setPartyQuery(getPartyLabel(selectedParty));
+                setIsPartyDropdownOpen(false);
+              }}
+            >
+              <input
+                id="vehicle-party-input"
+                ref={partyInputRef}
+                className="input pr-10"
+                type="text"
+                value={partyQuery}
+                onChange={handlePartyInputChange}
+                onFocus={handlePartyFocus}
+                onKeyDown={handlePartyInputKeyDown}
+                placeholder={isHiredVehicle ? 'Type to search transporter' : 'Type to search party'}
+                autoComplete="off"
+              />
+              <ChevronDown className={`pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 transition-transform ${isPartyDropdownOpen ? 'rotate-180' : ''}`} />
+
+              {isPartyDropdownOpen && partyDropdownStyle && (
+                <div className="fixed z-[80] overflow-hidden rounded-lg bg-white shadow-xl ring-1 ring-slate-200" style={partyDropdownStyle} onClick={(event) => event.stopPropagation()}>
+                  <div className="overflow-y-auto py-1" style={{ maxHeight: partyDropdownStyle.maxHeight }}>
+                    {filteredPartyOptions.length === 0 ? (
+                      <button type="button" onMouseDown={(event) => event.preventDefault()} onClick={openInlinePartyForm} className="w-full px-3 py-2.5 text-left text-sm text-slate-500 hover:bg-slate-50">
+                        No match. <span className="font-semibold text-primary-600">Add {partyQuery.trim() ? `"${toTitleCase(partyQuery.trim())}"` : 'a new party'}</span>
+                      </button>
+                    ) : filteredPartyOptions.map((party, index) => (
+                      <button
+                        key={party._id}
+                        type="button"
+                        onMouseDown={(event) => event.preventDefault()}
+                        onMouseEnter={() => setPartyListIndex(index)}
+                        onClick={() => selectParty(party, true)}
+                        className={`flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm transition ${index === partyListIndex ? 'bg-primary-50 text-primary-900' : 'text-slate-700'}`}
+                      >
+                        <span className="min-w-0 truncate font-medium">{getPartyLabel(party)}</span>
+                        <span className="shrink-0 text-[11px] capitalize text-slate-400">{party.type}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
-        </form>
-      </div>
+        )}
+
+        <div ref={afterPartyRef} className="space-y-3 md:space-y-4">
+          {isHiredVehicle && (
+            <div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="label" htmlFor="vehicle-hire-basis-input">Pay Transporter</label>
+                  <select id="vehicle-hire-basis-input" className="input" name="hireBasis" value={formData.hireBasis || 'per_ton'} onChange={handleChange}>
+                    {TRANSPORT_BASIS_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>{option.label}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="label" htmlFor="vehicle-hire-rate-input">{hireUnit ? 'Rate' : 'Fixed Amount'}</label>
+                  <div className="relative">
+                    <input id="vehicle-hire-rate-input" className="input pr-16" type="number" name="hireRate" value={formData.hireRate || ''} onChange={handleChange} min="0" step="0.01" placeholder="0" />
+                    <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-xs font-semibold text-slate-400">{hireUnit ? `₹/${hireUnit}` : '₹'}</span>
+                  </div>
+                </div>
+              </div>
+              <p className="mt-1 text-xs text-slate-500">Filled in for you when this vehicle is used on a sale or a transport entry.</p>
+            </div>
+          )}
+
+          <div className="border-t border-slate-100 pt-3 md:pt-4">
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="label" htmlFor="vehicle-unladen-weight-input">Unladen Weight</label>
+                <div className="relative">
+                  <input id="vehicle-unladen-weight-input" className="input pr-10" type="number" name="unladenWeight" value={formData.unladenWeight || ''} onChange={handleChange} min="0" step="0.01" placeholder="Optional" />
+                  <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-xs font-semibold text-slate-400">kg</span>
+                </div>
+              </div>
+              <div>
+                <label className="label" htmlFor="vehicle-capacity-cubic-meter-input">Truck Capacity</label>
+                <div className="relative">
+                  <input id="vehicle-capacity-cubic-meter-input" className="input pr-10" type="number" name="capacityCubicMeter" value={formData.capacityCubicMeter || ''} onChange={handleChange} min="0" step="0.01" placeholder="Optional" />
+                  <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-xs font-semibold text-slate-400">m³</span>
+                </div>
+              </div>
+            </div>
+            <p className="mt-1 text-xs text-slate-500">Both are optional. On a sale they fill the tare weight and the cubic meter quantity.</p>
+          </div>
+        </div>
+      </FormPopup>
 
       <AddPartyPopup
         showForm={showPartyForm}
@@ -968,10 +515,10 @@ export default function AddVehiclePopup({ vehicle, onClose, onSave, onVehicleSav
         loading={partyPopupLoading}
         formData={partyFormData}
         error={partyPopupError}
-        handleCloseForm={() => closeInlinePartyForm(true)}
+        handleCloseForm={closeInlinePartyForm}
         handleSubmit={handlePartyPopupSubmit}
         handleChange={handlePartyPopupChange}
       />
-    </div>
+    </>
   );
 }

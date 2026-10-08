@@ -279,10 +279,10 @@ export default function Vehicle() {
                         </div>
                       </td>
                       <td className="px-6 py-4">
-                        <span className="text-slate-600">{vehicle.unladenWeight} kg</span>
+                        <span className="text-slate-600">{Number(vehicle.unladenWeight || 0) > 0 ? `${vehicle.unladenWeight} kg` : '-'}</span>
                       </td>
                       <td className="px-6 py-4">
-                        <span className="text-slate-600">{Number(vehicle.capacityCubicMeter || 0)} m3</span>
+                        <span className="text-slate-600">{Number(vehicle.capacityCubicMeter || 0) > 0 ? `${Number(vehicle.capacityCubicMeter)} m3` : '-'}</span>
                       </td>
                       <td className="px-6 py-4">
                         <span className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold border ${getTypeBadgeClass(vehicle.vehicleType)}`}>

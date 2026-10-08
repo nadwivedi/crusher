@@ -19,9 +19,10 @@ const vehicleSchema = new mongoose.Schema(
       trim: true,
       uppercase: true,
     },
+    // Empty weight in kg. 0 when not known.
     unladenWeight: {
       type: Number,
-      required: true,
+      default: 0,
       min: 0,
     },
     capacityCubicMeter: {
