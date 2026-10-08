@@ -283,12 +283,13 @@ export default function Dashboard() {
         {kpis.map((kpi) => <StatCard key={kpi.label} compact {...kpi} />)}
       </section>
 
+      {/* Sections alternate light and shaded panels so each block reads as its own band */}
       {/* Quick entry */}
-      <section className="panel">
-        <div className="panel-header py-3 flex flex-wrap items-center justify-between gap-2">
+      <section className="panel bg-slate-200/70 ring-slate-300">
+        <div className="panel-header py-3 flex flex-wrap items-center justify-between gap-2 border-slate-300 bg-slate-300/70">
           <div>
             <h3 className="text-sm font-bold text-slate-900">Quick Entry</h3>
-            <p className="text-xs text-slate-500">Add today's entries without leaving the dashboard</p>
+            <p className="text-xs text-slate-600">Add today's entries without leaving the dashboard</p>
           </div>
           <div className="flex flex-wrap gap-2">
             {MORE_ENTRIES.map((entry) => (
@@ -394,11 +395,11 @@ export default function Dashboard() {
       </section>
 
       {/* Material-wise sales */}
-      <section className="panel">
-        <div className="panel-header py-3 flex items-center justify-between gap-3">
+      <section className="panel bg-slate-200/70 ring-slate-300">
+        <div className="panel-header py-3 flex items-center justify-between gap-3 border-slate-300 bg-slate-300/70">
           <div>
             <h3 className="text-sm font-bold text-slate-900">Material-wise Sales</h3>
-            <p className="text-xs text-slate-500">Quantity and amount sold per material · {periodText}</p>
+            <p className="text-xs text-slate-600">Quantity and amount sold per material · {periodText}</p>
           </div>
           {materialSales.length > 0 && (
             <span className="shrink-0 rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-200">
@@ -408,7 +409,7 @@ export default function Dashboard() {
         </div>
         {materialSales.length > 0 ? (
           <div className="overflow-x-auto">
-            <table className="w-full text-left [&_td]:py-2.5 [&_th]:py-2">
+            <table className="w-full text-left [&_td]:py-2.5 [&_th]:bg-slate-300/40 [&_th]:py-2 [&_th]:text-slate-600 [&_tbody_tr]:border-slate-300 [&_tbody_tr:hover]:bg-slate-300/50">
               <thead>
                 <tr>
                   <th className="tbl-head">Material</th>
@@ -440,7 +441,7 @@ export default function Dashboard() {
                       <td className="tbl-cell whitespace-nowrap text-right font-semibold text-emerald-700">{fmt(row.amount)}</td>
                       <td className="tbl-cell hidden md:table-cell">
                         <div className="flex items-center gap-2">
-                          <div className="h-2 w-32 overflow-hidden rounded-full bg-slate-100">
+                          <div className="h-2 w-32 overflow-hidden rounded-full bg-slate-400/50">
                             <div className="h-full rounded-full bg-emerald-500" style={{ width: `${share}%` }} />
                           </div>
                           <span className="text-xs font-medium text-slate-500">{fmtNum(Math.round(share))}%</span>
@@ -451,7 +452,7 @@ export default function Dashboard() {
                 })}
               </tbody>
               <tfoot>
-                <tr className="border-t border-slate-200 bg-slate-50">
+                <tr className="border-t border-slate-300 bg-slate-300/70">
                   <td className="tbl-cell font-bold text-slate-900">Total</td>
                   <td className="tbl-cell hidden text-right font-bold text-slate-900 sm:table-cell">{fmtNum(materialTotals.count)}</td>
                   <td className="tbl-cell whitespace-nowrap text-right font-bold text-slate-900">{fmtNum(toTons(materialTotals.netWeight))} tons</td>
@@ -466,7 +467,7 @@ export default function Dashboard() {
           </div>
         ) : (
           <div className="flex flex-col items-center gap-2 px-6 py-8 text-center">
-            <span className="flex h-11 w-11 items-center justify-center rounded-full bg-slate-100 text-slate-400">
+            <span className="flex h-11 w-11 items-center justify-center rounded-full bg-white text-slate-400">
               <Layers size={20} />
             </span>
             <p className="text-sm font-semibold text-slate-800">No sales in this period</p>
