@@ -83,7 +83,7 @@ const CHART_AMBER = '#f59e0b';
 /** One line of the cash flow statement: label (+ hint) on the left, amount on the right. */
 function FlowRow({ label, hint, value, dot, total = false, valueClass = 'text-slate-800' }) {
   return (
-    <div className={`flex items-center justify-between gap-3 ${total ? 'border-t border-slate-200 pt-2.5' : ''}`}>
+    <div className={`flex items-center justify-between gap-3 ${total ? 'border-t border-slate-200 pt-2' : ''}`}>
       <div className="flex min-w-0 items-center gap-2">
         {dot && <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${dot}`} />}
         <div className="min-w-0">
@@ -234,9 +234,9 @@ export default function Dashboard() {
   ];
 
   return (
-    <div className="page-fade-in space-y-4 px-3 pb-8 pt-4 md:space-y-5 lg:px-6 lg:pt-5">
+    <div className="page-fade-in space-y-3.5 px-3 pb-6 pt-3.5 md:space-y-4 lg:px-6 lg:pt-4">
       {/* Header + date range filter */}
-      <div className="page-header">
+      <div className="page-header gap-2.5">
         <div>
           <h1 className="page-title">Dashboard</h1>
           <p className="page-subtitle">
@@ -247,7 +247,7 @@ export default function Dashboard() {
       </div>
 
       {rangeKey === 'custom' && (
-        <div className="card flex flex-wrap items-end gap-3">
+        <div className="card flex flex-wrap items-end gap-3 p-3.5 md:p-4">
           <div>
             <label className="label">From</label>
             <input type="date" className="input" value={custom.from} max={custom.to || undefined}
@@ -264,7 +264,7 @@ export default function Dashboard() {
       )}
 
       {error && (
-        <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700">
+        <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm font-semibold text-rose-700">
           {error}
         </div>
       )}
@@ -275,17 +275,17 @@ export default function Dashboard() {
           <p className="text-sm text-slate-400">Loading dashboard…</p>
         </div>
       ) : (
-      <div className={`space-y-4 transition-opacity md:space-y-5 ${loading ? 'pointer-events-none opacity-50' : ''}`}>
+      <div className={`space-y-3.5 transition-opacity md:space-y-4 ${loading ? 'pointer-events-none opacity-50' : ''}`}>
 
       {/* KPI cards */}
       {/* Three in a row on every screen; the compact tile keeps them readable on phones */}
-      <section className="grid grid-cols-3 gap-2 md:gap-4">
+      <section className="grid grid-cols-3 gap-2 md:gap-3">
         {kpis.map((kpi) => <StatCard key={kpi.label} compact {...kpi} />)}
       </section>
 
       {/* Quick entry */}
       <section className="panel">
-        <div className="panel-header flex flex-wrap items-center justify-between gap-2">
+        <div className="panel-header py-3 flex flex-wrap items-center justify-between gap-2">
           <div>
             <h3 className="text-sm font-bold text-slate-900">Quick Entry</h3>
             <p className="text-xs text-slate-500">Add today's entries without leaving the dashboard</p>
@@ -296,23 +296,23 @@ export default function Dashboard() {
                 key={entry.label}
                 type="button"
                 onClick={() => openQuickEntry(entry)}
-                className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-100"
+                className="rounded-lg border border-slate-300 bg-white px-3 py-1 text-xs font-semibold text-slate-700 transition hover:bg-slate-100"
               >
                 {entry.label}
               </button>
             ))}
           </div>
         </div>
-        <div className="grid grid-cols-2 gap-2.5 p-3 md:grid-cols-3 md:gap-3 md:p-4 xl:grid-cols-6">
+        <div className="grid grid-cols-2 gap-2 p-2.5 md:grid-cols-3 md:gap-2.5 md:p-3 xl:grid-cols-6">
           {QUICK_ENTRIES.map(({ icon: Icon, ...entry }) => (
             <button
               key={entry.stateKey}
               type="button"
               onClick={() => openQuickEntry(entry)}
-              className="group flex items-center gap-2.5 rounded-xl border border-slate-200 bg-white p-2.5 text-left transition hover:border-primary-300 hover:bg-primary-50/40 hover:shadow-md"
+              className="group flex items-center gap-2 rounded-xl border border-slate-200 bg-white p-2 text-left transition hover:border-primary-300 hover:bg-primary-50/40 hover:shadow-md"
             >
-              <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ring-1 ring-inset ${entry.tone}`}>
-                <Icon size={18} />
+              <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ring-1 ring-inset ${entry.tone}`}>
+                <Icon size={17} />
               </span>
               <span className="min-w-0 truncate text-[13px] font-semibold text-slate-700 group-hover:text-slate-900">{entry.label}</span>
             </button>
@@ -322,7 +322,7 @@ export default function Dashboard() {
 
       {/* Cash flow */}
       <section className="panel">
-        <div className="panel-header flex flex-wrap items-center justify-between gap-2">
+        <div className="panel-header py-3 flex flex-wrap items-center justify-between gap-2">
           <div>
             <h3 className="text-sm font-bold text-slate-900">Cash Flow</h3>
             <p className="text-xs text-slate-500">Money that actually came in and went out · {periodText}</p>
@@ -334,12 +334,12 @@ export default function Dashboard() {
 
         <div className="grid grid-cols-1 divide-y divide-slate-100 lg:grid-cols-3 lg:divide-x lg:divide-y-0">
           {/* Sales: how much was cash, how much is still credit */}
-          <div className="space-y-3 p-4 md:p-5">
+          <div className="space-y-2.5 px-4 py-3.5 md:px-5 md:py-4">
             <div>
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Total Sales</p>
-              <p className="text-2xl font-bold leading-tight text-slate-900">{fmt(salesAmount)}</p>
+              <p className="text-[22px] font-bold leading-tight text-slate-900">{fmt(salesAmount)}</p>
             </div>
-            <div className="flex h-2.5 gap-0.5 overflow-hidden rounded-full bg-slate-100">
+            <div className="flex h-2 gap-0.5 overflow-hidden rounded-full bg-slate-100">
               <div className="rounded-full bg-emerald-500" style={{ width: `${cashShare}%` }} />
               <div className="rounded-full bg-amber-400" style={{ width: `${creditShare}%` }} />
             </div>
@@ -348,14 +348,14 @@ export default function Dashboard() {
           </div>
 
           {/* Money in */}
-          <div className="space-y-3 p-4 md:p-5">
+          <div className="space-y-2.5 px-4 py-3.5 md:px-5 md:py-4">
             <div className="flex items-center gap-3">
-              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-white">
-                <ArrowDownLeft size={20} />
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-white">
+                <ArrowDownLeft size={18} />
               </span>
               <div className="min-w-0">
                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Money In</p>
-                <p className="truncate text-2xl font-bold leading-tight text-emerald-700">{fmt(moneyIn.total)}</p>
+                <p className="truncate text-[22px] font-bold leading-tight text-emerald-700">{fmt(moneyIn.total)}</p>
               </div>
             </div>
             <FlowRow label="Cash from sales" hint="Paid at the time of sale" value={fmt(moneyIn.sales)} />
@@ -364,14 +364,14 @@ export default function Dashboard() {
           </div>
 
           {/* Money out */}
-          <div className="space-y-3 p-4 md:p-5">
+          <div className="space-y-2.5 px-4 py-3.5 md:px-5 md:py-4">
             <div className="flex items-center gap-3">
-              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-rose-600 text-white">
-                <ArrowUpRight size={20} />
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-rose-600 text-white">
+                <ArrowUpRight size={18} />
               </span>
               <div className="min-w-0">
                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Money Out</p>
-                <p className="truncate text-2xl font-bold leading-tight text-rose-700">{fmt(moneyOut.total)}</p>
+                <p className="truncate text-[22px] font-bold leading-tight text-rose-700">{fmt(moneyOut.total)}</p>
               </div>
             </div>
             <FlowRow label="Expenses paid" hint={`of ${fmt(data?.expenses?.amount)} expenses`} value={fmt(moneyOut.expenses)} />
@@ -381,7 +381,7 @@ export default function Dashboard() {
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-1 border-t border-slate-100 bg-slate-50 px-4 py-3 md:px-5">
+        <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-1 border-t border-slate-100 bg-slate-50 px-4 py-2.5 md:px-5">
           <p className="text-sm font-bold text-slate-900">Net Cash Flow</p>
           <p className="text-sm text-slate-600">
             <span className="font-semibold text-emerald-700">{fmt(moneyIn.total)}</span>
@@ -395,7 +395,7 @@ export default function Dashboard() {
 
       {/* Material-wise sales */}
       <section className="panel">
-        <div className="panel-header flex items-center justify-between gap-3">
+        <div className="panel-header py-3 flex items-center justify-between gap-3">
           <div>
             <h3 className="text-sm font-bold text-slate-900">Material-wise Sales</h3>
             <p className="text-xs text-slate-500">Quantity and amount sold per material · {periodText}</p>
@@ -408,7 +408,7 @@ export default function Dashboard() {
         </div>
         {materialSales.length > 0 ? (
           <div className="overflow-x-auto">
-            <table className="w-full text-left">
+            <table className="w-full text-left [&_td]:py-2.5 [&_th]:py-2">
               <thead>
                 <tr>
                   <th className="tbl-head">Material</th>
@@ -426,8 +426,8 @@ export default function Dashboard() {
                     <tr key={row.material} className="tbl-row">
                       <td className="tbl-cell">
                         <div className="flex items-center gap-3">
-                          <span className="hidden h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-100 sm:flex">
-                            <Layers size={18} />
+                          <span className="hidden h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-100 sm:flex">
+                            <Layers size={17} />
                           </span>
                           <span className="font-semibold text-slate-800">{formatMaterial(row.material)}</span>
                         </div>
@@ -465,9 +465,9 @@ export default function Dashboard() {
             </table>
           </div>
         ) : (
-          <div className="flex flex-col items-center gap-2 px-6 py-10 text-center">
-            <span className="flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 text-slate-400">
-              <Layers size={22} />
+          <div className="flex flex-col items-center gap-2 px-6 py-8 text-center">
+            <span className="flex h-11 w-11 items-center justify-center rounded-full bg-slate-100 text-slate-400">
+              <Layers size={20} />
             </span>
             <p className="text-sm font-semibold text-slate-800">No sales in this period</p>
             <p className="text-xs text-slate-500">Material-wise totals appear here once a sale is added.</p>
@@ -476,14 +476,14 @@ export default function Dashboard() {
       </section>
 
       {/* Charts */}
-      <div className="grid grid-cols-1 gap-4 md:gap-5 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-3.5 md:gap-4 lg:grid-cols-2">
         <section className="panel">
-          <div className="panel-header">
+          <div className="panel-header py-3">
             <h3 className="text-sm font-bold text-slate-900">Boulder Crushed</h3>
             <p className="text-xs text-slate-500">Tons {trendText}</p>
           </div>
-          <div className="p-3 md:p-4">
-            <ResponsiveContainer width="100%" height={240}>
+          <div className="p-2.5 md:p-3">
+            <ResponsiveContainer width="100%" height={216}>
               <BarChart data={trend}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
                 <XAxis dataKey="date" tick={AXIS_TICK} tickFormatter={tickFormat} axisLine={false} tickLine={false} />
@@ -501,12 +501,12 @@ export default function Dashboard() {
         </section>
 
         <section className="panel">
-          <div className="panel-header">
+          <div className="panel-header py-3">
             <h3 className="text-sm font-bold text-slate-900">Sales vs Expenses</h3>
             <p className="text-xs text-slate-500">Amount {trendText}</p>
           </div>
-          <div className="p-3 md:p-4">
-            <ResponsiveContainer width="100%" height={240}>
+          <div className="p-2.5 md:p-3">
+            <ResponsiveContainer width="100%" height={216}>
               <LineChart data={trend}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
                 <XAxis dataKey="date" tick={AXIS_TICK} tickFormatter={tickFormat} axisLine={false} tickLine={false} />
