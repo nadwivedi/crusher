@@ -283,13 +283,12 @@ export default function Dashboard() {
         {kpis.map((kpi) => <StatCard key={kpi.label} compact {...kpi} />)}
       </section>
 
-      {/* Sections alternate light and shaded panels so each block reads as its own band */}
-      {/* Quick entry */}
-      <section className="panel bg-slate-200/70 ring-slate-300">
-        <div className="panel-header py-3 flex flex-wrap items-center justify-between gap-2 border-slate-300 bg-slate-300/70">
+      {/* Quick entry: the app's blue as a band of colour, with white tiles on it */}
+      <section className="panel bg-gradient-to-r from-primary-700 to-primary-600 ring-primary-700">
+        <div className="panel-header py-3 flex flex-wrap items-center justify-between gap-2 border-white/15">
           <div>
-            <h3 className="text-sm font-bold text-slate-900">Quick Entry</h3>
-            <p className="text-xs text-slate-600">Add today's entries without leaving the dashboard</p>
+            <h3 className="text-sm font-bold text-white">Quick Entry</h3>
+            <p className="text-xs text-primary-100">Add today's entries without leaving the dashboard</p>
           </div>
           <div className="flex flex-wrap gap-2">
             {MORE_ENTRIES.map((entry) => (
@@ -297,7 +296,7 @@ export default function Dashboard() {
                 key={entry.label}
                 type="button"
                 onClick={() => openQuickEntry(entry)}
-                className="rounded-lg border border-slate-300 bg-white px-3 py-1 text-xs font-semibold text-slate-700 transition hover:bg-slate-100"
+                className="rounded-lg border border-white/30 bg-white/10 px-3 py-1 text-xs font-semibold text-white transition hover:bg-white/20"
               >
                 {entry.label}
               </button>
@@ -310,7 +309,7 @@ export default function Dashboard() {
               key={entry.stateKey}
               type="button"
               onClick={() => openQuickEntry(entry)}
-              className="group flex items-center gap-2 rounded-xl border border-slate-200 bg-white p-2 text-left transition hover:border-primary-300 hover:bg-primary-50/40 hover:shadow-md"
+              className="group flex items-center gap-2 rounded-xl bg-white p-2 text-left shadow-sm transition hover:bg-primary-50 hover:shadow-md"
             >
               <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ring-1 ring-inset ${entry.tone}`}>
                 <Icon size={17} />
@@ -394,22 +393,22 @@ export default function Dashboard() {
         </div>
       </section>
 
-      {/* Material-wise sales */}
-      <section className="panel bg-slate-200/70 ring-slate-300">
-        <div className="panel-header py-3 flex items-center justify-between gap-3 border-slate-300 bg-slate-300/70">
+      {/* Material-wise sales: soft blue title strip, echoing the quick entry band */}
+      <section className="panel">
+        <div className="panel-header py-3 flex items-center justify-between gap-3 border-primary-100 bg-primary-50">
           <div>
-            <h3 className="text-sm font-bold text-slate-900">Material-wise Sales</h3>
+            <h3 className="text-sm font-bold text-primary-900">Material-wise Sales</h3>
             <p className="text-xs text-slate-600">Quantity and amount sold per material · {periodText}</p>
           </div>
           {materialSales.length > 0 && (
-            <span className="shrink-0 rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-200">
+            <span className="shrink-0 rounded-full bg-white px-2 py-0.5 text-[11px] font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-200">
               {materialSales.length} material{materialSales.length > 1 ? 's' : ''}
             </span>
           )}
         </div>
         {materialSales.length > 0 ? (
           <div className="overflow-x-auto">
-            <table className="w-full text-left [&_td]:py-2.5 [&_th]:bg-slate-300/40 [&_th]:py-2 [&_th]:text-slate-600 [&_tbody_tr]:border-slate-300 [&_tbody_tr:hover]:bg-slate-300/50">
+            <table className="w-full text-left [&_td]:py-2.5 [&_th]:py-2">
               <thead>
                 <tr>
                   <th className="tbl-head">Material</th>
@@ -441,7 +440,7 @@ export default function Dashboard() {
                       <td className="tbl-cell whitespace-nowrap text-right font-semibold text-emerald-700">{fmt(row.amount)}</td>
                       <td className="tbl-cell hidden md:table-cell">
                         <div className="flex items-center gap-2">
-                          <div className="h-2 w-32 overflow-hidden rounded-full bg-slate-400/50">
+                          <div className="h-2 w-32 overflow-hidden rounded-full bg-slate-100">
                             <div className="h-full rounded-full bg-emerald-500" style={{ width: `${share}%` }} />
                           </div>
                           <span className="text-xs font-medium text-slate-500">{fmtNum(Math.round(share))}%</span>
@@ -452,7 +451,7 @@ export default function Dashboard() {
                 })}
               </tbody>
               <tfoot>
-                <tr className="border-t border-slate-300 bg-slate-300/70">
+                <tr className="border-t border-slate-200 bg-slate-50">
                   <td className="tbl-cell font-bold text-slate-900">Total</td>
                   <td className="tbl-cell hidden text-right font-bold text-slate-900 sm:table-cell">{fmtNum(materialTotals.count)}</td>
                   <td className="tbl-cell whitespace-nowrap text-right font-bold text-slate-900">{fmtNum(toTons(materialTotals.netWeight))} tons</td>
@@ -467,7 +466,7 @@ export default function Dashboard() {
           </div>
         ) : (
           <div className="flex flex-col items-center gap-2 px-6 py-8 text-center">
-            <span className="flex h-11 w-11 items-center justify-center rounded-full bg-white text-slate-400">
+            <span className="flex h-11 w-11 items-center justify-center rounded-full bg-slate-100 text-slate-400">
               <Layers size={20} />
             </span>
             <p className="text-sm font-semibold text-slate-800">No sales in this period</p>
