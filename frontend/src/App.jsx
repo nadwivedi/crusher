@@ -133,6 +133,7 @@ function App() {
           <Route path="/reports/material-used-ledger" element={<MaterialUsedLedger />} />
           <Route path="/reports/diesel-consumption" element={<DieselConsumptionReport />} />
           <Route path="/reports/sales-report" element={<Sales />} />
+          <Route path="/reports/purchase-report" element={<Purchases />} />
           <Route
             path="/reports/sale-return-report"
             element={canViewSaleReturn ? <SaleReturn /> : <Navigate to="/reports" replace />}

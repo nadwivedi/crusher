@@ -6,14 +6,12 @@ import apiClient from '../../utils/api';
 import { useAuth } from '../../context/AuthContext';
 import { useFloatingDropdownPosition } from '../../utils/useFloatingDropdownPosition';
 import useAccounts from '../../utils/useAccounts';
-import Purchases from '../Purchases/Purchases';
 import CustomRangePopup, { CustomRangeButton } from '../../components/CustomRangePopup';
 import MonthPickerPopup, { MonthRangeButton, getMonthRange } from '../../components/MonthPickerPopup';
 import FormSection from '../../components/FormSection';
 import OptionList from '../../components/OptionList';
 import AddExpensePopup from './component/AddExpensePopup';
 import AddExpenseTypePopup from './component/AddExpenseTypePopup';
-import ExpenseTypePicker from './component/ExpenseTypePicker';
 
 const TOAST_OPTIONS = { autoClose: 1200 };
 
@@ -204,8 +202,6 @@ export default function Expenses({ modalOnly = false, onModalFinish = null }) {
   const [selectedYear, setSelectedYear] = useState(String(new Date().getFullYear()));
   const rangeBeforeCustomRef = useRef('lifetime');
   const [showForm, setShowForm] = useState(false);
-  const [showExpenseTypePicker, setShowExpenseTypePicker] = useState(false);
-  const [showPurchaseExpenseModal, setShowPurchaseExpenseModal] = useState(false);
   const [expenseEntryType, setExpenseEntryType] = useState('');
   const [showTypePopup, setShowTypePopup] = useState(false);
   const [newTypeName, setNewTypeName] = useState('');
@@ -282,13 +278,13 @@ export default function Expenses({ modalOnly = false, onModalFinish = null }) {
 
   useEffect(() => {
     const handleKeyDown = (event) => {
-      if (event.key === 'Escape' && !showForm && !showExpenseTypePicker && !showPurchaseExpenseModal && !showCustomPicker && !showMonthPicker) {
+      if (event.key === 'Escape' && !showForm && !showCustomPicker && !showMonthPicker) {
         navigate('/');
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [navigate, showForm, showExpenseTypePicker, showPurchaseExpenseModal, showCustomPicker, showMonthPicker]);
+  }, [navigate, showForm, showCustomPicker, showMonthPicker]);
 
   useEffect(() => {
     fetchExpenseGroups();
@@ -1002,8 +998,7 @@ export default function Expenses({ modalOnly = false, onModalFinish = null }) {
     setFormData(getInitialForm());
     setGoodsItem(getInitialGoodsItem());
     setGoodsItems([]);
-    setExpenseEntryType('');
-    setShowExpenseTypePicker(true);
+    setExpenseEntryType('normal');
     setExpenseGroupQuery('');
     setExpenseGroupListIndex(-1);
     setIsExpenseGroupSectionActive(false);
@@ -1014,38 +1009,12 @@ export default function Expenses({ modalOnly = false, onModalFinish = null }) {
     setMethodListIndex(0);
     setIsMethodSectionActive(false);
     setError('');
-    setShowForm(false);
-  };
-
-  const handleChooseExpenseType = (type) => {
-    if (type === 'purchase') {
-      setExpenseEntryType('');
-      setShowExpenseTypePicker(false);
-      setShowForm(false);
-      setShowPurchaseExpenseModal(true);
-      return;
-    }
-
-    setExpenseEntryType(type);
-    setShowExpenseTypePicker(false);
     setShowForm(true);
-
-    requestAnimationFrame(() => {
-      if (type === 'purchase') {
-        expenseGroupInputRef.current?.focus();
-        expenseGroupInputRef.current?.select?.();
-        return;
-      }
-      expenseGroupInputRef.current?.focus();
-      expenseGroupInputRef.current?.select?.();
-    });
   };
 
   const handleCloseForm = () => {
     setEditingId(null);
     setShowForm(false);
-    setShowExpenseTypePicker(false);
-    setShowPurchaseExpenseModal(false);
     setFormData(getInitialForm());
     setGoodsItem(getInitialGoodsItem());
     setGoodsItems([]);
@@ -1070,7 +1039,6 @@ export default function Expenses({ modalOnly = false, onModalFinish = null }) {
     const accountId = String(expense.account?._id || expense.account || defaultAccountId || '');
     setEditingId(expense._id);
     setExpenseEntryType('normal');
-    setShowExpenseTypePicker(false);
     setFormData({
       expenseGroup: expense.expenseGroup?._id || '',
       party: expense.party?._id || '',
@@ -1101,7 +1069,7 @@ export default function Expenses({ modalOnly = false, onModalFinish = null }) {
   };
 
   const renderExpenseActions = (expense, className = '') => {
-    if (!canManageExpenses || expense.isPurchase) return null;
+    if (!canManageExpenses) return null;
     const isGoods = Array.isArray(expense.items) && expense.items.length > 0;
 
     return (
@@ -1564,22 +1532,6 @@ export default function Expenses({ modalOnly = false, onModalFinish = null }) {
               <p className="mt-2 text-xs text-slate-400">Sorted by amount, highest first. Click a category to filter the table below.</p>
             </div>
           )}
-
-      <ExpenseTypePicker
-        open={showExpenseTypePicker}
-        onClose={handleCloseForm}
-        onChooseType={handleChooseExpenseType}
-      />
-
-      {showPurchaseExpenseModal && (
-        <Purchases
-          modalOnly
-          onModalFinish={() => {
-            setShowPurchaseExpenseModal(false);
-            setShowExpenseTypePicker(false);
-          }}
-        />
-      )}
 
       <AddExpenseTypePopup
         open={showTypePopup}
