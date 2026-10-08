@@ -4,6 +4,7 @@ import { Plus, Pencil, Search, Trash2, Truck, Scale, Users, ArrowLeft } from 'lu
 import { toast } from 'react-toastify';
 import apiClient from '../utils/api';
 import AddVehiclePopup from './Vehicle/component/AddVehiclePopup';
+import { getBasisLabel } from '../utils/transport';
 
 const TOAST_OPTIONS = { autoClose: 1200 };
 
@@ -264,7 +265,17 @@ export default function Vehicle() {
                           <div className="flex h-8 w-8 items-center justify-center rounded-full bg-indigo-100 text-indigo-600">
                             <Users className="h-4 w-4" />
                           </div>
-                          <span className="font-medium text-slate-700">{getPartyName(vehicle.partyId)}</span>
+                          <div className="min-w-0">
+                            <span className="block font-medium text-slate-700">
+                              {vehicle.ownership === 'own' ? 'My Vehicle' : getPartyName(vehicle.partyId)}
+                            </span>
+                            {vehicle.ownership === 'hired' && (
+                              <span className="block text-xs font-medium text-amber-700">
+                                Hired · {getBasisLabel(vehicle.hireBasis)}
+                                {Number(vehicle.hireRate || 0) > 0 ? ` @ Rs ${Number(vehicle.hireRate).toLocaleString('en-IN')}` : ''}
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </td>
                       <td className="px-6 py-4">

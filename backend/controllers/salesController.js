@@ -6,6 +6,11 @@ const Party = require("../models/Party");
 const Vehicle = require("../models/Vehicle");
 const { scopedFilter, scopedIdFilter } = require("../utils/ownership");
 const { resolveAccountId } = require("../utils/accounts");
+const {
+  resolveSaleTransport,
+  syncSaleTransportEntries,
+  deleteSaleTransportEntries,
+} = require("../utils/transport");
 
 const SALE_TYPES = {
   CREDIT: "credit",
@@ -262,8 +267,11 @@ const createSales = async (req, res) => {
       if (conflict) return res.status(409).json({ message: conflict });
     }
 
+    const transport = await resolveSaleTransport(normalizedBody, req.userId);
+
     const payload = {
       ...normalizedBody,
+      ...transport,
       userId: req.userId,
       saleDate: normalizedBody.saleDate || new Date(),
       invoiceNumber: manualInvoiceNumber || await createInvoiceNumber(req.userId, normalizedBody.saleDate),
@@ -274,6 +282,7 @@ const createSales = async (req, res) => {
 
     const sales = await Sales.create(payload);
     await syncSaleAutoReceipts(sales, req.userId);
+    await syncSaleTransportEntries(sales);
     return res.status(201).json(serializeSale(sales));
   } catch (error) {
     if (isDuplicateInvoiceError(error)) {
@@ -456,6 +465,11 @@ const editSales = async (req, res) => {
       updatePayload.account = await resolveAccountId(req.userId, updatePayload.account);
     }
 
+    // An update that sends no transport fields keeps the saved ones
+    if (Object.prototype.hasOwnProperty.call(updatePayload, "transportMode")) {
+      Object.assign(updatePayload, await resolveSaleTransport(updatePayload, req.userId));
+    }
+
     Object.assign(sales, updatePayload, {
       paidAmount: breakdown.paidAmount,
       type: breakdown.type,
@@ -463,6 +477,7 @@ const editSales = async (req, res) => {
 
     await sales.save();
     await syncSaleAutoReceipts(sales, req.userId);
+    await syncSaleTransportEntries(sales);
 
     return res.json(serializeSale(sales));
   } catch (error) {
@@ -495,6 +510,7 @@ const deleteSales = async (req, res) => {
       originSaleId: sales._id,
       receiptSource: { $in: AUTO_RECEIPT_SOURCES },
     });
+    await deleteSaleTransportEntries(req.userId, sales._id);
 
     return res.json({ message: "Sales deleted successfully" });
   } catch (error) {

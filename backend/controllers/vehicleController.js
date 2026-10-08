@@ -3,8 +3,9 @@ const Vehicle = require("../models/Vehicle");
 const Party = require("../models/Party");
 const { scopedFilter, scopedIdFilter } = require("../utils/ownership");
 
-const resolvePartyId = async (userId, partyId) => {
-  if (!partyId) {
+// My own vehicle belongs to no party
+const resolvePartyId = async (userId, partyId, ownership) => {
+  if (!partyId || ownership === "own") {
     return null;
   }
 
@@ -25,7 +26,7 @@ const createVehicle = async (req, res) => {
     const vehicle = await Vehicle.create({
       ...req.body,
       userId: req.userId,
-      partyId: await resolvePartyId(req.userId, req.body.partyId),
+      partyId: await resolvePartyId(req.userId, req.body.partyId, req.body.ownership),
     });
     return res.status(201).json(vehicle);
   } catch (error) {
@@ -82,8 +83,8 @@ const editVehicle = async (req, res) => {
 
   try {
     const updatePayload = { ...req.body };
-    if (Object.prototype.hasOwnProperty.call(req.body, "partyId")) {
-      updatePayload.partyId = await resolvePartyId(req.userId, req.body.partyId);
+    if (Object.prototype.hasOwnProperty.call(req.body, "partyId") || req.body.ownership === "own") {
+      updatePayload.partyId = await resolvePartyId(req.userId, req.body.partyId, req.body.ownership);
     }
 
     const vehicle = await Vehicle.findOneAndUpdate(scopedIdFilter(req, id), updatePayload, {

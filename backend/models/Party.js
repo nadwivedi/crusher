@@ -6,6 +6,9 @@ const normalizeRate = (value) => {
   return Number.isFinite(numericValue) && numericValue >= 0 ? numericValue : 0;
 };
 
+// Parties I normally owe money to, so their opening balance defaults to payable
+const PAYABLE_PARTY_TYPES = ["supplier", "transporter"];
+
 const partySchema = new mongoose.Schema(
   {
     userId: {
@@ -58,7 +61,7 @@ const partySchema = new mongoose.Schema(
     type: {
       type: String,
       required: true,
-      enum: ["customer", "supplier", "cash-in-hand"],
+      enum: ["customer", "supplier", "transporter", "cash-in-hand"],
       lowercase: true,
       trim: true,
     },
@@ -140,7 +143,7 @@ partySchema.virtual("balance")
     const numericValue = Number(value || 0);
     if (!Number.isFinite(numericValue)) {
       this.openingBalance = 0;
-      this.openingBalanceType = this.type === "supplier" ? "payable" : "receivable";
+      this.openingBalanceType = PAYABLE_PARTY_TYPES.includes(this.type) ? "payable" : "receivable";
       return;
     }
 
@@ -164,7 +167,7 @@ partySchema.pre("validate", function syncLegacyFields() {
   }
 
   if (!this.openingBalanceType) {
-    this.openingBalanceType = this.type === "supplier" ? "payable" : "receivable";
+    this.openingBalanceType = PAYABLE_PARTY_TYPES.includes(this.type) ? "payable" : "receivable";
   }
 });
 

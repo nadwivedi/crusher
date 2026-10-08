@@ -1,17 +1,20 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { CalendarDays, Plus, Search, Truck } from 'lucide-react';
+import { Banknote, ClipboardList, CreditCard, Eye, Inbox, IndianRupee, Layers, Pencil, Plus, RefreshCw, Scale, Search, Trash2, X } from 'lucide-react';
 import { toast } from 'react-toastify';
 import apiClient from '../../utils/api';
 import { useAuth } from '../../context/AuthContext';
 import { getSmartVehicleMatch, normalizeVehicleValue } from '../../utils/vehicleMatching';
 import useAccounts from '../../utils/useAccounts';
+import { getOwnershipLabel, getSaleTransport, getSaleTransportCharge } from '../../utils/transport';
 import AddPartyPopup from '../Party/component/AddPartyPopup';
 import AddProductPopup from '../Products/component/AddProductPopup';
 import AddVehiclePopup from '../Vehicle/component/AddVehiclePopup';
 import AddSalePopup from './component/AddSalePopup';
-import CustomRangePopup, { CustomRangeButton } from '../../components/CustomRangePopup';
-import MonthPickerPopup, { MonthRangeButton } from '../../components/MonthPickerPopup';
+import StatCard from '../../components/StatCard';
+import Segmented from '../../components/Segmented';
+import CustomRangePopup, { formatRangeLabel } from '../../components/CustomRangePopup';
+import MonthPickerPopup, { formatMonthLabel } from '../../components/MonthPickerPopup';
 
 const isCompleteVehicleNumber = (value) => normalizeVehicleValue(value).length >= 9;
 
@@ -99,6 +102,36 @@ const parseSaleDate = (value) => {
   return date;
 };
 
+// Transport fields of a sale carried by the party's own vehicle
+const NO_SALE_TRANSPORT = {
+  transportMode: 'party',
+  transportCharge: '',
+  transporterId: '',
+  transportBasis: 'per_ton',
+  transportQty: '',
+  transportRate: ''
+};
+
+// The transport fields a sale starts with when this vehicle is picked
+const getVehicleTransportDefaults = (vehicle, currentCharge = '') => {
+  if (vehicle?.ownership === 'own') {
+    return { ...NO_SALE_TRANSPORT, transportMode: 'own', transportCharge: currentCharge };
+  }
+
+  if (vehicle?.ownership === 'hired') {
+    return {
+      ...NO_SALE_TRANSPORT,
+      transportMode: 'hired',
+      transportCharge: currentCharge,
+      transporterId: typeof vehicle.partyId === 'object' ? vehicle.partyId?._id || '' : vehicle.partyId || '',
+      transportBasis: vehicle.hireBasis || 'per_ton',
+      transportRate: Number(vehicle.hireRate || 0) > 0 ? String(vehicle.hireRate) : ''
+    };
+  }
+
+  return { ...NO_SALE_TRANSPORT };
+};
+
 const getInitialFormData = () => ({
   saleDate: formatDateForInput(),
   invoiceNumber: '',
@@ -117,6 +150,7 @@ const getInitialFormData = () => ({
   pricingMode: 'per_ton',
   cubicMeterQty: '',
   rate: '',
+  ...NO_SALE_TRANSPORT,
   totalAmount: 0,
   paidAmount: '',
   account: '',
@@ -212,12 +246,13 @@ const getSaleRateForParty = (user, party, materialType, pricingMode = 'per_ton')
   return getCrusherMaterialRate(user, materialType, pricingMode);
 };
 
+// Material amount plus the transport charged to the party
 const recalculateSaleAmount = (payload = {}) => calculateSaleTotalAmount({
   pricingMode: payload.pricingMode,
   netWeight: payload.netWeight,
   cubicMeterQty: payload.cubicMeterQty,
   rate: payload.rate,
-});
+}) + getSaleTransportCharge(payload);
 
 const deriveSaleType = (totalAmountValue, paidAmountValue) => {
   const totalAmount = Math.max(0, Number(totalAmountValue || 0));
@@ -234,41 +269,30 @@ const formatSaleTypeLabel = (value) => {
   return 'Credit';
 };
 
-const getSaleQtyLabel = (sale) => {
-  if (sale?.pricingMode === 'per_cubic_meter') {
-    return `${Number(sale?.cubicMeterQty || 0).toLocaleString('en-IN', {
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 2
-    })} m³`;
-  }
+const formatQty = (value) => Number(value || 0).toLocaleString('en-IN', {
+  minimumFractionDigits: 0,
+  maximumFractionDigits: 2
+});
 
-  const netWeight = Number(sale?.netWeight || sale?.materialWeight || 0);
-  const tonQty = (netWeight / 1000).toLocaleString('en-IN', {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 3
-  });
-
-  return `${netWeight.toLocaleString('en-IN')} kg (${tonQty} ton)`;
+const formatDate = (value) => {
+  const date = value ? new Date(value) : null;
+  if (!date || Number.isNaN(date.getTime())) return '-';
+  return date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 };
 
-const getSaleRateLabel = (sale) => {
-  const rate = Number(sale?.rate || 0);
-  const unit = sale?.pricingMode === 'per_cubic_meter' ? 'm³' : 'ton';
-  return `${rate.toLocaleString('en-IN', {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 2
-  })} Rs/${unit}`;
+const entryCount = (count) => `${formatQty(count)} entr${count === 1 ? 'y' : 'ies'}`;
+
+const getSaleRateLabel = (sale) => (
+  `₹${formatQty(sale?.rate)}/${sale?.pricingMode === 'per_cubic_meter' ? 'm³' : 'T'}`
+);
+
+// Tons sold of a material, plus the cubic meters of its sales made by volume
+const getMaterialQtyLabel = (row) => {
+  const tons = `${formatQty(row.totalWeight / 1000)} T`;
+  return row.totalCubicMeter > 0 ? `${tons} + ${formatQty(row.totalCubicMeter)} m³` : tons;
 };
 
-const getNetWeightWithTonLabel = (sale) => {
-  const netWeight = Number(sale?.netWeight || sale?.materialWeight || 0);
-  const tonQty = (netWeight / 1000).toLocaleString('en-IN', {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 3
-  });
-
-  return `${netWeight.toLocaleString('en-IN')} kg (${tonQty} ton)`;
-};
+const SALE_TYPE_BADGE = { cash: 'badge-green', partial: 'badge-orange', credit: 'badge-red' };
 
 const getSaleBasisDisplayName = (value) => (
   SALE_BASIS_OPTIONS.find((option) => option.value === value)?.label || 'Per Ton'
@@ -298,16 +322,27 @@ const sortVehiclesByTypePreference = (vehicles, preferredType) => [...vehicles].
   return String(a?.vehicleNo || '').localeCompare(String(b?.vehicleNo || ''));
 });
 
+// Period pills; the keys are the ranges getRangeBounds understands
 const SALES_RANGE_OPTIONS = [
-  { value: '3d', label: 'Last 3 Days' },
-  { value: '7d', label: 'Last 7 Days' },
-  { value: '30d', label: 'Last 30 Days' },
-  { value: '90d', label: 'Last 90 Days' },
-  { value: 'currentYear', label: 'Current Year' },
-  { value: 'month', label: 'Month Wise' },
-  { value: 'lifetime', label: 'Lifetime' },
-  { value: 'custom', label: 'Custom Range' }
+  { key: 'lifetime', label: 'All' },
+  { key: '3d', label: '3 Days' },
+  { key: '7d', label: '7 Days' },
+  { key: '30d', label: '30 Days' },
+  { key: '90d', label: '90 Days' },
+  { key: 'month', label: 'Month' },
+  { key: 'currentYear', label: 'This Year', shortLabel: 'Year' },
+  { key: 'custom', label: 'Custom' }
 ];
+
+// The two views of the data panel
+const TABS = [
+  { key: 'entries', label: 'Entries', icon: ClipboardList },
+  { key: 'materials', label: 'Material-wise', icon: Layers }
+];
+
+// Table cells a little tighter than the app default, so every column fits without scrolling
+const TH = 'tbl-head px-3 py-2 first:pl-5 last:pr-5';
+const TD = 'tbl-cell px-3 py-2 first:pl-5 last:pr-5';
 
 const SALES_PAGE_SIZE = 50;
 
@@ -348,6 +383,15 @@ const getRangeBounds = (range, customFrom = '', customTo = '', month = '', year 
 
   return {};
 };
+
+/** Vehicle number as a small monospace chip. */
+function Plate({ children }) {
+  return (
+    <span className="inline-block max-w-full truncate rounded-md bg-slate-100 px-2 py-0.5 align-middle font-mono text-xs font-semibold tracking-wide text-slate-800 ring-1 ring-inset ring-slate-200">
+      {children}
+    </span>
+  );
+}
 
 export default function Sales({ modalOnly = false, onModalFinish = null }) {
   const toastOptions = { autoClose: 1200 };
@@ -396,6 +440,7 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
   const [showCustomPicker, setShowCustomPicker] = useState(false);
   const [materialStats, setMaterialStats] = useState([]);
   const [materialFilter, setMaterialFilter] = useState('');
+  const [tab, setTab] = useState('entries');
   const [summary, setSummary] = useState({ totalAmount: 0, cashAmount: 0, creditAmount: 0, totalWeight: 0, count: 0 });
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [page, setPage] = useState(1);
@@ -730,6 +775,13 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
     return [...startsWith, ...includes];
   }, [materialQuery, isMaterialSectionActive, formData.materialType]);
   const isCashParty = String(selectedLeadger?.type || '').trim().toLowerCase() === 'cash-in-hand';
+  // Who a vehicle can be hired from: transporters first, never the cash party
+  const transportParties = useMemo(() => leadgers
+    .filter((leadger) => String(leadger.type || '').toLowerCase() !== 'cash-in-hand')
+    .sort((a, b) => (
+      Number(b.type === 'transporter') - Number(a.type === 'transporter')
+      || String(a.name || '').localeCompare(String(b.name || ''))
+    )), [leadgers]);
   const paidAmount = Math.max(0, Number(formData.paidAmount || 0));
   const totalAmountValue = Math.max(0, Number(formData.totalAmount || 0));
   const saleTypePreview = formatSaleTypeLabel(deriveSaleType(totalAmountValue, paidAmount));
@@ -1040,7 +1092,8 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
     setOcrVehicleMismatch(null);
     const vehicleNumber = getVehicleDisplayName(vehicle);
     const unladenWeight = vehicle?.unladenWeight ?? '';
-    const linkedPartyId = getVehiclePartyId(vehicle);
+    // Only a party's own vehicle tells us who the buyer is; a hired vehicle's party is its transporter
+    const linkedPartyId = (vehicle.ownership || 'party') === 'party' ? getVehiclePartyId(vehicle) : '';
     const linkedParty = linkedPartyId
       ? partyOptions.find((party) => String(party._id) === String(linkedPartyId))
       : null;
@@ -1049,6 +1102,7 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
     setFormData((prev) => {
       const nextState = {
         ...prev,
+        ...getVehicleTransportDefaults(vehicle, prev.transportCharge),
         vehicleId: vehicle._id,
         vehicleNo: vehicleNumber,
         tareWeight: unladenWeight,
@@ -1110,12 +1164,19 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
       return matchedVehicle._id;
     }
 
+      // A new vehicle is saved the way this sale uses it: the party's, mine, or hired from the transporter
+      const isHiredVehicle = formData.transportMode === 'hired' && Boolean(formData.transporterId);
+      const isOwnVehicle = formData.transportMode === 'own';
       const createdVehicle = await apiClient.post('/vehicles', {
-        partyId,
+        partyId: isOwnVehicle ? undefined : isHiredVehicle ? formData.transporterId : partyId,
         vehicleNo: String(formData.vehicleNo || '').trim().toUpperCase(),
         unladenWeight: Number(formData.tareWeight || 0),
         capacityCubicMeter: Number(formData.cubicMeterQty || 0),
-        vehicleType: 'sales'
+        vehicleType: 'sales',
+        ownership: isOwnVehicle ? 'own' : isHiredVehicle ? 'hired' : 'party',
+        ...(isHiredVehicle
+          ? { hireBasis: formData.transportBasis || 'per_ton', hireRate: Number(formData.transportRate || 0) }
+          : {})
       });
 
     if (createdVehicle?._id) {
@@ -1302,7 +1363,7 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
       setPartyFormData((prev) => ({
         ...prev,
         [name]: value,
-        openingBalanceType: prev.openingBalance ? prev.openingBalanceType : (value === 'supplier' ? 'payable' : 'receivable')
+        openingBalanceType: prev.openingBalance ? prev.openingBalanceType : (['supplier', 'transporter'].includes(value) ? 'payable' : 'receivable')
       }));
       return;
     }
@@ -1516,6 +1577,21 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
     };
     setFormData({ ...nextState, totalAmount: recalculateSaleAmount(nextState) });
     setBasisListIndex(SALE_BASIS_OPTIONS.findIndex((option) => option.value === value));
+  };
+
+  // Party vehicle / my vehicle / hired vehicle. Switching to hired fills in the picked vehicle's transporter and rate.
+  const selectTransportMode = (mode) => {
+    setFormData((prev) => {
+      if (prev.transportMode === mode) return prev;
+
+      const selectedVehicle = vehicles.find((vehicle) => String(vehicle._id) === String(prev.vehicleId || ''));
+      const vehicleDefaults = selectedVehicle?.ownership === mode
+        ? getVehicleTransportDefaults(selectedVehicle, prev.transportCharge)
+        : { ...NO_SALE_TRANSPORT, transportMode: mode, transportCharge: mode === 'party' ? '' : prev.transportCharge };
+      const nextState = { ...prev, ...vehicleDefaults };
+
+      return { ...nextState, totalAmount: recalculateSaleAmount(nextState) };
+    });
   };
 
   const handleBasisInputKeyDown = (e) => {
@@ -1885,6 +1961,11 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
       setFormData({ ...formData, rate: value, totalAmount });
       return;
     }
+    if (name === 'transportCharge') {
+      const nextState = { ...formData, transportCharge: value };
+      setFormData({ ...nextState, totalAmount: recalculateSaleAmount(nextState) });
+      return;
+    }
     setFormData({ ...formData, [name]: value });
   };
 
@@ -1913,7 +1994,7 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
       return;
     }
 
-    if (!['supplier', 'customer', 'cash-in-hand'].includes(partyFormData.type)) {
+    if (!['supplier', 'customer', 'transporter', 'cash-in-hand'].includes(partyFormData.type)) {
       setPartyPopupError('Party type is required');
       return;
     }
@@ -2098,6 +2179,10 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
       setError('Paid amount cannot be negative');
       return;
     }
+    if (formData.transportMode === 'hired' && !formData.transporterId) {
+      setError('Please select the transporter for the hired vehicle');
+      return;
+    }
     const parsedSaleDate = parseSaleDate(formData.saleDate);
     if (!parsedSaleDate) {
       setError('Please select a valid sale date');
@@ -2126,6 +2211,12 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
         pricingMode: formData.pricingMode || 'per_ton',
         cubicMeterQty: Number(formData.cubicMeterQty || 0),
         rate: Number(formData.rate || 0),
+        transportMode: formData.transportMode || 'party',
+        transportCharge: getSaleTransportCharge(formData),
+        transporterId: formData.transportMode === 'hired' ? formData.transporterId : undefined,
+        transportBasis: formData.transportBasis || 'per_ton',
+        transportQty: getSaleTransport(formData).qty,
+        transportRate: Number(formData.transportRate || 0),
         totalAmount: Number(formData.totalAmount || 0),
         paidAmount: Number(formData.paidAmount || 0),
         account: formData.account || defaultAccountId || undefined,
@@ -2195,6 +2286,12 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
           pricingMode: sale.pricingMode || 'per_ton',
           cubicMeterQty: sale.cubicMeterQty || '',
           rate: sale.rate || '',
+        transportMode: sale.transportMode || 'party',
+        transportCharge: sale.transportCharge || '',
+        transporterId: sale.transporterId?._id || sale.transporterId || '',
+        transportBasis: sale.transportBasis || 'per_ton',
+        transportQty: sale.transportQty || '',
+        transportRate: sale.transportRate || '',
         totalAmount: sale.totalAmount || 0,
         paidAmount: sale.paidAmount ?? '',
         account: sale.account?._id || sale.account || '',
@@ -2284,8 +2381,6 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
   };
 
 
-  const visibleSales = sales;
-
   const popupFieldClass = 'w-full rounded-lg border border-indigo-200 bg-white px-3 py-2 text-sm font-medium text-gray-900 transition-all focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200';
   const popupLabelClass = 'mb-1 block text-[11px] font-semibold uppercase tracking-wide text-slate-600';
   const popupSectionClass = 'rounded-xl border-2 border-indigo-200 bg-gradient-to-r from-blue-50 to-indigo-50 p-3 md:p-4';
@@ -2372,6 +2467,8 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
             handleBasisInputKeyDown={handleBasisInputKeyDown}
             getSaleBasisDisplayName={getSaleBasisDisplayName}
             selectPricingMode={selectPricingMode}
+            transportParties={transportParties}
+            selectTransportMode={selectTransportMode}
             onOpenNewVehicle={openInlineVehicleForm}
             onOpenNewParty={openInlinePartyForm}
           handleProductFocus={handleProductFocus}
@@ -2427,16 +2524,115 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
     );
   }
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-100 via-slate-50 to-stone-100">
-      <div className="mx-auto max-w-[95%] px-4 py-6">
+  // The popup shares `loading` while it saves; the list behind it should not react to that
+  const listLoading = loading && !showForm;
+  const initialLoading = listLoading && sales.length === 0;
+  const hasFilters = Boolean(debouncedSearch || materialFilter || tableRange !== 'lifetime');
 
-      {error && (
-        <div className="mb-6 rounded-2xl border border-rose-200 bg-rose-50 px-6 py-4 text-sm font-semibold text-rose-700 shadow-lg">
-          {error}
-        </div>
+  const periodLabel = (() => {
+    if (tableRange === 'month') return formatMonthLabel(selectedMonth, selectedYear);
+    if (tableRange === 'custom') return formatRangeLabel(customFrom, customTo);
+    if (tableRange === 'lifetime') return 'All time';
+    const { from, to } = getRangeBounds(tableRange);
+    return `${formatDate(from)} – ${formatDate(to)}`;
+  })();
+
+  // Material rows cover every material of the period; the summary follows the material filter
+  const materialTotals = materialStats.reduce((acc, row) => {
+    acc.count += Number(row.count || 0);
+    acc.totalAmount += Number(row.totalAmount || 0);
+    acc.totalWeight += Number(row.totalWeight || 0);
+    acc.totalCubicMeter += Number(row.totalCubicMeter || 0);
+    return acc;
+  }, { count: 0, totalAmount: 0, totalWeight: 0, totalCubicMeter: 0 });
+  const maxMaterialAmount = materialStats[0]?.totalAmount || 0;
+  const summaryCubicMeter = materialFilter
+    ? Number(materialStats.find((row) => row.materialType === materialFilter.toLowerCase())?.totalCubicMeter || 0)
+    : materialTotals.totalCubicMeter;
+
+  const shareOfSales = (amount) => (
+    summary.totalAmount > 0 ? `${((amount / summary.totalAmount) * 100).toFixed(0)}% of sales` : 'No sales'
+  );
+
+  const stats = [
+    { icon: IndianRupee, label: 'Total Sales', tone: 'emerald', value: formatRupees(summary.totalAmount), hint: entryCount(summary.count) },
+    { icon: Banknote, label: 'Cash Sale', tone: 'blue', value: formatRupees(summary.cashAmount), hint: shareOfSales(summary.cashAmount) },
+    { icon: CreditCard, label: 'Credit Sale', tone: 'rose', value: formatRupees(summary.creditAmount), hint: shareOfSales(summary.creditAmount) },
+    {
+      icon: Scale, label: 'Material Sold', tone: 'indigo',
+      value: `${formatQty(summary.totalWeight / 1000)} tons`,
+      hint: summaryCubicMeter > 0 ? `+ ${formatQty(summaryCubicMeter)} m³ by volume` : `${formatQty(summary.totalWeight)} kg`
+    }
+  ];
+
+  // Picking a material in the material-wise list opens its entries
+  const openMaterial = (materialType) => {
+    setMaterialFilter(materialType);
+    setTab('entries');
+  };
+
+  // The values a sale row shows, worked out once for the phone list and the table
+  const describeSale = (sale) => {
+    const total = Number(sale.totalAmount || 0);
+    const paid = Number(sale.paidAmount || 0);
+    const transporter = sale.transportMode === 'hired' ? resolveLeadgerNameById(sale.transporterId) : '';
+    const ownVehicle = sale.transportMode && sale.transportMode !== 'party' ? getOwnershipLabel(sale.transportMode) : '';
+
+    return {
+      party: resolveLeadgerNameById(sale.partyId || sale.party) || sale.customerName || '—',
+      material: String(sale.materialType || sale.stoneSize || '').trim(),
+      isCubic: sale.pricingMode === 'per_cubic_meter',
+      netWeight: Number(sale.netWeight || sale.materialWeight || 0),
+      transportNote: transporter ? `${ownVehicle} · ${transporter}` : ownVehicle,
+      transportCharge: getSaleTransportCharge(sale),
+      paid,
+      // Only a part-paid sale needs its balance spelled out; the Cash / Credit badge says the rest
+      balance: paid > 0 && total > paid ? total - paid : 0
+    };
+  };
+
+  const renderMaterial = (material) => (material
+    ? <span className={`inline-flex shrink-0 rounded-full px-2 py-0.5 text-[11px] font-bold uppercase ${getMaterialBadgeClass(material)}`}>{material}</span>
+    : <span className="text-slate-400">—</span>);
+
+  const renderActions = (sale) => (
+    <div className="flex items-center justify-end">
+      {sale.slipImg && (
+        <a href={sale.slipImg} target="_blank" rel="noreferrer" title="View slip" aria-label="View slip" className="icon-btn inline-flex p-1.5 hover:bg-blue-50 hover:text-blue-600">
+          <Eye size={16} />
+        </a>
       )}
+      {canManageSales && (
+        <>
+          <button type="button" title="Edit" aria-label="Edit" className="icon-btn p-1.5 hover:bg-blue-50 hover:text-blue-600" onClick={() => handleEdit(sale)}>
+            <Pencil size={16} />
+          </button>
+          <button type="button" title="Delete" aria-label="Delete" className="icon-btn p-1.5 hover:bg-rose-50 hover:text-rose-600" onClick={() => handleDelete(sale._id)}>
+            <Trash2 size={16} />
+          </button>
+        </>
+      )}
+    </div>
+  );
 
+  const renderEmpty = (title, text) => (
+    <div className="flex flex-col items-center gap-2 px-6 py-10 text-center">
+      <span className="flex h-11 w-11 items-center justify-center rounded-full bg-slate-100 text-slate-400">
+        <Inbox size={20} />
+      </span>
+      <p className="text-sm font-semibold text-slate-800">{title}</p>
+      <p className="text-xs text-slate-500">{text}</p>
+    </div>
+  );
+
+  const materialBar = (row) => (
+    <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-100">
+      <div className="h-full rounded-full bg-emerald-500" style={{ width: `${maxMaterialAmount > 0 ? Math.max((row.totalAmount / maxMaterialAmount) * 100, 2) : 0}%` }} />
+    </div>
+  );
+
+  return (
+    <div className="page-fade-in space-y-3.5 px-3 pb-6 pt-3.5 md:space-y-4 lg:px-6 lg:pt-4">
       <AddSalePopup
         showForm={showForm}
         editingId={editingId}
@@ -2512,6 +2708,8 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
         handleBasisInputKeyDown={handleBasisInputKeyDown}
         getSaleBasisDisplayName={getSaleBasisDisplayName}
         selectPricingMode={selectPricingMode}
+        transportParties={transportParties}
+        selectTransportMode={selectTransportMode}
         onOpenNewVehicle={openInlineVehicleForm}
         onOpenNewParty={openInlinePartyForm}
         handleProductFocus={handleProductFocus}
@@ -2575,313 +2773,313 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
           onClose={closeMonthPicker}
         />
       )}
-      <div className="mb-6 overflow-hidden rounded-3xl border border-slate-100 bg-white shadow-xl">
-        <div className="border-b border-slate-100 bg-white px-6 py-5">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <h2 className="text-lg font-black text-slate-800">Sales Table</h2>
-              <p className="text-sm text-slate-500">Search and review sale entries</p>
-            </div>
+      {/* The page is three blocks, like the Boulder Ledger: period filter, the period's totals, then one panel with the data */}
+      <div className="page-header gap-2.5">
+        <div className="min-w-0">
+          <h1 className="page-title">Sales Report</h1>
+          <p className="page-subtitle">Crushed material sold · {periodLabel}</p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <Segmented options={SALES_RANGE_OPTIONS} value={tableRange} onChange={handleRangeChange} />
+          {canCreateSales && (
+            <button type="button" className="btn-primary" onClick={handleOpenForm}>
+              <Plus size={18} /> New Sale
+            </button>
+          )}
+        </div>
+      </div>
 
-            <div className="flex flex-col gap-3 sm:flex-row">
-              <div className="relative">
-                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+      {error && (
+        <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm font-semibold text-rose-700">{error}</div>
+      )}
+
+      <section className={`grid grid-cols-2 gap-2 transition-opacity md:gap-3 lg:grid-cols-4 ${listLoading ? 'opacity-50' : ''}`}>
+        {stats.map((stat) => <StatCard key={stat.label} compact {...stat} />)}
+      </section>
+
+      <section className="panel">
+        <div className="panel-header py-2.5 flex flex-wrap items-center justify-between gap-2.5">
+          <Segmented options={TABS} value={tab} onChange={setTab} />
+          <div className="flex min-w-0 flex-1 basis-56 items-center justify-end gap-2">
+            {tab === 'entries' && materialFilter && (
+              <button
+                type="button"
+                onClick={() => setMaterialFilter('')}
+                title="Show all materials"
+                className="inline-flex shrink-0 items-center gap-1 rounded-full bg-primary-600 px-2.5 py-1 text-xs font-semibold uppercase text-white transition hover:bg-primary-700"
+              >
+                {materialFilter}
+                <X size={14} />
+              </button>
+            )}
+            {tab === 'entries' && (
+              <div className="relative min-w-0 flex-1 md:max-w-64">
+                <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                 <input
-                  type="text"
-                  placeholder="Search sales..."
+                  type="search"
+                  className="input pl-9"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  className="w-full rounded-xl border-2 border-slate-400 bg-white py-2.5 pl-10 pr-4 text-sm font-medium text-slate-700 transition-all focus:border-sky-500 focus:outline-none focus:ring-4 focus:ring-sky-100 sm:w-64"
+                  placeholder="Search party, vehicle or invoice"
                 />
               </div>
-
-              <div className="relative">
-                <CalendarDays className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                <select
-                  value={tableRange}
-                  onChange={(e) => handleRangeChange(e.target.value)}
-                  className="w-full rounded-xl border-2 border-slate-300 bg-white py-2.5 pl-10 pr-4 text-sm font-medium text-slate-700 transition-all focus:border-sky-500 focus:outline-none focus:ring-4 focus:ring-sky-100 sm:w-52"
-                >
-                  {SALES_RANGE_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>{option.label}</option>
-                  ))}
-                </select>
-              </div>
-
-              {tableRange === 'month' && (
-                <MonthRangeButton month={selectedMonth} year={selectedYear} onClick={openMonthPicker} />
-              )}
-
-              {tableRange === 'custom' && (
-                <CustomRangeButton from={customFrom} to={customTo} onClick={openCustomPicker} />
-              )}
-
-              {canCreateSales && (
-                <button
-                  onClick={handleOpenForm}
-                  className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl bg-slate-800 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-900"
-                >
-                  <Plus className="h-4 w-4" />
-                  New Sale
-                </button>
-              )}
-            </div>
+            )}
+            <button type="button" className="icon-btn shrink-0" title="Refresh" aria-label="Refresh" onClick={fetchSales}>
+              <RefreshCw size={16} className={listLoading ? 'animate-spin' : ''} />
+            </button>
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-3 border-b border-slate-100 bg-slate-50 px-6 py-4 lg:grid-cols-4">
-          {[
-            { label: 'Total Sales', value: formatRupees(summary.totalAmount), tone: 'text-emerald-700' },
-            { label: 'Cash Sale', value: formatRupees(summary.cashAmount), tone: 'text-sky-700' },
-            { label: 'Credit Sale', value: formatRupees(summary.creditAmount), tone: 'text-rose-700' },
-            { label: 'Entries / Weight', value: `${summary.count} / ${(summary.totalWeight / 1000).toLocaleString('en-IN', { maximumFractionDigits: 2 })} ton`, tone: 'text-slate-800' }
-          ].map((card) => (
-            <div key={card.label} className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{card.label}</p>
-              <p className={`mt-1 text-lg font-black ${card.tone}`}>{card.value}</p>
-            </div>
-          ))}
-        </div>
-
-        {materialStats.length > 0 && (
-          <div className="border-b border-slate-100 px-6 py-4">
-            <div className="mb-3 flex items-center justify-between">
-              <h3 className="text-sm font-black text-slate-800">Material Wise Sales</h3>
-              {materialFilter && (
-                <button
-                  onClick={() => setMaterialFilter('')}
-                  className="text-xs font-semibold text-sky-600 hover:underline"
-                >
-                  Clear filter
-                </button>
-              )}
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[520px] text-sm">
-                <thead>
-                  <tr className="text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    <th className="py-2 pr-3">#</th>
-                    <th className="py-2 pr-3">Material</th>
-                    <th className="py-2 pr-3 text-right">Entries</th>
-                    <th className="py-2 pr-3 text-right">Quantity</th>
-                    <th className="py-2 pr-3 text-right">Amount</th>
-                    <th className="py-2 text-right">Share</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {materialStats.map((item, index) => {
-                    const grandTotal = materialStats.reduce((sum, row) => sum + row.totalAmount, 0);
-                    const share = grandTotal > 0 ? (item.totalAmount / grandTotal) * 100 : 0;
-                    const active = materialFilter.toLowerCase() === item.materialType;
-                    return (
-                      <tr
-                        key={item.materialType}
-                        onClick={() => setMaterialFilter(active ? '' : item.materialType)}
-                        className={`cursor-pointer border-t border-slate-100 hover:bg-slate-50 ${active ? 'bg-sky-50' : ''}`}
-                      >
-                        <td className="py-2 pr-3 text-slate-500">{index + 1}</td>
-                        <td className="py-2 pr-3">
-                          <span className={`rounded-full px-2.5 py-0.5 text-xs font-bold uppercase ${getMaterialBadgeClass(item.materialType)}`}>
-                            {item.materialType}
-                          </span>
-                        </td>
-                        <td className="py-2 pr-3 text-right text-slate-700">{item.count}</td>
-                        <td className="py-2 pr-3 text-right text-slate-700">
-                          {(item.totalWeight / 1000).toLocaleString('en-IN', { maximumFractionDigits: 2 })} ton
-                          {item.totalCubicMeter > 0 && ` + ${item.totalCubicMeter.toLocaleString('en-IN', { maximumFractionDigits: 2 })} m³`}
-                        </td>
-                        <td className="py-2 pr-3 text-right font-bold text-slate-800">{formatRupees(item.totalAmount)}</td>
-                        <td className="py-2 text-right text-slate-500">{share.toFixed(1)}%</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-            <p className="mt-2 text-xs text-slate-400">Sorted by sales amount, highest first. Click a material to filter the table below.</p>
+        {initialLoading ? (
+          <div className="flex flex-col items-center gap-3 py-16">
+            <div className="h-9 w-9 animate-spin rounded-full border-4 border-primary-600 border-r-transparent" />
+            <p className="text-sm text-slate-400">Loading sales…</p>
           </div>
-        )}
-
-      {/* Sales List */}
-      {loading && !showForm ? (
-        <div className="px-6 py-10 text-center text-slate-500">Loading...</div>
-      ) : visibleSales.length === 0 ? (
-        <div className="px-6 py-16 text-center text-slate-500">
-          No sales found. Create your first sale!
-        </div>
-      ) : (
-        <div className="p-3 sm:p-5">
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[1180px] text-left">
-              <thead>
-                <tr>
-                  <th className="bg-gradient-to-r from-slate-800 via-slate-700 to-slate-800 px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-white lg:px-4 lg:py-3 lg:text-[10px] xl:px-6 xl:py-4 xl:text-xs">Date</th>
-                  <th className="bg-gradient-to-r from-slate-800 via-slate-700 to-slate-800 px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-white lg:px-4 lg:py-3 lg:text-[10px] xl:px-6 xl:py-4 xl:text-xs">Vehicle/Party</th>
-                  <th className="bg-gradient-to-r from-slate-800 via-slate-700 to-slate-800 px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-white lg:px-4 lg:py-3 lg:text-[10px] xl:px-6 xl:py-4 xl:text-xs">Material</th>
-                  <th className="bg-gradient-to-r from-slate-800 via-slate-700 to-slate-800 px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-white lg:px-4 lg:py-3 lg:text-[10px] xl:px-6 xl:py-4 xl:text-xs">Entry/Exit</th>
-                  <th className="bg-gradient-to-r from-slate-800 via-slate-700 to-slate-800 px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-white lg:px-4 lg:py-3 lg:text-[10px] xl:px-6 xl:py-4 xl:text-xs">Qty</th>
-                  <th className="bg-gradient-to-r from-slate-800 via-slate-700 to-slate-800 px-6 py-4 text-center text-xs font-bold uppercase tracking-wider text-white lg:px-4 lg:py-3 lg:text-[10px] xl:px-6 xl:py-4 xl:text-xs">Sale Type</th>
-                  <th className="bg-gradient-to-r from-slate-800 via-slate-700 to-slate-800 px-6 py-4 text-right text-xs font-bold uppercase tracking-wider text-white lg:px-4 lg:py-3 lg:text-[10px] xl:px-6 xl:py-4 xl:text-xs">Total</th>
-                  <th className="bg-gradient-to-r from-slate-800 via-slate-700 to-slate-800 px-6 py-4 text-center text-xs font-bold uppercase tracking-wider text-white lg:px-4 lg:py-3 lg:text-[10px] xl:px-6 xl:py-4 xl:text-xs">Slip</th>
-                  {canManageSales && (
-                    <th className="bg-gradient-to-r from-slate-800 via-slate-700 to-slate-800 px-6 py-4 text-center text-xs font-bold uppercase tracking-wider text-white lg:px-4 lg:py-3 lg:text-[10px] xl:px-6 xl:py-4 xl:text-xs">Actions</th>
-                  )}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {visibleSales.map((sale) => {
-                  return (
-                  <tr key={sale._id} className="transition-colors hover:bg-sky-50/50">
-                    <td className="px-6 py-4">
-                      <div className="space-y-1">
-                        <p className="text-xs font-medium text-slate-700">
-                          {new Date(sale.saleDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
-                        </p>
-                        <button
-                          type="button"
-                          onClick={() => handleOpenInvoicePdf(sale._id)}
-                          className="text-[10px] font-semibold leading-tight text-blue-700 underline underline-offset-2 transition hover:text-blue-900"
-                        >
-                          {sale.invoiceNumber}
-                        </button>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-sky-400 to-cyan-500 text-white">
-                          <Truck className="h-4 w-4" />
-                        </div>
-                        <div className="min-w-0">
-                          <p className="text-sm font-bold text-slate-800 lg:text-[12px] xl:text-sm">{sale.vehicleNo || '-'}</p>
-                          <p className="mt-0.5 truncate text-xs font-medium text-slate-500">
-                            {resolveLeadgerNameById(sale.partyId || sale.party) || sale.customerName || '-'}
-                          </p>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      {(sale.materialType || sale.stoneSize) ? (
-                        <div className="space-y-2">
-                          <span className={`inline-flex rounded-full px-2 py-1 text-xs font-medium ${getMaterialBadgeClass(sale.materialType || sale.stoneSize)}`}>
-                            {String(sale.materialType || sale.stoneSize).toUpperCase()}
-                          </span>
-                          <p className="text-xs font-semibold text-slate-600">{getSaleRateLabel(sale)}</p>
-                        </div>
-                      ) : '-'}
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="space-y-1 text-xs font-semibold text-slate-700">
-                        <p className="text-emerald-600">{sale.entryTime || ''}</p>
-                        <p className="text-rose-600">{sale.exitTime || ''}</p>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="space-y-2 text-xs">
-                        {sale.pricingMode === 'per_cubic_meter' ? (
-                          <div>
-                            <p className="font-semibold text-emerald-700">{getSaleQtyLabel(sale)}</p>
+        ) : (
+          <div className={`transition-opacity ${listLoading ? 'pointer-events-none opacity-50' : ''}`}>
+            {tab === 'entries' && (sales.length === 0
+              ? renderEmpty('No sales found', hasFilters ? 'Try changing the search or the period.' : 'Add the first sale with "New Sale".')
+              : (
+                <>
+                  {/* Phone: three short lines per sale */}
+                  <ul className="divide-y divide-slate-100 md:hidden">
+                    {sales.map((sale) => {
+                      const view = describeSale(sale);
+                      return (
+                        <li key={sale._id} className="px-4 py-2.5">
+                          <div className="flex items-baseline justify-between gap-3">
+                            <p className="min-w-0 truncate text-sm font-semibold text-slate-800">{view.party}</p>
+                            <p className="shrink-0 text-sm font-bold text-slate-900">{formatRupees(sale.totalAmount)}</p>
                           </div>
-                        ) : (
-                          <div className="space-y-1">
-                            <p className="font-semibold text-slate-700">{sale.grossWeight ? `Gross : ${Number(sale.grossWeight).toLocaleString('en-IN')} kg` : '-'}</p>
-                            <p className="font-semibold text-slate-700">{sale.tareWeight ? `Tare : ${Number(sale.tareWeight).toLocaleString('en-IN')} kg` : '-'}</p>
-                            <p className="font-semibold">
-                              <span className="text-slate-900">Net : </span>
-                              <span className="text-emerald-600">{sale.netWeight ? getNetWeightWithTonLabel(sale) : '-'}</span>
+                          <div className="mt-1 flex items-center justify-between gap-3">
+                            <div className="flex min-w-0 items-center gap-2">
+                              <Plate>{sale.vehicleNo || '-'}</Plate>
+                              {renderMaterial(view.material)}
+                              <span className="shrink-0 text-xs text-slate-500">{formatDate(sale.saleDate)}</span>
+                            </div>
+                            <p className="shrink-0 text-sm font-bold text-emerald-700">
+                              {view.isCubic ? `${formatQty(sale.cubicMeterQty)} m³` : `${formatQty(view.netWeight / 1000)} T`}
                             </p>
                           </div>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 text-center">
-                      <span className={`rounded-full px-2 py-1 text-[11px] font-semibold ${
-                        sale.type === 'cash'
-                          ? 'border border-emerald-200 bg-emerald-50 text-emerald-700'
-                          : sale.type === 'partial'
-                            ? 'border border-amber-200 bg-amber-50 text-amber-700'
-                            : 'border border-rose-200 bg-rose-50 text-rose-700'
-                      }`}>
-                        {formatSaleTypeLabel(sale.type)}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-right text-xs">
-                      <p className="font-black text-emerald-600">Rs {Number(sale.totalAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</p>
-                      {Number(sale.paidAmount || 0) > 0 && (
-                        <p className="mt-0.5 text-slate-500">Paid: <span className="font-semibold text-emerald-700">Rs {Number(sale.paidAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span></p>
-                      )}
-                      {Number(sale.totalAmount || 0) - Number(sale.paidAmount || 0) > 0 && (
-                        <p className="mt-0.5 text-slate-500">Bal: <span className="font-semibold text-rose-600">Rs {(Number(sale.totalAmount || 0) - Number(sale.paidAmount || 0)).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span></p>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 text-center">
-                      {sale.slipImg ? (
-                        <a
-                          href={sale.slipImg}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="inline-flex items-center gap-1 rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-[11px] font-semibold text-blue-700 transition hover:bg-blue-100"
-                        >
-                          View Slip
-                        </a>
-                      ) : (
-                        <span className="text-xs text-slate-400">-</span>
-                      )}
-                    </td>
-                    {canManageSales && (
-                      <td className="px-6 py-4">
-                        <div className="flex items-center justify-center gap-2">
-                          <button
-                            onClick={() => handleEdit(sale)}
-                            className="inline-flex items-center justify-center rounded-md border border-blue-200 bg-white px-3 py-1.5 text-[11px] font-medium text-blue-700 shadow-sm transition hover:border-blue-300 hover:bg-blue-50"
-                          >
-                            Edit
-                          </button>
-                          <button
-                            onClick={() => handleDelete(sale._id)}
-                            className="inline-flex items-center justify-center rounded-md border border-rose-200 bg-white px-3 py-1.5 text-[11px] font-medium text-rose-700 shadow-sm transition hover:border-rose-300 hover:bg-rose-50"
-                          >
-                            Delete
-                          </button>
-                        </div>
-                      </td>
-                    )}
-                  </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="flex min-w-0 items-center gap-1.5 text-[11px] text-slate-400">
+                              <span className={`${SALE_TYPE_BADGE[sale.type] || 'badge-red'} shrink-0`}>{formatSaleTypeLabel(sale.type)}</span>
+                              <button type="button" onClick={() => handleOpenInvoicePdf(sale._id)} className="shrink-0 font-semibold text-primary-600">
+                                {sale.invoiceNumber}
+                              </button>
+                              <span className="truncate">
+                                {getSaleRateLabel(sale)}
+                                {view.balance > 0 && ` · Bal ${formatRupees(view.balance)}`}
+                              </span>
+                            </div>
+                            {renderActions(sale)}
+                          </div>
+                        </li>
+                      );
+                    })}
+                  </ul>
 
-          <div className="mt-4 flex flex-col items-center justify-between gap-3 sm:flex-row">
-            <p className="text-sm text-slate-500">
-              Showing {(page - 1) * SALES_PAGE_SIZE + 1}-{(page - 1) * SALES_PAGE_SIZE + visibleSales.length} of {pagination.total}
-            </p>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setPage((prev) => Math.max(prev - 1, 1))}
-                disabled={page <= 1 || loading}
-                className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                Previous
-              </button>
-              <span className="text-sm font-semibold text-slate-700">
-                Page {page} of {pagination.totalPages}
-              </span>
-              <button
-                type="button"
-                onClick={() => setPage((prev) => Math.min(prev + 1, pagination.totalPages))}
-                disabled={page >= pagination.totalPages || loading}
-                className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                Next
-              </button>
-            </div>
+                  <div className="hidden overflow-x-auto md:block">
+                    <table className="w-full min-w-[920px] text-left">
+                      <thead>
+                        <tr>
+                          <th className={TH}>Date</th>
+                          <th className={TH}>Party / Vehicle</th>
+                          <th className={TH}>Material</th>
+                          <th className={`${TH} text-right`}>Gross (kg)</th>
+                          <th className={`${TH} text-right`}>Tare (kg)</th>
+                          <th className={`${TH} text-right`}>Net (kg)</th>
+                          <th className={`${TH} text-right`}>Amount</th>
+                          <th className={TH}>Payment</th>
+                          <th className={TH} />
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {sales.map((sale) => {
+                          const view = describeSale(sale);
+                          return (
+                            <tr key={sale._id} className="tbl-row">
+                              <td className={`${TD} whitespace-nowrap`}>
+                                {formatDate(sale.saleDate)}
+                                <button
+                                  type="button"
+                                  onClick={() => handleOpenInvoicePdf(sale._id)}
+                                  title="Open invoice PDF"
+                                  className="block text-[11px] font-semibold leading-tight text-primary-600 hover:underline"
+                                >
+                                  {sale.invoiceNumber}
+                                </button>
+                                {(sale.entryTime || sale.exitTime) && (
+                                  <span className="block text-[11px] leading-tight text-slate-400">{sale.entryTime || '--'} → {sale.exitTime || '--'}</span>
+                                )}
+                              </td>
+                              <td className={TD}>
+                                <p className="max-w-[18rem] truncate font-semibold text-slate-800" title={view.party}>{view.party}</p>
+                                <div className="flex items-center gap-2">
+                                  <Plate>{sale.vehicleNo || '-'}</Plate>
+                                  {view.transportNote && (
+                                    <span className="max-w-[12rem] truncate text-[11px] font-medium text-amber-700" title={view.transportNote}>{view.transportNote}</span>
+                                  )}
+                                </div>
+                              </td>
+                              <td className={`${TD} whitespace-nowrap`}>
+                                {renderMaterial(view.material)}
+                                <span className="mt-0.5 block text-[11px] leading-tight text-slate-500">{getSaleRateLabel(sale)}</span>
+                              </td>
+                              {view.isCubic ? (
+                                // A sale by volume has no weighbridge weights: its quantity goes in the net column
+                                <>
+                                  <td className={`${TD} text-right text-xs text-slate-400`} colSpan={2}>Sold by volume</td>
+                                  <td className={`${TD} whitespace-nowrap text-right font-bold text-emerald-700`}>{formatQty(sale.cubicMeterQty)} m³</td>
+                                </>
+                              ) : (
+                                <>
+                                  <td className={`${TD} text-right`}>{sale.grossWeight ? formatQty(sale.grossWeight) : '—'}</td>
+                                  <td className={`${TD} text-right`}>{sale.tareWeight ? formatQty(sale.tareWeight) : '—'}</td>
+                                  <td className={`${TD} text-right font-bold text-emerald-700`}>{view.netWeight ? formatQty(view.netWeight) : '—'}</td>
+                                </>
+                              )}
+                              <td className={`${TD} whitespace-nowrap text-right`}>
+                                <span className="font-bold text-slate-900">{formatRupees(sale.totalAmount)}</span>
+                                {view.transportCharge > 0 && (
+                                  <span className="block text-[11px] leading-tight text-slate-400">incl. {formatRupees(view.transportCharge)} transport</span>
+                                )}
+                              </td>
+                              <td className={`${TD} whitespace-nowrap`}>
+                                <span className={SALE_TYPE_BADGE[sale.type] || 'badge-red'}>{formatSaleTypeLabel(sale.type)}</span>
+                                {view.balance > 0 && (
+                                  <span className="mt-0.5 block text-[11px] leading-tight text-rose-600" title={`Paid ${formatRupees(view.paid)}`}>
+                                    Bal {formatRupees(view.balance)}
+                                  </span>
+                                )}
+                              </td>
+                              <td className={`${TD} py-1!`}>{renderActions(sale)}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                      <tfoot>
+                        <tr className="border-t border-slate-200 bg-slate-50">
+                          <td className={`${TD} font-bold text-slate-900`} colSpan={5}>
+                            Total
+                            <span className="ml-2 text-xs font-medium text-slate-500">
+                              {entryCount(summary.count)} · {formatQty(summary.totalWeight / 1000)} T
+                            </span>
+                          </td>
+                          <td className={`${TD} text-right font-bold text-emerald-700`}>{formatQty(summary.totalWeight)}</td>
+                          <td className={`${TD} whitespace-nowrap text-right font-bold text-slate-900`}>{formatRupees(summary.totalAmount)}</td>
+                          <td className={TD} colSpan={2} />
+                        </tr>
+                      </tfoot>
+                    </table>
+                  </div>
+
+                  <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-t border-slate-100 px-4 py-2 text-xs text-slate-500 md:px-5">
+                    <span>
+                      Showing {(page - 1) * SALES_PAGE_SIZE + 1}–{(page - 1) * SALES_PAGE_SIZE + sales.length} of {entryCount(pagination.total)}
+                    </span>
+                    {/* The table has its own total row; phones get the totals here */}
+                    <span className="font-semibold text-slate-700 md:hidden">
+                      {formatQty(summary.totalWeight / 1000)} T · {formatRupees(summary.totalAmount)}
+                    </span>
+                    {pagination.totalPages > 1 && (
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          className="btn-secondary btn-sm"
+                          onClick={() => setPage((prev) => Math.max(prev - 1, 1))}
+                          disabled={page <= 1 || loading}
+                        >
+                          Previous
+                        </button>
+                        <span className="font-semibold text-slate-700">Page {page} of {pagination.totalPages}</span>
+                        <button
+                          type="button"
+                          className="btn-secondary btn-sm"
+                          onClick={() => setPage((prev) => Math.min(prev + 1, pagination.totalPages))}
+                          disabled={page >= pagination.totalPages || loading}
+                        >
+                          Next
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </>
+              ))}
+
+            {tab === 'materials' && (materialStats.length === 0
+              ? renderEmpty('No materials', 'Nothing was sold during this period.')
+              : (
+                <>
+                  <ul className="divide-y divide-slate-100 md:hidden">
+                    {materialStats.map((row) => (
+                      <li key={row.materialType}>
+                        <button type="button" onClick={() => openMaterial(row.materialType)} className="w-full px-4 py-2.5 text-left active:bg-slate-50">
+                          <div className="flex items-center justify-between gap-3">
+                            {renderMaterial(row.materialType)}
+                            <span className="shrink-0 text-sm font-bold text-slate-900">{formatRupees(row.totalAmount)}</span>
+                          </div>
+                          <p className="mt-1 text-xs text-slate-500">{entryCount(row.count)} · {getMaterialQtyLabel(row)}</p>
+                          <div className="mt-1.5 flex">{materialBar(row)}</div>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+
+                  <div className="hidden overflow-x-auto md:block">
+                    <table className="w-full min-w-[680px] text-left">
+                      <thead>
+                        <tr>
+                          <th className={`${TH} w-10`}>#</th>
+                          <th className={TH}>Material</th>
+                          <th className={`${TH} text-right`}>Entries</th>
+                          <th className={`${TH} text-right`}>Quantity</th>
+                          <th className={TH}>Sales</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {materialStats.map((row, index) => {
+                          const share = materialTotals.totalAmount > 0 ? (row.totalAmount / materialTotals.totalAmount) * 100 : 0;
+                          return (
+                            <tr
+                              key={row.materialType}
+                              onClick={() => openMaterial(row.materialType)}
+                              className={`tbl-row cursor-pointer ${materialFilter.toLowerCase() === row.materialType ? 'bg-primary-50' : ''}`}
+                            >
+                              <td className={`${TD} text-slate-400`}>{index + 1}</td>
+                              <td className={TD}>{renderMaterial(row.materialType)}</td>
+                              <td className={`${TD} text-right`}>{formatQty(row.count)}</td>
+                              <td className={`${TD} whitespace-nowrap text-right`}>{getMaterialQtyLabel(row)}</td>
+                              <td className={TD}>
+                                <div className="flex items-center gap-3">
+                                  <span className="w-28 shrink-0 whitespace-nowrap font-bold text-slate-900">{formatRupees(row.totalAmount)}</span>
+                                  <div className="flex max-w-[200px] flex-1">{materialBar(row)}</div>
+                                  <span className="w-9 shrink-0 text-right text-xs text-slate-400">{share.toFixed(0)}%</span>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                      <tfoot>
+                        <tr className="border-t border-slate-200 bg-slate-50">
+                          <td className={`${TD} font-bold text-slate-900`} colSpan={2}>Total</td>
+                          <td className={`${TD} text-right font-semibold text-slate-800`}>{formatQty(materialTotals.count)}</td>
+                          <td className={`${TD} whitespace-nowrap text-right font-semibold text-slate-800`}>{getMaterialQtyLabel(materialTotals)}</td>
+                          <td className={`${TD} whitespace-nowrap font-bold text-slate-900`}>{formatRupees(materialTotals.totalAmount)}</td>
+                        </tr>
+                      </tfoot>
+                    </table>
+                  </div>
+
+                  <p className="border-t border-slate-100 px-4 py-2 text-xs text-slate-500 md:px-5">
+                    {materialStats.length} material{materialStats.length === 1 ? '' : 's'}, highest sales first · tap one to see its entries
+                  </p>
+                </>
+              ))}
           </div>
-        </div>
-      )}
-      </div>
-      </div>
+        )}
+      </section>
     </div>
   );
 }

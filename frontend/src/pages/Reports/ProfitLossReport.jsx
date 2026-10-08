@@ -359,7 +359,7 @@ export default function ProfitLossReport() {
                     <BreakdownRow
                       key={row.name}
                       name={row.name}
-                      sub={`${row.count} sales · ${formatTons(row.quantity)}`}
+                      sub={row.name === 'TRANSPORT' ? `${row.count} transport charges` : `${row.count} sales · ${formatTons(row.quantity)}`}
                       amount={row.amount}
                       share={totalSales > 0 ? (row.amount / totalSales) * 100 : 0}
                       barClass="bg-emerald-500"

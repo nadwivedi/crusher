@@ -8,7 +8,10 @@ const Purchase = require("../models/Purchase");
 const Receipt = require("../models/Receipt");
 const Sales = require("../models/Sales");
 const Stock = require("../models/Stock");
+const Transport = require("../models/Transport");
 const { scopedFilter, scopedIdFilter } = require("../utils/ownership");
+const { isBilledInSale } = require("../utils/transport");
+const { describeTransportBasis } = require("../utils/transportBasis");
 
 const toDateBoundary = (value, endOfDay = false) => {
   const parsed = value ? new Date(value) : null;
@@ -101,9 +104,16 @@ const getEntryDisplayType = (baseType, entryType = "") => {
   if (baseType === "materialUsed") return "Material Used";
   if (baseType === "purchaseReturn") return "Purchase Return";
   if (baseType === "saleReturn") return "Sale Return";
+  if (baseType === "transport") return entryType === "payable" ? "Transport Hire" : "Transport Income";
 
   return String(baseType || "").trim() || "-";
 };
+
+// "Vehicle CG04AB1234 | 120 km x Rs 40"
+const buildTransportSummary = (entry) => [
+  entry.vehicleNo ? `Vehicle ${entry.vehicleNo}` : "",
+  describeTransportBasis(entry),
+].filter(Boolean).join(" | ");
 
 const getSaleAmounts = (sale) => {
   const totalAmount = Math.max(0, toNumber(sale?.totalAmount));
@@ -168,7 +178,7 @@ const buildSaleMaterialSummary = (sale) => {
     .join(" / ") || "-";
 };
 
-const buildLedgerRowsForParty = ({ party, sales, purchases, receipts, payments, boulders, fromDate, toDate }) => {
+const buildLedgerRowsForParty = ({ party, sales, purchases, receipts, payments, boulders, transports = [], fromDate, toDate }) => {
   const openingImpact = getPartyOpeningImpact(party);
   const openingDate = party?.createdAt || new Date(0);
   const rows = [];
@@ -311,6 +321,31 @@ const buildLedgerRowsForParty = ({ party, sales, purchases, receipts, payments, 
         quantity: toNumber(item.netWeight),
         amount: toNumber(item.amount),
         impact: -toNumber(item.amount),
+      })),
+    // A hired vehicle is money I owe the party; my vehicle given to them is money they owe me.
+    // Charges billed inside a sale are skipped: the sale row already carries them.
+    ...transports
+      .filter((item) => String(item.partyId?._id || item.partyId) === String(party._id))
+      .filter((item) => !isBilledInSale(item))
+      .filter((item) => withinRange(item.entryDate || item.createdAt, fromDate, toDate))
+      .map((item) => ({
+        type: "transport",
+        displayType: getEntryDisplayType("transport", item.direction),
+        materialType: "Transport",
+        refId: item._id,
+        partyId: party._id,
+        partyName: party.name || "-",
+        vehicleNo: item.vehicleNo || "-",
+        date: item.entryDate || item.createdAt,
+        entryCreatedAt: item.createdAt,
+        refNumber: item.entryNumber || "-",
+        itemSummary: buildTransportSummary(item),
+        note: String(item.notes || "").trim(),
+        method: item.vehicleNo || "-",
+        quantity: toNumber(item.quantity),
+        quantityLabel: describeTransportBasis(item),
+        amount: toNumber(item.amount),
+        impact: item.direction === "payable" ? -toNumber(item.amount) : toNumber(item.amount),
       }))
   );
 
@@ -389,13 +424,14 @@ const buildSummary = (entries) => entries.reduce((acc, entry) => {
 const getPartyLedgerData = async ({ userId, partyId, fromDate, toDate }) => {
   const partyFilter = partyId ? { _id: partyId } : {};
 
-  const [parties, sales, purchases, receipts, payments, boulders] = await Promise.all([
+  const [parties, sales, purchases, receipts, payments, boulders, transports] = await Promise.all([
     Party.find({ userId, ...partyFilter }).sort({ name: 1 }),
     Sales.find({ userId, ...(partyId ? { partyId } : {}) }).populate("partyId", "name").sort({ saleDate: 1, createdAt: 1 }),
     Purchase.find({ userId, ...(partyId ? { party: partyId } : {}) }).populate("party", "name").sort({ purchaseDate: 1, createdAt: 1 }),
     Receipt.find({ userId, ...(partyId ? { party: partyId } : {}) }).populate("party", "name").sort({ receiptDate: 1, createdAt: 1 }),
     Payment.find({ userId, ...(partyId ? { party: partyId } : {}) }).populate("party", "name").sort({ paymentDate: 1, createdAt: 1 }),
     Boulder.find({ userId, ...(partyId ? { partyId } : {}) }).sort({ boulderDate: 1, createdAt: 1 }),
+    Transport.find({ userId, ...(partyId ? { partyId } : {}) }).sort({ entryDate: 1, createdAt: 1 }),
   ]);
 
   const ledgerRows = parties.flatMap((party) => buildLedgerRowsForParty({
@@ -405,6 +441,7 @@ const getPartyLedgerData = async ({ userId, partyId, fromDate, toDate }) => {
     receipts,
     payments,
     boulders,
+    transports,
     fromDate,
     toDate,
   }));
@@ -755,6 +792,37 @@ const getPartyLedgerEntryDetail = async (req, res) => {
       });
     }
 
+    if (type === "transport") {
+      const entry = await Transport.findOne(scopedIdFilter(req, refId))
+        .populate("partyId", "name")
+        .populate("saleId", "invoiceNumber");
+      if (!entry) return res.status(404).json({ message: "Transport entry not found" });
+
+      return res.json({
+        type: "transport",
+        title: entry.direction === "payable" ? "Transport Hire Voucher" : "Transport Income Voucher",
+        refNumber: entry.entryNumber || "-",
+        partyName: entry.partyId?.name || "-",
+        amount: toNumber(entry.amount),
+        quantity: toNumber(entry.quantity),
+        quantityLabel: describeTransportBasis(entry),
+        method: entry.vehicleNo || "-",
+        date: entry.entryDate || entry.createdAt,
+        accountName: entry.partyId?.name || "-",
+        linkedReference: entry.saleId?.invoiceNumber || "",
+        notes: String(entry.notes || "").trim(),
+        fields: [
+          { label: "Entry Date", value: entry.entryDate || entry.createdAt },
+          { label: "Entry Type", value: entry.direction === "payable" ? "Hired vehicle (you pay)" : "Your vehicle given (you receive)" },
+          { label: "Vehicle No", value: entry.vehicleNo || "-" },
+          { label: "Charged As", value: describeTransportBasis(entry) },
+          ...(entry.fromDate ? [{ label: "From Date", value: entry.fromDate }] : []),
+          ...(entry.toDate ? [{ label: "To Date", value: entry.toDate }] : []),
+        ],
+        items: [],
+      });
+    }
+
     return res.status(400).json({ message: "Voucher detail is not supported for this type yet" });
   } catch (error) {
     return res.status(500).json({
@@ -777,6 +845,7 @@ const getDayBook = async (req, res) => {
       expenses,
       boulders,
       materialUsedEntries,
+      transports,
     ] = await Promise.all([
       Sales.find(scopedFilter(req)).populate("partyId", "name").sort({ saleDate: -1, createdAt: -1 }),
       Purchase.find(scopedFilter(req)).populate("party", "name").sort({ purchaseDate: -1, createdAt: -1 }),
@@ -785,6 +854,7 @@ const getDayBook = async (req, res) => {
       Expense.find(scopedFilter(req)).populate("party", "name").populate("expenseGroup", "name").sort({ expenseDate: -1, createdAt: -1 }),
       Boulder.find(scopedFilter(req)).sort({ boulderDate: -1, createdAt: -1 }),
       MaterialUsed.find(scopedFilter(req)).populate("vehicle", "vehicleNo vehicleNumber").populate("materialType", "name").sort({ usedDate: -1, createdAt: -1 }),
+      Transport.find(scopedFilter(req)).populate("partyId", "name").sort({ entryDate: -1, createdAt: -1 }),
     ]);
 
     const entries = [
@@ -910,6 +980,25 @@ const getDayBook = async (req, res) => {
           partyName: item.materialTypeName || item.materialType?.name || "-",
           method: `${Number(item.usedQty || 0)} ${item.unit || ""}`.trim() || "-",
           amount: 0,
+          inAmount: 0,
+          outAmount: 0,
+        })),
+      // On credit like boulder: no money moves until a payment or receipt is entered.
+      // Charges billed inside a sale are part of that sale's row.
+      ...transports
+        .filter((item) => !isBilledInSale(item))
+        .filter((item) => withinRange(item.entryDate || item.createdAt, fromDate, toDate))
+        .map((item) => ({
+          type: "transport",
+          displayType: getEntryDisplayType("transport", item.direction),
+          refId: item._id,
+          date: item.entryDate || item.createdAt,
+          entryCreatedAt: item.createdAt,
+          voucherNumber: item.entryNumber || "-",
+          partyName: item.partyId?.name || "-",
+          vehicleNo: item.vehicleNo || "",
+          method: buildTransportSummary(item) || "-",
+          amount: Number(item.amount || 0),
           inAmount: 0,
           outAmount: 0,
         })),
@@ -1518,9 +1607,9 @@ const getProfitLossReport = async (req, res) => {
   };
 
   try {
-    const [sales, expenses, purchases] = await Promise.all([
+    const [sales, expenses, purchases, transports] = await Promise.all([
       Sales.find(scopedFilter(req, dateQuery("saleDate")))
-        .select("stoneSize netWeight totalAmount saleDate createdAt")
+        .select("stoneSize netWeight totalAmount transportMode transportCharge saleDate createdAt")
         .lean(),
       Expense.find(scopedFilter(req, dateQuery("expenseDate")))
         .populate("expenseGroup", "name")
@@ -1532,24 +1621,46 @@ const getProfitLossReport = async (req, res) => {
         .populate("party", "name")
         .sort({ purchaseDate: -1, createdAt: -1 })
         .lean(),
+      Transport.find(scopedFilter(req, dateQuery("entryDate")))
+        .populate("partyId", "name")
+        .sort({ entryDate: -1, createdAt: -1 })
+        .lean(),
     ]);
 
-    // Sales grouped by material
+    // Sales grouped by material. Transport billed to parties gets its own line.
     const materialMap = new Map();
+    const transportIncome = { name: "TRANSPORT", count: 0, quantity: 0, amount: 0 };
     let totalSales = 0;
     let totalSalesQty = 0;
     for (const sale of sales) {
       const material = String(sale.stoneSize || "other").toUpperCase();
       const amount = toNumber(sale.totalAmount);
+      const transportCharge = sale.transportMode && sale.transportMode !== "party"
+        ? Math.min(amount, Math.max(0, toNumber(sale.transportCharge)))
+        : 0;
       const quantity = toNumber(sale.netWeight);
       totalSales += amount;
       totalSalesQty += quantity;
       const row = materialMap.get(material) || { name: material, count: 0, quantity: 0, amount: 0 };
       row.count += 1;
       row.quantity += quantity;
-      row.amount += amount;
+      row.amount += amount - transportCharge;
       materialMap.set(material, row);
+
+      if (transportCharge > 0) {
+        transportIncome.count += 1;
+        transportIncome.amount += transportCharge;
+      }
     }
+
+    // My vehicle given to another party without a sale is income too
+    for (const entry of transports) {
+      if (entry.direction !== "receivable" || isBilledInSale(entry)) continue;
+      transportIncome.count += 1;
+      transportIncome.amount += toNumber(entry.amount);
+      totalSales += toNumber(entry.amount);
+    }
+    if (transportIncome.amount > 0) materialMap.set(transportIncome.name, transportIncome);
 
     // Expenses (plus purchases, which the Expenses page also counts) as flat rows
     const expenseRows = expenses.map((expense) => {
@@ -1592,7 +1703,24 @@ const getProfitLossReport = async (req, res) => {
       notes: purchase.notes || "",
     }));
 
-    const expenseEntries = [...expenseRows, ...purchaseRows]
+    // What hired vehicles cost
+    const transportRows = transports
+      .filter((entry) => entry.direction === "payable")
+      .map((entry) => ({
+        _id: entry._id,
+        kind: "transport",
+        date: entry.entryDate || entry.createdAt,
+        number: entry.entryNumber || "-",
+        category: "Transport Hire",
+        splits: null,
+        detail: buildTransportSummary(entry),
+        partyName: entry.partyId?.name || "",
+        amount: toNumber(entry.amount),
+        method: "credit",
+        notes: entry.notes || "",
+      }));
+
+    const expenseEntries = [...expenseRows, ...purchaseRows, ...transportRows]
       .sort((a, b) => new Date(b.date) - new Date(a.date));
 
     return res.json({

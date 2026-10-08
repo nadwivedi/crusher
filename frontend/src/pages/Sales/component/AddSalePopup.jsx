@@ -5,6 +5,16 @@ import { handlePopupFormKeyDown } from '../../../utils/popupFormKeyboard';
 import { useFloatingDropdownPosition } from '../../../utils/useFloatingDropdownPosition';
 import DocumentScannerPreview from '../../../components/DocumentScannerPreview';
 import AccountSelect from '../../../components/AccountSelect';
+import {
+  TRANSPORT_BASIS_OPTIONS,
+  VEHICLE_OWNERSHIP_OPTIONS,
+  getBasisLabel,
+  getBasisUnit,
+  getSaleTransport,
+  getSaleTransportCharge
+} from '../../../utils/transport';
+
+const formatAmount = (value) => `Rs ${Number(value || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 export default function AddSalePopup({
   showForm,
@@ -80,6 +90,8 @@ export default function AddSalePopup({
   handleBasisInputKeyDown,
   getSaleBasisDisplayName,
   selectPricingMode,
+  transportParties = [],
+  selectTransportMode,
   onOpenNewVehicle,
   onOpenNewParty,
   handleProductFocus,
@@ -162,6 +174,10 @@ export default function AddSalePopup({
   const inputClass = "w-full rounded-lg border border-slate-400 bg-white px-2.5 py-1.5 text-[13px] text-gray-800 transition placeholder:text-slate-400 focus:border-transparent focus:outline-none focus:ring-2";
   const labelClass = "mb-1 block text-[11px] font-semibold text-gray-700 md:text-xs";
   const currentItemTotal = Math.max(0, Number(currentItem.quantity || 0) * Number(currentItem.unitPrice || 0));
+  const transportMode = formData.transportMode || 'party';
+  const transportCharge = getSaleTransportCharge(formData);
+  const saleTransport = getSaleTransport(formData);
+  const transportUnit = getBasisUnit(formData.transportBasis);
   const resolvedProductInputRef = productInputRef || localProductInputRef;
   const leadgerDropdownStyle = useFloatingDropdownPosition(leadgerSectionRef, isLeadgerSectionActive, [filteredLeadgers.length, leadgerListIndex]);
   const vehicleDropdownStyle = useFloatingDropdownPosition(vehicleSectionRef, isVehicleSectionActive, [filteredVehicles.length, vehicleListIndex]);
@@ -406,10 +422,106 @@ export default function AddSalePopup({
               </div>
             </div>
 
-            {/* Section 3: Pricing & Payment Details (Purple) */}
+            {/* Section 3: Transport (Amber) */}
+            <div className="rounded-2xl border border-amber-200 bg-amber-50/30 p-3 shadow-sm transition hover:shadow-md">
+              <h3 className="mb-3 flex items-center gap-2 text-[13px] font-bold text-amber-900">
+                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-amber-600 text-[10px] font-bold text-white">3</span>
+                Transport
+              </h3>
+              <div className="space-y-3">
+                <div className="grid grid-cols-3 gap-2">
+                  {VEHICLE_OWNERSHIP_OPTIONS.map((option) => (
+                    <button
+                      key={option.value}
+                      type="button"
+                      onClick={() => selectTransportMode(option.value)}
+                      aria-pressed={transportMode === option.value}
+                      className={`rounded-lg border px-2 py-1.5 text-center transition ${
+                        transportMode === option.value
+                          ? 'border-amber-600 bg-amber-600 text-white shadow-sm'
+                          : 'border-slate-300 bg-white text-slate-700 hover:bg-amber-50'
+                      }`}
+                    >
+                      <span className="block text-[12px] font-bold md:text-[13px]">{option.label}</span>
+                      <span className={`hidden text-[10px] md:block ${transportMode === option.value ? 'text-amber-100' : 'text-slate-400'}`}>{option.hint}</span>
+                    </button>
+                  ))}
+                </div>
+
+                {transportMode === 'party' ? (
+                  <p className="text-[11px] text-slate-500">The party takes the material in their own vehicle, so there is no transport charge.</p>
+                ) : (
+                  <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+                    {transportMode === 'hired' && (
+                      <>
+                        <div className="space-y-1">
+                          <label className={labelClass}>Transporter</label>
+                          <select name="transporterId" value={formData.transporterId || ''} onChange={handleInputChange} onKeyDown={handleSelectEnterMoveNext} className={`${inputClass} focus:ring-amber-500`}>
+                            <option value="">Select transporter</option>
+                            {transportParties.map((party) => (
+                              <option key={party._id} value={party._id}>{getLeadgerDisplayName(party)}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className="space-y-1">
+                          <label className={labelClass}>Pay Transporter</label>
+                          <select name="transportBasis" value={formData.transportBasis || 'per_ton'} onChange={handleInputChange} onKeyDown={handleSelectEnterMoveNext} className={`${inputClass} focus:ring-amber-500`}>
+                            {TRANSPORT_BASIS_OPTIONS.map((option) => (
+                              <option key={option.value} value={option.value}>{option.label}</option>
+                            ))}
+                          </select>
+                        </div>
+                        {!saleTransport.isPeriod && (
+                          <>
+                            {formData.transportBasis !== 'fixed' && (
+                              <div className="space-y-1">
+                                <label className={labelClass}>{transportUnit === 'km' ? 'Distance (KM)' : 'Quantity (Ton)'}</label>
+                                {saleTransport.qtyAuto ? (
+                                  <input type="number" value={saleTransport.qty || ''} readOnly className={`${inputClass} bg-amber-50/50 font-bold text-amber-700`} placeholder="From net weight" />
+                                ) : (
+                                  <input type="number" name="transportQty" value={formData.transportQty || ''} onChange={handleInputChange} onKeyDown={handleSelectEnterMoveNext} className={`${inputClass} focus:ring-amber-500`} placeholder="0" step="0.01" min="0" />
+                                )}
+                              </div>
+                            )}
+                            <div className="space-y-1">
+                              <label className={labelClass}>{formData.transportBasis === 'fixed' ? 'Amount To Transporter' : `Rate Per ${transportUnit === 'km' ? 'KM' : 'Ton'}`}</label>
+                              <input type="number" name="transportRate" value={formData.transportRate || ''} onChange={handleInputChange} onKeyDown={handleSelectEnterMoveNext} className={`${inputClass} focus:ring-amber-500`} placeholder="0.00" step="0.01" min="0" />
+                            </div>
+                          </>
+                        )}
+                      </>
+                    )}
+                    <div className="space-y-1">
+                      <label className={labelClass}>Transport Charge To Party</label>
+                      <input type="number" name="transportCharge" value={formData.transportCharge || ''} onChange={handleInputChange} onKeyDown={handleSelectEnterMoveNext} className={`${inputClass} focus:ring-amber-500 font-bold`} placeholder="0.00" step="0.01" min="0" />
+                    </div>
+                  </div>
+                )}
+
+                {transportMode === 'own' && (
+                  <p className="text-[11px] text-slate-500">This charge is added to the sale total and billed to the party.</p>
+                )}
+
+                {transportMode === 'hired' && (
+                  <div className="rounded-xl border border-amber-100 bg-white/60 px-3 py-2 text-[11px] text-slate-600">
+                    {saleTransport.isPeriod ? (
+                      <span>This vehicle is on <span className="font-semibold text-slate-800">{getBasisLabel(formData.transportBasis).toLowerCase()}</span> rent, so nothing is added for this trip. Enter the rent from the Transport page.</span>
+                    ) : (
+                      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
+                        <span>You pay transporter: <span className="font-bold text-rose-600">{formatAmount(saleTransport.cost)}</span></span>
+                        <span>Party pays you: <span className="font-bold text-emerald-700">{formatAmount(transportCharge)}</span></span>
+                        <span>Transport margin: <span className={`font-bold ${transportCharge - saleTransport.cost < 0 ? 'text-rose-600' : 'text-slate-900'}`}>{formatAmount(transportCharge - saleTransport.cost)}</span></span>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Section 4: Pricing & Payment Details (Purple) */}
             <div className="rounded-2xl border border-purple-200 bg-purple-50/30 p-3 shadow-sm transition hover:shadow-md">
               <h3 className="mb-3 flex items-center gap-2 text-[13px] font-bold text-purple-900">
-                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-purple-600 text-[10px] font-bold text-white">3</span>
+                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-purple-600 text-[10px] font-bold text-white">4</span>
                 Pricing & Payment Details
               </h3>
               <div className="space-y-3">
@@ -434,7 +546,14 @@ export default function AddSalePopup({
 
                 <div className="rounded-xl border border-purple-100 bg-white/50 px-3 py-2 text-[11px] text-slate-600">
                   <div className="flex justify-between items-center">
-                    <span className="font-semibold text-slate-800">{saleTypePreview || 'Credit Sale'}</span>
+                    <span className="font-semibold text-slate-800">
+                      {saleTypePreview || 'Credit Sale'}
+                      {transportCharge > 0 && (
+                        <span className="ml-2 font-normal text-slate-500">
+                          Material {formatAmount(Number(formData.totalAmount || 0) - transportCharge)} + Transport {formatAmount(transportCharge)}
+                        </span>
+                      )}
+                    </span>
                     <span className="font-bold">Bal: <span className={Number(formData.totalAmount || 0) - Number(formData.paidAmount || 0) < 0 ? 'text-rose-600' : 'text-slate-950'}>Rs {(Number(formData.totalAmount || 0) - Number(formData.paidAmount || 0)).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span></span>
                   </div>
                 </div>

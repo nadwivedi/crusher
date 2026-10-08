@@ -1,0 +1,69 @@
+// How a vehicle is charged: by distance, by weight, by time, or one fixed amount
+export const TRANSPORT_BASIS_OPTIONS = [
+  { value: 'per_km', label: 'Per KM', unit: 'km' },
+  { value: 'per_ton', label: 'Per Ton', unit: 'ton' },
+  { value: 'per_day', label: 'Per Day', unit: 'day' },
+  { value: 'per_week', label: 'Per Week', unit: 'week' },
+  { value: 'per_month', label: 'Per Month', unit: 'month' },
+  { value: 'fixed', label: 'Fixed Amount', unit: '' }
+];
+
+// Rent for a period is booked from the Transport page, not on each sale
+export const PERIOD_BASES = ['per_day', 'per_week', 'per_month'];
+
+// Whose vehicle it is. Used by the vehicle master and by the transport choice on a sale.
+export const VEHICLE_OWNERSHIP_OPTIONS = [
+  { value: 'party', label: 'Party Vehicle', hint: "Party's own vehicle" },
+  { value: 'own', label: 'My Vehicle', hint: 'I charge transport' },
+  { value: 'hired', label: 'Hired Vehicle', hint: 'I pay a transporter' }
+];
+
+const getBasisOption = (basis) => TRANSPORT_BASIS_OPTIONS.find((option) => option.value === basis);
+
+export const getBasisLabel = (basis) => getBasisOption(basis)?.label || 'Fixed Amount';
+export const getBasisUnit = (basis) => getBasisOption(basis)?.unit || '';
+export const getOwnershipLabel = (ownership) => (
+  VEHICLE_OWNERSHIP_OPTIONS.find((option) => option.value === ownership)?.label || 'Party Vehicle'
+);
+
+const toNumber = (value) => {
+  const parsed = Number(value || 0);
+  return Number.isFinite(parsed) ? parsed : 0;
+};
+
+// A fixed amount ignores the quantity
+export const calcTransportAmount = (basis, quantity, rate) => {
+  const numericRate = Math.max(0, toNumber(rate));
+  const amount = basis === 'fixed' ? numericRate : Math.max(0, toNumber(quantity)) * numericRate;
+  return Math.round(amount * 100) / 100;
+};
+
+// "120 km × ₹40", "2 months × ₹60,000", or "Fixed amount"
+export const describeTransportBasis = (entry) => {
+  const unit = getBasisUnit(entry?.basis);
+  if (!unit) return 'Fixed amount';
+  const quantity = toNumber(entry.quantity);
+  const unitLabel = unit === 'km' || quantity === 1 ? unit : `${unit}s`;
+  return `${quantity.toLocaleString('en-IN', { maximumFractionDigits: 3 })} ${unitLabel} × ₹${toNumber(entry.rate).toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
+};
+
+// Transport charged to the party on a sale. It is part of the sale total.
+export const getSaleTransportCharge = (sale) => (
+  sale?.transportMode && sale.transportMode !== 'party' ? Math.max(0, toNumber(sale.transportCharge)) : 0
+);
+
+/**
+ * What a sale's hired vehicle costs. A per-ton vehicle on a per-ton sale takes its tons from the net weight;
+ * a vehicle on daily / weekly / monthly rent costs nothing per trip.
+ */
+export const getSaleTransport = (sale) => {
+  if (sale?.transportMode !== 'hired') return { qty: 0, cost: 0, qtyAuto: false, isPeriod: false };
+
+  const basis = sale.transportBasis || 'per_ton';
+  if (PERIOD_BASES.includes(basis)) return { qty: 0, cost: 0, qtyAuto: false, isPeriod: true };
+
+  const qtyAuto = basis === 'per_ton' && (sale.pricingMode || 'per_ton') === 'per_ton';
+  const qty = basis === 'fixed' ? 1 : qtyAuto ? toNumber(sale.netWeight) / 1000 : toNumber(sale.transportQty);
+
+  return { qty, cost: calcTransportAmount(basis, qty, sale.transportRate), qtyAuto, isPeriod: false };
+};

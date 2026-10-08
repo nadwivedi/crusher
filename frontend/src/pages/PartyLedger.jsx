@@ -6,6 +6,7 @@ import apiClient from '../utils/api';
 const PARTY_TYPE_LABELS = {
   supplier: 'Supplier',
   customer: 'Customer',
+  transporter: 'Transporter',
   'cash-in-hand': 'Cash In Hand'
 };
 

@@ -5,12 +5,16 @@ import apiClient from '../../../utils/api';
 import AddPartyPopup from '../../Party/component/AddPartyPopup';
 import { handlePopupFormKeyDown } from '../../../utils/popupFormKeyboard';
 import { useFloatingDropdownPosition } from '../../../utils/useFloatingDropdownPosition';
+import { TRANSPORT_BASIS_OPTIONS, VEHICLE_OWNERSHIP_OPTIONS, getBasisUnit } from '../../../utils/transport';
 const initialFormData = {
   partyId: '',
   vehicleNo: '',
   unladenWeight: '',
   capacityCubicMeter: '',
-  vehicleType: 'sales'
+  vehicleType: 'sales',
+  ownership: 'party',
+  hireBasis: 'per_ton',
+  hireRate: ''
 };
 
 const FIELD_SELECTOR = [
@@ -77,8 +81,8 @@ const getVehicleTypeLabel = (typeValue) => (
   VEHICLE_TYPE_OPTIONS.find((option) => option.value === typeValue)?.label || ''
 );
 
-const getInitialPartyFormData = () => ({
-  type: 'customer',
+const getInitialPartyFormData = (type = 'customer') => ({
+  type,
   name: '',
   mobile: '',
   email: '',
@@ -86,7 +90,7 @@ const getInitialPartyFormData = () => ({
   state: '',
   pincode: '',
   openingBalance: '',
-  openingBalanceType: 'receivable',
+  openingBalanceType: type === 'customer' ? 'receivable' : 'payable',
   tenMmRate: '',
   twentyMmRate: '',
   fortyMmRate: '',
@@ -120,6 +124,10 @@ export default function AddVehiclePopup({ vehicle, onClose, onSave, onVehicleSav
   const vehicleTypeSectionRef = useRef(null);
   const vehicleTypeInputRef = useRef(null);
   const isEditing = Boolean(vehicle?._id);
+  const ownership = formData.ownership || 'party';
+  const isOwnVehicle = ownership === 'own';
+  const isHiredVehicle = ownership === 'hired';
+  const hireUnit = getBasisUnit(formData.hireBasis);
 
   useEffect(() => {
     setFormData(vehicle || { ...initialFormData, vehicleType: defaultVehicleType || 'sales' });
@@ -237,6 +245,11 @@ export default function AddVehiclePopup({ vehicle, onClose, onSave, onVehicleSav
     clearError(name);
   };
 
+  const selectOwnership = (value) => {
+    setFormData((prev) => ({ ...prev, ownership: value, partyId: value === 'own' ? '' : prev.partyId }));
+    clearError('partyId');
+  };
+
   const setVehicleTypeValue = (value) => {
     setFormData((prev) => ({ ...prev, vehicleType: value }));
     clearError('vehicleType');
@@ -275,7 +288,7 @@ export default function AddVehiclePopup({ vehicle, onClose, onSave, onVehicleSav
 
   const openInlinePartyForm = () => {
     setPartyFormData((prev) => ({
-      ...getInitialPartyFormData(),
+      ...getInitialPartyFormData(isHiredVehicle ? 'transporter' : 'customer'),
       name: toTitleCase(partyQuery || prev.name || '')
     }));
     setPartyPopupError('');
@@ -331,7 +344,7 @@ export default function AddVehiclePopup({ vehicle, onClose, onSave, onVehicleSav
       setPartyFormData((prev) => ({
         ...prev,
         [name]: value,
-        openingBalanceType: prev.openingBalance ? prev.openingBalanceType : (value === 'supplier' ? 'payable' : 'receivable')
+        openingBalanceType: prev.openingBalance ? prev.openingBalanceType : (['supplier', 'transporter'].includes(value) ? 'payable' : 'receivable')
       }));
       return;
     }
@@ -347,7 +360,7 @@ export default function AddVehiclePopup({ vehicle, onClose, onSave, onVehicleSav
       return;
     }
 
-    if (!['supplier', 'customer', 'cash-in-hand'].includes(partyFormData.type)) {
+    if (!['supplier', 'customer', 'transporter', 'cash-in-hand'].includes(partyFormData.type)) {
       setPartyPopupError('Party type is required');
       return;
     }
@@ -532,7 +545,9 @@ export default function AddVehiclePopup({ vehicle, onClose, onSave, onVehicleSav
 
   const validate = () => {
     const newErrors = {};
-    if (!formData.partyId) newErrors.partyId = 'Please select an owner / party';
+    if (!isOwnVehicle && !formData.partyId) {
+      newErrors.partyId = isHiredVehicle ? 'Please select the transporter' : 'Please select an owner / party';
+    }
     if (!String(formData.vehicleNo || '').trim()) newErrors.vehicleNo = 'Vehicle number is required';
     if (!String(formData.unladenWeight || '').trim()) newErrors.unladenWeight = 'Unladen weight is required';
     if (!String(formData.capacityCubicMeter || '').trim()) newErrors.capacityCubicMeter = 'Truck cubic meter is required';
@@ -552,11 +567,14 @@ export default function AddVehiclePopup({ vehicle, onClose, onSave, onVehicleSav
     setLoading(true);
     try {
       const payload = {
-        partyId: formData.partyId,
+        partyId: isOwnVehicle ? '' : formData.partyId,
         vehicleNo: String(formData.vehicleNo || '').toUpperCase(),
         unladenWeight: parseFloat(formData.unladenWeight),
         capacityCubicMeter: parseFloat(formData.capacityCubicMeter),
-        vehicleType: formData.vehicleType || 'sales'
+        vehicleType: formData.vehicleType || 'sales',
+        ownership,
+        hireBasis: formData.hireBasis || 'per_ton',
+        hireRate: isHiredVehicle ? Number(formData.hireRate || 0) : 0
       };
 
       if (isEditing) {
@@ -725,10 +743,32 @@ export default function AddVehiclePopup({ vehicle, onClose, onSave, onVehicleSav
                   Ownership Details
                 </h3>
 
+                <div className="mb-3 grid grid-cols-3 gap-2">
+                  {VEHICLE_OWNERSHIP_OPTIONS.map((option) => (
+                    <button
+                      key={option.value}
+                      type="button"
+                      onClick={() => selectOwnership(option.value)}
+                      aria-pressed={ownership === option.value}
+                      className={`rounded-lg border px-2 py-1.5 text-center transition ${
+                        ownership === option.value
+                          ? 'border-emerald-600 bg-emerald-600 text-white shadow-sm'
+                          : 'border-gray-300 bg-white text-gray-700 hover:bg-emerald-50'
+                      }`}
+                    >
+                      <span className="block text-xs font-bold sm:text-sm">{option.label}</span>
+                      <span className={`hidden text-[11px] sm:block ${ownership === option.value ? 'text-emerald-100' : 'text-gray-400'}`}>{option.hint}</span>
+                    </button>
+                  ))}
+                </div>
+
+                {isOwnVehicle ? (
+                  <p className="text-xs font-medium text-emerald-800">This is your own vehicle. On a sale you can add a transport charge for the party, and you can give it on rent from the Transport page.</p>
+                ) : (
                 <div className="min-w-0">
                   <div className="relative mb-1 min-h-[16px]">
                     <label htmlFor="vehicle-party-input" className="block text-xs font-semibold text-gray-700 sm:text-sm">
-                      Owner / Party <span className="text-red-500">*</span>
+                      {isHiredVehicle ? 'Transporter' : 'Owner / Party'} <span className="text-red-500">*</span>
                     </label>
                     {isPartyDropdownOpen && (
                       <button
@@ -761,7 +801,7 @@ export default function AddVehiclePopup({ vehicle, onClose, onSave, onVehicleSav
                         onFocus={handlePartyFocus}
                         onKeyDown={handlePartyInputKeyDown}
                         className={`${getInlineFieldClass('emerald')} pr-10`}
-                        placeholder="Choose owner / party"
+                        placeholder={isHiredVehicle ? 'Choose transporter' : 'Choose owner / party'}
                         autoComplete="off"
                         required
                       />
@@ -816,6 +856,36 @@ export default function AddVehiclePopup({ vehicle, onClose, onSave, onVehicleSav
                   </div>
                   {errors.partyId ? <p className="mt-1 text-xs text-red-500">{errors.partyId}</p> : null}
                 </div>
+                )}
+
+                {isHiredVehicle && (
+                  <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
+                    <div className="min-w-0">
+                      <label htmlFor="vehicle-hire-basis-input" className="mb-1.5 block text-xs font-semibold text-gray-700 sm:text-sm">Pay Transporter</label>
+                      <select id="vehicle-hire-basis-input" name="hireBasis" value={formData.hireBasis || 'per_ton'} onChange={handleChange} className={getInlineFieldClass('emerald')}>
+                        {TRANSPORT_BASIS_OPTIONS.map((option) => (
+                          <option key={option.value} value={option.value}>{option.label}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="min-w-0">
+                      <label htmlFor="vehicle-hire-rate-input" className="mb-1.5 block text-xs font-semibold text-gray-700 sm:text-sm">
+                        {hireUnit ? `Rate (Rs / ${hireUnit})` : 'Fixed Amount (Rs)'}
+                      </label>
+                      <input
+                        id="vehicle-hire-rate-input"
+                        type="number"
+                        name="hireRate"
+                        value={formData.hireRate ?? ''}
+                        onChange={handleChange}
+                        min="0"
+                        step="0.01"
+                        className={getInlineFieldClass('emerald')}
+                        placeholder="0.00"
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="rounded-xl border-2 border-amber-200 bg-gradient-to-r from-amber-50 to-orange-50 p-2.5 md:p-4">

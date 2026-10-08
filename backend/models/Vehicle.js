@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const { TRANSPORT_BASES } = require("../utils/transportBasis");
 
 const vehicleSchema = new mongoose.Schema(
   {
@@ -32,6 +33,23 @@ const vehicleSchema = new mongoose.Schema(
       type: String,
       enum: ["boulder", "sales"],
       default: "sales",
+    },
+    // party: the party's own vehicle. own: my vehicle (no party). hired: partyId is the transporter it is hired from.
+    ownership: {
+      type: String,
+      enum: ["party", "own", "hired"],
+      default: "party",
+    },
+    // What I pay the transporter for a hired vehicle
+    hireBasis: {
+      type: String,
+      enum: TRANSPORT_BASES,
+      default: "per_ton",
+    },
+    hireRate: {
+      type: Number,
+      default: 0,
+      min: 0,
     },
     rcImg: {
       type: String,

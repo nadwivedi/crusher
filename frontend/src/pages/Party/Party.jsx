@@ -29,12 +29,17 @@ const toTitleCase = (value) => String(value || '')
 const PARTY_TYPE_LABELS = {
   supplier: 'Supplier',
   customer: 'Customer',
+  transporter: 'Transporter',
   'cash-in-hand': 'Cash In Hand'
 };
 
 const getTypeBadgeClass = (type) => {
   if (type === 'customer') {
     return 'border border-amber-200 bg-amber-50 text-amber-700';
+  }
+
+  if (type === 'transporter') {
+    return 'border border-violet-200 bg-violet-50 text-violet-700';
   }
 
   if (type === 'cash-in-hand') {
@@ -45,7 +50,7 @@ const getTypeBadgeClass = (type) => {
 };
 
 const getTypeLabel = (type) => PARTY_TYPE_LABELS[type] || 'Supplier';
-const getDefaultOpeningBalanceType = (partyType) => (partyType === 'supplier' ? 'payable' : 'receivable');
+const getDefaultOpeningBalanceType = (partyType) => (['supplier', 'transporter'].includes(partyType) ? 'payable' : 'receivable');
 const resolveOpeningBalanceType = (party) => {
   const explicitType = String(party?.openingBalanceType || '').trim().toLowerCase();
   if (explicitType === 'receivable' || explicitType === 'payable') return explicitType;
@@ -55,7 +60,7 @@ const resolveOpeningBalanceType = (party) => {
     return getDefaultOpeningBalanceType(party?.type);
   }
 
-  if (party?.type === 'supplier') {
+  if (['supplier', 'transporter'].includes(party?.type)) {
     return balance >= 0 ? 'payable' : 'receivable';
   }
 
@@ -149,7 +154,7 @@ export default function Party() {
   const handleEdit = (party) => {
     setEditingId(party._id);
     setFormData({
-      type: ['supplier', 'customer', 'cash-in-hand'].includes(party.type) ? party.type : 'supplier',
+      type: ['supplier', 'customer', 'transporter', 'cash-in-hand'].includes(party.type) ? party.type : 'supplier',
       name: String(party.name || ''),
       mobile: String(party.mobile || '').replace(/\D/g, '').slice(0, 10),
       openingBalance: Math.abs(Number(party.openingBalance || 0)) || '',
@@ -179,7 +184,7 @@ export default function Party() {
       return;
     }
 
-    if (!['supplier', 'customer', 'cash-in-hand'].includes(formData.type)) {
+    if (!['supplier', 'customer', 'transporter', 'cash-in-hand'].includes(formData.type)) {
       setError('Party type is required');
       return;
     }

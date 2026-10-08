@@ -52,6 +52,9 @@ const formatWeightWithTon = (value) => {
 };
 
 const formatLedgerQuantity = (row) => {
+  // Transport is counted in km, tons, days...; the server sends it ready to show
+  if (row?.type === 'transport') return row.quantityLabel || '-';
+
   const quantity = Number(row?.quantity || 0);
   if (!Number.isFinite(quantity) || quantity <= 0) return '-';
 
@@ -115,6 +118,13 @@ const getTypeMeta = (type) => {
     return {
       label: 'Payment',
       className: 'border-violet-200 bg-violet-50 text-violet-700'
+    };
+  }
+
+  if (type === 'transport') {
+    return {
+      label: 'Transport',
+      className: 'border-orange-200 bg-orange-50 text-orange-700'
     };
   }
 
@@ -662,7 +672,7 @@ export default function PartyDetail() {
               <div>
                 <h2 className="text-lg font-bold text-gray-900">Transaction Ledger</h2>
                 <p className="text-xs text-gray-600">
-                  Sale, purchase, receipt, payment, boulder, and return history.
+                  Sale, purchase, receipt, payment, boulder, transport, and return history.
                 </p>
               </div>
             </div>

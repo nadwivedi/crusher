@@ -510,7 +510,7 @@ export default function Purchases({ modalOnly = false, onModalFinish = null }) {
       setPartyFormData((prev) => ({
         ...prev,
         [name]: value,
-        openingBalanceType: prev.openingBalance ? prev.openingBalanceType : (value === 'supplier' ? 'payable' : 'receivable')
+        openingBalanceType: prev.openingBalance ? prev.openingBalanceType : (['supplier', 'transporter'].includes(value) ? 'payable' : 'receivable')
       }));
       return;
     }
@@ -889,7 +889,7 @@ export default function Purchases({ modalOnly = false, onModalFinish = null }) {
       return;
     }
 
-    if (!['supplier', 'customer', 'cash-in-hand'].includes(partyFormData.type)) {
+    if (!['supplier', 'customer', 'transporter', 'cash-in-hand'].includes(partyFormData.type)) {
       setPartyPopupError('Party type is required');
       return;
     }

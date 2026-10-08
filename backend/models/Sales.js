@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const { TRANSPORT_BASES } = require("../utils/transportBasis");
 
 const salesSchema = new mongoose.Schema(
   {
@@ -85,6 +86,44 @@ const salesSchema = new mongoose.Schema(
       min: 0,
     },
     totalAmount: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    // Whose vehicle carried the material: the party's own, mine, or one hired from a transporter
+    transportMode: {
+      type: String,
+      enum: ["party", "own", "hired"],
+      default: "party",
+    },
+    // Charged to the party for transport. Already included in totalAmount.
+    transportCharge: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    // Hired vehicle: who it was hired from and what I owe them for this trip
+    transporterId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Party",
+      default: null,
+    },
+    transportBasis: {
+      type: String,
+      enum: TRANSPORT_BASES,
+      default: "per_ton",
+    },
+    transportQty: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    transportRate: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    transportCost: {
       type: Number,
       default: 0,
       min: 0,

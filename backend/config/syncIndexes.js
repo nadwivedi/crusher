@@ -8,6 +8,7 @@ const Purchase = require("../models/Purchase");
 const Receipt = require("../models/Receipt");
 const Sales = require("../models/Sales");
 const Stock = require("../models/Stock");
+const Transport = require("../models/Transport");
 const Vehicle = require("../models/Vehicle");
 
 const MODELS = [
@@ -22,6 +23,7 @@ const MODELS = [
   Payment,
   Receipt,
   MaterialUsed,
+  Transport,
 ];
 
 const syncOwnershipIndexes = async () => {
