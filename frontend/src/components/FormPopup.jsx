@@ -4,7 +4,7 @@ import { X } from 'lucide-react';
  * Popup shell for simple forms: gradient header, scrollable body, footer with Cancel + submit.
  * Uses the app's popup conventions ("fixed inset-0 z-50" + a "Close popup" button) so Esc closes it.
  */
-export default function FormPopup({ title, subtitle, submitLabel = 'Save', onSubmit, onClose, maxWidth = 'max-w-md', children }) {
+export default function FormPopup({ title, subtitle, submitLabel = 'Save', onSubmit, onClose, onKeyDown, maxWidth = 'max-w-md', children }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-2 md:p-4" onClick={onClose}>
       <form
@@ -13,6 +13,7 @@ export default function FormPopup({ title, subtitle, submitLabel = 'Save', onSub
         aria-modal="true"
         onClick={(event) => event.stopPropagation()}
         onSubmit={(event) => { event.preventDefault(); onSubmit(); }}
+        onKeyDown={onKeyDown}
       >
         <div className="flex-shrink-0 bg-gradient-to-r from-primary-700 to-primary-500 p-3 text-white md:px-5 md:py-4">
           <div className="flex items-center justify-between gap-3">

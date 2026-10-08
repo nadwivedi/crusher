@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'react-toastify';
 import apiClient from '../utils/api';
+import FormPopup from '../components/FormPopup';
 import { handlePopupFormKeyDown } from '../utils/popupFormKeyboard';
 
 const REASON_OPTIONS = [
@@ -16,6 +17,8 @@ const buildInitialForm = () => ({
   reason: '',
   notes: ''
 });
+
+const formatQty = (value) => Number(value || 0).toLocaleString('en-IN', { maximumFractionDigits: 6 });
 
 const parseVoucherDateValue = (value) => {
   const normalized = String(value || '').trim();
@@ -63,6 +66,13 @@ export default function StockAdjustment({ modalOnly = false, onModalFinish = nul
     () => products.map((product) => ({ value: product.name, label: product.name })),
     [products]
   );
+
+  const selectedProduct = products.find((product) => product.name === formData.stockItem);
+  const unit = selectedProduct?.unit || '';
+  const inStock = Number(selectedProduct?.currentStock) || 0;
+  const quantityValue = Number(formData.quantity) || 0;
+  const stockAfter = Math.round((inStock - quantityValue) * 1e6) / 1e6;
+  const exceedsStock = Boolean(selectedProduct) && stockAfter < 0;
 
   useEffect(() => {
     if (!modalOnly || showForm) return;
@@ -134,14 +144,8 @@ export default function StockAdjustment({ modalOnly = false, onModalFinish = nul
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = async (event) => {
-    event.preventDefault();
-
-    const parsedDate = parseVoucherDateValue(formData.voucherDate);
-    if (!parsedDate) {
-      setError('Valid date is required');
-      return;
-    }
+  const handleSubmit = async () => {
+    if (saving) return;
 
     if (!String(formData.stockItem || '').trim()) {
       setError('Stock Item is required');
@@ -151,6 +155,17 @@ export default function StockAdjustment({ modalOnly = false, onModalFinish = nul
     const quantity = Number(formData.quantity);
     if (!Number.isFinite(quantity) || quantity <= 0) {
       setError('Quantity must be greater than 0');
+      return;
+    }
+
+    if (exceedsStock) {
+      setError(`Only ${formatQty(inStock)} ${unit} in stock`);
+      return;
+    }
+
+    const parsedDate = parseVoucherDateValue(formData.voucherDate);
+    if (!parsedDate) {
+      setError('Valid date is required');
       return;
     }
 
@@ -203,111 +218,85 @@ export default function StockAdjustment({ modalOnly = false, onModalFinish = nul
       )}
 
       {showForm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={handleCloseForm}>
-          <div className="w-full max-w-5xl rounded-2xl border border-gray-200 bg-white shadow-2xl" onClick={(event) => event.stopPropagation()}>
-            <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
-              <h2 className="text-xl font-bold text-gray-800">Add New Stock Adjustment</h2>
-              <button
-                type="button"
-                onClick={handleCloseForm}
-                className="h-9 w-9 rounded-full border border-gray-300 text-gray-500 transition hover:border-gray-400 hover:text-gray-700"
-                aria-label="Close popup"
-              >
-                &times;
-              </button>
-            </div>
+        <FormPopup
+          title="Add Stock Adjustment"
+          subtitle="Reduce stock lost to expiry, theft or other reasons"
+          submitLabel={saving ? 'Saving...' : 'Save Adjustment'}
+          maxWidth="max-w-lg"
+          onSubmit={handleSubmit}
+          onClose={handleCloseForm}
+          onKeyDown={(event) => handlePopupFormKeyDown(event, handleCloseForm)}
+        >
+          {error && <p className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-medium text-rose-700">{error}</p>}
 
-            <form onSubmit={handleSubmit} onKeyDown={(event) => handlePopupFormKeyDown(event, handleCloseForm)} className="grid grid-cols-1 gap-4 p-6 md:grid-cols-2">
-              <div>
-                <label className="mb-1 block text-sm text-slate-600">Date</label>
+          <div>
+            <label className="label">Stock Item *</label>
+            <select ref={firstFieldRef} className="input" name="stockItem" value={formData.stockItem} onChange={handleChange}>
+              <option value="">Select stock item</option>
+              {stockOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {selectedProduct && (
+            <dl className="grid grid-cols-3 gap-px overflow-hidden rounded-xl bg-slate-200 ring-1 ring-slate-200">
+              {[
+                { label: 'In Stock', value: `${formatQty(inStock)} ${unit}`, tone: 'text-slate-900' },
+                { label: 'Reduce By', value: quantityValue > 0 ? `− ${formatQty(quantityValue)} ${unit}` : '-', tone: 'text-amber-700' },
+                { label: 'Stock After', value: `${formatQty(stockAfter)} ${unit}`, tone: exceedsStock ? 'text-rose-700' : 'text-emerald-700' }
+              ].map((stat) => (
+                <div key={stat.label} className="bg-white px-3 py-2">
+                  <dt className="text-[11px] font-medium text-slate-500">{stat.label}</dt>
+                  <dd className={`truncate text-sm font-bold ${stat.tone}`}>{stat.value}</dd>
+                </div>
+              ))}
+            </dl>
+          )}
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="label">Quantity *</label>
+              <div className="relative">
                 <input
-                  ref={firstFieldRef}
-                  type="text"
-                  name="voucherDate"
-                  value={formData.voucherDate}
-                  onChange={handleChange}
-                  placeholder="DD-MM-YYYY"
-                  className="w-full rounded-lg border border-slate-300 px-3 py-2"
-                />
-              </div>
-
-              <div>
-                <label className="mb-1 block text-sm text-slate-600">Stock Item *</label>
-                <select
-                  name="stockItem"
-                  value={formData.stockItem}
-                  onChange={handleChange}
-                  className="w-full rounded-lg border border-slate-300 px-3 py-2"
-                >
-                  <option value="">Select stock item</option>
-                  {stockOptions.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="mb-1 block text-sm text-slate-600">Quantity *</label>
-                <input
+                  className={`input ${unit ? 'pr-14' : ''}`}
                   type="number"
                   name="quantity"
                   value={formData.quantity}
                   onChange={handleChange}
                   step="0.000001"
                   min="0.000001"
-                  className="w-full rounded-lg border border-slate-300 px-3 py-2"
+                  placeholder="0"
                 />
+                {unit && <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-xs font-semibold text-slate-400">{unit}</span>}
               </div>
-
-              <div>
-                <label className="mb-1 block text-sm text-slate-600">Reason *</label>
-                <select
-                  name="reason"
-                  value={formData.reason}
-                  onChange={handleChange}
-                  className="w-full rounded-lg border border-slate-300 px-3 py-2"
-                >
-                  <option value="">Select reason</option>
-                  {REASON_OPTIONS.map((option) => (
-                    <option key={option} value={option}>
-                      {option}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="md:col-span-2">
-                <label className="mb-1 block text-sm text-slate-600">Notes</label>
-                <input
-                  type="text"
-                  name="notes"
-                  value={formData.notes}
-                  onChange={handleChange}
-                  placeholder="Optional note"
-                  className="w-full rounded-lg border border-slate-300 px-3 py-2"
-                />
-              </div>
-
-              {error && (
-                <div className="md:col-span-2 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
-                  {error}
-                </div>
-              )}
-
-              <div className="md:col-span-2 flex items-end gap-3">
-                <button
-                  type="submit"
-                  disabled={saving}
-                  className="rounded-lg bg-indigo-600 px-4 py-2 text-white transition hover:bg-indigo-700 disabled:opacity-50"
-                >
-                  {saving ? 'Saving...' : 'Save Voucher'}
-                </button>
-              </div>
-            </form>
+              {exceedsStock && <p className="mt-1 text-xs font-medium text-rose-600">Only {formatQty(inStock)} {unit} in stock</p>}
+            </div>
+            <div>
+              <label className="label">Date *</label>
+              <input className="input" type="date" name="voucherDate" value={formData.voucherDate} onChange={handleChange} />
+            </div>
           </div>
-        </div>
+
+          <div>
+            <label className="label">Reason *</label>
+            <select className="input" name="reason" value={formData.reason} onChange={handleChange}>
+              <option value="">Select reason</option>
+              {REASON_OPTIONS.map((option) => (
+                <option key={option} value={option}>
+                  {option}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="label">Notes</label>
+            <input className="input" type="text" name="notes" value={formData.notes} onChange={handleChange} placeholder="Optional" />
+          </div>
+        </FormPopup>
       )}
 
       <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-md">
