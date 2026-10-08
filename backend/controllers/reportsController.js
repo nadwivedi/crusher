@@ -1224,12 +1224,34 @@ const toDayKey = (date) => {
   return `${year}-${month}-${day}`;
 };
 
+// Date of the user's very first entry of any kind, or null when nothing has been entered yet
+const getFirstEntryDate = async (req) => {
+  const firstDate = async (Model, field) => {
+    const entry = await Model.findOne(scopedFilter(req, { [field]: { $ne: null } })).sort({ [field]: 1 }).select(field).lean();
+    return entry ? new Date(entry[field]).getTime() : NaN;
+  };
+
+  const dates = await Promise.all([
+    firstDate(Boulder, "boulderDate"),
+    firstDate(Sales, "saleDate"),
+    firstDate(Expense, "expenseDate"),
+    firstDate(Purchase, "purchaseDate"),
+    firstDate(Receipt, "receiptDate"),
+    firstDate(Payment, "paymentDate"),
+  ]);
+  const known = dates.filter(Number.isFinite);
+  return known.length > 0 ? new Date(Math.min(...known)) : null;
+};
+
 // Totals for the dashboard cards over a date range (defaults to today), plus a trend for the charts.
+// range=lifetime covers everything from the first entry until today.
 const getDashboardSummary = async (req, res) => {
   try {
     const now = new Date();
-    const fromDate = toDateBoundary(req.query.fromDate) || toDateBoundary(now);
-    const toDate = toDateBoundary(req.query.toDate, true) || toDateBoundary(now, true);
+    const lifetime = req.query.range === "lifetime";
+    const requestedFrom = lifetime ? await getFirstEntryDate(req) : req.query.fromDate;
+    const fromDate = toDateBoundary(requestedFrom) || toDateBoundary(now);
+    const toDate = (!lifetime && toDateBoundary(req.query.toDate, true)) || toDateBoundary(now, true);
 
     if (fromDate > toDate) {
       return res.status(400).json({ message: "From date must be on or before to date" });
@@ -1337,6 +1359,7 @@ const getDashboardSummary = async (req, res) => {
     return res.json({
       fromDate,
       toDate,
+      lifetime,
       groupBy,
       boulder,
       sales: {
