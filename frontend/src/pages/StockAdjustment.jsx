@@ -1,16 +1,30 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'react-toastify';
+import { Minus, Plus } from 'lucide-react';
 import apiClient from '../utils/api';
 import FormPopup from '../components/FormPopup';
 import { handlePopupFormKeyDown } from '../utils/popupFormKeyboard';
 
-const REASON_OPTIONS = [
-  'Loss due to expiry date',
-  'Theft loss',
-  'Other losses'
+const ADJUSTMENT_TYPES = [
+  { key: 'add', label: 'Increase Stock', Icon: Plus, activeClass: 'border-emerald-600 bg-emerald-600 text-white' },
+  { key: 'subtract', label: 'Decrease Stock', Icon: Minus, activeClass: 'border-rose-600 bg-rose-600 text-white' }
 ];
 
+const REASON_OPTIONS = {
+  add: [
+    'Extra stock found in counting',
+    'Entry correction',
+    'Other additions'
+  ],
+  subtract: [
+    'Loss due to expiry date',
+    'Theft loss',
+    'Other losses'
+  ]
+};
+
 const buildInitialForm = () => ({
+  adjustmentType: 'subtract',
   voucherDate: new Date().toISOString().split('T')[0],
   stockItem: '',
   quantity: '',
@@ -63,15 +77,16 @@ export default function StockAdjustment({ modalOnly = false, onModalFinish = nul
   const firstFieldRef = useRef(null);
 
   const stockOptions = useMemo(
-    () => products.map((product) => ({ value: product.name, label: product.name })),
+    () => products.map((product) => ({ value: product._id, label: product.name })),
     [products]
   );
 
-  const selectedProduct = products.find((product) => product.name === formData.stockItem);
+  const isIncrease = formData.adjustmentType === 'add';
+  const selectedProduct = products.find((product) => product._id === formData.stockItem);
   const unit = selectedProduct?.unit || '';
   const inStock = Number(selectedProduct?.currentStock) || 0;
   const quantityValue = Number(formData.quantity) || 0;
-  const stockAfter = Math.round((inStock - quantityValue) * 1e6) / 1e6;
+  const stockAfter = Math.round((inStock + (isIncrease ? quantityValue : -quantityValue)) * 1e6) / 1e6;
   const exceedsStock = Boolean(selectedProduct) && stockAfter < 0;
 
   useEffect(() => {
@@ -87,17 +102,17 @@ export default function StockAdjustment({ modalOnly = false, onModalFinish = nul
     return () => clearTimeout(timer);
   }, [showForm]);
 
-  useEffect(() => {
-    const fetchProducts = async () => {
-      try {
-        const response = await apiClient.get('/products');
-        setProducts(Array.isArray(response?.data) ? response.data : Array.isArray(response) ? response : []);
-      } catch (fetchError) {
-        console.error('Error fetching stock items for stock adjustment:', fetchError);
-        setProducts([]);
-      }
-    };
+  const fetchProducts = async () => {
+    try {
+      const response = await apiClient.get('/products');
+      setProducts(Array.isArray(response?.data) ? response.data : Array.isArray(response) ? response : []);
+    } catch (fetchError) {
+      console.error('Error fetching stock items for stock adjustment:', fetchError);
+      setProducts([]);
+    }
+  };
 
+  useEffect(() => {
     fetchProducts();
   }, []);
 
@@ -144,6 +159,12 @@ export default function StockAdjustment({ modalOnly = false, onModalFinish = nul
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
+  const selectAdjustmentType = (adjustmentType) => {
+    if (adjustmentType === formData.adjustmentType) return;
+    setFormData((prev) => ({ ...prev, adjustmentType, reason: '' }));
+    setError('');
+  };
+
   const handleSubmit = async () => {
     if (saving) return;
 
@@ -179,15 +200,15 @@ export default function StockAdjustment({ modalOnly = false, onModalFinish = nul
       setError('');
       await apiClient.post('/stock-adjustments', {
         voucherDate: parsedDate,
-        stockItem: formData.stockItem.trim(),
+        stockItem: formData.stockItem,
         quantity,
         reason: formData.reason.trim(),
         notes: formData.notes.trim(),
-        adjustmentType: 'subtract'
+        adjustmentType: formData.adjustmentType
       });
-      toast.success('Stock adjustment created successfully');
+      toast.success(isIncrease ? 'Stock increased successfully' : 'Stock decreased successfully');
       handleCloseForm();
-      await refreshEntries();
+      await Promise.all([refreshEntries(), fetchProducts()]);
     } catch (submitError) {
       setError(submitError?.response?.data?.message || submitError.message || 'Error saving stock adjustment');
     } finally {
@@ -220,7 +241,7 @@ export default function StockAdjustment({ modalOnly = false, onModalFinish = nul
       {showForm && (
         <FormPopup
           title="Add Stock Adjustment"
-          subtitle="Reduce stock lost to expiry, theft or other reasons"
+          subtitle="Increase or decrease the stock of an item"
           submitLabel={saving ? 'Saving...' : 'Save Adjustment'}
           maxWidth="max-w-lg"
           onSubmit={handleSubmit}
@@ -228,6 +249,23 @@ export default function StockAdjustment({ modalOnly = false, onModalFinish = nul
           onKeyDown={(event) => handlePopupFormKeyDown(event, handleCloseForm)}
         >
           {error && <p className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-medium text-rose-700">{error}</p>}
+
+          <div className="grid grid-cols-2 gap-2">
+            {ADJUSTMENT_TYPES.map((type) => (
+              <button
+                key={type.key}
+                type="button"
+                onClick={() => selectAdjustmentType(type.key)}
+                aria-pressed={formData.adjustmentType === type.key}
+                className={`flex items-center justify-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-semibold transition ${
+                  formData.adjustmentType === type.key ? type.activeClass : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-100'
+                }`}
+              >
+                <type.Icon size={16} />
+                {type.label}
+              </button>
+            ))}
+          </div>
 
           <div>
             <label className="label">Stock Item *</label>
@@ -245,7 +283,11 @@ export default function StockAdjustment({ modalOnly = false, onModalFinish = nul
             <dl className="grid grid-cols-3 gap-px overflow-hidden rounded-xl bg-slate-200 ring-1 ring-slate-200">
               {[
                 { label: 'In Stock', value: `${formatQty(inStock)} ${unit}`, tone: 'text-slate-900' },
-                { label: 'Reduce By', value: quantityValue > 0 ? `− ${formatQty(quantityValue)} ${unit}` : '-', tone: 'text-amber-700' },
+                {
+                  label: isIncrease ? 'Increase By' : 'Decrease By',
+                  value: quantityValue > 0 ? `${isIncrease ? '+' : '−'} ${formatQty(quantityValue)} ${unit}` : '-',
+                  tone: isIncrease ? 'text-emerald-700' : 'text-amber-700'
+                },
                 { label: 'Stock After', value: `${formatQty(stockAfter)} ${unit}`, tone: exceedsStock ? 'text-rose-700' : 'text-emerald-700' }
               ].map((stat) => (
                 <div key={stat.label} className="bg-white px-3 py-2">
@@ -284,7 +326,7 @@ export default function StockAdjustment({ modalOnly = false, onModalFinish = nul
             <label className="label">Reason *</label>
             <select className="input" name="reason" value={formData.reason} onChange={handleChange}>
               <option value="">Select reason</option>
-              {REASON_OPTIONS.map((option) => (
+              {REASON_OPTIONS[formData.adjustmentType].map((option) => (
                 <option key={option} value={option}>
                   {option}
                 </option>
@@ -330,8 +372,10 @@ export default function StockAdjustment({ modalOnly = false, onModalFinish = nul
                   <tr key={item._id} className="bg-white transition-colors duration-200 hover:bg-slate-50">
                     <td className="px-6 py-4 text-slate-600">{item.voucherDate ? new Date(item.voucherDate).toLocaleDateString() : '-'}</td>
                     <td className="px-6 py-4 font-semibold text-slate-800">{item.voucherNumber || '-'}</td>
-                    <td className="px-6 py-4 text-slate-700">{item.stockItem || '-'}</td>
-                    <td className="px-6 py-4 text-slate-700">{item.quantity ?? '-'}</td>
+                    <td className="px-6 py-4 text-slate-700">{item.stockItemName || '-'}</td>
+                    <td className={`px-6 py-4 font-semibold ${item.adjustmentType === 'add' ? 'text-emerald-700' : 'text-rose-700'}`}>
+                      {item.adjustmentType === 'add' ? '+' : '−'} {formatQty(item.quantity)} {item.unit || ''}
+                    </td>
                     <td className="px-6 py-4 text-slate-700">{item.reason || '-'}</td>
                     <td className="px-6 py-4 text-slate-500">{item.notes || '-'}</td>
                   </tr>
