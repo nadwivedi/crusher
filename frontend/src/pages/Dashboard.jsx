@@ -63,12 +63,13 @@ const QUICK_ENTRIES = [
 ];
 const MORE_ENTRIES = [
   { label: 'Purchase Return', stateKey: 'homeQuickPurchaseReturn' },
-  { label: 'Sale Return', path: '/sale-return' },
-  { label: 'Stock Adjustment', path: '/stock-adjustment' },
+  { label: 'Sale Return', stateKey: 'homeQuickSaleReturn' },
+  { label: 'Stock Adjustment', stateKey: 'homeQuickStockAdjustment' },
 ];
 const QUICK_STATE_KEYS = [
   'homeQuickBoulder', 'homeQuickSale', 'homeQuickPurchase', 'homeQuickPayment',
-  'homeQuickReceipt', 'homeQuickMaterialUsed', 'homeQuickPurchaseReturn', 'homeQuickExpense'
+  'homeQuickReceipt', 'homeQuickMaterialUsed', 'homeQuickPurchaseReturn', 'homeQuickExpense',
+  'homeQuickSaleReturn', 'homeQuickStockAdjustment'
 ];
 const quickEntryState = (currentState, stateKey) => ({
   ...(currentState || {}),
@@ -146,11 +147,6 @@ export default function Dashboard() {
   }, [range, entryPopupOpen]);
 
   const openQuickEntry = (entry) => {
-    if (entry.path) {
-      navigate(entry.path);
-      return;
-    }
-
     navigate('/', { replace: true, state: quickEntryState(location.state, entry.stateKey) });
   };
 

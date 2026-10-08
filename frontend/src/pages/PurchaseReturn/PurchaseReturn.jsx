@@ -199,6 +199,188 @@ export default function PurchaseReturn({ modalOnly = false, onModalFinish = null
     }
   };
 
+  const formPopup = showForm && (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-2 backdrop-blur-[1.5px] md:p-4" onClick={handleCloseForm}>
+      <div
+        className="flex max-h-[92vh] w-full max-w-[48rem] flex-col overflow-hidden rounded-xl bg-white shadow-2xl ring-1 ring-slate-200/80 md:rounded-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex-shrink-0 border-b border-white/15 bg-gradient-to-r from-cyan-700 via-blue-700 to-indigo-700 px-3 py-1.5 text-white md:px-4 md:py-2">
+          <div className="flex items-center justify-between">
+            <div className="flex items-start gap-3">
+              <div className="flex h-7 w-7 items-center justify-center rounded-md bg-white/20 text-white ring-1 ring-white/30 md:h-8 md:w-8">
+                <RotateCcw className="h-4 w-4 md:h-5 md:w-5" />
+              </div>
+              <div>
+                <h2 className="text-base font-bold md:text-xl">Purchase Return Voucher</h2>
+                <p className="mt-0.5 text-[11px] text-cyan-100 md:text-xs">Select the original purchase and capture returned quantities in the same popup pattern as stock items.</p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={handleCloseForm}
+              className="rounded-lg p-1.5 text-white transition hover:bg-white/25 md:p-2"
+              aria-label="Close popup"
+            >
+              <svg className="h-5 w-5 md:h-6 md:w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <form onSubmit={handleSubmit} onKeyDown={(e) => handlePopupFormKeyDown(e, handleCloseForm)} className="flex flex-1 flex-col overflow-hidden">
+          <div className="flex-1 overflow-y-auto p-2.5 md:p-4">
+            <div className="flex flex-col gap-3 md:gap-4">
+              <div className="rounded-xl border-2 border-indigo-200 bg-gradient-to-r from-blue-50 to-indigo-50 p-2.5 md:p-4">
+                <h3 className="mb-3 flex items-center gap-2 text-base font-bold text-gray-800 md:mb-4 md:text-lg">
+                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-indigo-600 text-xs text-white md:h-8 md:w-8 md:text-sm">1</span>
+                  Voucher Details
+                </h3>
+                <div className="space-y-4">
+                  <div className="flex flex-col gap-2 md:flex-row md:items-center">
+                    <label className="w-32 shrink-0 text-xs font-semibold text-gray-700 md:text-sm">Purchase No. *</label>
+                    <select
+                      name="purchase"
+                      value={formData.purchase}
+                      onChange={(e) => { setFormData((prev) => ({ ...prev, purchase: e.target.value })); setReturnQuantities({}); }}
+                      className={getInlineFieldClass('indigo')}
+                    >
+                      <option value="">Select purchase number</option>
+                      {purchases.map((purchase) => (
+                        <option key={purchase._id} value={purchase._id}>{getPurchaseLabel(purchase)}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="flex flex-col gap-2 md:flex-row md:items-center">
+                    <label className="w-32 shrink-0 text-xs font-semibold text-gray-700 md:text-sm">Voucher Date</label>
+                    <input
+                      type="date"
+                      name="voucherDate"
+                      value={formData.voucherDate}
+                      onChange={(e) => setFormData((prev) => ({ ...prev, voucherDate: e.target.value }))}
+                      className={getInlineFieldClass('indigo')}
+                    />
+                  </div>
+                  <div className="flex flex-col gap-2 md:flex-row md:items-start">
+                    <label className="w-32 shrink-0 pt-2 text-xs font-semibold text-gray-700 md:text-sm">Notes</label>
+                    <textarea
+                      name="notes"
+                      value={formData.notes}
+                      onChange={(e) => setFormData((prev) => ({ ...prev, notes: e.target.value }))}
+                      rows="4"
+                      className={`${getInlineFieldClass('indigo')} resize-none py-2.5 font-medium text-slate-700`}
+                      placeholder="Reason for return, damaged items, supplier confirmation, etc."
+                    />
+                  </div>
+                  {selectedPurchase && (
+                    <div className="rounded-2xl border border-indigo-200 bg-white/80 p-4 text-sm shadow-sm">
+                      <p><span className="font-semibold text-slate-700">Purchase No.:</span> {formatPurchaseNumber(selectedPurchase.purchaseNumber)}</p>
+                      <p><span className="font-semibold text-slate-700">Party:</span> {selectedPurchase.party?.name || '-'}</p>
+                      <p className="mt-2"><span className="font-semibold text-slate-700">Supplier Invoice:</span> {selectedPurchase.supplierInvoice || '-'}</p>
+                      <p className="mt-2"><span className="font-semibold text-slate-700">Purchase Date:</span> {selectedPurchase.purchaseDate ? new Date(selectedPurchase.purchaseDate).toLocaleDateString('en-GB') : '-'}</p>
+                      <p className="mt-2"><span className="font-semibold text-slate-700">Original Amount:</span> Rs {Number(selectedPurchase.totalAmount || 0).toFixed(2)}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="rounded-xl border-2 border-emerald-200 bg-gradient-to-r from-green-50 to-emerald-50 p-2.5 md:p-4">
+                <div className="mb-3 flex items-center justify-between gap-3 md:mb-4">
+                  <h3 className="flex items-center gap-2 text-base font-bold text-gray-800 md:text-lg">
+                    <span className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-600 text-xs text-white md:h-8 md:w-8 md:text-sm">2</span>
+                    Return Items
+                  </h3>
+                  <div className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-600 shadow-sm">Selected: {selectedItems.length}</div>
+                </div>
+
+                {!selectedPurchase ? (
+                  <div className="rounded-2xl border border-dashed border-slate-300 bg-white/80 px-6 py-10 text-center text-slate-500">Select a purchase number to load purchased items.</div>
+                ) : (
+                  <div className="space-y-3">
+                    {purchaseItems.map((item) => (
+                      <div key={item.purchaseItemId} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                        <div className="flex flex-col gap-3">
+                          <div className="min-w-0">
+                            <p className="font-semibold text-slate-800">{item.productName}</p>
+                            <p className="mt-1 text-xs text-slate-500">Purchased: {item.purchasedQty} | Already Returned: {item.returnedQty} | Returnable: {item.remainingQty}</p>
+                            <p className="mt-1 text-xs font-semibold text-emerald-700">Rate: Rs {item.unitPrice.toFixed(2)}</p>
+                          </div>
+                          <div className="flex flex-col gap-2 md:flex-row md:items-center">
+                            <label className="w-32 shrink-0 text-xs font-semibold uppercase tracking-wide text-gray-700 md:text-sm">Return Qty</label>
+                            <input
+                              type="number"
+                              min="0"
+                              max={item.remainingQty}
+                              step="0.01"
+                              value={returnQuantities[item.purchaseItemId] || ''}
+                              onChange={(e) => handleQuantityChange(item.purchaseItemId, e.target.value, item.remainingQty)}
+                              disabled={item.remainingQty <= 0}
+                              className={`${getInlineFieldClass('emerald')} font-medium text-slate-700 disabled:bg-slate-100 disabled:text-slate-500`}
+                              placeholder={item.remainingQty > 0 ? '0' : 'Fully returned'}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="flex shrink-0 flex-col items-center justify-between gap-2 border-t border-gray-200 bg-gray-50 px-3 py-2 md:flex-row md:px-4">
+            <div className="text-[11px] text-gray-600 md:text-xs">
+              <kbd className="rounded bg-gray-200 px-2 py-1 text-xs font-mono">Esc</kbd> to close
+              <span className="ml-3 text-sm font-semibold text-slate-700">Return Total: <span className="text-emerald-700">Rs {totalAmount.toFixed(2)}</span></span>
+            </div>
+
+            <div className="flex w-full gap-2 md:w-auto">
+              <button
+                type="button"
+                onClick={handleCloseForm}
+                className="flex-1 rounded-lg border border-gray-300 bg-white px-4 py-1.5 text-sm font-semibold text-gray-700 transition hover:bg-gray-100 md:flex-none md:px-5"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={saving}
+                className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 px-5 py-1.5 text-sm font-semibold text-white transition hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-50 md:flex-none md:px-6"
+              >
+                {saving ? (
+                  <>
+                    <svg className="h-5 w-5 animate-spin text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Saving...
+                  </>
+                ) : (
+                  'Save Purchase Return'
+                )}
+              </button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+
+  // Opened from the dashboard or by its entry URL: only the popup, without the list page behind it
+  if (modalOnly) {
+    return (
+      <>
+        {error && (
+          <div className="fixed left-4 right-4 top-4 z-[60] rounded-lg border border-red-200 bg-red-50 p-4 text-red-700 shadow-lg md:left-auto md:right-4 md:w-[26rem]">
+            {error}
+          </div>
+        )}
+        {formPopup}
+      </>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-purple-50">
       <div className="w-full px-3 pb-8 pt-4 md:px-4 lg:px-6 lg:pt-4">
@@ -273,173 +455,7 @@ export default function PurchaseReturn({ modalOnly = false, onModalFinish = null
           )}
         </div>
 
-        {showForm && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-2 backdrop-blur-[1.5px] md:p-4" onClick={handleCloseForm}>
-            <div
-              className="flex max-h-[92vh] w-full max-w-[48rem] flex-col overflow-hidden rounded-xl bg-white shadow-2xl ring-1 ring-slate-200/80 md:rounded-2xl"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="flex-shrink-0 border-b border-white/15 bg-gradient-to-r from-cyan-700 via-blue-700 to-indigo-700 px-3 py-1.5 text-white md:px-4 md:py-2">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-start gap-3">
-                    <div className="flex h-7 w-7 items-center justify-center rounded-md bg-white/20 text-white ring-1 ring-white/30 md:h-8 md:w-8">
-                      <RotateCcw className="h-4 w-4 md:h-5 md:w-5" />
-                    </div>
-                    <div>
-                      <h2 className="text-base font-bold md:text-xl">Purchase Return Voucher</h2>
-                      <p className="mt-0.5 text-[11px] text-cyan-100 md:text-xs">Select the original purchase and capture returned quantities in the same popup pattern as stock items.</p>
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={handleCloseForm}
-                    className="rounded-lg p-1.5 text-white transition hover:bg-white/25 md:p-2"
-                    aria-label="Close popup"
-                  >
-                    <svg className="h-5 w-5 md:h-6 md:w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
-                </div>
-              </div>
-
-              <form onSubmit={handleSubmit} onKeyDown={(e) => handlePopupFormKeyDown(e, handleCloseForm)} className="flex flex-1 flex-col overflow-hidden">
-                <div className="flex-1 overflow-y-auto p-2.5 md:p-4">
-                  <div className="flex flex-col gap-3 md:gap-4">
-                    <div className="rounded-xl border-2 border-indigo-200 bg-gradient-to-r from-blue-50 to-indigo-50 p-2.5 md:p-4">
-                      <h3 className="mb-3 flex items-center gap-2 text-base font-bold text-gray-800 md:mb-4 md:text-lg">
-                        <span className="flex h-6 w-6 items-center justify-center rounded-full bg-indigo-600 text-xs text-white md:h-8 md:w-8 md:text-sm">1</span>
-                        Voucher Details
-                      </h3>
-                      <div className="space-y-4">
-                        <div className="flex flex-col gap-2 md:flex-row md:items-center">
-                          <label className="w-32 shrink-0 text-xs font-semibold text-gray-700 md:text-sm">Purchase No. *</label>
-                          <select
-                            name="purchase"
-                            value={formData.purchase}
-                            onChange={(e) => { setFormData((prev) => ({ ...prev, purchase: e.target.value })); setReturnQuantities({}); }}
-                            className={getInlineFieldClass('indigo')}
-                          >
-                            <option value="">Select purchase number</option>
-                            {purchases.map((purchase) => (
-                              <option key={purchase._id} value={purchase._id}>{getPurchaseLabel(purchase)}</option>
-                            ))}
-                          </select>
-                        </div>
-                        <div className="flex flex-col gap-2 md:flex-row md:items-center">
-                          <label className="w-32 shrink-0 text-xs font-semibold text-gray-700 md:text-sm">Voucher Date</label>
-                          <input
-                            type="date"
-                            name="voucherDate"
-                            value={formData.voucherDate}
-                            onChange={(e) => setFormData((prev) => ({ ...prev, voucherDate: e.target.value }))}
-                            className={getInlineFieldClass('indigo')}
-                          />
-                        </div>
-                        <div className="flex flex-col gap-2 md:flex-row md:items-start">
-                          <label className="w-32 shrink-0 pt-2 text-xs font-semibold text-gray-700 md:text-sm">Notes</label>
-                          <textarea
-                            name="notes"
-                            value={formData.notes}
-                            onChange={(e) => setFormData((prev) => ({ ...prev, notes: e.target.value }))}
-                            rows="4"
-                            className={`${getInlineFieldClass('indigo')} resize-none py-2.5 font-medium text-slate-700`}
-                            placeholder="Reason for return, damaged items, supplier confirmation, etc."
-                          />
-                        </div>
-                        {selectedPurchase && (
-                          <div className="rounded-2xl border border-indigo-200 bg-white/80 p-4 text-sm shadow-sm">
-                            <p><span className="font-semibold text-slate-700">Purchase No.:</span> {formatPurchaseNumber(selectedPurchase.purchaseNumber)}</p>
-                            <p><span className="font-semibold text-slate-700">Party:</span> {selectedPurchase.party?.name || '-'}</p>
-                            <p className="mt-2"><span className="font-semibold text-slate-700">Supplier Invoice:</span> {selectedPurchase.supplierInvoice || '-'}</p>
-                            <p className="mt-2"><span className="font-semibold text-slate-700">Purchase Date:</span> {selectedPurchase.purchaseDate ? new Date(selectedPurchase.purchaseDate).toLocaleDateString('en-GB') : '-'}</p>
-                            <p className="mt-2"><span className="font-semibold text-slate-700">Original Amount:</span> Rs {Number(selectedPurchase.totalAmount || 0).toFixed(2)}</p>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="rounded-xl border-2 border-emerald-200 bg-gradient-to-r from-green-50 to-emerald-50 p-2.5 md:p-4">
-                      <div className="mb-3 flex items-center justify-between gap-3 md:mb-4">
-                        <h3 className="flex items-center gap-2 text-base font-bold text-gray-800 md:text-lg">
-                          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-600 text-xs text-white md:h-8 md:w-8 md:text-sm">2</span>
-                          Return Items
-                        </h3>
-                        <div className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-600 shadow-sm">Selected: {selectedItems.length}</div>
-                      </div>
-
-                      {!selectedPurchase ? (
-                        <div className="rounded-2xl border border-dashed border-slate-300 bg-white/80 px-6 py-10 text-center text-slate-500">Select a purchase number to load purchased items.</div>
-                      ) : (
-                        <div className="space-y-3">
-                          {purchaseItems.map((item) => (
-                            <div key={item.purchaseItemId} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                              <div className="flex flex-col gap-3">
-                                <div className="min-w-0">
-                                  <p className="font-semibold text-slate-800">{item.productName}</p>
-                                  <p className="mt-1 text-xs text-slate-500">Purchased: {item.purchasedQty} | Already Returned: {item.returnedQty} | Returnable: {item.remainingQty}</p>
-                                  <p className="mt-1 text-xs font-semibold text-emerald-700">Rate: Rs {item.unitPrice.toFixed(2)}</p>
-                                </div>
-                                <div className="flex flex-col gap-2 md:flex-row md:items-center">
-                                  <label className="w-32 shrink-0 text-xs font-semibold uppercase tracking-wide text-gray-700 md:text-sm">Return Qty</label>
-                                  <input
-                                    type="number"
-                                    min="0"
-                                    max={item.remainingQty}
-                                    step="0.01"
-                                    value={returnQuantities[item.purchaseItemId] || ''}
-                                    onChange={(e) => handleQuantityChange(item.purchaseItemId, e.target.value, item.remainingQty)}
-                                    disabled={item.remainingQty <= 0}
-                                    className={`${getInlineFieldClass('emerald')} font-medium text-slate-700 disabled:bg-slate-100 disabled:text-slate-500`}
-                                    placeholder={item.remainingQty > 0 ? '0' : 'Fully returned'}
-                                  />
-                                </div>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex shrink-0 flex-col items-center justify-between gap-2 border-t border-gray-200 bg-gray-50 px-3 py-2 md:flex-row md:px-4">
-                  <div className="text-[11px] text-gray-600 md:text-xs">
-                    <kbd className="rounded bg-gray-200 px-2 py-1 text-xs font-mono">Esc</kbd> to close
-                    <span className="ml-3 text-sm font-semibold text-slate-700">Return Total: <span className="text-emerald-700">Rs {totalAmount.toFixed(2)}</span></span>
-                  </div>
-
-                  <div className="flex w-full gap-2 md:w-auto">
-                    <button
-                      type="button"
-                      onClick={handleCloseForm}
-                      className="flex-1 rounded-lg border border-gray-300 bg-white px-4 py-1.5 text-sm font-semibold text-gray-700 transition hover:bg-gray-100 md:flex-none md:px-5"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="submit"
-                      disabled={saving}
-                      className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 px-5 py-1.5 text-sm font-semibold text-white transition hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-50 md:flex-none md:px-6"
-                    >
-                      {saving ? (
-                        <>
-                          <svg className="h-5 w-5 animate-spin text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                          </svg>
-                          Saving...
-                        </>
-                      ) : (
-                        'Save Purchase Return'
-                      )}
-                    </button>
-                  </div>
-                </div>
-              </form>
-            </div>
-          </div>
-        )}
+        {formPopup}
       </div>
     </div>
   );

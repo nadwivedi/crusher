@@ -62,6 +62,8 @@ function App() {
       homeQuickMaterialUsed,
       homeQuickPurchaseReturn,
       homeQuickExpense,
+      homeQuickSaleReturn,
+      homeQuickStockAdjustment,
       backgroundLocation,
       ...restState
     } = currentState;
@@ -203,6 +205,18 @@ function App() {
       {location.pathname === '/' && location.state?.homeQuickExpense && (
         <ProtectedRoute>
           <Expenses modalOnly onModalFinish={clearHomeQuickShortcutState} />
+        </ProtectedRoute>
+      )}
+
+      {location.pathname === '/' && location.state?.homeQuickSaleReturn && canViewSaleReturn && (
+        <ProtectedRoute>
+          <SaleReturn modalOnly onModalFinish={clearHomeQuickShortcutState} />
+        </ProtectedRoute>
+      )}
+
+      {location.pathname === '/' && location.state?.homeQuickStockAdjustment && canViewStockAdjustment && (
+        <ProtectedRoute>
+          <StockAdjustment modalOnly onModalFinish={clearHomeQuickShortcutState} />
         </ProtectedRoute>
       )}
     </>

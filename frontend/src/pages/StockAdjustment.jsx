@@ -341,50 +341,52 @@ export default function StockAdjustment({ modalOnly = false, onModalFinish = nul
         </FormPopup>
       )}
 
-      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-md">
-        <div className="overflow-x-auto">
-          <table className="w-full whitespace-nowrap text-left text-sm">
-            <thead className="bg-slate-800 text-white">
-              <tr>
-                <th className="px-6 py-4 text-xs font-medium uppercase tracking-wider">Date</th>
-                <th className="px-6 py-4 text-xs font-medium uppercase tracking-wider">Voucher No</th>
-                <th className="px-6 py-4 text-xs font-medium uppercase tracking-wider">Stock Item</th>
-                <th className="px-6 py-4 text-xs font-medium uppercase tracking-wider">Quantity</th>
-                <th className="px-6 py-4 text-xs font-medium uppercase tracking-wider">Reason</th>
-                <th className="px-6 py-4 text-xs font-medium uppercase tracking-wider">Notes</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {loading ? (
+      {!modalOnly && (
+        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-md">
+          <div className="overflow-x-auto">
+            <table className="w-full whitespace-nowrap text-left text-sm">
+              <thead className="bg-slate-800 text-white">
                 <tr>
-                  <td colSpan={6} className="px-6 py-8 text-center text-slate-500">
-                    Loading...
-                  </td>
+                  <th className="px-6 py-4 text-xs font-medium uppercase tracking-wider">Date</th>
+                  <th className="px-6 py-4 text-xs font-medium uppercase tracking-wider">Voucher No</th>
+                  <th className="px-6 py-4 text-xs font-medium uppercase tracking-wider">Stock Item</th>
+                  <th className="px-6 py-4 text-xs font-medium uppercase tracking-wider">Quantity</th>
+                  <th className="px-6 py-4 text-xs font-medium uppercase tracking-wider">Reason</th>
+                  <th className="px-6 py-4 text-xs font-medium uppercase tracking-wider">Notes</th>
                 </tr>
-              ) : entries.length === 0 ? (
-                <tr>
-                  <td colSpan={6} className="px-6 py-8 text-center text-slate-500">
-                    No stock adjustments found
-                  </td>
-                </tr>
-              ) : (
-                entries.map((item) => (
-                  <tr key={item._id} className="bg-white transition-colors duration-200 hover:bg-slate-50">
-                    <td className="px-6 py-4 text-slate-600">{item.voucherDate ? new Date(item.voucherDate).toLocaleDateString() : '-'}</td>
-                    <td className="px-6 py-4 font-semibold text-slate-800">{item.voucherNumber || '-'}</td>
-                    <td className="px-6 py-4 text-slate-700">{item.stockItemName || '-'}</td>
-                    <td className={`px-6 py-4 font-semibold ${item.adjustmentType === 'add' ? 'text-emerald-700' : 'text-rose-700'}`}>
-                      {item.adjustmentType === 'add' ? '+' : '−'} {formatQty(item.quantity)} {item.unit || ''}
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {loading ? (
+                  <tr>
+                    <td colSpan={6} className="px-6 py-8 text-center text-slate-500">
+                      Loading...
                     </td>
-                    <td className="px-6 py-4 text-slate-700">{item.reason || '-'}</td>
-                    <td className="px-6 py-4 text-slate-500">{item.notes || '-'}</td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+                ) : entries.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="px-6 py-8 text-center text-slate-500">
+                      No stock adjustments found
+                    </td>
+                  </tr>
+                ) : (
+                  entries.map((item) => (
+                    <tr key={item._id} className="bg-white transition-colors duration-200 hover:bg-slate-50">
+                      <td className="px-6 py-4 text-slate-600">{item.voucherDate ? new Date(item.voucherDate).toLocaleDateString() : '-'}</td>
+                      <td className="px-6 py-4 font-semibold text-slate-800">{item.voucherNumber || '-'}</td>
+                      <td className="px-6 py-4 text-slate-700">{item.stockItemName || '-'}</td>
+                      <td className={`px-6 py-4 font-semibold ${item.adjustmentType === 'add' ? 'text-emerald-700' : 'text-rose-700'}`}>
+                        {item.adjustmentType === 'add' ? '+' : '−'} {formatQty(item.quantity)} {item.unit || ''}
+                      </td>
+                      <td className="px-6 py-4 text-slate-700">{item.reason || '-'}</td>
+                      <td className="px-6 py-4 text-slate-500">{item.notes || '-'}</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
