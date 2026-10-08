@@ -1,33 +1,9 @@
-import { Check, ChevronDown } from 'lucide-react';
+import { ChevronDown } from 'lucide-react';
 import FormPopup from '../../../components/FormPopup';
 import FormSection from '../../../components/FormSection';
+import OptionList from '../../../components/OptionList';
 import { handlePopupFormKeyDown } from '../../../utils/popupFormKeyboard';
 import { useFloatingDropdownPosition } from '../../../utils/useFloatingDropdownPosition';
-
-/** Search list under a type-to-search box. The highlighted row follows the arrow keys; the picked one gets a tick. */
-function OptionList({ style, options, activeIndex, emptyText, getKey, getLabel, isSelected, onHover, onPick }) {
-  return (
-    <div className="fixed z-[80] overflow-hidden rounded-lg bg-white shadow-xl ring-1 ring-slate-200" style={style} onClick={(event) => event.stopPropagation()}>
-      <div className="overflow-y-auto py-1" style={{ maxHeight: style.maxHeight }}>
-        {options.length === 0 ? (
-          <p className="px-3 py-2.5 text-sm text-slate-500">{emptyText}</p>
-        ) : options.map((option, index) => (
-          <button
-            key={getKey(option)}
-            type="button"
-            onMouseDown={(event) => event.preventDefault()}
-            onMouseEnter={() => onHover(index)}
-            onClick={() => onPick(option)}
-            className={`flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm transition ${index === activeIndex ? 'bg-primary-50 text-primary-900' : 'text-slate-700'}`}
-          >
-            <span className="min-w-0 truncate font-medium">{getLabel(option)}</span>
-            {isSelected(option) && <Check size={16} className="shrink-0 text-primary-600" />}
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}
 
 export default function AddReceiptPopup({
   showForm,

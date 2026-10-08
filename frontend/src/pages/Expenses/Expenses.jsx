@@ -9,6 +9,8 @@ import useAccounts from '../../utils/useAccounts';
 import Purchases from '../Purchases/Purchases';
 import CustomRangePopup, { CustomRangeButton } from '../../components/CustomRangePopup';
 import MonthPickerPopup, { MonthRangeButton, getMonthRange } from '../../components/MonthPickerPopup';
+import FormSection from '../../components/FormSection';
+import OptionList from '../../components/OptionList';
 import AddExpensePopup from './component/AddExpensePopup';
 import AddExpenseTypePopup from './component/AddExpenseTypePopup';
 import ExpenseTypePicker from './component/ExpenseTypePicker';
@@ -168,6 +170,9 @@ const getMethodBadgeClass = (method) => {
   return 'border border-slate-200 bg-slate-100 text-slate-700';
 };
 
+// "₹12,500" or "−₹800" for an overdrawn account
+const formatAccountBalance = (value) => `${value < 0 ? '−' : ''}₹${Math.abs(Number(value || 0)).toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
+
 export default function Expenses({ modalOnly = false, onModalFinish = null }) {
   const navigate = useNavigate();
   const [expenses, setExpenses] = useState([]);
@@ -181,9 +186,11 @@ export default function Expenses({ modalOnly = false, onModalFinish = null }) {
   // The "Paid From" list: one option per cash / bank account, Cash Account by default
   const { accounts, defaultAccountId } = useAccounts();
   const accountOptions = useMemo(
-    () => accounts.map((account) => ({ value: String(account._id), label: account.name })),
+    () => accounts.map((account) => ({ value: String(account._id), label: account.name, type: account.type === 'cash' ? 'Cash' : 'Bank' })),
     [accounts]
   );
+  // Current balance of each cash / bank account, loaded when the form opens
+  const [accountBalances, setAccountBalances] = useState({});
   const defaultAccountLabel = accountOptions.find((option) => option.value === String(defaultAccountId))?.label || 'Cash Account';
   const canManageExpenses = user?.role !== 'employee' && (user?.role === 'owner' || user?.permissions?.edit);
   const [editingId, setEditingId] = useState(null);
@@ -299,6 +306,16 @@ export default function Expenses({ modalOnly = false, onModalFinish = null }) {
   }, [showForm]);
 
   useEffect(() => {
+    if (!showForm) return;
+
+    apiClient.get('/banks/summary')
+      .then((summary) => {
+        setAccountBalances(Object.fromEntries((summary?.accounts || []).map((account) => [String(account._id), Number(account.currentBalance || 0)])));
+      })
+      .catch((err) => console.error('Error fetching account balances:', err));
+  }, [showForm]);
+
+  useEffect(() => {
     if (!showForm || !cashPartyId) return;
     setFormData((prev) => (prev.party ? prev : { ...prev, party: cashPartyId }));
     setPartyQuery((prev) => prev || CASH_PARTY.name);
@@ -339,13 +356,6 @@ export default function Expenses({ modalOnly = false, onModalFinish = null }) {
     } catch (err) {
       console.error('Error fetching parties:', err);
     }
-  };
-
-  const getInlineFieldClass = (tone = 'indigo') => {
-    const focusTone = tone === 'emerald'
-      ? 'focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200'
-      : 'focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200';
-    return `flex-1 min-w-0 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-semibold text-slate-900 shadow-sm hover:border-slate-300 focus:bg-white transition-all placeholder:font-normal placeholder:text-gray-400 focus:outline-none ${focusTone}`;
   };
 
   const getTableFieldClass = (tone = 'emerald') => {
@@ -409,6 +419,17 @@ export default function Expenses({ modalOnly = false, onModalFinish = null }) {
   const expenseTotalAmount = Math.max(0, Number(formData.amount || 0));
   const expensePaidAmount = Math.max(0, Number(formData.paymentAmount || 0));
   const expenseBalanceAmount = Math.max(0, expenseTotalAmount - expensePaidAmount);
+
+  // What the picked account will hold once this expense is saved
+  const paidFromAccountId = String(formData.account || defaultAccountId || '');
+  const paidNowAmount = isCashExpense ? expenseTotalAmount : Math.min(expensePaidAmount, expenseTotalAmount);
+  const editingExpense = editingId ? expenses.find((expense) => expense._id === editingId) : null;
+  // While editing, the balance already has this expense's old payment taken out of its old account
+  const alreadyPaidFromAccount = editingExpense && String(editingExpense.account?._id || editingExpense.account || defaultAccountId || '') === paidFromAccountId
+    ? Number(editingExpense.paidAmount ?? editingExpense.amount ?? 0)
+    : 0;
+  const paidFromBalance = accountBalances[paidFromAccountId];
+  const paidFromBalanceAfter = paidFromBalance === undefined ? null : paidFromBalance + alreadyPaidFromAccount - paidNowAmount;
   const goodsItemUnit = String(selectedExpenseGroup?.unit || '').trim() || '-';
   const goodsQuantity = Number(goodsItem.quantity || 0);
   const goodsUnitPrice = Number(goodsItem.unitPrice || 0);
@@ -733,6 +754,12 @@ export default function Expenses({ modalOnly = false, onModalFinish = null }) {
     const firstMatch = matches[0] || null;
     setFormData((prev) => ({ ...prev, party: firstMatch?._id || '' }));
     setPartyListIndex(firstMatch ? 0 : -1);
+  };
+
+  // Paid From behaves like a dropdown: focusing it shows every account, typing narrows the list
+  const handleMethodFocus = (event) => {
+    setIsMethodSectionActive(true);
+    event.target.select?.();
   };
 
   const handleMethodInputChange = (event) => {
@@ -1573,249 +1600,198 @@ export default function Expenses({ modalOnly = false, onModalFinish = null }) {
           onClose={handleCloseForm}
           onSubmit={handleSubmit}
           loading={loading}
+          error={error}
         >
-          <div className="flex flex-col gap-3 md:gap-4">
-            <div className="rounded-2xl border border-indigo-100 bg-white p-3 shadow-sm md:p-4">
-              <h3 className="mb-3 flex items-center gap-2 border-b border-slate-100 pb-2 text-sm font-bold uppercase tracking-wide text-slate-700 md:mb-4 md:text-base">
-                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-indigo-600 text-xs text-white md:h-8 md:w-8 md:text-sm">1</span>
-                Basic Details
-              </h3>
+          <FormSection number={1} title="Expense Details" tone="blue">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-5">
+              <div className="sm:col-span-2">
+                <label className="label" htmlFor="expense-date-input">Date</label>
+                <input id="expense-date-input" className="input" type="date" name="expenseDate" value={formData.expenseDate} onChange={handleChange} />
+              </div>
 
-              <div className="space-y-3 md:space-y-4">
-                <div className="flex items-center gap-2">
-                  <label className="mb-0 w-28 shrink-0 text-xs font-semibold text-slate-600 md:text-sm">Expense Date</label>
-                  <div className="relative flex-1">
-                    <CalendarDays className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-indigo-500" />
-                    <input type="date" name="expenseDate" value={formData.expenseDate} onChange={handleChange} className={`${getInlineFieldClass('indigo')} pl-10`} />
-                  </div>
-                </div>
+              <div className="sm:col-span-3">
+                <label className="label" htmlFor="expense-type-input">Expense Type <span className="text-rose-500">*</span></label>
+                <div
+                  ref={expenseGroupSectionRef}
+                  className="relative"
+                  onBlurCapture={(event) => {
+                    // Moving into the list itself keeps it open
+                    if (expenseGroupSectionRef.current?.contains(event.relatedTarget)) return;
+                    setIsExpenseGroupSectionActive(false);
+                  }}
+                >
+                  <input
+                    id="expense-type-input"
+                    ref={expenseGroupInputRef}
+                    className="input pr-10"
+                    type="text"
+                    value={expenseGroupQuery}
+                    onFocus={handleExpenseGroupFocus}
+                    onChange={handleExpenseGroupInputChange}
+                    onKeyDown={handleExpenseGroupInputKeyDown}
+                    placeholder="Type to search, e.g. Electricity"
+                    autoComplete="off"
+                    required
+                  />
+                  <ChevronDown className={`pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 transition-transform ${isExpenseGroupSectionActive ? 'rotate-180' : ''}`} />
 
-                <div className="flex items-center gap-2">
-                  <label className="mb-0 w-28 shrink-0 text-xs font-semibold text-slate-600 md:text-sm">Expense Type</label>
-                  <div
-                    ref={expenseGroupSectionRef}
-                    className="relative flex-1 min-w-0"
-                    onBlurCapture={(event) => {
-                      const nextFocused = event.relatedTarget;
-                      if (expenseGroupSectionRef.current && nextFocused instanceof Node && expenseGroupSectionRef.current.contains(nextFocused)) return;
-                      setIsExpenseGroupSectionActive(false);
-                    }}
-                  >
-                    <div className="relative">
-                      <input
-                        ref={expenseGroupInputRef}
-                        type="text"
-                        value={expenseGroupQuery}
-                        onFocus={handleExpenseGroupFocus}
-                        onChange={handleExpenseGroupInputChange}
-                        onKeyDown={handleExpenseGroupInputKeyDown}
-                        className={`${getInlineFieldClass('indigo')} pr-10`}
-                        placeholder="Type service expense type..."
-                        autoComplete="off"
-                        required
-                      />
-                      <ChevronDown className={`pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-indigo-500 transition-transform ${isExpenseGroupSectionActive ? 'rotate-180' : ''}`} />
-                    </div>
-
-                    {isExpenseGroupSectionActive && expenseGroupDropdownStyle && (
-                      <div className="fixed z-[90] overflow-hidden rounded-xl border border-indigo-200 bg-white shadow-[0_18px_40px_rgba(15,23,42,0.18)]" style={expenseGroupDropdownStyle} onClick={(event) => event.stopPropagation()}>
-                        <div className="flex items-center justify-between border-b border-indigo-100 bg-gradient-to-r from-indigo-50 to-violet-50 px-3 py-2">
-                          <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-indigo-700">Service Expense Types</span>
-                          <span className="rounded-full bg-white px-2 py-0.5 text-[10px] font-semibold text-indigo-700 shadow-sm">{expenseGroupOptions.length}</span>
-                        </div>
-                        <div className="overflow-y-auto py-1" style={{ maxHeight: expenseGroupDropdownStyle.maxHeight }}>
-                          {expenseGroupOptions.length === 0 ? (
-                            <div className="px-3 py-3 text-center text-[13px] text-slate-500">No expense types found.</div>
-                          ) : (
-                            expenseGroupOptions.map((group, index) => {
-                              const isActive = index === expenseGroupListIndex;
-                              const isSelected = String(formData.expenseGroup || '') === String(group._id);
-                              return (
-                                <button
-                                  key={group._id}
-                                  type="button"
-                                  onMouseDown={(event) => event.preventDefault()}
-                                  onMouseEnter={() => setExpenseGroupListIndex(index)}
-                                  onClick={() => {
-                                    selectExpenseGroup(group);
-                                    setIsExpenseGroupSectionActive(false);
-                                  }}
-                                  className={`flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-[13px] transition ${isActive ? 'bg-indigo-100 text-indigo-950' : isSelected ? 'bg-indigo-50 text-indigo-800' : 'text-slate-700 hover:bg-indigo-50'}`}
-                                >
-                                  <span className="truncate font-medium">{group.name}</span>
-                                  {isSelected && <span className="shrink-0 rounded-full border border-indigo-200 bg-white px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-indigo-700">Selected</span>}
-                                </button>
-                              );
-                            })
-                          )}
-                        </div>
+                  {isExpenseGroupSectionActive && expenseGroupDropdownStyle && (
+                    <OptionList
+                      style={expenseGroupDropdownStyle}
+                      options={expenseGroupOptions}
+                      activeIndex={expenseGroupListIndex}
+                      emptyText="No expense type found."
+                      getKey={(group) => group._id}
+                      getLabel={(group) => group.name}
+                      isSelected={(group) => String(formData.expenseGroup || '') === String(group._id)}
+                      onHover={setExpenseGroupListIndex}
+                      onPick={(group) => {
+                        selectExpenseGroup(group);
+                        setIsExpenseGroupSectionActive(false);
+                      }}
+                      footer={(
                         <button
                           type="button"
                           onMouseDown={(event) => event.preventDefault()}
                           onClick={openTypePopup}
-                          className="flex w-full items-center gap-2 border-t border-emerald-200 bg-emerald-50 px-3 py-2 text-left text-[13px] font-semibold text-emerald-700 transition hover:bg-emerald-100"
+                          className="flex w-full items-center gap-2 border-t border-slate-100 px-3 py-2 text-left text-sm font-semibold text-primary-600 transition hover:bg-primary-50"
                         >
                           <Plus className="h-4 w-4" />
                           Add Expense Type
-                          <span className="ml-auto text-[10px] font-medium text-emerald-600">Ctrl</span>
+                          <kbd className="ml-auto rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-500">Ctrl</kbd>
                         </button>
-                      </div>
-                    )}
-                  </div>
+                      )}
+                    />
+                  )}
                 </div>
+              </div>
+            </div>
 
-                <div className="flex items-center gap-2">
-                  <label className="mb-0 w-28 shrink-0 text-xs font-semibold text-slate-600 md:text-sm">Party <span className="font-normal text-slate-400">(default Cash)</span></label>
-                  <div
-                    ref={partySectionRef}
-                    className="relative flex-1 min-w-0"
-                    onBlurCapture={(event) => {
-                      const nextFocused = event.relatedTarget;
-                      if (partySectionRef.current && nextFocused instanceof Node && partySectionRef.current.contains(nextFocused)) return;
+            <div>
+              <label className="label" htmlFor="expense-party-input">Paid To <span className="font-normal text-slate-400">(Cash if not on credit)</span></label>
+              <div
+                ref={partySectionRef}
+                className="relative"
+                onBlurCapture={(event) => {
+                  if (partySectionRef.current?.contains(event.relatedTarget)) return;
+                  setIsPartySectionActive(false);
+                }}
+              >
+                <input
+                  id="expense-party-input"
+                  ref={partyInputRef}
+                  className="input pr-10"
+                  type="text"
+                  value={partyQuery}
+                  onFocus={handlePartyFocus}
+                  onClick={handlePartyFocus}
+                  onChange={handlePartyInputChange}
+                  onKeyDown={handlePartyInputKeyDown}
+                  placeholder="Type to search party"
+                  autoComplete="off"
+                />
+                <ChevronDown className={`pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 transition-transform ${isPartySectionActive ? 'rotate-180' : ''}`} />
+
+                {isPartySectionActive && partyDropdownStyle && (
+                  <OptionList
+                    style={partyDropdownStyle}
+                    options={partyOptions}
+                    activeIndex={partyListIndex}
+                    emptyText="No matching party found."
+                    getKey={(party) => party._id}
+                    getLabel={(party) => party.name}
+                    getHint={(party) => party.mobile}
+                    isSelected={(party) => String(formData.party || '') === String(party._id)}
+                    onHover={setPartyListIndex}
+                    onPick={(party) => {
+                      selectParty(party);
                       setIsPartySectionActive(false);
                     }}
-                  >
-                    <div className="relative">
-                      <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-indigo-500" />
-                      <input ref={partyInputRef} type="text" value={partyQuery} onFocus={handlePartyFocus} onClick={handlePartyFocus} onChange={handlePartyInputChange} onKeyDown={handlePartyInputKeyDown} className={`${getInlineFieldClass('indigo')} w-full pl-9 pr-10`} placeholder="Search party..." autoComplete="off" />
-                      <ChevronDown className={`pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-indigo-500 transition-transform ${isPartySectionActive ? 'rotate-180' : ''}`} />
-                    </div>
-
-                    {isPartySectionActive && partyDropdownStyle && (
-                      <div className="fixed z-[90] overflow-hidden rounded-xl border border-indigo-200 bg-white shadow-[0_18px_40px_rgba(15,23,42,0.18)]" style={partyDropdownStyle} onClick={(event) => event.stopPropagation()}>
-                        <div className="flex items-center justify-between border-b border-indigo-100 bg-gradient-to-r from-indigo-50 to-violet-50 px-3 py-2">
-                          <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-indigo-700">Party List <span className="font-medium normal-case tracking-normal text-indigo-400">- type to search</span></span>
-                          <span className="rounded-full bg-white px-2 py-0.5 text-[10px] font-semibold text-indigo-700 shadow-sm">{partyOptions.length}</span>
-                        </div>
-                        <div className="overflow-y-auto py-1" style={{ maxHeight: partyDropdownStyle.maxHeight }}>
-                          {partyOptions.length === 0 ? (
-                            <div className="px-3 py-3 text-center text-[13px] text-slate-500">No parties found.</div>
-                          ) : (
-                            partyOptions.map((party, index) => {
-                              const isActive = index === partyListIndex;
-                              const isSelected = String(formData.party || '') === String(party._id);
-                              return (
-                                <button
-                                  key={party._id}
-                                  type="button"
-                                  onMouseDown={(event) => event.preventDefault()}
-                                  onMouseEnter={() => setPartyListIndex(index)}
-                                  onClick={() => {
-                                    selectParty(party);
-                                    setIsPartySectionActive(false);
-                                  }}
-                                  className={`flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-[13px] transition ${isActive ? 'bg-indigo-100 text-indigo-950' : isSelected ? 'bg-indigo-50 text-indigo-800' : 'text-slate-700 hover:bg-indigo-50'}`}
-                                >
-                                  <span className="min-w-0">
-                                    <span className="block truncate font-medium">{party.name}</span>
-                                    {party.mobile && <span className="block truncate text-[11px] text-slate-400">{party.mobile}</span>}
-                                  </span>
-                                  {isSelected && <span className="shrink-0 rounded-full border border-indigo-200 bg-white px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-indigo-700">Selected</span>}
-                                </button>
-                              );
-                            })
-                          )}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {selectedExpenseGroup && (
-                  <div className="flex items-center gap-2">
-                    <label className="mb-0 w-28 shrink-0 text-xs font-semibold text-slate-600 md:text-sm">Type</label>
-                    <div className="flex-1">
-                      <span className="inline-flex rounded-full bg-sky-100 px-3 py-1 text-xs font-bold uppercase tracking-[0.18em] text-sky-800">Services</span>
-                    </div>
-                  </div>
+                  />
                 )}
+              </div>
+            </div>
+          </FormSection>
 
-                <div className="flex items-center gap-2">
-                  <label className="mb-0 w-28 shrink-0 text-xs font-semibold text-slate-600 md:text-sm">{isCashExpense ? 'Amount' : 'Total Amount'}</label>
-                  <input type="number" name="amount" value={formData.amount} onChange={handleChange} onKeyDown={handleAmountKeyDown} step="0.01" className={getInlineFieldClass('indigo')} placeholder="0.00" required />
+          <FormSection
+            number={2}
+            title="Amount & Payment"
+            tone="emerald"
+            hint={isCashExpense ? 'A cash expense is paid in full now.' : 'On credit: enter what you paid now. The rest stays payable to the party.'}
+          >
+            <div className={`grid grid-cols-1 gap-3 ${isCashExpense ? 'sm:grid-cols-2' : 'sm:grid-cols-3'}`}>
+              <div>
+                <label className="label" htmlFor="expense-amount-input">{isCashExpense ? 'Amount' : 'Total Amount'} <span className="text-rose-500">*</span></label>
+                <div className="relative">
+                  <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-sm font-semibold text-slate-400">₹</span>
+                  <input id="expense-amount-input" className="input pl-7 font-semibold text-rose-700" type="number" name="amount" value={formData.amount} onChange={handleChange} onKeyDown={handleAmountKeyDown} step="0.01" placeholder="0" required />
                 </div>
+              </div>
 
-                {!isCashExpense && (
-                  <>
-                    <div className="flex items-center gap-2">
-                      <label className="mb-0 w-28 shrink-0 text-xs font-semibold text-slate-600 md:text-sm">Paid Amount</label>
-                      <input type="number" name="paymentAmount" value={formData.paymentAmount} onChange={handleChange} min="0" max={expenseTotalAmount || undefined} step="0.01" className={getInlineFieldClass('indigo')} placeholder="0.00" />
+              {!isCashExpense && (
+                <>
+                  <div>
+                    <label className="label" htmlFor="expense-paid-input">Paid Now</label>
+                    <div className="relative">
+                      <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-sm font-semibold text-slate-400">₹</span>
+                      <input id="expense-paid-input" className="input pl-7" type="number" name="paymentAmount" value={formData.paymentAmount} onChange={handleChange} min="0" max={expenseTotalAmount || undefined} step="0.01" placeholder="0" />
                     </div>
-                    <div className="flex items-center gap-2">
-                      <label className="mb-0 w-28 shrink-0 text-xs font-semibold text-slate-600 md:text-sm">Balance</label>
-                      <div className={`flex-1 rounded-xl border px-3 py-2.5 text-sm font-bold ${expenseBalanceAmount > 0 ? 'border-rose-200 bg-rose-50 text-rose-700' : 'border-emerald-200 bg-emerald-50 text-emerald-700'}`}>
-                        Rs {expenseBalanceAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                      </div>
-                    </div>
-                  </>
+                  </div>
+                  <div>
+                    <p className="label">Balance</p>
+                    <p className={`flex min-h-[2.5rem] items-center rounded-lg border px-3 text-sm font-bold ${expenseBalanceAmount > 0 ? 'border-rose-200 bg-rose-50 text-rose-700' : 'border-emerald-200 bg-emerald-50 text-emerald-700'}`}>
+                      ₹{expenseBalanceAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                    </p>
+                  </div>
+                </>
+              )}
+
+              <div className={isCashExpense ? '' : 'sm:col-span-3'}>
+                <label className="label" htmlFor="expense-account-input">Paid From</label>
+                <div
+                  ref={methodSectionRef}
+                  className="relative"
+                  onBlurCapture={(event) => {
+                    if (methodSectionRef.current?.contains(event.relatedTarget)) return;
+                    setIsMethodSectionActive(false);
+                  }}
+                >
+                  <input id="expense-account-input" ref={methodInputRef} className="input pr-10" type="text" value={methodQuery} onFocus={handleMethodFocus} onClick={() => setIsMethodSectionActive(true)} onChange={handleMethodInputChange} onKeyDown={handleMethodInputKeyDown} placeholder="Cash or bank account" autoComplete="off" />
+                  <ChevronDown className={`pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 transition-transform ${isMethodSectionActive ? 'rotate-180' : ''}`} />
+
+                  {isMethodSectionActive && methodDropdownStyle && (
+                    <OptionList
+                      style={methodDropdownStyle}
+                      options={filteredMethodOptions}
+                      activeIndex={methodListIndex}
+                      emptyText="No matching account found."
+                      getKey={(option) => option.value}
+                      getLabel={(option) => option.label}
+                      getHint={(option) => (accountBalances[option.value] === undefined
+                        ? option.type
+                        : `${option.type} · Balance ${formatAccountBalance(accountBalances[option.value])}`)}
+                      isSelected={(option) => String(formData.account || defaultAccountId || '') === String(option.value)}
+                      onHover={setMethodListIndex}
+                      onPick={selectMethod}
+                    />
+                  )}
+                </div>
+                {paidFromBalanceAfter !== null && (
+                  <p className="mt-1 text-xs text-slate-500">
+                    Balance {formatAccountBalance(paidFromBalance)}
+                    {paidNowAmount > 0 || alreadyPaidFromAccount > 0 ? (
+                      <> → <span className={`font-semibold ${paidFromBalanceAfter < 0 ? 'text-rose-600' : 'text-slate-700'}`}>{formatAccountBalance(paidFromBalanceAfter)}</span> after this expense</>
+                    ) : null}
+                  </p>
                 )}
               </div>
             </div>
 
-            <div className="rounded-2xl border border-emerald-100 bg-white p-3 shadow-sm md:p-4">
-              <h3 className="mb-3 flex items-center gap-2 border-b border-slate-100 pb-2 text-sm font-bold uppercase tracking-wide text-slate-700 md:mb-4 md:text-base">
-                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-600 text-xs text-white md:h-8 md:w-8 md:text-sm">2</span>
-                Payment Details
-              </h3>
-
-              <div className="space-y-3 md:space-y-4">
-                <div className="flex items-center gap-2">
-                  <label className="mb-0 w-28 shrink-0 text-xs font-semibold text-slate-600 md:text-sm">Paid From</label>
-                  <div
-                    ref={methodSectionRef}
-                    className="relative flex-1 min-w-0"
-                    onBlurCapture={(event) => {
-                      const nextFocused = event.relatedTarget;
-                      if (methodSectionRef.current && nextFocused instanceof Node && methodSectionRef.current.contains(nextFocused)) return;
-                      setIsMethodSectionActive(false);
-                    }}
-                  >
-                    <div className="relative">
-                      <input ref={methodInputRef} type="text" value={methodQuery} onChange={handleMethodInputChange} onKeyDown={handleMethodInputKeyDown} className={`${getInlineFieldClass('emerald')} pr-10`} placeholder="Select account..." autoComplete="off" />
-                      <ChevronDown className={`pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-emerald-500 transition-transform ${isMethodSectionActive ? 'rotate-180' : ''}`} />
-                    </div>
-
-                    {isMethodSectionActive && methodDropdownStyle && (
-                      <div className="fixed z-[90] overflow-hidden rounded-xl border border-indigo-200 bg-white shadow-[0_18px_40px_rgba(15,23,42,0.18)]" style={methodDropdownStyle} onClick={(event) => event.stopPropagation()}>
-                        <div className="flex items-center justify-between border-b border-indigo-100 bg-gradient-to-r from-indigo-50 to-violet-50 px-3 py-2">
-                          <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-indigo-700">Account List</span>
-                          <span className="rounded-full bg-white px-2 py-0.5 text-[10px] font-semibold text-indigo-700 shadow-sm">{filteredMethodOptions.length}</span>
-                        </div>
-                        <div className="overflow-y-auto py-1" style={{ maxHeight: methodDropdownStyle.maxHeight }}>
-                          {filteredMethodOptions.length === 0 ? (
-                            <div className="px-3 py-3 text-center text-[13px] text-slate-500">No matching account found.</div>
-                          ) : (
-                            filteredMethodOptions.map((option, index) => {
-                              const isActive = index === methodListIndex;
-                              const isSelected = String(formData.account || defaultAccountId || '') === String(option.value);
-                              return (
-                                <button
-                                  key={option.value}
-                                  type="button"
-                                  onMouseDown={(event) => event.preventDefault()}
-                                  onMouseEnter={() => setMethodListIndex(index)}
-                                  onClick={() => selectMethod(option)}
-                                  className={`flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-[13px] transition ${isActive ? 'bg-indigo-100 text-indigo-950' : isSelected ? 'bg-indigo-50 text-indigo-800' : 'text-slate-700 hover:bg-indigo-50'}`}
-                                >
-                                  <span className="truncate font-medium">{option.label}</span>
-                                  {isSelected && <span className="shrink-0 rounded-full border border-indigo-200 bg-white px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-indigo-700">Selected</span>}
-                                </button>
-                              );
-                            })
-                          )}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <label className="mb-0 w-28 shrink-0 text-xs font-semibold text-slate-600 md:text-sm">Notes</label>
-                  <input type="text" name="notes" value={formData.notes} onChange={handleChange} className={getInlineFieldClass('emerald')} placeholder="Optional note" />
-                </div>
-              </div>
+            <div>
+              <label className="label" htmlFor="expense-notes-input">Notes</label>
+              <input id="expense-notes-input" className="input" type="text" name="notes" value={formData.notes} onChange={handleChange} placeholder="Optional" />
             </div>
-          </div>
+          </FormSection>
         </AddExpensePopup>
       )}
 

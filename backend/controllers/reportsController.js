@@ -178,7 +178,7 @@ const buildSaleMaterialSummary = (sale) => {
     .join(" / ") || "-";
 };
 
-const buildLedgerRowsForParty = ({ party, sales, purchases, receipts, payments, boulders, transports = [], fromDate, toDate }) => {
+const buildLedgerRowsForParty = ({ party, sales, purchases, receipts, payments, boulders, transports = [], expenses = [], fromDate, toDate }) => {
   const openingImpact = getPartyOpeningImpact(party);
   const openingDate = party?.createdAt || new Date(0);
   const rows = [];
@@ -322,6 +322,33 @@ const buildLedgerRowsForParty = ({ party, sales, purchases, receipts, payments, 
         amount: toNumber(item.amount),
         impact: -toNumber(item.amount),
       })),
+    // The unpaid part of an expense is money I owe the party. Older expenses have no paidAmount and were fully paid.
+    ...expenses
+      .filter((item) => String(item.party?._id || item.party) === String(party._id))
+      .filter((item) => withinRange(item.expenseDate || item.createdAt, fromDate, toDate))
+      .map((item) => {
+        const amount = toNumber(item.amount);
+        const paidAmount = item.paidAmount == null ? amount : Math.min(amount, toNumber(item.paidAmount));
+
+        return {
+          type: "expense",
+          displayType: paidAmount >= amount ? "Cash Expense" : paidAmount > 0 ? "Partial Expense" : "Credit Expense",
+          materialType: item.expenseGroup?.name || "Expense",
+          refId: item._id,
+          partyId: party._id,
+          partyName: party.name || "-",
+          date: item.expenseDate || item.createdAt,
+          entryCreatedAt: item.createdAt,
+          refNumber: item.expenseNumber || "-",
+          itemSummary: item.expenseGroup?.name || "",
+          note: String(item.notes || "").trim(),
+          method: item.account?.name || "-",
+          quantity: 0,
+          amount,
+          paidAmount,
+          impact: -(amount - paidAmount),
+        };
+      }),
     // A hired vehicle is money I owe the party; my vehicle given to them is money they owe me.
     // Charges billed inside a sale are skipped: the sale row already carries them.
     ...transports
@@ -424,7 +451,7 @@ const buildSummary = (entries) => entries.reduce((acc, entry) => {
 const getPartyLedgerData = async ({ userId, partyId, fromDate, toDate }) => {
   const partyFilter = partyId ? { _id: partyId } : {};
 
-  const [parties, sales, purchases, receipts, payments, boulders, transports] = await Promise.all([
+  const [parties, sales, purchases, receipts, payments, boulders, transports, expenses] = await Promise.all([
     Party.find({ userId, ...partyFilter }).sort({ name: 1 }),
     Sales.find({ userId, ...(partyId ? { partyId } : {}) }).populate("partyId", "name").sort({ saleDate: 1, createdAt: 1 }),
     Purchase.find({ userId, ...(partyId ? { party: partyId } : {}) }).populate("party", "name").sort({ purchaseDate: 1, createdAt: 1 }),
@@ -432,6 +459,10 @@ const getPartyLedgerData = async ({ userId, partyId, fromDate, toDate }) => {
     Payment.find({ userId, ...(partyId ? { party: partyId } : {}) }).populate("party", "name").sort({ paymentDate: 1, createdAt: 1 }),
     Boulder.find({ userId, ...(partyId ? { partyId } : {}) }).sort({ boulderDate: 1, createdAt: 1 }),
     Transport.find({ userId, ...(partyId ? { partyId } : {}) }).sort({ entryDate: 1, createdAt: 1 }),
+    Expense.find({ userId, ...(partyId ? { party: partyId } : { party: { $ne: null } }) })
+      .populate("expenseGroup", "name")
+      .populate("account", "name")
+      .sort({ expenseDate: 1, createdAt: 1 }),
   ]);
 
   const ledgerRows = parties.flatMap((party) => buildLedgerRowsForParty({
@@ -442,6 +473,7 @@ const getPartyLedgerData = async ({ userId, partyId, fromDate, toDate }) => {
     payments,
     boulders,
     transports,
+    expenses,
     fromDate,
     toDate,
   }));
@@ -787,6 +819,39 @@ const getPartyLedgerEntryDetail = async (req, res) => {
               ]),
           { label: "Net Weight", value: toNumber(boulder.netWeight) || "-" },
           { label: "Rate Per Ton", value: toNumber(boulder.boulderRatePerTon) || "-" },
+        ],
+        items: [],
+      });
+    }
+
+    if (type === "expense") {
+      const expense = await Expense.findOne(scopedIdFilter(req, refId))
+        .populate("party", "name")
+        .populate("expenseGroup", "name")
+        .populate("account", "name");
+      if (!expense) return res.status(404).json({ message: "Expense not found" });
+
+      const amount = toNumber(expense.amount);
+      const paidAmount = expense.paidAmount == null ? amount : toNumber(expense.paidAmount);
+
+      return res.json({
+        type: "expense",
+        title: "Expense Voucher",
+        refNumber: expense.expenseNumber || "-",
+        partyName: expense.party?.name || "-",
+        amount,
+        quantity: 0,
+        method: expense.account?.name || "-",
+        date: expense.expenseDate || expense.createdAt,
+        accountName: expense.account?.name || "-",
+        linkedReference: "",
+        notes: String(expense.notes || "").trim(),
+        fields: [
+          { label: "Expense Date", value: expense.expenseDate || expense.createdAt },
+          { label: "Expense Type", value: expense.expenseGroup?.name || "-" },
+          { label: "Paid Amount", value: formatAmount(paidAmount) },
+          { label: "Pending Amount", value: formatAmount(Math.max(0, amount - paidAmount)) },
+          { label: "Paid From", value: expense.account?.name || "-" },
         ],
         items: [],
       });

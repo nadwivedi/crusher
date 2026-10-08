@@ -121,6 +121,13 @@ const getTypeMeta = (type) => {
     };
   }
 
+  if (type === 'expense') {
+    return {
+      label: 'Expense',
+      className: 'border-rose-200 bg-rose-50 text-rose-700'
+    };
+  }
+
   if (type === 'transport') {
     return {
       label: 'Transport',
@@ -166,6 +173,9 @@ const getLedgerVehicleNumber = (row) => {
   const vehicleNo = String(row?.vehicleNo || row?.method || '').trim();
   return vehicleNo || '-';
 };
+
+// Entries that carry their own total / paid / balance
+const hasPaidAmount = (row) => ['sale', 'purchase', 'expense'].includes(row?.type);
 
 const getEntryTypeLabel = (row) => String(row?.displayType || row?.type || '-');
 
@@ -672,7 +682,7 @@ export default function PartyDetail() {
               <div>
                 <h2 className="text-lg font-bold text-gray-900">Transaction Ledger</h2>
                 <p className="text-xs text-gray-600">
-                  Sale, purchase, receipt, payment, boulder, transport, and return history.
+                  Sale, purchase, expense, receipt, payment, boulder, transport, and return history.
                 </p>
               </div>
             </div>
@@ -713,10 +723,10 @@ export default function PartyDetail() {
                         </div>
                       </div>
                       <div className="text-right">
-                        {row.type === 'sale' || row.type === 'purchase' ? (
+                        {hasPaidAmount(row) ? (
                           <div className="mt-3 space-y-2 rounded-xl bg-slate-50 p-3">
                             <div className="flex justify-between items-center text-[11px]">
-                              <span className="text-slate-500 uppercase font-bold tracking-wider">{row.type === 'sale' ? 'Sale Total' : 'Purchase Total'}</span>
+                              <span className="text-slate-500 uppercase font-bold tracking-wider">{typeMeta.label} Total</span>
                               <span className="font-black text-slate-800">{formatCurrency(row.amount)}</span>
                             </div>
                             <div className="flex justify-between items-center text-[11px]">
@@ -724,7 +734,7 @@ export default function PartyDetail() {
                               <span className="font-black text-emerald-600">{formatCurrency(row.paidAmount)}</span>
                             </div>
                             <div className="flex justify-between items-center text-[11px] pt-1 border-t border-slate-200">
-                              <span className="text-slate-500 uppercase font-bold tracking-wider">{row.type === 'sale' ? 'Sale Balance' : 'Purchase Balance'}</span>
+                              <span className="text-slate-500 uppercase font-bold tracking-wider">{typeMeta.label} Balance</span>
                               <span className={`font-black ${Number(row.impact || 0) !== 0 ? (Number(row.impact || 0) > 0 ? 'text-rose-600' : 'text-emerald-600') : 'text-slate-400'}`}>
                                 {formatCurrency(Math.abs(Number(row.impact || 0)))}
                               </span>
@@ -814,12 +824,12 @@ export default function PartyDetail() {
                         </td>
                         <td className="px-6 py-4 text-right">
                           <p className="text-sm font-bold text-emerald-600">
-                            {(row.type === 'sale' || row.type === 'purchase') ? formatCurrency(row.paidAmount) : '-'}
+                            {hasPaidAmount(row) ? formatCurrency(row.paidAmount) : '-'}
                           </p>
                         </td>
                         <td className="px-6 py-4 text-right">
                           <p className={`text-sm font-bold ${Number(row.impact || 0) !== 0 ? (Number(row.impact || 0) > 0 ? 'text-rose-600' : 'text-emerald-600') : 'text-slate-400'}`}>
-                            {(row.type === 'sale' || row.type === 'purchase') ? formatCurrency(Math.abs(Number(row.impact || 0))) : '-'}
+                            {hasPaidAmount(row) ? formatCurrency(Math.abs(Number(row.impact || 0))) : '-'}
                           </p>
                         </td>
                         <td className="px-6 py-4 text-right">
