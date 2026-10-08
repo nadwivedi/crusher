@@ -1,8 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
-import { CalendarDays, Package, Plus, RefreshCw, Search, Truck } from 'lucide-react';
+import { ClipboardList, Inbox, Package, Plus, RefreshCw, Search, TrendingUp } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import apiClient from '../utils/api';
+import StatCard from '../components/StatCard';
+import Segmented from '../components/Segmented';
 import MaterialUsed from './MaterialUsed';
+
+// How many materials the usage panel shows before "Show all"
+const TOP_MATERIALS = 6;
 
 const formatNumber = (value) => Number(value || 0).toLocaleString('en-IN', {
   minimumFractionDigits: 0,
@@ -15,48 +20,64 @@ const formatDate = (value) => {
   return date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 };
 
-const toInputDate = (value) => {
+// Local calendar date as YYYY-MM-DD ('' when the value is not a date)
+const toDateKey = (value) => {
   const date = value instanceof Date ? value : new Date(value);
   if (Number.isNaN(date.getTime())) return '';
-  return date.toISOString().split('T')[0];
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${date.getFullYear()}-${month}-${day}`;
 };
 
-const resolvePresetRange = (preset) => {
-  const now = new Date();
-  const today = toInputDate(now);
+const entryCount = (count) => `${formatNumber(count)} entr${count === 1 ? 'y' : 'ies'}`;
 
-  if (preset === 'last7') {
-    const start = new Date(now);
-    start.setDate(start.getDate() - 6);
-    return { fromDate: toInputDate(start), toDate: today };
+const daysAgo = (days) => {
+  const date = new Date();
+  date.setDate(date.getDate() - days);
+  return date;
+};
+
+// `get` returns [from, to]; no `get` means every date
+const RANGES = [
+  { key: 'all', label: 'All' },
+  { key: 'last7', label: 'Last 7 Days', shortLabel: '7 Days', get: () => [daysAgo(6), new Date()] },
+  { key: 'last30', label: 'Last 30 Days', shortLabel: '30 Days', get: () => [daysAgo(29), new Date()] },
+  {
+    key: 'month',
+    label: 'This Month',
+    shortLabel: 'Month',
+    get: () => {
+      const now = new Date();
+      return [new Date(now.getFullYear(), now.getMonth(), 1), new Date(now.getFullYear(), now.getMonth() + 1, 0)];
+    }
+  },
+  {
+    key: 'year',
+    label: 'This Year',
+    shortLabel: 'Year',
+    get: () => {
+      const year = new Date().getFullYear();
+      return [new Date(year, 0, 1), new Date(year, 11, 31)];
+    }
+  },
+  {
+    key: 'last1Year',
+    label: 'Last 1 Year',
+    shortLabel: '1 Year',
+    get: () => {
+      const start = new Date();
+      start.setFullYear(start.getFullYear() - 1);
+      start.setDate(start.getDate() + 1);
+      return [start, new Date()];
+    }
   }
+];
 
-  if (preset === 'last30') {
-    const start = new Date(now);
-    start.setDate(start.getDate() - 29);
-    return { fromDate: toInputDate(start), toDate: today };
-  }
-
-  if (preset === 'monthWise') {
-    const start = new Date(now.getFullYear(), now.getMonth(), 1);
-    const end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-    return { fromDate: toInputDate(start), toDate: toInputDate(end) };
-  }
-
-  if (preset === 'last1Year') {
-    const start = new Date(now);
-    start.setFullYear(start.getFullYear() - 1);
-    start.setDate(start.getDate() + 1);
-    return { fromDate: toInputDate(start), toDate: today };
-  }
-
-  if (preset === 'yearWise') {
-    const start = new Date(now.getFullYear(), 0, 1);
-    const end = new Date(now.getFullYear(), 11, 31);
-    return { fromDate: toInputDate(start), toDate: toInputDate(end) };
-  }
-
-  return { fromDate: '', toDate: '' };
+const rangeFor = (key) => {
+  const preset = RANGES.find((range) => range.key === key);
+  if (!preset?.get) return { from: '', to: '' };
+  const [from, to] = preset.get();
+  return { from: toDateKey(from), to: toDateKey(to) };
 };
 
 export default function MaterialUsedLedger() {
@@ -65,8 +86,8 @@ export default function MaterialUsedLedger() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
-  const [datePreset, setDatePreset] = useState('');
-  const [{ fromDate, toDate }, setDateRange] = useState({ fromDate: '', toDate: '' });
+  const [rangeKey, setRangeKey] = useState('all');
+  const [showAllMaterials, setShowAllMaterials] = useState(false);
   const [showAddEntry, setShowAddEntry] = useState(false);
 
   useEffect(() => {
@@ -104,201 +125,257 @@ export default function MaterialUsedLedger() {
     }
   };
 
-  const filteredEntries = useMemo(() => {
+  const range = useMemo(() => rangeFor(rangeKey), [rangeKey]);
+
+  const rows = useMemo(() => entries.map((entry) => {
+    const usedOn = entry.usedDate || entry.createdAt;
+    const material = entry.materialTypeName || entry.materialType?.name || '-';
+    return {
+      id: entry._id,
+      dateKey: toDateKey(usedOn),
+      date: formatDate(usedOn),
+      material,
+      materialKey: String(entry.materialType?._id || entry.materialType || material),
+      vehicleNo: entry.vehicleNo || '',
+      qty: Number(entry.usedQty || 0),
+      unit: entry.unit || entry.materialType?.unit || '',
+      notes: entry.notes || ''
+    };
+  }), [entries]);
+
+  const filteredRows = useMemo(() => {
     const normalizedSearch = String(searchTerm || '').trim().toLowerCase();
 
-    return entries.filter((entry) => {
-      const matchesSearch = !normalizedSearch || [
-        entry.vehicleNo,
-        entry.materialTypeName,
-        entry.materialType?.name,
-        entry.notes
-      ].some((value) => String(value || '').toLowerCase().includes(normalizedSearch));
-
+    return rows.filter((row) => {
+      const matchesSearch = !normalizedSearch || [row.vehicleNo, row.material, row.notes]
+        .some((value) => value.toLowerCase().includes(normalizedSearch));
       if (!matchesSearch) return false;
 
-      const entryDate = new Date(entry.usedDate || entry.createdAt);
-      if (Number.isNaN(entryDate.getTime())) return false;
-      const entryDateText = toInputDate(entryDate);
-
-      if (fromDate && entryDateText < fromDate) return false;
-      if (toDate && entryDateText > toDate) return false;
+      if (range.from && (!row.dateKey || row.dateKey < range.from)) return false;
+      if (range.to && (!row.dateKey || row.dateKey > range.to)) return false;
 
       return true;
     });
-  }, [entries, searchTerm, fromDate, toDate]);
+  }, [rows, searchTerm, range]);
 
-  const summary = useMemo(() => {
-    return filteredEntries.reduce((acc, entry) => ({
-      count: acc.count + 1,
-      usedQty: acc.usedQty + Number(entry.usedQty || 0)
-    }), {
-      count: 0,
-      usedQty: 0
+  // One line per material, the most used first
+  const usage = useMemo(() => {
+    const byMaterial = new Map();
+    filteredRows.forEach((row) => {
+      const item = byMaterial.get(row.materialKey) || { key: row.materialKey, name: row.material, unit: row.unit, qty: 0, count: 0 };
+      item.qty += row.qty;
+      item.count += 1;
+      byMaterial.set(row.materialKey, item);
     });
-  }, [filteredEntries]);
 
-  const handlePresetChange = (value) => {
-    setDatePreset(value);
-    setDateRange(resolvePresetRange(value));
-  };
+    const items = [...byMaterial.values()].sort((a, b) => b.qty - a.qty);
+    // Litres and pieces cannot share one scale, so a bar is measured against the biggest material of its own unit
+    const maxByUnit = {};
+    items.forEach((item) => {
+      maxByUnit[item.unit] = Math.max(maxByUnit[item.unit] || 0, item.qty);
+    });
+
+    return items.map((item) => ({ ...item, barWidth: maxByUnit[item.unit] ? (item.qty / maxByUnit[item.unit]) * 100 : 0 }));
+  }, [filteredRows]);
 
   const handleCloseAdd = () => {
     setShowAddEntry(false);
     loadEntries();
   };
 
-  const StatCard = ({ title, value, subtitle }) => (
-    <div className="rounded-2xl border border-slate-100 bg-white px-5 py-4 shadow-lg">
-      <p className="text-xs font-bold uppercase tracking-wider text-slate-400">{title}</p>
-      <p className="mt-2 text-2xl font-black text-slate-800">{value}</p>
-      <p className="mt-1 text-xs text-slate-500">{subtitle}</p>
-    </div>
+  const topMaterial = usage[0];
+  const mixedUnits = new Set(usage.map((item) => item.unit)).size > 1;
+  const visibleUsage = showAllMaterials ? usage : usage.slice(0, TOP_MATERIALS);
+  const periodLabel = RANGES.find((item) => item.key === rangeKey)?.label;
+  const periodText = range.from ? `${formatDate(range.from)} – ${formatDate(range.to)}` : 'All dates';
+
+  const stats = [
+    {
+      icon: TrendingUp,
+      label: 'Most Used',
+      tone: 'emerald',
+      value: topMaterial?.name || '-',
+      hint: topMaterial ? `${formatNumber(topMaterial.qty)} ${topMaterial.unit} · ${entryCount(topMaterial.count)}` : 'No usage in this period'
+    },
+    { icon: ClipboardList, label: 'Entries', tone: 'blue', value: formatNumber(filteredRows.length), hint: periodLabel },
+    { icon: Package, label: 'Materials', tone: 'indigo', value: formatNumber(usage.length), hint: 'Different materials used' }
+  ];
+
+  const qtyText = (row) => (
+    <>
+      {formatNumber(row.qty)}
+      {row.unit && <span className="ml-1 text-xs font-medium text-slate-500">{row.unit}</span>}
+    </>
   );
 
-  if (loading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-100 via-slate-50 to-stone-100">
-        <div className="text-center">
-          <RefreshCw className="mx-auto h-8 w-8 animate-spin text-sky-500" />
-          <p className="mt-4 font-semibold text-slate-600">Loading material used ledger...</p>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-100 via-slate-50 to-stone-100">
+    <div className="page-fade-in space-y-4 px-3 pb-8 pt-4 md:space-y-5 lg:px-6 lg:pt-5">
       {showAddEntry && <MaterialUsed modalOnly onModalFinish={handleCloseAdd} />}
 
-      <div className="mx-auto max-w-[95%] px-4 py-6">
-        {error && (
-          <div className="mb-6 rounded-2xl border border-rose-200 bg-rose-50 px-6 py-4 text-sm font-semibold text-rose-700 shadow-lg">
-            {error}
-          </div>
-        )}
-
-        <div className="mb-8 grid grid-cols-1 gap-4 md:grid-cols-2">
-          <StatCard title="Entries" value={formatNumber(summary.count)} subtitle="filtered usage entries" />
-          <StatCard title="Used Qty" value={formatNumber(summary.usedQty)} subtitle="total consumed quantity" />
+      <div className="page-header">
+        <div className="min-w-0">
+          <h1 className="page-title">Material Used Ledger</h1>
+          <p className="page-subtitle">Consumed material · {periodText}</p>
         </div>
-
-        <div className="overflow-hidden rounded-3xl border border-slate-100 bg-white shadow-xl">
-          <div className="border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white px-6 py-5">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <h2 className="text-lg font-black text-slate-800">Material Used Ledger</h2>
-                <p className="text-sm text-slate-500">All consumed material details in one report</p>
-              </div>
-
-              <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:justify-end">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                  <input
-                    type="text"
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    placeholder="Search vehicle, material..."
-                    className="w-full rounded-xl border-2 border-slate-300 bg-white py-2.5 pl-10 pr-4 text-sm font-medium text-slate-700 transition-all focus:border-sky-500 focus:outline-none focus:ring-4 focus:ring-sky-100 sm:w-64"
-                  />
-                </div>
-
-                <div className="relative">
-                  <CalendarDays className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                  <select
-                    value={datePreset}
-                    onChange={(e) => handlePresetChange(e.target.value)}
-                    className="w-full rounded-xl border-2 border-slate-300 bg-white py-2.5 pl-10 pr-4 text-sm font-medium text-slate-700 transition-all focus:border-sky-500 focus:outline-none focus:ring-4 focus:ring-sky-100 sm:w-52"
-                  >
-                    <option value="">All Dates</option>
-                    <option value="last7">Last 7 Days</option>
-                    <option value="last30">Last 30 Days</option>
-                    <option value="monthWise">Month Wise</option>
-                    <option value="last1Year">Last 1 Year</option>
-                    <option value="yearWise">Year Wise</option>
-                  </select>
-                </div>
-
-                {/* Kept together so the two buttons wrap to the next line as a pair */}
-                <div className="flex gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setShowAddEntry(true)}
-                    className="inline-flex flex-1 items-center justify-center gap-2 whitespace-nowrap rounded-xl bg-sky-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-sky-700 sm:flex-none"
-                  >
-                    <Plus className="h-4 w-4" />
-                    Add Material Used
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={loadEntries}
-                    className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-slate-800 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-900 sm:flex-none"
-                  >
-                    <RefreshCw className="h-4 w-4" />
-                    Refresh
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[980px]">
-              <thead>
-                <tr className="bg-gradient-to-r from-slate-800 via-slate-700 to-slate-800 text-white">
-                  <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider">Date</th>
-                  <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider">Vehicle No</th>
-                  <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider">Material Type</th>
-                  <th className="px-6 py-4 text-right text-xs font-bold uppercase tracking-wider">Used Qty</th>
-                  <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider">Unit</th>
-                  <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider">Notes</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {filteredEntries.length > 0 ? (
-                  filteredEntries.map((entry) => (
-                    <tr key={entry._id} className="transition-colors hover:bg-sky-50/50">
-                      <td className="px-6 py-4 text-sm font-medium text-slate-700">{formatDate(entry.usedDate || entry.createdAt)}</td>
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-3">
-                          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-sky-400 to-cyan-500 text-white">
-                            <Truck className="h-4 w-4" />
-                          </div>
-                          <span className="text-sm font-bold text-slate-800">{entry.vehicleNo || '-'}</span>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-3">
-                          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-violet-400 to-indigo-500 text-white">
-                            <Package className="h-4 w-4" />
-                          </div>
-                          <span className="text-sm font-bold text-slate-800">{entry.materialTypeName || entry.materialType?.name || '-'}</span>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 text-right text-sm font-black text-emerald-600">{formatNumber(entry.usedQty)}</td>
-                      <td className="px-6 py-4 text-sm font-semibold text-slate-700">{entry.unit || entry.materialType?.unit || '-'}</td>
-                      <td className="px-6 py-4 text-sm text-slate-600">{entry.notes || '-'}</td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan={6} className="px-6 py-16 text-center">
-                      <div className="flex flex-col items-center">
-                        <div className="mb-4 rounded-full bg-slate-100 p-4">
-                          <Package className="h-8 w-8 text-slate-400" />
-                        </div>
-                        <p className="text-lg font-semibold text-slate-600">No material used entries found</p>
-                        <p className="mt-1 text-sm text-slate-400">Try changing the search or date filter</p>
-                      </div>
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <Segmented options={RANGES} value={rangeKey} onChange={setRangeKey} />
+          <button type="button" className="btn-primary" onClick={() => setShowAddEntry(true)}>
+            <Plus size={18} /> Add Material Used
+          </button>
         </div>
       </div>
+
+      {error && (
+        <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700">{error}</div>
+      )}
+
+      {loading && entries.length === 0 ? (
+        <div className="flex flex-col items-center gap-3 py-16">
+          <div className="h-9 w-9 animate-spin rounded-full border-4 border-primary-600 border-r-transparent" />
+          <p className="text-sm text-slate-400">Loading material used ledger…</p>
+        </div>
+      ) : (
+        <div className={`space-y-4 transition-opacity md:space-y-5 ${loading ? 'pointer-events-none opacity-50' : ''}`}>
+          {/* Phone: the most used material full width, the two counts side by side below */}
+          <section className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 md:gap-4 [&>*:first-child]:col-span-2 sm:[&>*:first-child]:col-span-1">
+            {stats.map((stat) => <StatCard key={stat.label} {...stat} />)}
+          </section>
+
+          {usage.length > 0 && (
+            <section className="panel">
+              <div className="panel-header flex items-center justify-between gap-3">
+                <div>
+                  <h2 className="text-sm font-bold text-slate-900">Usage by Material</h2>
+                  <p className="text-xs text-slate-500">
+                    Most used first{mixedUnits ? ' · bars compare materials of the same unit' : ''}
+                  </p>
+                </div>
+                <span className="badge-gray">{usage.length} material{usage.length === 1 ? '' : 's'}</span>
+              </div>
+
+              <ol className="grid gap-x-8 gap-y-4 p-4 md:grid-cols-2 md:p-5">
+                {visibleUsage.map((item, index) => (
+                  <li key={item.key} className="min-w-0">
+                    <div className="flex items-baseline justify-between gap-3">
+                      <p className="flex min-w-0 items-center gap-2 text-sm font-semibold text-slate-800">
+                        <span className="w-4 shrink-0 text-xs font-bold text-slate-400">{index + 1}</span>
+                        <span className="truncate" title={item.name}>{item.name}</span>
+                        {index === 0 && <span className="badge-green shrink-0">Most used</span>}
+                      </p>
+                      <p className="shrink-0 whitespace-nowrap text-sm font-bold text-slate-900">{qtyText(item)}</p>
+                    </div>
+                    <div className="mt-1.5 flex items-center gap-3 pl-6">
+                      <div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-100">
+                        <div
+                          className={`h-full rounded-full ${index === 0 ? 'bg-emerald-500' : 'bg-primary-600'}`}
+                          style={{ width: `${Math.max(item.barWidth, 2)}%` }}
+                        />
+                      </div>
+                      <span className="w-20 shrink-0 text-right text-xs text-slate-500">{entryCount(item.count)}</span>
+                    </div>
+                  </li>
+                ))}
+              </ol>
+
+              {usage.length > TOP_MATERIALS && (
+                <button
+                  type="button"
+                  className="w-full border-t border-slate-100 px-4 py-2.5 text-xs font-semibold text-primary-700 transition hover:bg-slate-50"
+                  onClick={() => setShowAllMaterials((showAll) => !showAll)}
+                >
+                  {showAllMaterials ? `Show top ${TOP_MATERIALS} only` : `Show all ${usage.length} materials`}
+                </button>
+              )}
+            </section>
+          )}
+
+          <section className="panel">
+            <div className="panel-header flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+              <div>
+                <h2 className="text-sm font-bold text-slate-900">Entries</h2>
+                <p className="text-xs text-slate-500">{periodLabel} · newest first</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="relative flex-1 md:w-64 md:flex-none">
+                  <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input
+                    className="input pl-9"
+                    value={searchTerm}
+                    onChange={(event) => setSearchTerm(event.target.value)}
+                    placeholder="Search material, vehicle, notes..."
+                  />
+                </div>
+                <button type="button" className="icon-btn" title="Refresh" aria-label="Refresh" onClick={loadEntries}>
+                  <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
+                </button>
+              </div>
+            </div>
+
+            {filteredRows.length === 0 ? (
+              <div className="flex flex-col items-center gap-2 px-6 py-12 text-center">
+                <span className="flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 text-slate-400">
+                  <Inbox size={22} />
+                </span>
+                <p className="text-sm font-semibold text-slate-800">No material used entries found</p>
+                <p className="text-xs text-slate-500">
+                  {entries.length === 0 ? 'Add the first entry with "Add Material Used".' : 'Try changing the search or the period.'}
+                </p>
+              </div>
+            ) : (
+              <>
+                {/* Phone: one compact block per entry */}
+                <ul className="divide-y divide-slate-100 md:hidden">
+                  {filteredRows.map((row) => (
+                    <li key={row.id} className="px-4 py-3">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="truncate font-semibold text-slate-800">{row.material}</p>
+                          <p className="mt-0.5 text-xs text-slate-500">{row.date}{row.vehicleNo ? ` · ${row.vehicleNo}` : ''}</p>
+                        </div>
+                        <p className="shrink-0 whitespace-nowrap text-base font-bold text-slate-900">{qtyText(row)}</p>
+                      </div>
+                      {row.notes && <p className="mt-1.5 text-xs text-slate-500">{row.notes}</p>}
+                    </li>
+                  ))}
+                </ul>
+
+                <div className="hidden overflow-x-auto md:block">
+                  <table className="w-full min-w-[720px] text-left">
+                    <thead>
+                      <tr>
+                        <th className="tbl-head">Date</th>
+                        <th className="tbl-head">Material</th>
+                        <th className="tbl-head">Vehicle</th>
+                        <th className="tbl-head">Notes</th>
+                        <th className="tbl-head text-right">Used Qty</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredRows.map((row) => (
+                        <tr key={row.id} className="tbl-row">
+                          <td className="tbl-cell whitespace-nowrap">{row.date}</td>
+                          <td className="tbl-cell font-semibold text-slate-800">{row.material}</td>
+                          <td className="tbl-cell whitespace-nowrap">
+                            {row.vehicleNo ? <span className="badge-gray">{row.vehicleNo}</span> : '-'}
+                          </td>
+                          <td className="tbl-cell text-slate-500">
+                            <div className="max-w-[18rem] truncate" title={row.notes || undefined}>{row.notes || '-'}</div>
+                          </td>
+                          <td className="tbl-cell whitespace-nowrap text-right font-bold text-slate-900">{qtyText(row)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                <p className="border-t border-slate-100 px-4 py-2.5 text-xs text-slate-500 md:px-5">
+                  Showing {entryCount(filteredRows.length)}
+                </p>
+              </>
+            )}
+          </section>
+        </div>
+      )}
     </div>
   );
 }
