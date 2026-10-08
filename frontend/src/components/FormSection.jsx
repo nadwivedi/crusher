@@ -2,6 +2,7 @@ const TONES = {
   blue: { box: 'from-blue-50 to-sky-50 border-blue-200', badge: 'bg-blue-600' },
   sky: { box: 'from-sky-50 to-cyan-50 border-sky-200', badge: 'bg-sky-600' },
   emerald: { box: 'from-emerald-50 to-teal-50 border-emerald-200', badge: 'bg-emerald-600' },
+  amber: { box: 'from-amber-50 to-orange-50 border-amber-200', badge: 'bg-amber-500' },
   indigo: { box: 'from-indigo-50 to-blue-50 border-indigo-200', badge: 'bg-indigo-600' },
   slate: { box: 'from-slate-50 to-blue-50 border-slate-300', badge: 'bg-slate-600' }
 };

@@ -500,6 +500,8 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
 
   useEffect(() => {
     const handleKeyDown = (event) => {
+      // An Esc that just closed a popup must not also leave the page
+      if (event.defaultPrevented) return;
       if (event.key === 'Escape' && !showForm && !showPartyForm && !showProductForm && !showVehicleForm && !showMonthPicker && !showCustomPicker) {
         navigate('/');
       }
@@ -2388,15 +2390,11 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
   if (modalOnly) {
     return (
       <>
-        {error && (
-          <div className="fixed left-4 right-4 top-4 z-[60] rounded-lg border border-red-200 bg-red-50 p-4 text-red-700 shadow-lg md:left-auto md:right-4 md:w-[26rem]">
-            {error}
-          </div>
-        )}
         <AddSalePopup
           showForm={showForm}
           editingId={editingId}
           loading={loading}
+          error={error}
           isCashParty={isCashParty}
           formData={formData}
           currentItem={currentItem}
@@ -2637,6 +2635,7 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
         showForm={showForm}
         editingId={editingId}
         loading={loading}
+        error={showForm ? error : ''}
         isCashParty={isCashParty}
         formData={formData}
         currentItem={currentItem}

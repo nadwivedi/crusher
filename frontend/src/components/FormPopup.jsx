@@ -2,12 +2,14 @@ import { X } from 'lucide-react';
 
 /**
  * Popup shell for simple forms: gradient header, scrollable body, footer with Cancel + submit.
+ * headerActions: extra buttons beside the close button. formId: id for the form element.
  * Uses the app's popup conventions ("fixed inset-0 z-50" + a "Close popup" button) so Esc closes it.
  */
-export default function FormPopup({ title, subtitle, submitLabel = 'Save', submitDisabled = false, onSubmit, onClose, onKeyDown, maxWidth = 'max-w-md', children }) {
+export default function FormPopup({ title, subtitle, submitLabel = 'Save', submitDisabled = false, onSubmit, onClose, onKeyDown, maxWidth = 'max-w-md', formId, headerActions, children }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-2 md:p-4" onClick={onClose}>
       <form
+        id={formId}
         className={`flex max-h-[95vh] w-full ${maxWidth} flex-col overflow-hidden rounded-xl bg-white shadow-2xl md:rounded-2xl`}
         role="dialog"
         aria-modal="true"
@@ -21,9 +23,12 @@ export default function FormPopup({ title, subtitle, submitLabel = 'Save', submi
               <h2 className="truncate text-lg font-bold md:text-xl">{title}</h2>
               {subtitle && <p className="mt-0.5 text-xs text-slate-300 md:text-sm">{subtitle}</p>}
             </div>
-            <button type="button" onClick={onClose} aria-label="Close popup" className="shrink-0 rounded-lg p-1.5 text-white transition hover:bg-white/20 md:p-2">
-              <X size={22} />
-            </button>
+            <div className="flex shrink-0 items-center gap-1.5 md:gap-2">
+              {headerActions}
+              <button type="button" onClick={onClose} aria-label="Close popup" className="rounded-lg p-1.5 text-white transition hover:bg-white/20 md:p-2">
+                <X size={22} />
+              </button>
+            </div>
           </div>
         </div>
 
