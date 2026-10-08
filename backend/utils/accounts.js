@@ -15,21 +15,35 @@ const toNumber = (value, fallback = 0) => {
 };
 
 const normalizeName = (value) => String(value || "").trim().toLowerCase();
-const isCashAccountName = (value) => normalizeName(value) === normalizeName(CASH_ACCOUNT_NAME);
 const escapeRegex = (value) => String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
-// Older accounts have no type saved; Cash Account is the only one that must be cash.
-const getAccountType = (account) => (
-  isCashAccountName(account?.name) ? "cash" : (account?.type === "cash" ? "cash" : "bank")
-);
+// Older accounts have no type saved and count as bank
+const getAccountType = (account) => (account?.type === "cash" ? "cash" : "bank");
 
-const ensureCashAccount = async (userId) => {
-  const existingCashAccount = await Bank.findOne({
+/**
+ * The user's default account: entries without an account count under it and pickers start on it.
+ * A new user gets "Cash Account". It can be renamed or deleted like any other account.
+ */
+const ensureDefaultAccount = async (userId) => {
+  const current = await Bank.findOne({ userId, isDefault: true });
+  if (current) return current;
+
+  // Before the flag existed, the default was whichever account was named "Cash Account", and it was always cash
+  const legacy = await Bank.findOne({
     userId,
     name: { $regex: `^${CASH_ACCOUNT_NAME}$`, $options: "i" },
   });
+  if (legacy) {
+    legacy.isDefault = true;
+    legacy.type = "cash";
+    return legacy.save();
+  }
 
-  if (existingCashAccount) return existingCashAccount;
+  const oldest = await Bank.findOne({ userId }).sort({ createdAt: 1 });
+  if (oldest) {
+    oldest.isDefault = true;
+    return oldest.save();
+  }
 
   return Bank.create({
     userId,
@@ -37,6 +51,7 @@ const ensureCashAccount = async (userId) => {
     type: "cash",
     totalBalance: 0,
     notes: "",
+    isDefault: true,
   });
 };
 
@@ -47,7 +62,10 @@ const resolveAccountId = async (userId, accountId) => {
   return account ? account._id : null;
 };
 
-/** Receipts and payments send the account's name as `method`; find the account by id first, then by that name. */
+/**
+ * Receipts and payments send the account's name as `method`; find the account by id first, then by that name.
+ * With neither, the entry goes to the default account.
+ */
 const resolveAccountByIdOrName = async (userId, accountId, name) => {
   if (accountId && mongoose.Types.ObjectId.isValid(accountId)) {
     const account = await Bank.findOne({ _id: accountId, userId });
@@ -55,7 +73,7 @@ const resolveAccountByIdOrName = async (userId, accountId, name) => {
   }
 
   const normalized = String(name || "").trim();
-  if (!normalized) return null;
+  if (!normalized) return ensureDefaultAccount(userId);
   return Bank.findOne({ userId, name: { $regex: `^${escapeRegex(normalized)}$`, $options: "i" } });
 };
 
@@ -74,11 +92,11 @@ const formatPaymentNumber = (value) => {
 /**
  * Every movement of money through the user's accounts, oldest first.
  * Money moves when a sale / purchase / expense is paid at entry, on receipts and payments, and on transfers.
- * Entries saved before accounts existed have no account and are counted under Cash Account,
+ * Entries saved before accounts existed have no account and are counted under the default account,
  * except receipts / payments whose saved account name still matches an account.
  */
 const loadAccountBook = async (userId) => {
-  await ensureCashAccount(userId);
+  const defaultAccountId = String((await ensureDefaultAccount(userId))._id);
 
   const [accounts, sales, purchases, expenses, receipts, payments, transfers] = await Promise.all([
     Bank.find({ userId }).lean(),
@@ -106,13 +124,12 @@ const loadAccountBook = async (userId) => {
     AccountTransfer.find({ userId }).lean(),
   ]);
 
-  // Cash Account first, then by name
+  // Default account first, then by name
   accounts.sort((a, b) => (
-    Number(isCashAccountName(b.name)) - Number(isCashAccountName(a.name))
+    Number(Boolean(b.isDefault)) - Number(Boolean(a.isDefault))
     || String(a.name).localeCompare(String(b.name))
   ));
 
-  const cashAccountId = String(accounts.find((account) => isCashAccountName(account.name))._id);
   const accountIds = new Set(accounts.map((account) => String(account._id)));
   const accountIdByName = new Map(accounts.map((account) => [normalizeName(account.name), String(account._id)]));
   const accountNameById = new Map(accounts.map((account) => [String(account._id), account.name]));
@@ -124,7 +141,7 @@ const loadAccountBook = async (userId) => {
       const byName = accountIdByName.get(normalizeName(methodName));
       if (byName) return byName;
     }
-    return cashAccountId;
+    return defaultAccountId;
   };
 
   const movements = [];
@@ -235,10 +252,9 @@ const loadAccountBook = async (userId) => {
 
 module.exports = {
   CASH_ACCOUNT_NAME,
-  isCashAccountName,
   escapeRegex,
   getAccountType,
-  ensureCashAccount,
+  ensureDefaultAccount,
   resolveAccountId,
   resolveAccountByIdOrName,
   loadAccountBook,

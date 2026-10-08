@@ -129,7 +129,10 @@ export default function Accounts() {
                               <Icon size={18} />
                             </span>
                             <div className="min-w-0">
-                              <p className="font-semibold text-slate-800">{account.name}</p>
+                              <p className="flex items-center gap-1.5 font-semibold text-slate-800">
+                                {account.name}
+                                {account.isDefault && <span className="badge-gray" title="Used when an entry has no account chosen">Default</span>}
+                              </p>
                               <p className="flex items-center gap-1.5 text-xs text-slate-500">
                                 <span className={ACCOUNT_TYPES[account.type].badge}>{ACCOUNT_TYPES[account.type].label}</span>
                                 <span className="truncate">{account.entryCount} entr{account.entryCount === 1 ? 'y' : 'ies'}{account.notes ? ` · ${account.notes}` : ''}</span>
@@ -151,11 +154,9 @@ export default function Accounts() {
                             <button type="button" className="icon-btn hover:bg-blue-50 hover:text-blue-600" title="Edit" onClick={() => setPopup({ kind: 'account', account })}>
                               <Pencil size={16} />
                             </button>
-                            {!account.isDefault && (
-                              <button type="button" className="icon-btn hover:bg-rose-50 hover:text-rose-600" title="Delete" onClick={() => deleteAccount(account)}>
-                                <Trash2 size={16} />
-                              </button>
-                            )}
+                            <button type="button" className="icon-btn hover:bg-rose-50 hover:text-rose-600" title="Delete" onClick={() => deleteAccount(account)}>
+                              <Trash2 size={16} />
+                            </button>
                           </div>
                         </td>
                       </tr>

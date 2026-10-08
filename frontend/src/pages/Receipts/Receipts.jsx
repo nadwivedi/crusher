@@ -5,7 +5,7 @@ import MoneyVoucherList from '../../components/MoneyVoucherList';
 import { toast } from 'react-toastify';
 import apiClient from '../../utils/api';
 import { useAuth } from '../../context/AuthContext';
-import { getBankDisplayName, normalizeBankName } from '../../utils/bankAccounts';
+import { getBankDisplayName } from '../../utils/bankAccounts';
 import AddReceiptPopup from './component/AddReceiptPopup';
 
 const formatReceiptDateInput = (value = new Date()) => {
@@ -67,8 +67,8 @@ const getReceiptAccountOptions = (banks = []) => {
 };
 
 const getDefaultReceiptMethod = (banks = []) => {
-  const cashAccount = banks.find((bank) => normalizeBankName(bank?.name) === 'cash account');
-  return getBankDisplayName(cashAccount || banks[0]) || 'Cash Account';
+  const defaultAccount = banks.find((bank) => bank?.isDefault);
+  return getBankDisplayName(defaultAccount || banks[0]) || 'Cash Account';
 };
 
 const formatDisplayDate = (value) => {

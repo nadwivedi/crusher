@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import apiClient from './api';
-import { getDefaultBankAccountId, normalizeBankName } from './bankAccounts';
+import { getDefaultBankAccountId } from './bankAccounts';
 
 /**
  * The user's cash / bank accounts, for "Received In" and "Paid From" pickers.
- * Cash Account comes first and is the default choice.
+ * The default account comes first and is the default choice.
  */
 export default function useAccounts() {
   const [accounts, setAccounts] = useState([]);
@@ -15,8 +15,7 @@ export default function useAccounts() {
     apiClient.get('/banks')
       .then((response) => {
         if (ignore) return;
-        const isCash = (account) => normalizeBankName(account?.name) === 'cash account';
-        setAccounts([...(response.data || [])].sort((a, b) => Number(isCash(b)) - Number(isCash(a))));
+        setAccounts([...(response.data || [])].sort((a, b) => Number(Boolean(b.isDefault)) - Number(Boolean(a.isDefault))));
       })
       .catch((err) => console.error('Error fetching accounts:', err));
 

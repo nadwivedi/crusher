@@ -12,8 +12,6 @@ export default function AccountFormPopup({ account = null, onSave, onClose }) {
   }));
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
-  // Cash Account is the built-in default: its name and type stay fixed
-  const isDefault = Boolean(account?.isDefault);
   const set = (key) => (event) => setForm({ ...form, [key]: event.target.value });
 
   const handleSubmit = async () => {
@@ -44,7 +42,7 @@ export default function AccountFormPopup({ account = null, onSave, onClose }) {
 
       <div>
         <label className="label">Account Name</label>
-        <input className="input" value={form.name} onChange={set('name')} placeholder="e.g. HDFC Bank Account 1, Site Cashbook" disabled={isDefault} autoFocus={!isDefault} />
+        <input className="input" value={form.name} onChange={set('name')} placeholder="e.g. HDFC Bank Account 1, Site Cashbook" autoFocus />
       </div>
 
       <div>
@@ -54,9 +52,8 @@ export default function AccountFormPopup({ account = null, onSave, onClose }) {
             <button
               key={key}
               type="button"
-              disabled={isDefault}
               onClick={() => setForm({ ...form, type: key })}
-              className={`rounded-lg border px-3 py-2 text-sm font-semibold transition disabled:opacity-60 ${
+              className={`rounded-lg border px-3 py-2 text-sm font-semibold transition ${
                 form.type === key ? 'border-primary-600 bg-primary-600 text-white' : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-100'
               }`}
             >

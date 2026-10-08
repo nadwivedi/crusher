@@ -27,6 +27,11 @@ const bankSchema = new mongoose.Schema(
       trim: true,
       default: "",
     },
+    // The one account that entries without an account count under, and that pickers start on
+    isDefault: {
+      type: Boolean,
+      default: false,
+    },
   },
   {
     timestamps: true,

@@ -5,7 +5,7 @@ import MoneyVoucherList from '../../components/MoneyVoucherList';
 import { toast } from 'react-toastify';
 import apiClient from '../../utils/api';
 import { useAuth } from '../../context/AuthContext';
-import { getBankDisplayName, normalizeBankName } from '../../utils/bankAccounts';
+import { getBankDisplayName } from '../../utils/bankAccounts';
 import AddPaymentPopup from './component/AddPaymentPopup';
 
 const formatPaymentDateInput = (value = new Date()) => {
@@ -67,8 +67,8 @@ const getPaymentAccountOptions = (banks = []) => {
 };
 
 const getDefaultPaymentMethod = (banks = []) => {
-  const cashAccount = banks.find((bank) => normalizeBankName(bank?.name) === 'cash account');
-  return getBankDisplayName(cashAccount || banks[0]) || 'Cash Account';
+  const defaultAccount = banks.find((bank) => bank?.isDefault);
+  return getBankDisplayName(defaultAccount || banks[0]) || 'Cash Account';
 };
 
 const buildPurchasePaymentMap = (payments) => {

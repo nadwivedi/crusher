@@ -5,10 +5,9 @@ const Payment = require("../models/Payment");
 const Receipt = require("../models/Receipt");
 const { scopedFilter, scopedIdFilter } = require("../utils/ownership");
 const {
-  isCashAccountName,
   escapeRegex,
   getAccountType,
-  ensureCashAccount,
+  ensureDefaultAccount,
   loadAccountBook,
 } = require("../utils/accounts");
 
@@ -56,7 +55,7 @@ const createBank = async (req, res) => {
     const bank = await Bank.create({
       userId: req.userId,
       name,
-      type: isCashAccountName(name) ? "cash" : normalizeAccountType(req.body.type),
+      type: normalizeAccountType(req.body.type),
       totalBalance: toNumber(req.body.totalBalance),
       notes: String(req.body.notes || "").trim(),
     });
@@ -75,7 +74,7 @@ const createBank = async (req, res) => {
 
 const getAllBanks = async (req, res) => {
   try {
-    await ensureCashAccount(req.userId);
+    await ensureDefaultAccount(req.userId);
 
     const normalizedSearch = String(req.query.search || "").trim();
     const filter = scopedFilter(req, normalizedSearch
@@ -84,7 +83,7 @@ const getAllBanks = async (req, res) => {
         }
       : {});
 
-    const banks = await Bank.find(filter).sort({ name: 1, createdAt: -1 }).lean();
+    const banks = await Bank.find(filter).sort({ isDefault: -1, name: 1, createdAt: -1 }).lean();
     return res.json({ data: banks.map((bank) => ({ ...bank, type: getAccountType(bank) })) });
   } catch (error) {
     return res.status(500).json({
@@ -115,7 +114,7 @@ const getAccountsSummary = async (req, res) => {
         name: account.name,
         type: getAccountType(account),
         notes: account.notes || "",
-        isDefault: isCashAccountName(account.name),
+        isDefault: Boolean(account.isDefault),
         openingBalance,
         moneyIn,
         moneyOut,
@@ -200,7 +199,7 @@ const getAccountLedger = async (req, res) => {
         name: account.name,
         type: getAccountType(account),
         notes: account.notes || "",
-        isDefault: isCashAccountName(account.name),
+        isDefault: Boolean(account.isDefault),
       },
       fromDate,
       toDate,
@@ -237,17 +236,13 @@ const updateBank = async (req, res) => {
     }
 
     const previousName = bank.name;
-    const isCashAccount = isCashAccountName(previousName);
     const isRenamed = name !== previousName;
-    if (isCashAccount && !isCashAccountName(name)) {
-      return res.status(400).json({ message: "Cash Account cannot be renamed" });
-    }
     if (isRenamed && await hasNameConflict(req.userId, name, bank._id)) {
       return res.status(409).json({ message: DUPLICATE_NAME_MESSAGE });
     }
 
     bank.name = name;
-    bank.type = isCashAccount ? "cash" : normalizeAccountType(req.body.type || bank.type);
+    bank.type = normalizeAccountType(req.body.type || bank.type);
     bank.totalBalance = toNumber(req.body.totalBalance);
     bank.notes = String(req.body.notes || "").trim();
     await bank.save();
@@ -294,16 +289,21 @@ const deleteBank = async (req, res) => {
       return res.status(404).json({ message: "Bank not found" });
     }
 
-    if (isCashAccountName(bank.name)) {
-      return res.status(400).json({ message: "Cash Account cannot be deleted" });
-    }
-
-    const { movements } = await loadAccountBook(req.userId);
+    const { accounts, movements } = await loadAccountBook(req.userId);
     if (movements.some((movement) => movement.accountId === String(bank._id))) {
       return res.status(400).json({ message: "This account has entries, so it cannot be deleted" });
     }
+    if (accounts.length <= 1) {
+      return res.status(400).json({ message: "This is your only account. Add another account before deleting it." });
+    }
 
     await Bank.deleteOne(scopedIdFilter(req, id));
+
+    // Deleting the default account hands the role to the oldest one left
+    if (bank.isDefault) {
+      await Bank.findOneAndUpdate({ userId: req.userId }, { $set: { isDefault: true } }, { sort: { createdAt: 1 } });
+    }
+
     return res.json({ message: "Account deleted successfully" });
   } catch (error) {
     return res.status(500).json({
