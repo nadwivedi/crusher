@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'react-toastify';
-import { CalendarDays, Package, Truck } from 'lucide-react';
+import { Package, Truck, X } from 'lucide-react';
 import apiClient from '../utils/api';
 import { handlePopupFormKeyDown } from '../utils/popupFormKeyboard';
 import { useFloatingDropdownPosition } from '../utils/useFloatingDropdownPosition';
@@ -17,6 +17,8 @@ const initialFormData = {
   usedDate: new Date().toISOString().slice(0, 10),
   notes: ''
 };
+
+const formatQty = (value) => Number(value || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 });
 
 function MaterialUsedForm({
   formData,
@@ -55,251 +57,241 @@ function MaterialUsedForm({
   selectVehicle,
   selectMaterial
 }) {
-  const inputClass = 'w-full rounded-lg border border-slate-400 bg-white px-2.5 py-1.5 text-[13px] text-gray-800 transition placeholder:text-slate-400 focus:border-transparent focus:outline-none focus:ring-2';
-  const labelClass = 'mb-1 block text-[11px] font-semibold text-gray-700 md:text-xs';
   const vehicleDropdownStyle = useFloatingDropdownPosition(vehicleSectionRef, isVehicleSectionActive, [filteredVehicles.length, vehicleListIndex]);
   const materialDropdownStyle = useFloatingDropdownPosition(materialSectionRef, isMaterialSectionActive, [filteredMaterials.length, materialListIndex]);
   const handleCancel = typeof onClose === 'function' ? onClose : () => {};
 
+  // Stock preview is skipped while editing: the saved entry's quantity is already out of current stock.
+  const selectedMaterial = editingId ? null : materials.find((material) => material._id === formData.materialType);
+  const unit = String(selectedMaterial?.unit || '').trim();
+  const inStock = Number(selectedMaterial?.currentStock) || 0;
+  const usedQty = Number(formData.usedQty) || 0;
+  const stockAfter = Math.round((inStock - usedQty) * 100) / 100;
+  const exceedsStock = Boolean(selectedMaterial) && stockAfter < 0;
+
   return (
-    <div className="flex max-h-[88vh] w-full max-w-[30rem] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_30px_80px_rgba(15,23,42,0.28)]">
-      <div className="bg-gradient-to-r from-indigo-600 via-violet-600 to-purple-600 px-4 py-3 text-white">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-base font-bold md:text-lg">{editingId ? 'Edit Material Used' : 'Add Material Used'}</h2>
-            <p className="text-[10px] text-white/80 md:text-xs">Track material consumption and reduce stock automatically.</p>
+    <div className="flex max-h-[95vh] w-full max-w-lg flex-col overflow-hidden rounded-xl bg-white shadow-2xl md:rounded-2xl">
+      <div className="flex-shrink-0 bg-gradient-to-r from-primary-700 to-primary-500 p-3 text-white md:px-5 md:py-4">
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <h2 className="truncate text-lg font-bold md:text-xl">{editingId ? 'Edit Material Used' : 'Add Material Used'}</h2>
+            <p className="mt-0.5 text-xs text-primary-100 md:text-sm">Stock of the material reduces automatically</p>
           </div>
           {onClose && (
-            <button
-              type="button"
-              onClick={onClose}
-              className="rounded-lg p-1.5 text-white transition hover:bg-white/20"
-              aria-label="Close popup"
-            >
-              <svg className="h-5 w-5 md:h-6 md:w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
+            <button type="button" onClick={onClose} aria-label="Close popup" className="shrink-0 rounded-lg p-1.5 text-white transition hover:bg-white/20 md:p-2">
+              <X size={22} />
             </button>
           )}
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-4 py-4">
-        <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-3">
-          <h3 className="mb-3 flex items-center gap-2 text-sm font-bold text-gray-800 md:text-base">
-            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-indigo-600 text-[11px] font-bold text-white">1</span>
-            Material Details
-          </h3>
-          <div className="grid grid-cols-1 gap-3">
-            <div className="space-y-1">
-              <label className={labelClass}>Used Date</label>
-              <div className="relative">
-                <CalendarDays className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-indigo-400" />
-                <input
-                  type="date"
-                  value={formData.usedDate}
-                  onChange={(event) => setFormData((prev) => ({ ...prev, usedDate: event.target.value }))}
-                  className={`${inputClass} pl-9 focus:ring-indigo-500`}
-                />
-              </div>
+      <div className="flex-1 space-y-3 overflow-y-auto p-3 md:space-y-4 md:p-6">
+        <div>
+          <label className="label">Vehicle No <span className="font-normal text-slate-400">(optional)</span></label>
+          <div
+            ref={vehicleSectionRef}
+            className="relative"
+            onFocusCapture={handleVehicleFocus}
+            onBlurCapture={(event) => {
+              const nextFocused = event.relatedTarget;
+              if (vehicleSectionRef.current && nextFocused instanceof Node && vehicleSectionRef.current.contains(nextFocused)) return;
+              setIsVehicleSectionActive(false);
+            }}
+          >
+            <div className="relative">
+              <Truck className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <input
+                ref={vehicleInputRef}
+                type="text"
+                value={vehicleQuery}
+                onChange={handleVehicleInputChange}
+                onKeyDown={handleVehicleInputKeyDown}
+                className="input pl-9"
+                placeholder="Type to search vehicle"
+                autoComplete="off"
+                autoFocus
+              />
             </div>
 
-            <div className="space-y-1">
-              <label className={labelClass}>Vehicle No</label>
+            {isVehicleSectionActive && vehicleQuery.trim().length > 0 && vehicleDropdownStyle && (
               <div
-                ref={vehicleSectionRef}
-                className="relative"
-                onFocusCapture={handleVehicleFocus}
-                onBlurCapture={(event) => {
-                  const nextFocused = event.relatedTarget;
-                  if (vehicleSectionRef.current && nextFocused instanceof Node && vehicleSectionRef.current.contains(nextFocused)) return;
-                  setIsVehicleSectionActive(false);
-                }}
+                className="fixed z-[80] overflow-hidden rounded-xl border border-amber-200 bg-white shadow-[0_18px_40px_rgba(15,23,42,0.18)]"
+                style={vehicleDropdownStyle}
+                onClick={(event) => event.stopPropagation()}
               >
-                <div className="relative">
-                  <Truck className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-indigo-400" />
-                  <input
-                    ref={vehicleInputRef}
-                    type="text"
-                    value={vehicleQuery}
-                    onChange={handleVehicleInputChange}
-                    onKeyDown={handleVehicleInputKeyDown}
-                    className={`${inputClass} pl-9 focus:ring-indigo-500`}
-                    placeholder="Type to search vehicle..."
-                    autoComplete="off"
-                    autoFocus
-                  />
+                <div className="flex items-center justify-between border-b border-amber-100 bg-gradient-to-r from-amber-50 to-yellow-50 px-3 py-2">
+                  <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-amber-700">Vehicle List</span>
+                  <span className="rounded-full bg-white px-2 py-0.5 text-[10px] font-semibold text-amber-700 shadow-sm">
+                    {filteredVehicles.length}
+                  </span>
                 </div>
-
-                {isVehicleSectionActive && vehicleQuery.trim().length > 0 && vehicleDropdownStyle && (
-                  <div
-                    className="fixed z-[80] overflow-hidden rounded-xl border border-amber-200 bg-white shadow-[0_18px_40px_rgba(15,23,42,0.18)]"
-                    style={vehicleDropdownStyle}
-                    onClick={(event) => event.stopPropagation()}
-                  >
-                    <div className="flex items-center justify-between border-b border-amber-100 bg-gradient-to-r from-amber-50 to-yellow-50 px-3 py-2">
-                      <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-amber-700">Vehicle List</span>
-                      <span className="rounded-full bg-white px-2 py-0.5 text-[10px] font-semibold text-amber-700 shadow-sm">
-                        {filteredVehicles.length}
-                      </span>
-                    </div>
-                    <div className="overflow-y-auto py-1" style={{ maxHeight: vehicleDropdownStyle.maxHeight }}>
-                      {filteredVehicles.length === 0 ? (
-                        <div className="px-3 py-3 text-center text-[13px] text-slate-500">No matching vehicles found.</div>
-                      ) : (
-                        filteredVehicles.map((vehicle, index) => {
-                          const isActive = index === vehicleListIndex;
-                          const isSelected = String(formData.vehicle || '') === String(vehicle._id);
-                          return (
-                            <button
-                              key={vehicle._id}
-                              type="button"
-                              onMouseDown={(event) => event.preventDefault()}
-                              onMouseEnter={() => setVehicleListIndex(index)}
-                              onClick={() => selectVehicle(vehicle)}
-                              className={`flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-[13px] transition ${
-                                isActive
-                                  ? 'bg-yellow-200 text-amber-950'
-                                  : isSelected
-                                  ? 'bg-yellow-50 text-amber-800'
-                                  : 'text-slate-700 hover:bg-amber-50'
-                              }`}
-                            >
-                              <span className="truncate font-medium">{getVehicleDisplayName(vehicle)}</span>
-                            </button>
-                          );
-                        })
-                      )}
-                    </div>
-                  </div>
-                )}
+                <div className="overflow-y-auto py-1" style={{ maxHeight: vehicleDropdownStyle.maxHeight }}>
+                  {filteredVehicles.length === 0 ? (
+                    <div className="px-3 py-3 text-center text-[13px] text-slate-500">No matching vehicles found.</div>
+                  ) : (
+                    filteredVehicles.map((vehicle, index) => {
+                      const isActive = index === vehicleListIndex;
+                      const isSelected = String(formData.vehicle || '') === String(vehicle._id);
+                      return (
+                        <button
+                          key={vehicle._id}
+                          type="button"
+                          onMouseDown={(event) => event.preventDefault()}
+                          onMouseEnter={() => setVehicleListIndex(index)}
+                          onClick={() => selectVehicle(vehicle)}
+                          className={`flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-[13px] transition ${
+                            isActive
+                              ? 'bg-yellow-200 text-amber-950'
+                              : isSelected
+                              ? 'bg-yellow-50 text-amber-800'
+                              : 'text-slate-700 hover:bg-amber-50'
+                          }`}
+                        >
+                          <span className="truncate font-medium">{getVehicleDisplayName(vehicle)}</span>
+                        </button>
+                      );
+                    })
+                  )}
+                </div>
               </div>
+            )}
+          </div>
+        </div>
+
+        <div>
+          <label className="label">Material *</label>
+          <div
+            ref={materialSectionRef}
+            className="relative"
+            onFocusCapture={handleMaterialFocus}
+            onBlurCapture={(event) => {
+              const nextFocused = event.relatedTarget;
+              if (materialSectionRef.current && nextFocused instanceof Node && materialSectionRef.current.contains(nextFocused)) return;
+              setIsMaterialSectionActive(false);
+            }}
+          >
+            <div className="relative">
+              <Package className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <input
+                ref={materialInputRef}
+                type="text"
+                value={materialQuery}
+                onChange={handleMaterialInputChange}
+                onKeyDown={handleMaterialInputKeyDown}
+                className="input pl-9"
+                placeholder="Type to search material"
+                autoComplete="off"
+              />
             </div>
 
-            <div className="space-y-1">
-              <label className={labelClass}>Material Type</label>
+            {isMaterialSectionActive && materialDropdownStyle && (
               <div
-                ref={materialSectionRef}
-                className="relative"
-                onFocusCapture={handleMaterialFocus}
-                onBlurCapture={(event) => {
-                  const nextFocused = event.relatedTarget;
-                  if (materialSectionRef.current && nextFocused instanceof Node && materialSectionRef.current.contains(nextFocused)) return;
-                  setIsMaterialSectionActive(false);
-                }}
+                className="fixed z-[80] overflow-hidden rounded-xl border border-amber-200 bg-white shadow-[0_18px_40px_rgba(15,23,42,0.18)]"
+                style={materialDropdownStyle}
+                onClick={(event) => event.stopPropagation()}
               >
-                <div className="relative">
-                  <Package className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-indigo-400" />
-                  <input
-                    ref={materialInputRef}
-                    type="text"
-                    value={materialQuery}
-                    onChange={handleMaterialInputChange}
-                    onKeyDown={handleMaterialInputKeyDown}
-                    className={`${inputClass} pl-9 focus:ring-indigo-500`}
-                    placeholder="Type to search material..."
-                    autoComplete="off"
-                  />
+                <div className="flex items-center justify-between border-b border-amber-100 bg-gradient-to-r from-amber-50 to-yellow-50 px-3 py-2">
+                  <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-amber-700">Material List</span>
+                  <span className="rounded-full bg-white px-2 py-0.5 text-[10px] font-semibold text-amber-700 shadow-sm">
+                    {filteredMaterials.length}
+                  </span>
                 </div>
-
-                {isMaterialSectionActive && materialDropdownStyle && (
-                  <div
-                    className="fixed z-[80] overflow-hidden rounded-xl border border-amber-200 bg-white shadow-[0_18px_40px_rgba(15,23,42,0.18)]"
-                    style={materialDropdownStyle}
-                    onClick={(event) => event.stopPropagation()}
-                  >
-                    <div className="flex items-center justify-between border-b border-amber-100 bg-gradient-to-r from-amber-50 to-yellow-50 px-3 py-2">
-                      <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-amber-700">Material List</span>
-                      <span className="rounded-full bg-white px-2 py-0.5 text-[10px] font-semibold text-amber-700 shadow-sm">
-                        {filteredMaterials.length}
-                      </span>
-                    </div>
-                    <div className="overflow-y-auto py-1" style={{ maxHeight: materialDropdownStyle.maxHeight }}>
-                      {filteredMaterials.length === 0 ? (
-                        <div className="px-3 py-3 text-center text-[13px] text-slate-500">No matching materials found.</div>
-                      ) : (
-                        filteredMaterials.map((material, index) => {
-                          const isActive = index === materialListIndex;
-                          const isSelected = String(formData.materialType || '') === String(material._id);
-                          return (
-                            <button
-                              key={material._id}
-                              type="button"
-                              onMouseDown={(event) => event.preventDefault()}
-                              onMouseEnter={() => setMaterialListIndex(index)}
-                              onClick={() => selectMaterial(material)}
-                              className={`flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-[13px] transition ${
-                                isActive
-                                  ? 'bg-yellow-200 text-amber-950'
-                                  : isSelected
-                                  ? 'bg-yellow-50 text-amber-800'
-                                  : 'text-slate-700 hover:bg-amber-50'
-                              }`}
-                            >
-                              <span className="truncate font-medium">{getMaterialDisplayName(material)}</span>
-                              <span className="shrink-0 rounded-full border border-amber-200 bg-white px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700">
-                                {getMaterialStockText(material)}
-                              </span>
-                            </button>
-                          );
-                        })
-                      )}
-                    </div>
-                  </div>
-                )}
+                <div className="overflow-y-auto py-1" style={{ maxHeight: materialDropdownStyle.maxHeight }}>
+                  {filteredMaterials.length === 0 ? (
+                    <div className="px-3 py-3 text-center text-[13px] text-slate-500">No matching materials found.</div>
+                  ) : (
+                    filteredMaterials.map((material, index) => {
+                      const isActive = index === materialListIndex;
+                      const isSelected = String(formData.materialType || '') === String(material._id);
+                      return (
+                        <button
+                          key={material._id}
+                          type="button"
+                          onMouseDown={(event) => event.preventDefault()}
+                          onMouseEnter={() => setMaterialListIndex(index)}
+                          onClick={() => selectMaterial(material)}
+                          className={`flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-[13px] transition ${
+                            isActive
+                              ? 'bg-yellow-200 text-amber-950'
+                              : isSelected
+                              ? 'bg-yellow-50 text-amber-800'
+                              : 'text-slate-700 hover:bg-amber-50'
+                          }`}
+                        >
+                          <span className="truncate font-medium">{getMaterialDisplayName(material)}</span>
+                          <span className="shrink-0 rounded-full border border-amber-200 bg-white px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700">
+                            {getMaterialStockText(material)}
+                          </span>
+                        </button>
+                      );
+                    })
+                  )}
+                </div>
               </div>
-            </div>
+            )}
+          </div>
+        </div>
 
-            <div className="space-y-1">
-              <label className={labelClass}>Used Qty</label>
+        {selectedMaterial && (
+          <dl className="grid grid-cols-3 gap-px overflow-hidden rounded-xl bg-slate-200 ring-1 ring-slate-200">
+            {[
+              { label: 'In Stock', value: `${formatQty(inStock)} ${unit}`, tone: 'text-slate-900' },
+              { label: 'Used', value: usedQty > 0 ? `− ${formatQty(usedQty)} ${unit}` : '-', tone: 'text-amber-700' },
+              { label: 'Stock After', value: `${formatQty(stockAfter)} ${unit}`, tone: exceedsStock ? 'text-rose-700' : 'text-emerald-700' }
+            ].map((stat) => (
+              <div key={stat.label} className="bg-white px-3 py-2">
+                <dt className="text-[11px] font-medium text-slate-500">{stat.label}</dt>
+                <dd className={`truncate text-sm font-bold ${stat.tone}`}>{stat.value}</dd>
+              </div>
+            ))}
+          </dl>
+        )}
+
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="label">Used Qty *</label>
+            <div className="relative">
               <input
                 type="number"
                 min="0.01"
                 step="0.01"
                 value={formData.usedQty}
                 onChange={(event) => setFormData((prev) => ({ ...prev, usedQty: event.target.value }))}
-                placeholder="Enter used quantity"
-                className={`${inputClass} focus:ring-indigo-500`}
+                placeholder="0"
+                className={`input ${unit ? 'pr-14' : ''}`}
               />
+              {unit && <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-xs font-semibold text-slate-400">{unit}</span>}
             </div>
-
-            <div className="space-y-1">
-              <label className={labelClass}>Notes</label>
-              <textarea
-                rows="3"
-                value={formData.notes}
-                onChange={(event) => setFormData((prev) => ({ ...prev, notes: event.target.value }))}
-                placeholder="Optional notes"
-                className={`${inputClass} min-h-[84px] resize-none py-2.5 focus:ring-indigo-500`}
-              />
-            </div>
+            {exceedsStock && <p className="mt-1 text-xs font-medium text-rose-600">Only {formatQty(inStock)} {unit} in stock</p>}
           </div>
+          <div>
+            <label className="label">Used Date</label>
+            <input
+              type="date"
+              value={formData.usedDate}
+              onChange={(event) => setFormData((prev) => ({ ...prev, usedDate: event.target.value }))}
+              className="input"
+            />
+          </div>
+        </div>
+
+        <div>
+          <label className="label">Notes</label>
+          <textarea
+            rows="2"
+            value={formData.notes}
+            onChange={(event) => setFormData((prev) => ({ ...prev, notes: event.target.value }))}
+            placeholder="Optional"
+            className="input resize-none"
+          />
         </div>
       </div>
 
-      <div className="flex flex-col items-center justify-between gap-2 border-t border-slate-200 bg-white px-4 py-3 md:flex-row">
-        <div className="hidden text-[11px] text-gray-600 md:block md:text-xs">
-          <kbd className="rounded bg-gray-200 px-1.5 py-0.5 font-mono text-[10px]">Esc</kbd> to close
-        </div>
-
-        <div className="flex w-full gap-2 md:w-auto">
-          <button
-            type="button"
-            onClick={handleCancel}
-            className="flex-1 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-slate-50 md:flex-none md:px-5"
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            onClick={onSave}
-            disabled={loading}
-            className="flex-1 rounded-lg bg-gradient-to-r from-indigo-600 to-violet-600 px-5 py-2 text-sm font-semibold text-white transition-all hover:from-indigo-500 hover:to-violet-500 hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-50 md:flex-none md:px-6"
-          >
-            <span className="md:hidden">{loading ? 'Saving...' : editingId ? 'Update' : 'Save'}</span>
-            <span className="hidden md:inline">{loading ? 'Saving...' : editingId ? 'Update Material Used' : 'Save Material Used'}</span>
-          </button>
-        </div>
+      <div className="flex flex-shrink-0 justify-end gap-2 border-t border-slate-200 bg-slate-50 p-3 md:gap-3 md:p-4 [&>button]:flex-1 md:[&>button]:flex-none">
+        <button type="button" className="btn-secondary" onClick={handleCancel}>Cancel</button>
+        <button type="button" className="btn-primary px-8" onClick={onSave} disabled={loading}>
+          {loading ? 'Saving...' : editingId ? 'Update' : 'Save'}
+        </button>
       </div>
     </div>
   );
@@ -420,6 +412,11 @@ export default function MaterialUsed({ modalOnly = false, onModalFinish = null }
 
     if (!(Number(formData.usedQty) > 0)) {
       toast.error('Used quantity must be greater than 0', TOAST_OPTIONS);
+      return;
+    }
+
+    if (!editingId && selectedMaterial && Number(formData.usedQty) > Number(selectedMaterial.currentStock || 0)) {
+      toast.error(`Only ${getMaterialStockText(selectedMaterial)} in stock`, TOAST_OPTIONS);
       return;
     }
 
@@ -714,8 +711,8 @@ export default function MaterialUsed({ modalOnly = false, onModalFinish = null }
 
   if (modalOnly) {
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 p-3 backdrop-blur-[2px] md:p-6" onClick={onModalFinish}>
-        <div onClick={(event) => event.stopPropagation()}>
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-2 md:p-4" onClick={onModalFinish}>
+        <div className="w-full max-w-lg" onClick={(event) => event.stopPropagation()}>
           <form onSubmit={(event) => { event.preventDefault(); handleSave(); }} onKeyDown={(e) => handlePopupFormKeyDown(e, onModalFinish)}>
             <MaterialUsedForm
               formData={formData}
