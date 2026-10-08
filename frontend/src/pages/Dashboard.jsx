@@ -330,19 +330,23 @@ export default function Dashboard() {
             ))}
           </div>
         </div>
-        {/* Columns follow the panel's own width (not the screen's), so a tile is always wide enough for its label */}
-        <div className="grid grid-cols-2 gap-2 p-2.5 @xl:grid-cols-3 @3xl:grid-cols-4 @[84rem]:grid-cols-7 md:gap-2.5 md:p-3">
+        {/*
+          Columns follow the panel's own width (not the screen's), so a tile is always wide enough for its label.
+          Laptops and desktops get all seven in one row: compact tiles (icon above the label) while the row is tight,
+          the normal side-by-side tiles once it is wide enough. Tablets and small laptops wrap onto more rows.
+        */}
+        <div className="grid grid-cols-2 gap-2 p-2.5 @xl:grid-cols-3 @3xl:grid-cols-4 @4xl:grid-cols-7 md:gap-2.5 md:p-3">
           {QUICK_ENTRIES.map(({ icon: Icon, ...entry }) => (
             <button
               key={entry.stateKey}
               type="button"
               onClick={() => openQuickEntry(entry)}
-              className="group flex items-center gap-2 rounded-xl bg-white p-2 text-left shadow-sm transition hover:bg-primary-50 hover:shadow-md"
+              className="group flex items-center gap-2 rounded-xl bg-white p-2 text-left shadow-sm transition hover:bg-primary-50 hover:shadow-md @4xl:flex-col @4xl:gap-1 @4xl:px-1 @4xl:text-center @[84rem]:flex-row @[84rem]:gap-2 @[84rem]:px-2 @[84rem]:text-left"
             >
               <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ring-1 ring-inset ${entry.tone}`}>
                 <Icon size={17} />
               </span>
-              <span className="min-w-0 text-[13px] font-semibold leading-tight text-slate-700 group-hover:text-slate-900">{entry.label}</span>
+              <span className="min-w-0 text-[13px] font-semibold leading-tight text-slate-700 group-hover:text-slate-900 @4xl:text-xs @[84rem]:text-[13px]">{entry.label}</span>
             </button>
           ))}
         </div>
