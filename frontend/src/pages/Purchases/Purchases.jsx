@@ -1,27 +1,53 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { ShoppingCart, IndianRupee, Search } from 'lucide-react';
+import { Banknote, CreditCard, Eye, Inbox, IndianRupee, Pencil, Plus, RefreshCw, Search, ShoppingCart, Trash2 } from 'lucide-react';
 import { toast } from 'react-toastify';
 import apiClient from '../../utils/api';
 import useAccounts from '../../utils/useAccounts';
 import AddPartyPopup from '../Party/component/AddPartyPopup';
 import AddProductPopup from '../Products/component/AddProductPopup';
+import StatCard from '../../components/StatCard';
+import Segmented from '../../components/Segmented';
 import AddPurchasePopup from './component/AddPurchasePopup';
 
-const getPurchaseTypeLabel = (total, paid) => {
-  const totalAmount = Number(total || 0);
-  const paidAmount = Number(paid || 0);
-  
-  if (paidAmount === 0) return 'Credit Purchase';
-  if (paidAmount >= totalAmount && totalAmount > 0) return 'Cash Purchase';
-  return 'Partial Purchase';
+const PURCHASE_TYPES = {
+  cash: { label: 'Cash', badge: 'badge-green' },
+  partial: { label: 'Partial', badge: 'badge-orange' },
+  credit: { label: 'Credit', badge: 'badge-red' }
 };
 
-const getPurchaseTypeBadgeClass = (label) => {
-  if (label === 'Cash Purchase') return 'bg-emerald-100 text-emerald-700 border-emerald-200';
-  if (label === 'Credit Purchase') return 'bg-amber-100 text-amber-700 border-amber-200';
-  return 'bg-orange-100 text-orange-700 border-orange-200';
+const getPurchaseType = (total, paid) => {
+  const totalAmount = Number(total || 0);
+  const paidAmount = Number(paid || 0);
+
+  if (paidAmount === 0) return PURCHASE_TYPES.credit;
+  if (paidAmount >= totalAmount && totalAmount > 0) return PURCHASE_TYPES.cash;
+  return PURCHASE_TYPES.partial;
 };
+
+// Period pills; the keys are the ranges getFromDateByFilter understands
+const PERIODS = [
+  { key: '', label: 'All', period: 'All time' },
+  { key: '7d', label: '7 Days', period: 'Last 7 days' },
+  { key: '30d', label: '30 Days', period: 'Last 30 days' },
+  { key: '3m', label: '3 Months', shortLabel: '3 Mo', period: 'Last 3 months' },
+  { key: '6m', label: '6 Months', shortLabel: '6 Mo', period: 'Last 6 months' },
+  { key: '1y', label: '1 Year', period: 'Last 1 year' }
+];
+
+// Table cells a little tighter than the app default, so every column fits without scrolling
+const TH = 'tbl-head px-3 py-2 first:pl-5 last:pr-5';
+const TD = 'tbl-cell px-3 py-2 first:pl-5 last:pr-5';
+
+const formatRupees = (value) => `₹${Number(value || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
+
+const formatDate = (value) => {
+  const date = value ? new Date(value) : null;
+  if (!date || Number.isNaN(date.getTime())) return '-';
+  return date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+};
+
+const purchaseCount = (count) => `${count.toLocaleString('en-IN')} purchase${count === 1 ? '' : 's'}`;
 
 // The backend keeps one default "Cash" party per account; it is preselected for new purchases.
 const CASH_PARTY = { name: 'Cash' };
@@ -1138,8 +1164,66 @@ export default function Purchases({ modalOnly = false, onModalFinish = null }) {
     }
   };
 
-  const totalPurchases = purchases.length;
-  const totalAmount = purchases.reduce((sum, purchase) => sum + Number(purchase.totalAmount || 0), 0);
+  // The popup shares `loading` while it saves; the list behind it should not react to that
+  const listLoading = loading && !showForm;
+  const initialLoading = listLoading && purchases.length === 0;
+  const periodLabel = PERIODS.find((option) => option.key === dateFilter)?.period || 'All time';
+
+  // The values a purchase row shows, worked out once for the phone list and the table
+  const describePurchase = (purchase) => {
+    const total = Number(purchase.totalAmount || 0);
+    const paid = Number(purchase.paidAmount || 0);
+    const itemNames = (purchase.items || []).map((item) => item.productName).filter(Boolean);
+    const extraItems = itemNames.length - 2;
+
+    return {
+      party: resolveLeadgerNameById(purchase.party) || '—',
+      supplierInvoice: purchase.supplierInvoice || purchase.invoiceNo || purchase.invoiceNumber || '',
+      items: extraItems > 0 ? `${itemNames.slice(0, 2).join(', ')} +${extraItems} more` : itemNames.join(', '),
+      allItems: itemNames.join(', '),
+      type: getPurchaseType(total, paid),
+      total,
+      paid,
+      balance: total - paid
+    };
+  };
+
+  const totals = purchases.reduce((acc, purchase) => {
+    const total = Number(purchase.totalAmount || 0);
+    const paid = Number(purchase.paidAmount || 0);
+    acc.total += total;
+    acc.paid += paid;
+    acc.balance += total - paid;
+    if (total > paid) acc.unpaid += 1;
+    return acc;
+  }, { total: 0, paid: 0, balance: 0, unpaid: 0 });
+
+  const shareOfTotal = (amount) => (
+    totals.total > 0 ? `${((amount / totals.total) * 100).toFixed(0)}% of total` : 'No purchases'
+  );
+
+  const stats = [
+    { icon: ShoppingCart, label: 'Purchases', tone: 'blue', value: purchases.length.toLocaleString('en-IN'), hint: `${totals.unpaid.toLocaleString('en-IN')} with balance due` },
+    { icon: IndianRupee, label: 'Total Amount', tone: 'indigo', value: formatRupees(totals.total), hint: periodLabel },
+    { icon: Banknote, label: 'Paid', tone: 'emerald', value: formatRupees(totals.paid), hint: shareOfTotal(totals.paid) },
+    { icon: CreditCard, label: 'Balance Due', tone: 'rose', value: formatRupees(totals.balance), hint: shareOfTotal(totals.balance) }
+  ];
+
+  const renderActions = (purchase) => (
+    <div className="flex items-center justify-end">
+      {purchase.invoiceLink && (
+        <a href={purchase.invoiceLink} target="_blank" rel="noreferrer" title="View invoice" aria-label="View invoice" className="icon-btn inline-flex p-1.5 hover:bg-blue-50 hover:text-blue-600">
+          <Eye size={16} />
+        </a>
+      )}
+      <button type="button" title="Edit" aria-label="Edit" className="icon-btn p-1.5 hover:bg-blue-50 hover:text-blue-600" onClick={() => handleEdit(purchase)}>
+        <Pencil size={16} />
+      </button>
+      <button type="button" title="Delete" aria-label="Delete" className="icon-btn p-1.5 hover:bg-rose-50 hover:text-rose-600" onClick={() => handleDelete(purchase._id)}>
+        <Trash2 size={16} />
+      </button>
+    </div>
+  );
 
   if (modalOnly) {
     return (
@@ -1214,48 +1298,7 @@ export default function Purchases({ modalOnly = false, onModalFinish = null }) {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-purple-50">
-      <div className="w-full px-3 pb-8 pt-4 md:px-4 lg:px-6 lg:pt-4">
-      {error && (
-        <div className="mb-6 rounded-lg border border-red-200 bg-red-50 p-4 text-red-700">
-          {error}
-        </div>
-      )}
-
-      <div className="mb-4 mt-1 grid grid-cols-2 gap-2.5">
-        <div className="group relative overflow-hidden rounded-xl bg-white p-3 shadow-lg shadow-blue-500/10 ring-1 ring-slate-200/60 transition-all hover:shadow-xl hover:shadow-blue-500/20 sm:rounded-2xl sm:p-4">
-          <div className="absolute inset-0 bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 opacity-60"></div>
-          <div className="relative flex items-start justify-between gap-2">
-            <div className="min-w-0">
-              <p className="text-[9px] sm:text-xs font-semibold text-slate-500 leading-tight">Total Purchases</p>
-              <p className="mt-1 sm:mt-2 text-sm sm:text-2xl font-bold text-slate-800 leading-tight">{totalPurchases}</p>
-            </div>
-            <div className="flex h-9 w-9 sm:h-12 sm:w-12 items-center justify-center rounded-lg sm:rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 text-white shadow-lg shadow-blue-500/30 transition-transform group-hover:scale-110">
-              <ShoppingCart className="h-4 w-4 sm:h-6 sm:w-6" />
-            </div>
-          </div>
-          <div className="absolute inset-x-0 bottom-0 h-1 bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500"></div>
-        </div>
-
-        <div className="group relative overflow-hidden rounded-xl bg-white p-3 shadow-lg shadow-emerald-500/10 ring-1 ring-slate-200/60 transition-all hover:shadow-xl hover:shadow-emerald-500/20 sm:rounded-2xl sm:p-4">
-          <div className="absolute inset-0 bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50 opacity-60"></div>
-          <div className="relative flex items-start justify-between gap-2">
-            <div className="min-w-0">
-              <p className="text-[9px] sm:text-xs font-semibold text-slate-500 leading-tight">Total Amount</p>
-              <p className="mt-1 sm:mt-2 text-[10px] sm:text-2xl font-bold text-slate-800 leading-tight">
-                <span className="text-[9px] sm:text-base text-slate-400 font-semibold mr-0.5">Rs</span>
-                {totalAmount.toFixed(2)}
-              </p>
-            </div>
-            <div className="flex h-9 w-9 sm:h-12 sm:w-12 items-center justify-center rounded-lg sm:rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-lg shadow-emerald-500/30 transition-transform group-hover:scale-110">
-              <IndianRupee className="h-4 w-4 sm:h-6 sm:w-6" />
-            </div>
-          </div>
-          <div className="absolute inset-x-0 bottom-0 h-1 bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500"></div>
-        </div>
-
-      </div>
-
+    <div className="page-fade-in space-y-3.5 px-3 pb-6 pt-3.5 md:space-y-4 lg:px-6 lg:pt-4">
       <AddPurchasePopup
         showForm={showForm}
         editingId={editingId}
@@ -1322,271 +1365,161 @@ export default function Purchases({ modalOnly = false, onModalFinish = null }) {
         onProductCreated={handleProductCreated}
       />
 
-      <div className="mb-6 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl">
-        <div className="border-b border-gray-200 bg-gradient-to-r from-indigo-50 via-purple-50 to-pink-50 px-6 py-5">
-          <div className="flex flex-col gap-2 lg:flex-row lg:items-center">
-            <div className="relative w-full lg:w-[22%] lg:min-w-[260px]">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+      {/* The page is three blocks, like the other reports: period filter, the period's totals, then one panel with the data */}
+      <div className="page-header gap-2.5">
+        <div className="min-w-0">
+          <h1 className="page-title">Purchase Report</h1>
+          <p className="page-subtitle">Goods bought from suppliers · {periodLabel}</p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <Segmented options={PERIODS} value={dateFilter} onChange={setDateFilter} />
+          <button type="button" className="btn-primary" onClick={handleOpenForm}>
+            <Plus size={18} /> New Purchase
+          </button>
+        </div>
+      </div>
+
+      {error && !showForm && (
+        <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm font-semibold text-rose-700">{error}</div>
+      )}
+
+      <section className={`grid grid-cols-2 gap-2 transition-opacity md:gap-3 lg:grid-cols-4 ${listLoading ? 'opacity-50' : ''}`}>
+        {stats.map((stat) => <StatCard key={stat.label} compact {...stat} />)}
+      </section>
+
+      <section className="panel">
+        <div className="panel-header py-2.5 flex flex-wrap items-center justify-between gap-2.5">
+          <h2 className="text-sm font-bold text-slate-800">Purchases</h2>
+          <div className="flex min-w-0 flex-1 basis-56 items-center justify-end gap-2">
+            <div className="relative min-w-0 flex-1 md:max-w-64">
+              <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
               <input
-                type="text"
-                placeholder="Search purchases..."
+                type="search"
+                className="input pl-9"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="w-full rounded-lg border border-gray-300 bg-white py-2.5 pl-9 pr-4 text-sm text-slate-700 outline-none transition focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
+                placeholder="Search purchases"
               />
             </div>
-            <select
-              value={dateFilter}
-              onChange={(e) => setDateFilter(e.target.value)}
-              className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm text-slate-700 outline-none transition focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 lg:w-56"
-            >
-              <option value="">Purchase History - All Time</option>
-              <option value="7d">Purchase History - 7 Days</option>
-              <option value="30d">Purchase History - 30 Days</option>
-              <option value="3m">Purchase History - 3 Months</option>
-              <option value="6m">Purchase History - 6 Months</option>
-              <option value="1y">Purchase History - 1 Year</option>
-            </select>
-            <button
-              onClick={handleOpenForm}
-              className="inline-flex items-center justify-center whitespace-nowrap rounded-lg bg-slate-800 px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-900"
-            >
-              + New Purchase
+            <button type="button" className="icon-btn shrink-0" title="Refresh" aria-label="Refresh" onClick={fetchPurchases}>
+              <RefreshCw size={16} className={listLoading ? 'animate-spin' : ''} />
             </button>
           </div>
         </div>
 
-      {loading && !showForm ? (
-        <div className="px-6 py-10 text-center text-slate-500">Loading...</div>
-      ) : purchases.length === 0 ? (
-        <div className="rounded-[20px] border border-dashed border-slate-300 bg-white/80 px-6 py-10 text-center text-slate-500">
-          No purchases found. Create your first purchase!
-        </div>
-      ) : (
-          <div className="rounded-[20px] border border-slate-200 bg-[radial-gradient(circle_at_top_right,rgba(148,163,184,0.16),transparent_28%),linear-gradient(180deg,rgba(255,255,255,0.98)_0%,rgba(241,245,249,0.96)_100%)] p-3 shadow-[0_18px_36px_rgba(15,23,42,0.08)] sm:p-5">
-          <div className="space-y-2.5 md:hidden">
-            {purchases.map((purchase) => (
-              <article
-                key={purchase._id}
-                className="overflow-hidden rounded-xl border border-slate-200/60 bg-white shadow-lg shadow-slate-200/40"
-              >
-                <div className="border-b border-slate-100 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 px-3.5 py-2.5">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      <p className="text-[9px] font-semibold uppercase tracking-[0.12em] text-white/80">
-                        {formatPurchaseNumber(purchase.purchaseNumber)}
-                      </p>
-                      <p className="mt-0.5 truncate text-xs font-semibold text-white">
-                        {purchase.supplierInvoice || purchase.invoiceNo || purchase.invoiceNumber || 'No supplier invoice'}
-                      </p>
-                      <div className="mt-1">
-                        <span className={`inline-flex rounded-full px-2 py-0.5 text-[9px] font-bold border ${getPurchaseTypeBadgeClass(getPurchaseTypeLabel(purchase.totalAmount, purchase.paidAmount))}`}>
-                          {getPurchaseTypeLabel(purchase.totalAmount, purchase.paidAmount)}
+        {initialLoading ? (
+          <div className="flex flex-col items-center gap-3 py-16">
+            <div className="h-9 w-9 animate-spin rounded-full border-4 border-primary-600 border-r-transparent" />
+            <p className="text-sm text-slate-400">Loading purchases…</p>
+          </div>
+        ) : purchases.length === 0 ? (
+          <div className="flex flex-col items-center gap-2 px-6 py-10 text-center">
+            <span className="flex h-11 w-11 items-center justify-center rounded-full bg-slate-100 text-slate-400">
+              <Inbox size={20} />
+            </span>
+            <p className="text-sm font-semibold text-slate-800">No purchases found</p>
+            <p className="text-xs text-slate-500">
+              {search || dateFilter ? 'Try changing the search or the period.' : 'Add the first purchase with "New Purchase".'}
+            </p>
+          </div>
+        ) : (
+          <div className={`transition-opacity ${listLoading ? 'pointer-events-none opacity-50' : ''}`}>
+            {/* Phone: three short lines per purchase */}
+            <ul className="divide-y divide-slate-100 md:hidden">
+              {purchases.map((purchase) => {
+                const view = describePurchase(purchase);
+                return (
+                  <li key={purchase._id} className="px-4 py-2.5">
+                    <div className="flex items-baseline justify-between gap-3">
+                      <p className="min-w-0 truncate text-sm font-semibold text-slate-800">{view.party}</p>
+                      <p className="shrink-0 text-sm font-bold text-slate-900">{formatRupees(view.total)}</p>
+                    </div>
+                    <div className="mt-1 flex items-center justify-between gap-3">
+                      <p className="min-w-0 truncate text-xs text-slate-500">{view.items || 'No items'}</p>
+                      <span className="shrink-0 text-xs text-slate-500">{formatDate(purchase.purchaseDate)}</span>
+                    </div>
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex min-w-0 items-center gap-1.5 text-[11px] text-slate-400">
+                        <span className={`${view.type.badge} shrink-0`}>{view.type.label}</span>
+                        <span className="truncate">
+                          {formatPurchaseNumber(purchase.purchaseNumber)}
+                          {view.balance > 0 && ` · Bal ${formatRupees(view.balance)}`}
                         </span>
                       </div>
+                      {renderActions(purchase)}
                     </div>
-                    <div className="flex flex-col gap-1.5 rounded-lg bg-white/20 backdrop-blur-sm px-2.5 py-1.5 text-right min-w-[100px]">
-                      <div className="flex justify-between items-center gap-3">
-                        <p className="text-[8px] font-semibold uppercase tracking-[0.1em] text-white/90">Total</p>
-                        <p className="text-[11px] font-bold text-white">
-                          Rs {Number(purchase.totalAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                        </p>
-                      </div>
-                      <div className="flex justify-between items-center gap-3">
-                        <p className="text-[8px] font-semibold uppercase tracking-[0.1em] text-white/90">Paid</p>
-                        <p className="text-[11px] font-bold text-emerald-200">
-                          Rs {Number(purchase.paidAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                        </p>
-                      </div>
-                      <div className="flex justify-between items-center gap-3 border-t border-white/20 pt-1">
-                        <p className="text-[8px] font-semibold uppercase tracking-[0.1em] text-white/90">Due</p>
-                        <p className="text-[11px] font-bold text-rose-200">
-                          Rs {Number((purchase.totalAmount || 0) - (purchase.paidAmount || 0)).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
+                  </li>
+                );
+              })}
+            </ul>
 
-                <div className="space-y-2 px-3.5 py-2.5">
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="rounded-lg bg-gradient-to-br from-slate-50 to-slate-100 px-2.5 py-1.5 border border-slate-200/50">
-                      <p className="text-[8px] font-semibold uppercase tracking-[0.1em] text-slate-500">Party</p>
-                      <p className="mt-0.5 truncate text-xs font-medium text-slate-800">{resolveLeadgerNameById(purchase.party)}</p>
-                    </div>
-                    <div className="rounded-lg bg-gradient-to-br from-slate-50 to-slate-100 px-2.5 py-1.5 border border-slate-200/50">
-                      <p className="text-[8px] font-semibold uppercase tracking-[0.1em] text-slate-500">Date</p>
-                      <p className="mt-0.5 text-xs font-medium text-slate-800">
-                        {new Date(purchase.purchaseDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="rounded-lg bg-gradient-to-br from-blue-50 to-indigo-50 px-2.5 py-2 border border-blue-100/50">
-                    <p className="text-[8px] font-semibold uppercase tracking-[0.1em] text-slate-500">Items</p>
-                    <div className="mt-1.5 flex flex-wrap gap-1">
-                      {purchase.items?.length ? (
-                        <>
-                          {purchase.items.slice(0, 2).map((item, index) => (
-                            <span
-                              key={`${purchase._id}-item-${index}`}
-                              className="rounded-full border border-blue-200 bg-white px-2 py-0.5 text-[10px] font-medium text-blue-700"
-                            >
-                              {item.productName}
-                            </span>
-                          ))}
-                          {purchase.items.length > 2 && (
-                            <span className="self-center text-[9px] font-medium text-slate-500">
-                              +{purchase.items.length - 2} more
-                            </span>
+            <div className="hidden overflow-x-auto md:block">
+              <table className="w-full min-w-[860px] text-left">
+                <thead>
+                  <tr>
+                    <th className={TH}>Date</th>
+                    <th className={TH}>Party</th>
+                    <th className={TH}>Products</th>
+                    <th className={`${TH} text-right`}>Total</th>
+                    <th className={`${TH} text-right`}>Paid</th>
+                    <th className={`${TH} text-right`}>Balance</th>
+                    <th className={TH}>Payment</th>
+                    <th className={TH} />
+                  </tr>
+                </thead>
+                <tbody>
+                  {purchases.map((purchase) => {
+                    const view = describePurchase(purchase);
+                    return (
+                      <tr key={purchase._id} className="tbl-row">
+                        <td className={`${TD} whitespace-nowrap`}>
+                          {formatDate(purchase.purchaseDate)}
+                          <span className="block text-[11px] leading-tight text-slate-400">{formatPurchaseNumber(purchase.purchaseNumber)}</span>
+                        </td>
+                        <td className={TD}>
+                          <p className="max-w-[18rem] truncate font-semibold text-slate-800" title={view.party}>{view.party}</p>
+                          {view.supplierInvoice && (
+                            <span className="block max-w-[18rem] truncate text-[11px] leading-tight text-slate-400">Invoice {view.supplierInvoice}</span>
                           )}
-                        </>
-                      ) : (
-                        <span className="text-[10px] italic text-slate-400">No items</span>
-                      )}
-                    </div>
-                  </div>
+                        </td>
+                        <td className={TD}>
+                          <p className="max-w-[20rem] truncate" title={view.allItems}>
+                            {view.items || <span className="text-slate-400">No items</span>}
+                          </p>
+                        </td>
+                        <td className={`${TD} whitespace-nowrap text-right font-bold text-slate-900`}>{formatRupees(view.total)}</td>
+                        <td className={`${TD} whitespace-nowrap text-right text-emerald-700`}>{formatRupees(view.paid)}</td>
+                        <td className={`${TD} whitespace-nowrap text-right ${view.balance > 0 ? 'font-semibold text-rose-600' : 'text-slate-400'}`}>{formatRupees(view.balance)}</td>
+                        <td className={`${TD} whitespace-nowrap`}>
+                          <span className={view.type.badge}>{view.type.label}</span>
+                        </td>
+                        <td className={`${TD} py-1!`}>{renderActions(purchase)}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+                <tfoot>
+                  <tr className="border-t border-slate-200 bg-slate-50">
+                    <td className={`${TD} font-bold text-slate-900`} colSpan={3}>Total</td>
+                    <td className={`${TD} whitespace-nowrap text-right font-bold text-slate-900`}>{formatRupees(totals.total)}</td>
+                    <td className={`${TD} whitespace-nowrap text-right font-semibold text-emerald-700`}>{formatRupees(totals.paid)}</td>
+                    <td className={`${TD} whitespace-nowrap text-right font-semibold text-rose-600`}>{formatRupees(totals.balance)}</td>
+                    <td className={TD} colSpan={2} />
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
 
-                  <div className="flex items-center justify-between gap-2">
-                    {purchase.invoiceLink ? (
-                      <a
-                        href={purchase.invoiceLink}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="inline-flex items-center gap-1 rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-1.5 text-[10px] font-semibold text-blue-700 transition hover:bg-blue-100"
-                      >
-                        <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                        </svg>
-                        Invoice
-                      </a>
-                    ) : (
-                      <span className="text-[10px] text-slate-400">No invoice</span>
-                    )}
-
-                    <div className="flex items-center gap-1.5">
-                      <button
-                        onClick={() => handleEdit(purchase)}
-                        className="inline-flex items-center justify-center rounded-lg border border-blue-200 bg-white px-2.5 py-1.5 text-[10px] font-semibold text-blue-700 shadow-sm transition hover:border-blue-300 hover:bg-blue-50"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => handleDelete(purchase._id)}
-                        className="inline-flex items-center justify-center rounded-lg border border-red-200 bg-white px-2.5 py-1.5 text-[10px] font-semibold text-red-700 shadow-sm transition hover:border-red-300 hover:bg-red-50"
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </article>
-            ))}
+            <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-0.5 border-t border-slate-100 px-4 py-2 text-xs text-slate-500 md:px-5">
+              <span>{purchaseCount(purchases.length)}</span>
+              {/* The table has its own total row; phones get the totals here */}
+              <span className="font-semibold text-slate-700 md:hidden">
+                {formatRupees(totals.total)} · Bal {formatRupees(totals.balance)}
+              </span>
+            </div>
           </div>
-
-          <div className="hidden overflow-x-auto md:block">
-            <table className="w-full min-w-[980px] border-separate border-spacing-0 text-left text-sm whitespace-nowrap">
-              <thead className="bg-[linear-gradient(135deg,#0f766e_0%,#0d9488_38%,#0891b2_72%,#0284c7_100%)] text-white">
-                <tr>
-                  <th className="border-y-2 border-l-2 border-r border-black px-4 py-3.5 text-center text-sm font-semibold">Purchase No</th>
-                  <th className="border-y-2 border-r border-black px-4 py-3.5 text-center text-sm font-semibold">Type</th>
-                  <th className="border-y-2 border-r border-black px-4 py-3.5 text-center text-sm font-semibold">Supplier Invoice No.</th>
-                  <th className="border-y-2 border-r border-black px-4 py-3.5 text-center text-sm font-semibold">Manage Party</th>
-                  <th className="border-y-2 border-r border-black px-4 py-3.5 text-sm font-semibold">Products</th>
-                  <th className="border-y-2 border-r border-black px-4 py-3.5 text-center text-sm font-semibold">Date</th>
-                  <th className="border-y-2 border-r border-black px-4 py-3.5 text-center text-sm font-semibold">Invoice File</th>
-                  <th className="border-y-2 border-r border-black px-4 py-3.5 text-center text-sm font-semibold">Total</th>
-                  <th className="border-y-2 border-r border-black px-4 py-3.5 text-center text-sm font-semibold">Paid</th>
-                  <th className="border-y-2 border-r border-black px-4 py-3.5 text-center text-sm font-semibold">Balance</th>
-                  <th className="border-y-2 border-r-2 border-black px-4 py-3.5 text-center text-sm font-semibold">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="bg-[linear-gradient(180deg,rgba(255,255,255,0.94)_0%,rgba(248,250,252,0.98)_100%)] text-slate-600">
-                {purchases.map((purchase) => {
-                  return (
-                    <tr key={purchase._id} className="transition-colors duration-150 hover:bg-slate-200/45">
-                      <td className="border border-slate-400 px-4 py-3 text-center font-semibold text-slate-800">{formatPurchaseNumber(purchase.purchaseNumber)}</td>
-                      <td className="border border-slate-400 px-4 py-3 text-center">
-                        <span className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-bold border ${getPurchaseTypeBadgeClass(getPurchaseTypeLabel(purchase.totalAmount, purchase.paidAmount))}`}>
-                          {getPurchaseTypeLabel(purchase.totalAmount, purchase.paidAmount)}
-                        </span>
-                      </td>
-                      <td className="border border-slate-400 px-4 py-3 text-center font-semibold text-slate-800">{purchase.supplierInvoice || purchase.invoiceNo || purchase.invoiceNumber || '-'}</td>
-                      <td className="border border-slate-400 px-4 py-3 text-center font-medium text-slate-700">{resolveLeadgerNameById(purchase.party)}</td>
-                      <td className="border border-slate-400 px-4 py-3 text-slate-600">
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          {purchase.items?.length
-                            ? (
-                              <>
-                                <span className="bg-blue-50 text-blue-700 px-2.5 py-1 rounded-full text-xs font-medium border border-blue-100">
-                                  {purchase.items[0]?.productName}
-                                </span>
-                                {purchase.items.length > 1 && (
-                                  <span className="bg-blue-50 text-blue-700 px-2.5 py-1 rounded-full text-xs font-medium border border-blue-100">
-                                    {purchase.items[1]?.productName}
-                                  </span>
-                                )}
-                                {purchase.items.length > 2 && (
-                                  <span className="text-xs font-medium text-slate-500 ml-1">
-                                    +{purchase.items.length - 2} more
-                                  </span>
-                                )}
-                              </>
-                            )
-                            : <span className="text-slate-400 italic">No items</span>}
-                        </div>
-                      </td>
-                      <td className="border border-slate-400 px-4 py-3 text-center text-slate-600">{new Date(purchase.purchaseDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</td>
-                      <td className="border border-slate-400 px-4 py-3 text-center">
-                        {purchase.invoiceLink ? (
-                          <a
-                            href={purchase.invoiceLink}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="inline-flex items-center gap-1.5 text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-lg transition-colors font-medium text-xs"
-                          >
-                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                            </svg>
-                            View
-                          </a>
-                        ) : <span className="text-slate-400">-</span>}
-                      </td>
-                      <td className="border border-slate-400 px-4 py-3 text-center font-bold text-slate-800">
-                        Rs {Number(purchase.totalAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                      </td>
-                      <td className="border border-slate-400 px-4 py-3 text-center font-bold text-emerald-600">
-                        Rs {Number(purchase.paidAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                      </td>
-                      <td className="border border-slate-400 px-4 py-3 text-center font-bold text-rose-600">
-                        Rs {Number((purchase.totalAmount || 0) - (purchase.paidAmount || 0)).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                      </td>
-                      <td className="border border-slate-400 px-4 py-3">
-                        <div className="flex items-center justify-center gap-2">
-                        <button
-                          onClick={() => handleEdit(purchase)}
-                          className="inline-flex items-center justify-center rounded-md border border-blue-200 bg-white px-3 py-1.5 text-xs font-medium text-blue-700 shadow-sm transition hover:border-blue-300 hover:bg-blue-50"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          onClick={() => handleDelete(purchase._id)}
-                          className="inline-flex items-center justify-center rounded-md border border-red-200 bg-white px-3 py-1.5 text-xs font-medium text-red-700 shadow-sm transition hover:border-red-300 hover:bg-red-50"
-                        >
-                          Delete
-                        </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-      </div>
-      </div>
+        )}
+      </section>
     </div>
   );
 }
