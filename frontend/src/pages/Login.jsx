@@ -284,6 +284,18 @@ export default function Login() {
               {isLogin ? 'Register Now' : 'Login'}
             </button>
           </p>
+
+          <p className="mt-6 border-t border-slate-100 pt-5 text-center text-xs text-slate-400">
+            Developed by{' '}
+            <a
+              href="https://softwarebytes.in/"
+              target="_blank"
+              rel="noopener"
+              className="font-semibold text-slate-600 hover:text-orange-600 hover:underline"
+            >
+              SoftwareBytes
+            </a>
+          </p>
         </div>
       </div>
     </div>
