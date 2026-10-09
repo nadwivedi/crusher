@@ -10,9 +10,7 @@ import CustomRangePopup, { CustomRangeButton } from '../../components/CustomRang
 import MonthPickerPopup, { MonthRangeButton, getMonthRange } from '../../components/MonthPickerPopup';
 import FormSection from '../../components/FormSection';
 import OptionList from '../../components/OptionList';
-import Purchases from '../Purchases/Purchases';
 import AddExpensePopup from './component/AddExpensePopup';
-import ExpenseTypePicker from './component/ExpenseTypePicker';
 import AddExpenseTypePopup from './component/AddExpenseTypePopup';
 
 const TOAST_OPTIONS = { autoClose: 1200 };
@@ -205,9 +203,6 @@ export default function Expenses({ modalOnly = false, onModalFinish = null }) {
   const rangeBeforeCustomRef = useRef('lifetime');
   const [showForm, setShowForm] = useState(false);
   const [expenseEntryType, setExpenseEntryType] = useState('');
-  // Quick entry from the dashboard first asks: normal expense or purchase expense
-  const [showExpenseTypePicker, setShowExpenseTypePicker] = useState(false);
-  const [showPurchaseExpenseModal, setShowPurchaseExpenseModal] = useState(false);
   const [showTypePopup, setShowTypePopup] = useState(false);
   const [newTypeName, setNewTypeName] = useState('');
   const [newTypeDescription, setNewTypeDescription] = useState('');
@@ -323,9 +318,9 @@ export default function Expenses({ modalOnly = false, onModalFinish = null }) {
   }, [showForm, cashPartyId]);
 
   useEffect(() => {
-    if (!modalOnly || showForm || showPurchaseExpenseModal) return;
-    setShowExpenseTypePicker(true);
-  }, [modalOnly, showForm, showPurchaseExpenseModal]);
+    if (!modalOnly || showForm) return;
+    handleOpenForm();
+  }, [modalOnly, showForm]);
 
   const fetchExpenses = async () => {
     try {
@@ -1017,20 +1012,9 @@ export default function Expenses({ modalOnly = false, onModalFinish = null }) {
     setShowForm(true);
   };
 
-  const handleChooseExpenseType = (type) => {
-    setShowExpenseTypePicker(false);
-    if (type === 'purchase') {
-      setShowPurchaseExpenseModal(true);
-      return;
-    }
-    handleOpenForm();
-  };
-
   const handleCloseForm = () => {
     setEditingId(null);
     setShowForm(false);
-    setShowExpenseTypePicker(false);
-    setShowPurchaseExpenseModal(false);
     setFormData(getInitialForm());
     setGoodsItem(getInitialGoodsItem());
     setGoodsItems([]);
@@ -1548,14 +1532,6 @@ export default function Expenses({ modalOnly = false, onModalFinish = null }) {
               <p className="mt-2 text-xs text-slate-400">Sorted by amount, highest first. Click a category to filter the table below.</p>
             </div>
           )}
-
-      <ExpenseTypePicker
-        open={showExpenseTypePicker}
-        onClose={handleCloseForm}
-        onChooseType={handleChooseExpenseType}
-      />
-
-      {showPurchaseExpenseModal && <Purchases modalOnly onModalFinish={handleCloseForm} />}
 
       <AddExpenseTypePopup
         open={showTypePopup}
