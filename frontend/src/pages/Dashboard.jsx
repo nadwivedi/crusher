@@ -55,7 +55,6 @@ const rangeLabel = (from, to) => from === to
 const QUICK_ENTRIES = [
   { label: 'Boulder Entry', stateKey: 'homeQuickBoulder', icon: Mountain, tone: 'bg-blue-50 text-blue-700 ring-blue-100' },
   { label: 'New Sale', stateKey: 'homeQuickSale', icon: FileText, tone: 'bg-emerald-50 text-emerald-700 ring-emerald-100' },
-  { label: 'New Purchase', stateKey: 'homeQuickPurchase', icon: ShoppingCart, tone: 'bg-violet-50 text-violet-700 ring-violet-100' },
   { label: 'New Expense', stateKey: 'homeQuickExpense', icon: Wallet, tone: 'bg-amber-50 text-amber-700 ring-amber-100' },
   { label: 'Money Received', stateKey: 'homeQuickReceipt', icon: HandCoins, tone: 'bg-teal-50 text-teal-700 ring-teal-100' },
   { label: 'Money Paid', stateKey: 'homeQuickPayment', icon: Send, tone: 'bg-rose-50 text-rose-700 ring-rose-100' },
@@ -332,21 +331,21 @@ export default function Dashboard() {
         </div>
         {/*
           Columns follow the panel's own width (not the screen's), so a tile is always wide enough for its label.
-          Laptops and desktops get all seven in one row: compact tiles (icon above the label) while the row is tight,
-          the normal side-by-side tiles once it is wide enough. Tablets and small laptops wrap onto more rows.
+          Laptops and desktops get all six in one row: slightly smaller tiles while the row is tight,
+          the normal tiles once it is wide enough. Tablets and small laptops wrap onto more rows.
         */}
-        <div className="grid grid-cols-2 gap-2 p-2.5 @xl:grid-cols-3 @3xl:grid-cols-4 @4xl:grid-cols-7 md:gap-2.5 md:p-3">
+        <div className="grid grid-cols-2 gap-2 p-2.5 @xl:grid-cols-3 @4xl:grid-cols-6 md:gap-2.5 md:p-3">
           {QUICK_ENTRIES.map(({ icon: Icon, ...entry }) => (
             <button
               key={entry.stateKey}
               type="button"
               onClick={() => openQuickEntry(entry)}
-              className="group flex items-center gap-2 rounded-xl bg-white p-2 text-left shadow-sm transition hover:bg-primary-50 hover:shadow-md @4xl:flex-col @4xl:gap-1 @4xl:px-1 @4xl:text-center @[84rem]:flex-row @[84rem]:gap-2 @[84rem]:px-2 @[84rem]:text-left"
+              className="group flex items-center gap-2 rounded-xl bg-white p-2 text-left shadow-sm transition hover:bg-primary-50 hover:shadow-md @4xl:gap-1.5 @4xl:px-1.5 @7xl:gap-2 @7xl:px-2"
             >
-              <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ring-1 ring-inset ${entry.tone}`}>
+              <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ring-1 ring-inset @4xl:h-7 @4xl:w-7 @7xl:h-8 @7xl:w-8 ${entry.tone}`}>
                 <Icon size={17} />
               </span>
-              <span className="min-w-0 text-[13px] font-semibold leading-tight text-slate-700 group-hover:text-slate-900 @4xl:text-xs @[84rem]:text-[13px]">{entry.label}</span>
+              <span className="min-w-0 text-[13px] font-semibold leading-tight text-slate-700 group-hover:text-slate-900 @4xl:text-xs @7xl:text-[13px]">{entry.label}</span>
             </button>
           ))}
         </div>
