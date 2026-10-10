@@ -93,7 +93,8 @@ export default function MonthlyHireDetail({ hireId, canEdit, onClose, onChanged 
   const status = hire ? getHireStatus(hire) : null;
   const isPayable = hire?.direction !== 'receivable';
   const history = [...(hire?.history || [])].reverse();
-  const adjustments = [...(hire?.adjustments || [])].sort((a, b) => new Date(a.date) - new Date(b.date));
+  // Newest first, like the history
+  const adjustments = [...(hire?.adjustments || [])].sort((a, b) => new Date(b.date) - new Date(a.date));
 
   return (
     <>

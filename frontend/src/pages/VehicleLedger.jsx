@@ -6,7 +6,7 @@ import apiClient from '../utils/api';
 import StatCard from '../components/StatCard';
 import Segmented from '../components/Segmented';
 import { getBasisLabel, getVehicleCategoryLabel } from '../utils/transport';
-import { formatHireDate, formatRupees } from '../utils/monthlyHire';
+import { formatHireDate, formatRupees, toDayInput } from '../utils/monthlyHire';
 import AddVehiclePopup from './Vehicle/component/AddVehiclePopup';
 import HireEntryPopup from './Vehicle/component/HireEntryPopup';
 import MonthlyHireList from './MonthlyHire/component/MonthlyHireList';
@@ -56,6 +56,7 @@ const buildTimeline = (data) => {
         key: `h-${hire._id}-${index}`,
         view: 'hire',
         date: event.at,
+        recordedAt: event.at,
         title: `Hire ${event.action.toLowerCase()}`,
         detail: [event.note, hire.partyName].filter(Boolean).join(' · '),
         hireId: hire._id,
@@ -69,6 +70,7 @@ const buildTimeline = (data) => {
       key: `t-${entry._id}`,
       view: 'money',
       date: entry.entryDate,
+      recordedAt: entry.createdAt,
       title: getEntryTitle(entry),
       detail: [entry.entryNumber, entry.partyName, describeEntry(entry)].filter(Boolean).join(' · '),
       hireId: entry.hireId,
@@ -85,6 +87,7 @@ const buildTimeline = (data) => {
       key: `s-${sale._id}`,
       view: 'load',
       date: sale.date,
+      recordedAt: sale.createdAt,
       title: 'Sale load',
       detail: [
         sale.invoiceNumber,
@@ -101,6 +104,7 @@ const buildTimeline = (data) => {
       key: `b-${boulder._id}`,
       view: 'load',
       date: boulder.date,
+      recordedAt: boulder.createdAt,
       title: 'Boulder load',
       detail: [
         boulder.boulderNumber,
@@ -112,7 +116,12 @@ const buildTimeline = (data) => {
     });
   }
 
-  rows.sort((a, b) => new Date(a.date) - new Date(b.date));
+  // By day, then by when it was recorded, so things on the same day stay in the order they happened
+  const time = (value) => new Date(value || 0).getTime() || 0;
+  rows.sort((a, b) => (
+    toDayInput(a.date).localeCompare(toDayInput(b.date))
+    || time(a.recordedAt) - time(b.recordedAt)
+  ));
 
   // Hire cost to the owner so far: what I owe for the vehicle, less what it earned when given out
   let running = 0;

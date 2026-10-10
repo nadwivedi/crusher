@@ -161,7 +161,7 @@ const getMonthlyHireById = async (req, res) => {
     if (!hire) return;
 
     await hire.populate("partyId", "name type");
-    const entries = await Transport.find({ userId: hire.userId, hireId: hire._id }).sort({ fromDate: 1 });
+    const entries = await Transport.find({ userId: hire.userId, hireId: hire._id }).sort({ fromDate: -1 });
     const bookedTotals = await getBookedTotals(req.userId, [hire._id]);
 
     return res.json({
