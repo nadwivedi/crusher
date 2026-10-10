@@ -1,5 +1,5 @@
-// How a vehicle is charged: by distance, by weight, by time, or one fixed amount
-const TRANSPORT_BASES = ["per_km", "per_ton", "per_day", "per_week", "per_month", "fixed"];
+// How a vehicle is charged: by distance, by weight, by trip, by time, or one fixed amount
+const TRANSPORT_BASES = ["per_km", "per_ton", "per_trip", "per_day", "per_week", "per_month", "fixed"];
 
 // Rent for a period is booked from the Transport page, not on each sale
 const PERIOD_BASES = ["per_day", "per_week", "per_month"];
@@ -7,6 +7,7 @@ const PERIOD_BASES = ["per_day", "per_week", "per_month"];
 const BASIS_UNITS = {
   per_km: "km",
   per_ton: "ton",
+  per_trip: "trip",
   per_day: "day",
   per_week: "week",
   per_month: "month",
@@ -37,8 +38,23 @@ const describeTransportBasis = (entry) => {
   return `${quantity.toLocaleString("en-IN")} ${unitLabel} x Rs ${toNumber(entry.rate).toLocaleString("en-IN")}`;
 };
 
+// Per-trip rates with a location name; blank rows are dropped
+const cleanTripRates = (tripRates) => (Array.isArray(tripRates) ? tripRates : [])
+  .map((row) => ({ location: String(row?.location || "").trim(), rate: Math.max(0, toNumber(row?.rate)) }))
+  .filter((row) => row.location);
+
+const TRIP_RATES_FIELD = [
+  {
+    _id: false,
+    location: { type: String, trim: true, required: true },
+    rate: { type: Number, default: 0, min: 0 },
+  },
+];
+
 module.exports = {
   TRANSPORT_BASES,
+  TRIP_RATES_FIELD,
+  cleanTripRates,
   PERIOD_BASES,
   BASIS_UNITS,
   normalizeBasis,

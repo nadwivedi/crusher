@@ -70,11 +70,43 @@ const boulderSchema = new mongoose.Schema(
       required: true,
       min: 0,
     },
+    // Rates copied from the supplier when the entry is saved
+    boulderRateBasis: {
+      type: String,
+      enum: ["per_ton", "per_trip"],
+      default: "per_ton",
+    },
     boulderRatePerTon: {
       type: Number,
       default: 0,
       min: 0,
     },
+    boulderRatePerTrip: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    boulderAmount: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    transportRateBasis: {
+      type: String,
+      enum: ["per_ton", "per_trip"],
+      default: "per_ton",
+    },
+    transportRate: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    transportAmount: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    // What I owe the supplier: boulder plus transport
     amount: {
       type: Number,
       default: 0,

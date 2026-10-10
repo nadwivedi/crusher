@@ -2,6 +2,7 @@ const mongoose = require("mongoose");
 const Vehicle = require("../models/Vehicle");
 const Party = require("../models/Party");
 const { scopedFilter, scopedIdFilter } = require("../utils/ownership");
+const { cleanTripRates } = require("../utils/transportBasis");
 
 // My own vehicle belongs to no party
 const resolvePartyId = async (userId, partyId, ownership) => {
@@ -25,6 +26,7 @@ const createVehicle = async (req, res) => {
   try {
     const vehicle = await Vehicle.create({
       ...req.body,
+      tripRates: cleanTripRates(req.body.tripRates),
       userId: req.userId,
       partyId: await resolvePartyId(req.userId, req.body.partyId, req.body.ownership),
     });
@@ -83,6 +85,9 @@ const editVehicle = async (req, res) => {
 
   try {
     const updatePayload = { ...req.body };
+    if (Object.prototype.hasOwnProperty.call(req.body, "tripRates")) {
+      updatePayload.tripRates = cleanTripRates(req.body.tripRates);
+    }
     if (Object.prototype.hasOwnProperty.call(req.body, "partyId") || req.body.ownership === "own") {
       updatePayload.partyId = await resolvePartyId(req.userId, req.body.partyId, req.body.ownership);
     }

@@ -1,5 +1,5 @@
 const mongoose = require("mongoose");
-const { TRANSPORT_BASES } = require("../utils/transportBasis");
+const { TRANSPORT_BASES, TRIP_RATES_FIELD } = require("../utils/transportBasis");
 
 const vehicleSchema = new mongoose.Schema(
   {
@@ -30,6 +30,12 @@ const vehicleSchema = new mongoose.Schema(
       default: 0,
       min: 0,
     },
+    // What kind of vehicle it is. Empty on vehicles saved before this was asked.
+    category: {
+      type: String,
+      enum: ["", "truck", "hyva", "jcb", "loader", "tractor", "pc", "other"],
+      default: "",
+    },
     vehicleType: {
       type: String,
       enum: ["boulder", "sales"],
@@ -52,6 +58,8 @@ const vehicleSchema = new mongoose.Schema(
       default: 0,
       min: 0,
     },
+    // Per-trip hire: what one trip to each location costs
+    tripRates: TRIP_RATES_FIELD,
     rcImg: {
       type: String,
     },

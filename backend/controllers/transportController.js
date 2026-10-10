@@ -78,6 +78,7 @@ const buildEntryFields = async (body, userId) => {
     direction,
     partyId: party._id,
     basis,
+    location: basis === "per_trip" ? String(body.location || "").trim() : "",
     quantity,
     rate,
     amount,

@@ -79,6 +79,15 @@ const formatAmount = (value) => `Rs ${toNumber(value).toLocaleString("en-IN", {
   maximumFractionDigits: 2,
 })}`;
 
+// "Rate Rs 500.00/Ton" or "Rate Rs 4,000.00/Trip", plus the supplier's transport when it has any
+const describeBoulderRates = (boulder) => {
+  const rate = boulder?.boulderRateBasis === "per_trip"
+    ? `Rate ${formatAmount(boulder.boulderRatePerTrip)}/Trip`
+    : `Rate ${formatAmount(boulder?.boulderRatePerTon)}/Ton`;
+  if (toNumber(boulder?.transportAmount) <= 0) return rate;
+  return `${rate} | Transport ${formatAmount(boulder.transportRate)}/${boulder.transportRateBasis === "per_trip" ? "Trip" : "Ton"}`;
+};
+
 const getSaleTypeLabel = (total, paid) => {
   const totalAmount = toNumber(total);
   const paidAmount = toNumber(paid);
@@ -323,7 +332,7 @@ const buildLedgerRowsForParty = ({ party, sales, purchases, receipts, payments, 
           `Net ${toNumber(item.netWeight)} kg`,
         ].filter(Boolean).join(" | "),
         note: "",
-        method: `Rate ${formatAmount(item.boulderRatePerTon)}/Ton`,
+        method: describeBoulderRates(item),
         entryMode: item.entryMode || "single",
         tripCount: toNumber(item.tripCount),
         averageWeight: toNumber(item.averageWeight),
@@ -945,7 +954,16 @@ const getPartyLedgerEntryDetail = async (req, res) => {
                 { label: "Tare Weight", value: toNumber(boulder.tareWeight) || "-" },
               ]),
           { label: "Net Weight", value: toNumber(boulder.netWeight) || "-" },
-          { label: "Rate Per Ton", value: toNumber(boulder.boulderRatePerTon) || "-" },
+          boulder.boulderRateBasis === "per_trip"
+            ? { label: "Rate Per Trip", value: toNumber(boulder.boulderRatePerTrip) || "-" }
+            : { label: "Rate Per Ton", value: toNumber(boulder.boulderRatePerTon) || "-" },
+          ...(toNumber(boulder.transportAmount) > 0
+            ? [
+                { label: "Boulder Amount", value: toNumber(boulder.boulderAmount) },
+                { label: `Transport Rate (${boulder.transportRateBasis === "per_trip" ? "Per Trip" : "Per Ton"})`, value: toNumber(boulder.transportRate) },
+                { label: "Transport Amount", value: toNumber(boulder.transportAmount) },
+              ]
+            : []),
         ],
         items: [],
       });
@@ -1181,7 +1199,7 @@ const getDayBook = async (req, res) => {
           voucherNumber: item.boulderNumber || item.vehicleNo || "-",
           partyName: item.partyName || item.vehicleNo || "-",
           vehicleNo: item.vehicleNo || "",
-          method: `Vehicle ${item.vehicleNo || "-"}${item.entryMode === "bulk" ? ` | Trips ${Number(item.tripCount || 0)} x Avg ${Number(item.averageWeight || 0)}` : ""} | Gross ${Number(item.grossWeight || 0)} | Tare ${Number(item.tareWeight || 0)} | Net ${Number(item.netWeight || 0)} | Rate ${Number(item.boulderRatePerTon || 0)}/Ton`,
+          method: `Vehicle ${item.vehicleNo || "-"}${item.entryMode === "bulk" ? ` | Trips ${Number(item.tripCount || 0)} x Avg ${Number(item.averageWeight || 0)}` : ""} | Gross ${Number(item.grossWeight || 0)} | Tare ${Number(item.tareWeight || 0)} | Net ${Number(item.netWeight || 0)} | ${describeBoulderRates(item)}`,
           amount: Number(item.amount || 0),
           inAmount: 0,
           outAmount: 0,

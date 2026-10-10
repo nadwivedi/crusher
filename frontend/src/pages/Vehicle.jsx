@@ -5,7 +5,7 @@ import { toast } from 'react-toastify';
 import apiClient from '../utils/api';
 import AddVehiclePopup from './Vehicle/component/AddVehiclePopup';
 import StatCard from '../components/StatCard';
-import { getBasisLabel } from '../utils/transport';
+import { getBasisLabel, getVehicleCategoryLabel, getVehicleHireRates } from '../utils/transport';
 
 const TOAST_OPTIONS = { autoClose: 1200 };
 
@@ -14,9 +14,11 @@ const TD = 'tbl-cell px-3 py-2 first:pl-5 last:pr-5';
 
 const getTypeBadgeClass = (type) => (type === 'boulder' ? 'badge-blue' : 'badge-orange');
 
-const getTypeLabel = (type) => {
-  if (type === 'boulder') return 'Boulder Load';
-  return 'Sales';
+// Truck, Hyva, JCB... or, for a vehicle saved before that was asked, what it is used for
+const getTypeLabel = (vehicle) => {
+  const category = getVehicleCategoryLabel(vehicle?.category);
+  if (category) return category;
+  return vehicle?.vehicleType === 'boulder' ? 'Boulder Load' : 'Sales';
 };
 
 const formatWeight = (value) => (Number(value || 0) > 0 ? `${Number(value).toLocaleString('en-IN')} kg` : '-');
@@ -138,8 +140,13 @@ export default function Vehicle() {
 
   const getHireNote = (vehicle) => {
     if (vehicle.ownership !== 'hired') return '';
-    const rate = Number(vehicle.hireRate || 0) > 0 ? ` @ ₹${Number(vehicle.hireRate).toLocaleString('en-IN')}` : '';
-    return `Hired · ${getBasisLabel(vehicle.hireBasis)}${rate}`;
+    const hire = getVehicleHireRates(vehicle, parties);
+    if (hire.hireBasis === 'per_trip') {
+      const count = hire.tripRates.length;
+      return `Hired · Per Trip · ${count} location${count === 1 ? '' : 's'}`;
+    }
+    const rate = hire.hireRate > 0 ? ` @ ₹${hire.hireRate.toLocaleString('en-IN')}` : '';
+    return `Hired · ${getBasisLabel(hire.hireBasis)}${rate}`;
   };
 
   const renderActions = (vehicle) => (
@@ -219,7 +226,7 @@ export default function Vehicle() {
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
                       <p className="truncate font-mono text-sm font-semibold text-slate-800">{vehicle.vehicleNo}</p>
-                      <span className={`${getTypeBadgeClass(vehicle.vehicleType)} shrink-0`}>{getTypeLabel(vehicle.vehicleType)}</span>
+                      <span className={`${getTypeBadgeClass(vehicle.vehicleType)} shrink-0`}>{getTypeLabel(vehicle)}</span>
                     </div>
                     <p className="mt-0.5 truncate text-xs text-slate-500">
                       {getOwnerName(vehicle)}
@@ -256,7 +263,7 @@ export default function Vehicle() {
                       <td className={`${TD} whitespace-nowrap text-right text-slate-600`}>{formatWeight(vehicle.unladenWeight)}</td>
                       <td className={`${TD} whitespace-nowrap text-right text-slate-600`}>{formatCapacity(vehicle.capacityCubicMeter)}</td>
                       <td className={TD}>
-                        <span className={getTypeBadgeClass(vehicle.vehicleType)}>{getTypeLabel(vehicle.vehicleType)}</span>
+                        <span className={getTypeBadgeClass(vehicle.vehicleType)}>{getTypeLabel(vehicle)}</span>
                       </td>
                       <td className={`${TD} py-1!`}>{renderActions(vehicle)}</td>
                     </tr>

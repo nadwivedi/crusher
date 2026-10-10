@@ -58,6 +58,9 @@ const normalizeFallbackEntry = (entry) => ({
 
 const isBulkEntry = (entry) => entry?.entryMode === 'bulk';
 
+// The boulder rate the entry was charged at: per ton (T) or per trip
+const isPerTripEntry = (entry) => entry?.boulderRateBasis === 'per_trip';
+
 const getEntryTrips = (entry) => (isBulkEntry(entry) ? Number(entry.tripCount || 0) : 1);
 
 const formatTon = (kg) => formatNumber(Number(kg || 0) / 1000);
@@ -495,7 +498,7 @@ export default function BoulderLedger() {
                             {isBulkEntry(entry)
                               ? getBulkSummary(entry)
                               : `Gross ${formatNumber(entry.grossWeight)} · Tare ${formatNumber(entry.tareWeight)} kg`}
-                            {' · '}{formatCurrency(entry.boulderRatePerTon)}/T
+                            {' · '}{isPerTripEntry(entry) ? `${formatCurrency(entry.boulderRatePerTrip)}/Trip` : `${formatCurrency(entry.boulderRatePerTon)}/T`}
                           </p>
                           {renderActions(entry)}
                         </div>
@@ -543,7 +546,7 @@ export default function BoulderLedger() {
                               </>
                             )}
                             <td className={`${TD} text-right font-bold text-emerald-700`}>{formatNumber(entry.netWeight)}</td>
-                            <td className={`${TD} whitespace-nowrap text-right`}>{formatCurrency(entry.boulderRatePerTon)}</td>
+                            <td className={`${TD} whitespace-nowrap text-right`}>{isPerTripEntry(entry) ? `${formatCurrency(entry.boulderRatePerTrip)}/Trip` : formatCurrency(entry.boulderRatePerTon)}</td>
                             <td className={`${TD} whitespace-nowrap text-right font-bold text-slate-900`}>{formatCurrency(entry.amount)}</td>
                             <td className={`${TD} py-1!`}>{renderActions(entry)}</td>
                           </tr>

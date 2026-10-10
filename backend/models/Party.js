@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const { TRANSPORT_BASES, TRIP_RATES_FIELD } = require("../utils/transportBasis");
 
 const normalizeRate = (value) => {
   if (value === "" || value === null || value === undefined) return 0;
@@ -107,6 +108,37 @@ const partySchema = new mongoose.Schema(
       min: 0,
       set: normalizeRate,
     },
+    boulderRatePerTrip: {
+      type: Number,
+      default: 0,
+      min: 0,
+      set: normalizeRate,
+    },
+    // What the supplier charges to bring the boulder, per ton or per trip
+    transportRate: {
+      type: Number,
+      default: 0,
+      min: 0,
+      set: normalizeRate,
+    },
+    transportRateBasis: {
+      type: String,
+      enum: ["per_ton", "per_trip"],
+      default: "per_ton",
+    },
+    // Transporter: what its vehicles are hired at. Copied onto a hired vehicle when it is added.
+    hireBasis: {
+      type: String,
+      enum: TRANSPORT_BASES,
+      default: "per_ton",
+    },
+    hireRate: {
+      type: Number,
+      default: 0,
+      min: 0,
+      set: normalizeRate,
+    },
+    tripRates: TRIP_RATES_FIELD,
   },
   {
     timestamps: true,

@@ -6,7 +6,7 @@ import apiClient from '../../utils/api';
 import { useAuth } from '../../context/AuthContext';
 import { getSmartVehicleMatch, normalizeVehicleValue } from '../../utils/vehicleMatching';
 import useAccounts from '../../utils/useAccounts';
-import { getOwnershipLabel, getSaleTransport, getSaleTransportCharge } from '../../utils/transport';
+import { getOwnershipLabel, getSaleTransport, getSaleTransportCharge, getTripRate, getFilledTripRates, getVehicleHireRates } from '../../utils/transport';
 import AddPartyPopup from '../Party/component/AddPartyPopup';
 import AddProductPopup from '../Products/component/AddProductPopup';
 import AddVehiclePopup from '../Vehicle/component/AddVehiclePopup';
@@ -108,24 +108,40 @@ const NO_SALE_TRANSPORT = {
   transportCharge: '',
   transporterId: '',
   transportBasis: 'per_ton',
+  transportLocation: '',
   transportQty: '',
   transportRate: ''
 };
 
-// The transport fields a sale starts with when this vehicle is picked
-const getVehicleTransportDefaults = (vehicle, currentCharge = '') => {
+// The transport fields a sale starts with when this vehicle is picked. A hired vehicle's rates come from its transporter.
+const getVehicleTransportDefaults = (vehicle, currentCharge = '', parties = []) => {
   if (vehicle?.ownership === 'own') {
     return { ...NO_SALE_TRANSPORT, transportMode: 'own', transportCharge: currentCharge };
   }
 
   if (vehicle?.ownership === 'hired') {
+    const hire = getVehicleHireRates(vehicle, parties);
+    // A per-trip vehicle with a single location needs no picking
+    if (hire.hireBasis === 'per_trip') {
+      const onlyTrip = hire.tripRates.length === 1 ? hire.tripRates[0] : null;
+      return {
+        ...NO_SALE_TRANSPORT,
+        transportMode: 'hired',
+        transportCharge: currentCharge,
+        transporterId: typeof vehicle.partyId === 'object' ? vehicle.partyId?._id || '' : vehicle.partyId || '',
+        transportBasis: 'per_trip',
+        transportLocation: onlyTrip?.location || '',
+        transportRate: Number(onlyTrip?.rate || 0) > 0 ? String(onlyTrip.rate) : ''
+      };
+    }
+
     return {
       ...NO_SALE_TRANSPORT,
       transportMode: 'hired',
       transportCharge: currentCharge,
       transporterId: typeof vehicle.partyId === 'object' ? vehicle.partyId?._id || '' : vehicle.partyId || '',
-      transportBasis: vehicle.hireBasis || 'per_ton',
-      transportRate: Number(vehicle.hireRate || 0) > 0 ? String(vehicle.hireRate) : ''
+      transportBasis: hire.hireBasis,
+      transportRate: hire.hireRate > 0 ? String(hire.hireRate) : ''
     };
   }
 
@@ -175,7 +191,13 @@ const getInitialPartyFormData = (type = 'customer') => ({
   wmmRate: '',
   gsbRate: '',
   dustRate: '',
-  boulderRatePerTon: ''
+  boulderRatePerTon: '',
+  boulderRatePerTrip: '',
+  transportRate: '',
+  transportRateBasis: 'per_ton',
+  hireBasis: 'per_ton',
+  hireRate: '',
+  tripRates: []
 });
 
 const getCrusherRateKey = (materialType, pricingMode = 'per_ton') => {
@@ -778,6 +800,12 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
   }, [materialQuery, isMaterialSectionActive, formData.materialType]);
   const isCashParty = String(selectedLeadger?.type || '').trim().toLowerCase() === 'cash-in-hand';
   // Who a vehicle can be hired from: transporters first, never the cash party
+  // Locations with a trip rate on the picked vehicle, for a per-trip hire
+  const selectedSaleVehicle = useMemo(
+    () => vehicles.find((vehicle) => String(vehicle._id) === String(formData.vehicleId || '')) || null,
+    [vehicles, formData.vehicleId]
+  );
+
   const transportParties = useMemo(() => leadgers
     .filter((leadger) => String(leadger.type || '').toLowerCase() !== 'cash-in-hand')
     .sort((a, b) => (
@@ -1104,7 +1132,7 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
     setFormData((prev) => {
       const nextState = {
         ...prev,
-        ...getVehicleTransportDefaults(vehicle, prev.transportCharge),
+        ...getVehicleTransportDefaults(vehicle, prev.transportCharge, leadgers),
         vehicleId: vehicle._id,
         vehicleNo: vehicleNumber,
         tareWeight: unladenWeight,
@@ -1177,7 +1205,14 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
         vehicleType: 'sales',
         ownership: isOwnVehicle ? 'own' : isHiredVehicle ? 'hired' : 'party',
         ...(isHiredVehicle
-          ? { hireBasis: formData.transportBasis || 'per_ton', hireRate: Number(formData.transportRate || 0) }
+          ? formData.transportBasis === 'per_trip'
+            ? {
+              hireBasis: 'per_trip',
+              tripRates: formData.transportLocation
+                ? [{ location: formData.transportLocation, rate: Number(formData.transportRate || 0) }]
+                : []
+            }
+            : { hireBasis: formData.transportBasis || 'per_ton', hireRate: Number(formData.transportRate || 0) }
           : {})
       });
 
@@ -1588,7 +1623,7 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
 
       const selectedVehicle = vehicles.find((vehicle) => String(vehicle._id) === String(prev.vehicleId || ''));
       const vehicleDefaults = selectedVehicle?.ownership === mode
-        ? getVehicleTransportDefaults(selectedVehicle, prev.transportCharge)
+        ? getVehicleTransportDefaults(selectedVehicle, prev.transportCharge, leadgers)
         : { ...NO_SALE_TRANSPORT, transportMode: mode, transportCharge: mode === 'party' ? '' : prev.transportCharge };
       const nextState = { ...prev, ...vehicleDefaults };
 
@@ -1963,6 +1998,16 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
       setFormData({ ...formData, rate: value, totalAmount });
       return;
     }
+    // Picking a location fills in the vehicle's trip rate for it
+    if (name === 'transportLocation') {
+      const tripRate = getTripRate(getVehicleHireRates(selectedSaleVehicle, leadgers), value);
+      setFormData({
+        ...formData,
+        transportLocation: value,
+        transportRate: tripRate ? String(tripRate.rate || '') : formData.transportRate
+      });
+      return;
+    }
     if (name === 'transportCharge') {
       const nextState = { ...formData, transportCharge: value };
       setFormData({ ...nextState, totalAmount: recalculateSaleAmount(nextState) });
@@ -2020,7 +2065,13 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
           wmmRate: Number(partyFormData.wmmRate || 0),
           gsbRate: Number(partyFormData.gsbRate || 0),
           dustRate: Number(partyFormData.dustRate || 0),
-          boulderRatePerTon: Number(partyFormData.boulderRatePerTon || 0)
+          boulderRatePerTon: Number(partyFormData.boulderRatePerTon || 0),
+          boulderRatePerTrip: Number(partyFormData.boulderRatePerTrip || 0),
+          transportRate: Number(partyFormData.transportRate || 0),
+          transportRateBasis: partyFormData.transportRateBasis || 'per_ton',
+          hireBasis: partyFormData.hireBasis || 'per_ton',
+          hireRate: partyFormData.hireBasis === 'per_trip' ? 0 : Number(partyFormData.hireRate || 0),
+          tripRates: partyFormData.hireBasis === 'per_trip' ? getFilledTripRates(partyFormData.tripRates) : []
         };
 
       const response = await apiClient.post('/parties', payload);
@@ -2217,6 +2268,7 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
         transportCharge: getSaleTransportCharge(formData),
         transporterId: formData.transportMode === 'hired' ? formData.transporterId : undefined,
         transportBasis: formData.transportBasis || 'per_ton',
+        transportLocation: formData.transportBasis === 'per_trip' ? String(formData.transportLocation || '').trim() : '',
         transportQty: getSaleTransport(formData).qty,
         transportRate: Number(formData.transportRate || 0),
         totalAmount: Number(formData.totalAmount || 0),
@@ -2292,6 +2344,7 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
         transportCharge: sale.transportCharge || '',
         transporterId: sale.transporterId?._id || sale.transporterId || '',
         transportBasis: sale.transportBasis || 'per_ton',
+        transportLocation: sale.transportLocation || '',
         transportQty: sale.transportQty || '',
         transportRate: sale.transportRate || '',
         totalAmount: sale.totalAmount || 0,
@@ -2466,6 +2519,7 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
             getSaleBasisDisplayName={getSaleBasisDisplayName}
             selectPricingMode={selectPricingMode}
             transportParties={transportParties}
+        tripLocations={selectedSaleVehicle ? getVehicleHireRates(selectedSaleVehicle, leadgers).tripRates : []}
             selectTransportMode={selectTransportMode}
             onOpenNewVehicle={openInlineVehicleForm}
             onOpenNewParty={openInlinePartyForm}
@@ -2708,6 +2762,7 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
         getSaleBasisDisplayName={getSaleBasisDisplayName}
         selectPricingMode={selectPricingMode}
         transportParties={transportParties}
+        tripLocations={selectedSaleVehicle ? getVehicleHireRates(selectedSaleVehicle, leadgers).tripRates : []}
         selectTransportMode={selectTransportMode}
         onOpenNewVehicle={openInlineVehicleForm}
         onOpenNewParty={openInlinePartyForm}

@@ -3,6 +3,7 @@ const Party = require("../models/Party");
 const Purchase = require("../models/Purchase");
 const Expense = require("../models/Expense");
 const { scopedFilter, scopedIdFilter } = require("../utils/ownership");
+const { cleanTripRates } = require("../utils/transportBasis");
 
 const isDefaultCashParty = (party) => (
   party?.type === "cash-in-hand" && String(party?.name || "").trim().toLowerCase() === "cash"
@@ -30,6 +31,7 @@ const createParty = async (req, res) => {
   try {
     const party = await Party.create({
       ...req.body,
+      tripRates: cleanTripRates(req.body.tripRates),
       userId: req.userId,
     });
     return res.status(201).json(party);
@@ -85,7 +87,12 @@ const editParty = async (req, res) => {
   }
 
   try {
-    const party = await Party.findOneAndUpdate(scopedIdFilter(req, id), req.body, {
+    const updatePayload = { ...req.body };
+    if (Object.prototype.hasOwnProperty.call(req.body, "tripRates")) {
+      updatePayload.tripRates = cleanTripRates(req.body.tripRates);
+    }
+
+    const party = await Party.findOneAndUpdate(scopedIdFilter(req, id), updatePayload, {
       new: true,
       runValidators: true,
     });

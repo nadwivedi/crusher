@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { ChevronDown, Store, Truck, User } from 'lucide-react';
 import FormPopup from '../../../components/FormPopup';
 import FormSection from '../../../components/FormSection';
+import HireRateFields from '../../../components/HireRateFields';
 import { handlePopupFormKeyDown } from '../../../utils/popupFormKeyboard';
 
 const TYPE_OPTIONS = [
@@ -26,8 +27,13 @@ const SALE_RATE_FIELDS = [
 
 const INACTIVE_OPTION_CLASS = 'border-slate-300 bg-white text-slate-700 hover:bg-slate-100';
 
+const TRANSPORT_RATE_BASES = [
+  { value: 'per_ton', label: 'Per Ton' },
+  { value: 'per_trip', label: 'Per Trip' }
+];
+
 /** Rate box with the unit shown inside it. */
-function RateInput({ name, label, value, onChange }) {
+function RateInput({ name, label, value, onChange, unit = 'ton' }) {
   return (
     <div>
       <label className="label" htmlFor={`party-${name}`}>{label}</label>
@@ -43,7 +49,7 @@ function RateInput({ name, label, value, onChange }) {
           step="0.01"
           placeholder="0"
         />
-        <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-xs font-semibold text-slate-400">₹/ton</span>
+        <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-xs font-semibold text-slate-400">₹/{unit}</span>
       </div>
     </div>
   );
@@ -189,12 +195,63 @@ function PartyForm({ editingId, loading, formData, error, handleCloseForm, handl
       </FormSection>
 
       {formData.type === 'supplier' && (
-        <FormSection number={++sectionNumber} title="Boulder Rate" tone="indigo" hint="Filled in for you on every boulder entry from this supplier.">
-          <div className="grid grid-cols-1 sm:grid-cols-5">
-            <div className="sm:col-span-2">
-              <RateInput name="boulderRatePerTon" label="Rate per ton" value={formData.boulderRatePerTon} onChange={handleChange} />
+        <FormSection
+          number={++sectionNumber}
+          title="Boulder & Transport Rates"
+          tone="indigo"
+          hint="Filled in for you on every boulder entry from this supplier. Each entry is charged per ton or per trip for the boulder, plus transport."
+        >
+          <div className="grid grid-cols-2 gap-3">
+            <RateInput name="boulderRatePerTon" label="Boulder Rate Per Ton" value={formData.boulderRatePerTon} onChange={handleChange} />
+            <RateInput name="boulderRatePerTrip" label="Boulder Rate Per Trip" value={formData.boulderRatePerTrip} onChange={handleChange} unit="trip" />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <RateInput
+              name="transportRate"
+              label="Transportation Rate"
+              value={formData.transportRate}
+              onChange={handleChange}
+              unit={formData.transportRateBasis === 'per_trip' ? 'trip' : 'ton'}
+            />
+            <div>
+              <span className="label">Transport Charged</span>
+              <div className="grid grid-cols-2 gap-2">
+                {TRANSPORT_RATE_BASES.map((option) => {
+                  const active = (formData.transportRateBasis || 'per_ton') === option.value;
+                  return (
+                    <button
+                      key={option.value}
+                      type="button"
+                      onClick={() => setField('transportRateBasis', option.value)}
+                      aria-pressed={active}
+                      className={`min-h-[2.5rem] rounded-lg border px-2 py-2 text-sm font-semibold transition ${active ? 'border-primary-600 bg-primary-600 text-white' : INACTIVE_OPTION_CLASS}`}
+                    >
+                      {option.label}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           </div>
+        </FormSection>
+      )}
+
+      {formData.type === 'transporter' && (
+        <FormSection
+          number={++sectionNumber}
+          title="Transportation Rate"
+          tone="indigo"
+          hint="Copied onto each vehicle you add from this transporter. A vehicle can still be given its own rate."
+        >
+          <HireRateFields
+            idPrefix="party"
+            label="Charged"
+            hireBasis={formData.hireBasis}
+            hireRate={formData.hireRate}
+            tripRates={formData.tripRates}
+            keepBasis={formData.hireBasis}
+            onChange={(fields) => Object.entries(fields).forEach(([name, value]) => setField(name, value))}
+          />
         </FormSection>
       )}
 

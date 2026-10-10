@@ -38,15 +38,17 @@ const createBoulderNumber = async (userId, boulderDateValue) => {
 
 const normalizeVehicleNo = (value) => `${value || ""}`.trim().toUpperCase();
 
-const calculateBoulderAmount = (netWeight, ratePerTon) => {
-  const normalizedNetWeight = Number(netWeight || 0);
-  const normalizedRatePerTon = Number(ratePerTon || 0);
+const RATE_BASES = ["per_ton", "per_trip"];
 
-  if (!Number.isFinite(normalizedNetWeight) || !Number.isFinite(normalizedRatePerTon)) {
-    return 0;
-  }
+const toSafeNumber = (value) => {
+  const parsed = Number(value || 0);
+  return Number.isFinite(parsed) ? parsed : 0;
+};
 
-  return Math.max(0, (normalizedNetWeight / 1000) * normalizedRatePerTon);
+// A per-ton rate goes on the net weight; a per-trip rate on the trips (one for a single entry)
+const calculateRateAmount = (basis, rate, netWeight, trips) => {
+  const quantity = basis === "per_trip" ? trips : toSafeNumber(netWeight) / 1000;
+  return Math.max(0, Math.round(quantity * toSafeNumber(rate) * 100) / 100);
 };
 
 const resolveVehicleParty = async (payload, userId) => {
@@ -116,18 +118,26 @@ const resolvePartySnapshot = async ({ partyId, partyName, fallbackPartyId = null
   return { partyId: null, partyName: "" };
 };
 
+const NO_RATES = { boulderRatePerTon: 0, boulderRatePerTrip: 0, transportRate: 0, transportRateBasis: "per_ton" };
+
+// The supplier's boulder and transport rates at the time of the entry
 const resolveBoulderRateSnapshot = async (partyId, userId) => {
   if (!partyId || !mongoose.Types.ObjectId.isValid(partyId)) {
-    return 0;
+    return { ...NO_RATES };
   }
 
-  const party = await Party.findOne({ _id: partyId, userId }).select("type boulderRatePerTon");
+  const party = await Party.findOne({ _id: partyId, userId })
+    .select("type boulderRatePerTon boulderRatePerTrip transportRate transportRateBasis");
   if (!party || party.type !== "supplier") {
-    return 0;
+    return { ...NO_RATES };
   }
 
-  const rate = Number(party.boulderRatePerTon || 0);
-  return Number.isFinite(rate) && rate > 0 ? rate : 0;
+  return {
+    boulderRatePerTon: Math.max(0, toSafeNumber(party.boulderRatePerTon)),
+    boulderRatePerTrip: Math.max(0, toSafeNumber(party.boulderRatePerTrip)),
+    transportRate: Math.max(0, toSafeNumber(party.transportRate)),
+    transportRateBasis: RATE_BASES.includes(party.transportRateBasis) ? party.transportRateBasis : "per_ton",
+  };
 };
 
 const normalizeBoulderPayload = async (payload, userId) => {
@@ -287,9 +297,26 @@ const normalizeBoulderPayload = async (payload, userId) => {
     normalizedPayload.partyName = partySnapshot.partyName;
   }
 
-  const boulderRatePerTon = await resolveBoulderRateSnapshot(normalizedPayload.partyId, userId);
-  normalizedPayload.boulderRatePerTon = boulderRatePerTon;
-  normalizedPayload.amount = calculateBoulderAmount(normalizedPayload.netWeight, boulderRatePerTon);
+  const rates = await resolveBoulderRateSnapshot(normalizedPayload.partyId, userId);
+  // The entry picks how the boulder is charged; without a choice it goes by whichever rate the supplier has
+  const boulderRateBasis = RATE_BASES.includes(normalizedPayload.boulderRateBasis)
+    ? normalizedPayload.boulderRateBasis
+    : rates.boulderRatePerTon <= 0 && rates.boulderRatePerTrip > 0 ? "per_trip" : "per_ton";
+  const trips = normalizedPayload.entryMode === "bulk" ? Math.max(0, Math.floor(toSafeNumber(normalizedPayload.tripCount))) : 1;
+  const boulderAmount = calculateRateAmount(
+    boulderRateBasis,
+    boulderRateBasis === "per_trip" ? rates.boulderRatePerTrip : rates.boulderRatePerTon,
+    normalizedPayload.netWeight,
+    trips
+  );
+  const transportAmount = calculateRateAmount(rates.transportRateBasis, rates.transportRate, normalizedPayload.netWeight, trips);
+
+  Object.assign(normalizedPayload, rates, {
+    boulderRateBasis,
+    boulderAmount,
+    transportAmount,
+    amount: Math.round((boulderAmount + transportAmount) * 100) / 100,
+  });
 
   return normalizedPayload;
 };

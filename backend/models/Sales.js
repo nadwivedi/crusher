@@ -113,6 +113,12 @@ const salesSchema = new mongoose.Schema(
       enum: TRANSPORT_BASES,
       default: "per_ton",
     },
+    // Per-trip hire: where the trip went
+    transportLocation: {
+      type: String,
+      trim: true,
+      default: "",
+    },
     transportQty: {
       type: Number,
       default: 0,

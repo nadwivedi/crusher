@@ -4,6 +4,7 @@ import { Pencil, Search, Wallet, ChevronRight, Users } from 'lucide-react';
 import { toast } from 'react-toastify';
 import apiClient from '../../utils/api';
 import AddPartyPopup from './component/AddPartyPopup';
+import { getFilledTripRates } from '../../utils/transport';
 
 const getInitialForm = () => ({
   type: '',
@@ -17,7 +18,13 @@ const getInitialForm = () => ({
   wmmRate: '',
   gsbRate: '',
   dustRate: '',
-  boulderRatePerTon: ''
+  boulderRatePerTon: '',
+  boulderRatePerTrip: '',
+  transportRate: '',
+  transportRateBasis: 'per_ton',
+  hireBasis: 'per_ton',
+  hireRate: '',
+  tripRates: []
 });
 
 const TOAST_OPTIONS = { autoClose: 1200 };
@@ -165,7 +172,13 @@ export default function Party() {
       wmmRate: Number(party.wmmRate || 0) || '',
       gsbRate: Number(party.gsbRate || 0) || '',
       dustRate: Number(party.dustRate || 0) || '',
-      boulderRatePerTon: Number(party.boulderRatePerTon || 0) || ''
+      boulderRatePerTon: Number(party.boulderRatePerTon || 0) || '',
+      boulderRatePerTrip: Number(party.boulderRatePerTrip || 0) || '',
+      transportRate: Number(party.transportRate || 0) || '',
+      transportRateBasis: party.transportRateBasis || 'per_ton',
+      hireBasis: party.hireBasis || 'per_ton',
+      hireRate: Number(party.hireRate || 0) || '',
+      tripRates: (party.tripRates || []).map((row) => ({ location: row.location, rate: String(row.rate ?? '') }))
     });
     setError('');
     setShowForm(true);
@@ -203,7 +216,13 @@ export default function Party() {
         wmmRate: Number(formData.wmmRate || 0),
         gsbRate: Number(formData.gsbRate || 0),
         dustRate: Number(formData.dustRate || 0),
-        boulderRatePerTon: Number(formData.boulderRatePerTon || 0)
+        boulderRatePerTon: Number(formData.boulderRatePerTon || 0),
+        boulderRatePerTrip: Number(formData.boulderRatePerTrip || 0),
+        transportRate: Number(formData.transportRate || 0),
+        transportRateBasis: formData.transportRateBasis || 'per_ton',
+        hireBasis: formData.hireBasis || 'per_ton',
+        hireRate: formData.hireBasis === 'per_trip' ? 0 : Number(formData.hireRate || 0),
+        tripRates: formData.hireBasis === 'per_trip' ? getFilledTripRates(formData.tripRates) : []
       };
 
       if (editingId) {

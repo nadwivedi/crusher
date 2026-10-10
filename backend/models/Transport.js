@@ -56,6 +56,12 @@ const transportSchema = new mongoose.Schema(
       enum: TRANSPORT_BASES,
       default: "fixed",
     },
+    // Per-trip hire: where the trip went
+    location: {
+      type: String,
+      trim: true,
+      default: "",
+    },
     quantity: {
       type: Number,
       default: 0,

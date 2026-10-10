@@ -107,6 +107,7 @@ export default function AddSalePopup({
   getSaleBasisDisplayName,
   selectPricingMode,
   transportParties = [],
+  tripLocations = [],
   selectTransportMode,
   onOpenNewVehicle,
   onOpenNewParty,
@@ -482,16 +483,35 @@ export default function AddSalePopup({
                       ))}
                     </select>
                   </div>
+                  {formData.transportBasis === 'per_trip' && (
+                    <div>
+                      <label className="label" htmlFor="sale-transport-location-input">Location</label>
+                      {tripLocations.length > 0 ? (
+                        <select id="sale-transport-location-input" className="input" name="transportLocation" value={formData.transportLocation || ''} onChange={handleInputChange} onKeyDown={handleSelectEnterMoveNext}>
+                          <option value="">Select location</option>
+                          {/* A location since removed from the vehicle stays pickable on an older sale */}
+                          {formData.transportLocation && !tripLocations.some((row) => row.location === formData.transportLocation) && (
+                            <option value={formData.transportLocation}>{formData.transportLocation}</option>
+                          )}
+                          {tripLocations.map((row) => (
+                            <option key={row.location} value={row.location}>{row.location} · ₹{Number(row.rate || 0).toLocaleString('en-IN')}</option>
+                          ))}
+                        </select>
+                      ) : (
+                        <input id="sale-transport-location-input" className="input" type="text" name="transportLocation" value={formData.transportLocation || ''} onChange={handleInputChange} onKeyDown={handleSelectEnterMoveNext} placeholder="Where it went" autoComplete="off" />
+                      )}
+                    </div>
+                  )}
                   {!saleTransport.isPeriod && (
                     <>
                       {formData.transportBasis !== 'fixed' && (
                         <div>
-                          <label className="label" htmlFor="sale-transport-qty-input">{transportUnit === 'km' ? 'Distance' : 'Quantity'}</label>
+                          <label className="label" htmlFor="sale-transport-qty-input">{transportUnit === 'km' ? 'Distance' : transportUnit === 'trip' ? 'Trips' : 'Quantity'}</label>
                           <div className="relative">
                             {saleTransport.qtyAuto ? (
                               <input id="sale-transport-qty-input" className={`${COMPUTED_CLASS} pr-10`} type="number" value={saleTransport.qty || ''} readOnly placeholder="From net weight" />
                             ) : (
-                              <input id="sale-transport-qty-input" className="input pr-10" type="number" name="transportQty" value={formData.transportQty || ''} onChange={handleInputChange} onKeyDown={handleSelectEnterMoveNext} placeholder="0" step="0.01" min="0" />
+                              <input id="sale-transport-qty-input" className="input pr-10" type="number" name="transportQty" value={formData.transportQty || ''} onChange={handleInputChange} onKeyDown={handleSelectEnterMoveNext} placeholder={transportUnit === 'trip' ? '1' : '0'} step="0.01" min="0" />
                             )}
                             <span className={SUFFIX_CLASS}>{transportUnit}</span>
                           </div>

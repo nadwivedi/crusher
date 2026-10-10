@@ -45,8 +45,39 @@ const initialFormData = {
   netWeight: '',
   averageWeightTon: '',
   tripCount: '',
+  // Empty until picked: goes by whichever boulder rate the supplier has
+  boulderRateBasis: '',
   slipImg: ''
 };
+
+const BOULDER_RATE_BASES = [
+  { value: 'per_ton', label: 'Per Ton' },
+  { value: 'per_trip', label: 'Per Trip' }
+];
+
+// The supplier's boulder and transport rates; a non-supplier has none
+const getSupplierRates = (party) => {
+  const isSupplier = party?.type === 'supplier';
+  const toRate = (value) => (isSupplier ? Math.max(0, Number(value || 0) || 0) : 0);
+  return {
+    perTon: toRate(party?.boulderRatePerTon),
+    perTrip: toRate(party?.boulderRatePerTrip),
+    transport: toRate(party?.transportRate),
+    transportBasis: party?.transportRateBasis === 'per_trip' ? 'per_trip' : 'per_ton'
+  };
+};
+
+const getDefaultRateBasis = (rates) => (rates.perTon <= 0 && rates.perTrip > 0 ? 'per_trip' : 'per_ton');
+
+const describeSupplierRates = (party) => {
+  const rates = getSupplierRates(party);
+  return [
+    rates.perTon > 0 ? `₹${rates.perTon.toLocaleString('en-IN')} / ton` : '',
+    rates.perTrip > 0 ? `₹${rates.perTrip.toLocaleString('en-IN')} / trip` : ''
+  ].filter(Boolean).join(' · ');
+};
+
+const formatRupees = (value) => `₹${Number(value || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 const sortVehiclesByTypePreference = (vehicles, preferredType) => [...vehicles].sort((a, b) => {
   const aPreferred = a?.vehicleType === preferredType ? 0 : 1;
@@ -100,11 +131,9 @@ export default function BoulderEntry({ onModalFinish = null, editingEntry = null
     )) || null;
   }, [formData.partyName, parties]);
 
-  const boulderRatePerTon = useMemo(() => {
-    if (selectedParty?.type !== 'supplier') return 0;
-    const rate = Number(selectedParty?.boulderRatePerTon || 0);
-    return Number.isFinite(rate) ? rate : 0;
-  }, [selectedParty]);
+  const supplierRates = useMemo(() => getSupplierRates(selectedParty), [selectedParty]);
+  const boulderRateBasis = formData.boulderRateBasis || getDefaultRateBasis(supplierRates);
+  const boulderRate = boulderRateBasis === 'per_trip' ? supplierRates.perTrip : supplierRates.perTon;
 
   // Bulk mode total in kg: trips x average weight per trip (entered in tons).
   const bulkTotalWeight = useMemo(() => {
@@ -114,11 +143,12 @@ export default function BoulderEntry({ onModalFinish = null, editingEntry = null
     return trips * averageTon * 1000;
   }, [formData.averageWeightTon, formData.tripCount]);
 
-  const boulderTotalAmount = useMemo(() => {
-    const netWeight = isBulkMode ? bulkTotalWeight : Number(formData.netWeight || 0);
-    if (!Number.isFinite(netWeight) || netWeight <= 0) return 0;
-    return (netWeight / 1000) * boulderRatePerTon;
-  }, [boulderRatePerTon, bulkTotalWeight, formData.netWeight, isBulkMode]);
+  // A per-ton rate goes on the net weight; a per-trip rate on the trips (one for a single entry)
+  const payableTons = Math.max(0, (isBulkMode ? bulkTotalWeight : Number(formData.netWeight || 0)) / 1000) || 0;
+  const payableTrips = isBulkMode ? Math.max(0, Math.floor(Number(formData.tripCount || 0)) || 0) : 1;
+  const boulderAmount = (boulderRateBasis === 'per_trip' ? payableTrips : payableTons) * boulderRate;
+  const transportAmount = (supplierRates.transportBasis === 'per_trip' ? payableTrips : payableTons) * supplierRates.transport;
+  const boulderTotalAmount = boulderAmount + transportAmount;
 
   useEffect(() => {
     fetchVehicles();
@@ -159,6 +189,7 @@ export default function BoulderEntry({ onModalFinish = null, editingEntry = null
       netWeight: editingEntry.netWeight === 0 ? '0' : String(editingEntry.netWeight || ''),
       averageWeightTon: entryMode === 'bulk' ? String(Number(editingEntry.averageWeight || 0) / 1000) : '',
       tripCount: entryMode === 'bulk' ? String(editingEntry.tripCount || '') : '',
+      boulderRateBasis: editingEntry.boulderRateBasis || 'per_ton',
       slipImg: editingEntry.slipImg || ''
     });
     setVehicleQuery(vehicleNo);
@@ -368,7 +399,7 @@ export default function BoulderEntry({ onModalFinish = null, editingEntry = null
     const partyName = String(party?.partyName || party?.name || '').trim();
     if (!partyName) return;
     setPartyQuery(partyName);
-    setFormData((prev) => ({ ...prev, partyId: party._id || '', partyName }));
+    setFormData((prev) => ({ ...prev, partyId: party._id || '', partyName, boulderRateBasis: getDefaultRateBasis(getSupplierRates(party)) }));
     setIsPartySectionActive(false);
   };
 
@@ -486,6 +517,7 @@ export default function BoulderEntry({ onModalFinish = null, editingEntry = null
         boulderDate: formData.boulderDate,
         entryTime: formData.entryTime,
         exitTime: formData.exitTime,
+        boulderRateBasis,
         slipImg: formData.slipImg
       };
       const payload = isBulkMode
@@ -755,7 +787,7 @@ export default function BoulderEntry({ onModalFinish = null, editingEntry = null
                     emptyText="No matching supplier."
                     getKey={(party) => party._id}
                     getLabel={getPartyDisplayName}
-                    getHint={(party) => (Number(party.boulderRatePerTon || 0) > 0 ? `₹${Number(party.boulderRatePerTon).toLocaleString('en-IN')} / ton` : '')}
+                    getHint={describeSupplierRates}
                     isSelected={(party) => String(formData.partyId || '') === String(party._id)}
                     onHover={setPartyListIndex}
                     onPick={selectParty}
@@ -857,15 +889,54 @@ export default function BoulderEntry({ onModalFinish = null, editingEntry = null
 
         <FormSection number={3} title="Amount" tone="indigo">
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_auto]">
-            <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 rounded-lg bg-white px-3 py-2.5 text-sm ring-1 ring-inset ring-indigo-200">
-              <span className="text-slate-600">
-                {boulderRatePerTon > 0
-                  ? <>{formatTon(payableWeight)} × ₹{boulderRatePerTon.toLocaleString('en-IN')} / ton</>
-                  : <span className="text-amber-700">{selectedParty ? 'No boulder rate set for this supplier' : 'Pick a supplier to see the amount'}</span>}
-              </span>
-              <span className="text-base font-bold text-slate-900">
-                ₹{boulderTotalAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              </span>
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-semibold text-slate-600">Boulder charged</span>
+                <div className="grid grid-cols-2 gap-1.5">
+                  {BOULDER_RATE_BASES.map((option) => {
+                    const active = boulderRateBasis === option.value;
+                    return (
+                      <button
+                        key={option.value}
+                        type="button"
+                        onClick={() => setFormData((prev) => ({ ...prev, boulderRateBasis: option.value }))}
+                        aria-pressed={active}
+                        className={`rounded-lg border px-3 py-1 text-xs font-semibold transition ${active ? 'border-primary-600 bg-primary-600 text-white' : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-100'}`}
+                      >
+                        {option.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              <div className="rounded-lg bg-white px-3 py-2.5 text-sm ring-1 ring-inset ring-indigo-200">
+                <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
+                  <span className="text-slate-600">
+                    {boulderRate > 0
+                      ? boulderRateBasis === 'per_trip'
+                        ? <>Boulder: {payableTrips} trip{payableTrips === 1 ? '' : 's'} × ₹{boulderRate.toLocaleString('en-IN')} / trip</>
+                        : <>Boulder: {formatTon(payableWeight)} × ₹{boulderRate.toLocaleString('en-IN')} / ton</>
+                      : <span className="text-amber-700">{selectedParty ? `No boulder rate ${boulderRateBasis === 'per_trip' ? 'per trip' : 'per ton'} set for this supplier` : 'Pick a supplier to see the amount'}</span>}
+                  </span>
+                  <span className={supplierRates.transport > 0 ? 'font-semibold text-slate-800' : 'text-base font-bold text-slate-900'}>{formatRupees(boulderAmount)}</span>
+                </div>
+                {supplierRates.transport > 0 && (
+                  <>
+                    <div className="mt-1 flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
+                      <span className="text-slate-600">
+                        {supplierRates.transportBasis === 'per_trip'
+                          ? <>Transport: {payableTrips} trip{payableTrips === 1 ? '' : 's'} × ₹{supplierRates.transport.toLocaleString('en-IN')} / trip</>
+                          : <>Transport: {formatTon(payableWeight)} × ₹{supplierRates.transport.toLocaleString('en-IN')} / ton</>}
+                      </span>
+                      <span className="font-semibold text-slate-800">{formatRupees(transportAmount)}</span>
+                    </div>
+                    <div className="mt-1.5 flex items-center justify-between border-t border-slate-200 pt-1.5">
+                      <span className="font-semibold text-slate-700">Total to supplier</span>
+                      <span className="text-base font-bold text-slate-900">{formatRupees(boulderTotalAmount)}</span>
+                    </div>
+                  </>
+                )}
+              </div>
             </div>
 
             {formData.slipImg && (

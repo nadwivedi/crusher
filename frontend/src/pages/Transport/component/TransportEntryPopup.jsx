@@ -5,7 +5,7 @@ import apiClient from '../../../utils/api';
 import FormPopup from '../../../components/FormPopup';
 import { handlePopupFormKeyDown } from '../../../utils/popupFormKeyboard';
 import { toLocalDateInput } from '../../../components/CustomRangePopup';
-import { PERIOD_BASES, TRANSPORT_BASIS_OPTIONS, calcTransportAmount, getBasisUnit } from '../../../utils/transport';
+import { PERIOD_BASES, TRANSPORT_BASIS_OPTIONS, calcTransportAmount, getBasisUnit, getTripRate, getVehicleHireRates } from '../../../utils/transport';
 
 // payable: a vehicle I hired, so I pay. receivable: my vehicle given to a party, so I receive.
 const DIRECTIONS = [
@@ -16,6 +16,7 @@ const DIRECTIONS = [
 const QUANTITY_LABELS = {
   per_km: 'Distance (km)',
   per_ton: 'Weight (ton)',
+  per_trip: 'Trips',
   per_day: 'Days',
   per_week: 'Weeks',
   per_month: 'Months'
@@ -45,6 +46,7 @@ const buildInitialForm = (entry) => ({
   partyId: entry?.partyId || '',
   vehicleNo: entry?.vehicleNo || '',
   basis: entry?.basis || 'per_month',
+  location: entry?.location || '',
   quantity: entry?.quantity || '',
   rate: entry?.rate || '',
   fromDate: toDateInput(entry?.fromDate),
@@ -61,6 +63,7 @@ export default function TransportEntryPopup({ entry = null, parties = [], vehicl
   const isPayable = formData.direction === 'payable';
   const isFixed = formData.basis === 'fixed';
   const isPeriod = PERIOD_BASES.includes(formData.basis);
+  const isPerTrip = formData.basis === 'per_trip';
   const unit = getBasisUnit(formData.basis);
   const amount = calcTransportAmount(formData.basis, formData.quantity, formData.rate);
 
@@ -75,10 +78,19 @@ export default function TransportEntryPopup({ entry = null, parties = [], vehicl
     return typed ? vehicles.find((vehicle) => normalizeVehicleNo(vehicle.vehicleNo) === typed) || null : null;
   }, [vehicles, formData.vehicleNo]);
 
+  // A hired vehicle's rates come from its transporter
+  const matchedHire = useMemo(() => getVehicleHireRates(matchedVehicle, parties), [matchedVehicle, parties]);
+  const tripLocations = matchedVehicle ? matchedHire.tripRates : [];
+
   const handleChange = (event) => {
     const { name, value } = event.target;
     setFormData((prev) => {
       const next = { ...prev, [name]: value };
+      // Picking a location fills in the vehicle's trip rate for it
+      if (name === 'location') {
+        const tripRate = getTripRate(matchedHire, value);
+        if (tripRate) next.rate = String(tripRate.rate || '');
+      }
       // A day-wise rent takes its days from the period
       if ((name === 'fromDate' || name === 'toDate' || name === 'basis') && next.basis === 'per_day') {
         const days = countDays(next.fromDate, next.toDate);
@@ -98,8 +110,17 @@ export default function TransportEntryPopup({ entry = null, parties = [], vehicl
       const next = { ...prev, vehicleNo };
       if (vehicle?.ownership === 'hired' && prev.direction === 'payable') {
         next.partyId = getVehiclePartyId(vehicle) || prev.partyId;
-        next.basis = vehicle.hireBasis || prev.basis;
-        if (Number(vehicle.hireRate || 0) > 0) next.rate = String(vehicle.hireRate);
+        const hire = getVehicleHireRates(vehicle, parties);
+        next.basis = hire.hireBasis || prev.basis;
+        if (hire.hireBasis === 'per_trip') {
+          // A single location needs no picking
+          const onlyTrip = hire.tripRates.length === 1 ? hire.tripRates[0] : null;
+          next.location = onlyTrip?.location || '';
+          next.rate = onlyTrip ? String(onlyTrip.rate || '') : '';
+          if (!prev.quantity) next.quantity = '1';
+        } else if (hire.hireRate > 0) {
+          next.rate = String(hire.hireRate);
+        }
       }
       return next;
     });
@@ -138,6 +159,7 @@ export default function TransportEntryPopup({ entry = null, parties = [], vehicl
       vehicleId: matchedVehicle?._id || undefined,
       vehicleNo: formData.vehicleNo.trim(),
       basis: formData.basis,
+      location: isPerTrip ? formData.location.trim() : '',
       quantity: isFixed ? 1 : Number(formData.quantity),
       rate: Number(formData.rate),
       fromDate: isPeriod ? formData.fromDate || undefined : undefined,
@@ -248,6 +270,26 @@ export default function TransportEntryPopup({ entry = null, parties = [], vehicl
           <input className="input" type="number" name="rate" value={formData.rate} onChange={handleChange} min="0" step="0.01" placeholder="0.00" />
         </div>
       </div>
+
+      {isPerTrip && (
+        <div>
+          <label className="label">Location</label>
+          {tripLocations.length > 0 ? (
+            <select className="input" name="location" value={formData.location} onChange={handleChange}>
+              <option value="">Select location</option>
+              {/* A location since removed from the vehicle stays pickable on an older entry */}
+              {formData.location && !tripLocations.some((row) => row.location === formData.location) && (
+                <option value={formData.location}>{formData.location}</option>
+              )}
+              {tripLocations.map((row) => (
+                <option key={row.location} value={row.location}>{row.location} · ₹{Number(row.rate || 0).toLocaleString('en-IN')}</option>
+              ))}
+            </select>
+          ) : (
+            <input className="input" type="text" name="location" value={formData.location} onChange={handleChange} placeholder="Where it went" autoComplete="off" />
+          )}
+        </div>
+      )}
 
       {isPeriod && (
         <div className="grid grid-cols-2 gap-3">
