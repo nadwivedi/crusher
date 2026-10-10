@@ -1,11 +1,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { AlertCircle, Camera, Check, ChevronDown, Eye, Loader2, Scale, Truck, Upload, X, CalendarDays, Building2 } from 'lucide-react';
+import { AlertCircle, Building2, Camera, ChevronDown, Eye, Loader2, Plus, Scale, Truck, Upload } from 'lucide-react';
 import { toast } from 'react-toastify';
 import apiClient from '../../utils/api';
 import { handlePopupFormKeyDown } from '../../utils/popupFormKeyboard';
 import { useFloatingDropdownPosition } from '../../utils/useFloatingDropdownPosition';
 import { getSmartVehicleMatch, normalizeVehicleValue } from '../../utils/vehicleMatching';
 import DocumentScannerPreview from '../../components/DocumentScannerPreview';
+import FormPopup from '../../components/FormPopup';
+import FormSection from '../../components/FormSection';
+import OptionList from '../../components/OptionList';
+import Segmented from '../../components/Segmented';
 import AddVehiclePopup from '../Vehicle/component/AddVehiclePopup';
 
 const isCompleteVehicleNumber = (value) => normalizeVehicleValue(value).length >= 9;
@@ -76,8 +80,6 @@ export default function BoulderEntry({ onModalFinish = null, editingEntry = null
   const dateInputRef = useRef(null);
   const ocrFileInputRef = useRef(null);
   const ocrCameraInputRef = useRef(null);
-  const inputClass = 'w-full rounded-lg border border-slate-400 bg-white px-2.5 py-1.5 text-[13px] text-gray-800 transition placeholder:text-slate-400 focus:border-transparent focus:outline-none focus:ring-2';
-  const labelClass = 'mb-1 block text-[11px] font-semibold text-gray-700 md:text-xs';
   
   const getVehicleDisplayName = (vehicle) => String(vehicle?.vehicleNumber || vehicle?.vehicleNo || '').trim();
   const getPartyDisplayName = (party) => String(party?.partyName || party?.name || '').trim();
@@ -608,272 +610,311 @@ export default function BoulderEntry({ onModalFinish = null, editingEntry = null
   }, []);
 
   const isSlipPreviewImage = /\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i.test(String(formData.slipImg || ''));
+  const formatKg = (value) => `${Number(value || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 })} kg`;
+  const formatTon = (kg) => `${(Number(kg || 0) / 1000).toLocaleString('en-IN', { maximumFractionDigits: 3 })} ton`;
+  const payableWeight = isBulkMode ? bulkTotalWeight : Number(formData.netWeight || 0);
+
+  const slipButtons = !isBulkMode && (
+    <>
+      <button
+        type="button"
+        onClick={() => { setOcrMode('camera'); ocrCameraInputRef.current?.click(); }}
+        disabled={isOcrLoading}
+        title="Take a photo of the weighbridge slip"
+        className="flex items-center gap-1.5 rounded-lg bg-white/15 px-2.5 py-1.5 text-xs font-semibold text-white ring-1 ring-white/25 transition hover:bg-white/25 disabled:opacity-60"
+      >
+        {isOcrLoading && ocrMode === 'camera' ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Camera className="h-3.5 w-3.5" />}
+        <span className="hidden sm:inline">Scan Slip</span>
+      </button>
+      <button
+        type="button"
+        onClick={() => { setOcrMode('upload'); ocrFileInputRef.current?.click(); }}
+        disabled={isOcrLoading}
+        title="Upload a slip photo and fill the form from it"
+        className="flex items-center gap-1.5 rounded-lg bg-white/15 px-2.5 py-1.5 text-xs font-semibold text-white ring-1 ring-white/25 transition hover:bg-white/25 disabled:opacity-60"
+      >
+        {isOcrLoading && ocrMode === 'upload' ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
+        <span className="hidden sm:inline">Upload Slip</span>
+      </button>
+    </>
+  );
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/55 p-0 backdrop-blur-[2px] md:items-center md:p-6" onClick={handleClose}>
-      <div className="relative flex h-[100dvh] max-h-[100dvh] w-full max-w-[30rem] md:max-w-[64rem] flex-col overflow-hidden rounded-none border border-slate-200 bg-white shadow-[0_30px_80px_rgba(15,23,42,0.28)] md:h-auto md:max-h-[95vh] md:rounded-2xl" onClick={(e) => e.stopPropagation()}>
-        {/* Header */}
-        <div className="bg-[linear-gradient(135deg,#2563eb_0%,#4338ca_55%,#7c3aed_100%)] px-4 py-3 text-white">
-          <div className="flex items-center justify-between">
+    <>
+      <input ref={ocrCameraInputRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handleOcrCameraChange} tabIndex={-1} />
+      <input ref={ocrFileInputRef} type="file" accept="image/*" className="hidden" onChange={handleOcrFileChange} tabIndex={-1} />
+
+      <FormPopup
+        title={isEditing ? 'Edit Boulder Entry' : 'Add Boulder Entry'}
+        subtitle={isBulkMode ? 'All trips of one vehicle at once' : 'Boulder coming in on the weighbridge'}
+        submitLabel={loading ? 'Saving...' : isEditing ? 'Update Entry' : 'Save Entry'}
+        submitDisabled={loading || isOcrLoading}
+        maxWidth="max-w-3xl"
+        headerActions={slipButtons}
+        onSubmit={handleSubmit}
+        onClose={handleClose}
+        onKeyDown={(e) => handlePopupFormKeyDown(e, handleClose)}
+      >
+        <Segmented
+          className="w-full [&>button]:flex-1 [&>button]:justify-center"
+          options={[
+            { key: 'single', label: 'Single Slip', shortLabel: 'Single' },
+            { key: 'bulk', label: 'Bulk Trips', shortLabel: 'Bulk' }
+          ]}
+          value={formData.entryMode}
+          onChange={(mode) => setFormData((prev) => ({ ...prev, entryMode: mode }))}
+        />
+
+        <FormSection number={1} title="Vehicle & Supplier" tone="blue">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             <div>
-              <h2 className="text-base font-bold md:text-lg">{isEditing ? 'Edit Boulder Entry' : 'Add Boulder Entry'}</h2>
-              <p className="text-[11px] text-white/80 md:text-xs">{isBulkMode ? 'Enter all trips of a vehicle at once' : 'Register incoming boulder weight'}</p>
+              <label className="label" htmlFor="boulder-date-input">Date</label>
+              <input id="boulder-date-input" ref={dateInputRef} className="input" type="date" name="boulderDate" value={formData.boulderDate || ''} onChange={handleChange} autoFocus />
             </div>
-            <div className="flex items-center gap-2">
-              <input ref={ocrCameraInputRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handleOcrCameraChange} tabIndex={-1} />
-              <input ref={ocrFileInputRef} type="file" accept="image/*" className="hidden" onChange={handleOcrFileChange} tabIndex={-1} />
-              {!isBulkMode && (<>
-              <button type="button" onClick={() => { setOcrMode('camera'); ocrCameraInputRef.current?.click(); }} disabled={isOcrLoading} className="flex items-center gap-1.5 rounded-lg border border-white/30 bg-white/15 px-2.5 py-1.5 text-xs font-semibold text-white transition hover:bg-white/25">
-                {isOcrLoading && ocrMode === 'camera' ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Camera className="h-3.5 w-3.5" />}
-                Scan Slip
-              </button>
-              <button type="button" onClick={() => { setOcrMode('upload'); ocrFileInputRef.current?.click(); }} disabled={isOcrLoading} className="flex items-center gap-1.5 rounded-lg border border-emerald-400/50 bg-emerald-500/20 px-2.5 py-1.5 text-xs font-semibold text-white transition hover:bg-emerald-500/35">
-                {isOcrLoading && ocrMode === 'upload' ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
-                Upload Slip
-              </button>
-              </>)}
-              <button type="button" onClick={handleClose} aria-label="Close popup" className="rounded-lg p-1.5 text-white transition hover:bg-white/20">
-                <X className="h-5 w-5 md:h-6 md:w-6" />
-              </button>
+
+            <div>
+              <div className="mb-1 flex items-center justify-between">
+                <label className="label mb-0" htmlFor="boulder-vehicle-input">Vehicle No. <span className="text-rose-500">*</span></label>
+                <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={openInlineVehicleForm} className="text-xs font-semibold text-primary-600 hover:underline">+ New</button>
+              </div>
+              <div
+                ref={vehicleSectionRef}
+                className="relative"
+                onBlurCapture={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) setIsVehicleSectionActive(false); }}
+              >
+                <Truck className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                <input
+                  id="boulder-vehicle-input"
+                  ref={vehicleInputRef}
+                  className="input pl-9 pr-9 font-semibold uppercase"
+                  type="text"
+                  value={vehicleQuery}
+                  onFocus={handleVehicleFocus}
+                  onChange={handleVehicleInputChange}
+                  onKeyDown={handleVehicleInputKeyDown}
+                  placeholder="CG04AB1234"
+                  autoComplete="off"
+                />
+                <ChevronDown className={`pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 transition-transform ${isVehicleSectionActive ? 'rotate-180' : ''}`} />
+                {isVehicleSectionActive && vehicleDropdownStyle && (
+                  <OptionList
+                    style={vehicleDropdownStyle}
+                    options={filteredVehicles}
+                    activeIndex={vehicleListIndex}
+                    emptyText={vehicleQuery ? 'Not saved yet. Pick a supplier and it is added on save.' : 'No vehicles yet.'}
+                    getKey={(vehicle) => vehicle._id}
+                    getLabel={getVehicleDisplayName}
+                    getHint={(vehicle) => (Number(vehicle.unladenWeight || 0) > 0 ? `Tare ${formatKg(vehicle.unladenWeight)}` : '')}
+                    isSelected={(vehicle) => String(formData.vehicleId || '') === String(vehicle._id)}
+                    onHover={setVehicleListIndex}
+                    onPick={selectVehicle}
+                    footer={(
+                      <button
+                        type="button"
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={openInlineVehicleForm}
+                        className="flex w-full items-center gap-2 border-t border-slate-100 px-3 py-2 text-left text-sm font-semibold text-primary-600 transition hover:bg-primary-50"
+                      >
+                        <Plus className="h-4 w-4" />
+                        Add New Vehicle
+                        <kbd className="ml-auto rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-500">Ctrl</kbd>
+                      </button>
+                    )}
+                  />
+                )}
+              </div>
+            </div>
+
+            <div>
+              <label className="label" htmlFor="boulder-party-input">Supplier</label>
+              <div
+                ref={partySectionRef}
+                className="relative"
+                onBlurCapture={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) setIsPartySectionActive(false); }}
+              >
+                <Building2 className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                <input
+                  id="boulder-party-input"
+                  ref={partyInputRef}
+                  className="input pl-9 pr-9"
+                  type="text"
+                  name="partyName"
+                  value={partyQuery}
+                  onFocus={handlePartyFocus}
+                  onChange={handlePartyInputChange}
+                  onKeyDown={handlePartyInputKeyDown}
+                  placeholder="Search supplier..."
+                  autoComplete="off"
+                />
+                <ChevronDown className={`pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 transition-transform ${isPartySectionActive ? 'rotate-180' : ''}`} />
+                {isPartySectionActive && partyDropdownStyle && (
+                  <OptionList
+                    style={partyDropdownStyle}
+                    options={filteredParties}
+                    activeIndex={partyListIndex}
+                    emptyText="No matching supplier."
+                    getKey={(party) => party._id}
+                    getLabel={getPartyDisplayName}
+                    getHint={(party) => (Number(party.boulderRatePerTon || 0) > 0 ? `₹${Number(party.boulderRatePerTon).toLocaleString('en-IN')} / ton` : '')}
+                    isSelected={(party) => String(formData.partyId || '') === String(party._id)}
+                    onHover={setPartyListIndex}
+                    onPick={selectParty}
+                  />
+                )}
+              </div>
             </div>
           </div>
-        </div>
 
-        {isOcrLoading && (
-          <div className="absolute inset-0 z-[100] flex flex-col items-center justify-center gap-3 rounded-2xl bg-white/80 backdrop-blur-sm">
-            <Loader2 className="h-10 w-10 animate-spin text-indigo-600" />
-            <p className="text-sm font-semibold text-indigo-700">Extracting data with AI...</p>
-          </div>
-        )}
+          {formData.slipImg && (
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+              <div>
+                <label className="label" htmlFor="boulder-entry-time">Entry Time</label>
+                <input id="boulder-entry-time" className="input" type="time" name="entryTime" value={formData.entryTime || ''} onChange={handleChange} />
+              </div>
+              <div>
+                <label className="label" htmlFor="boulder-exit-time">Exit Time</label>
+                <input id="boulder-exit-time" className="input" type="time" name="exitTime" value={formData.exitTime || ''} onChange={handleChange} />
+              </div>
+            </div>
+          )}
 
-        {scannerState && (
-          <DocumentScannerPreview
-            file={scannerState.file}
-            onCancel={() => setScannerState(null)}
-            onConfirm={async (processedFile) => {
-              const type = scannerState.type;
-              setScannerState(null);
-              if (type === 'ocr') await sendImageToOcr(processedFile);
-              else {
-                try {
-                  setUploadingSlip(true);
-                  const url = await uploadSlipFile(processedFile);
-                  setFormData((prev) => ({ ...prev, slipImg: url }));
-                  toast.success('Slip uploaded successfully');
-                } catch (error) {
-                  toast.error(error?.message || 'Error uploading slip');
-                } finally {
-                  setUploadingSlip(false);
-                }
-              }
-            }}
-          />
-        )}
-
-        <form onSubmit={handleSubmit} onKeyDown={(e) => handlePopupFormKeyDown(e, handleClose)} className="flex flex-1 flex-col overflow-hidden bg-slate-50">
-          <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
-            {/* Entry Mode Toggle */}
-            <div className="flex rounded-xl border border-slate-200 bg-white p-1 shadow-sm">
-              {[
-                { value: 'single', label: 'Single Entry', hint: 'Gross / Tare per slip' },
-                { value: 'bulk', label: 'Bulk Entry', hint: 'Avg weight x No. of trips' }
-              ].map((mode) => (
+          {ocrVehicleMismatch && (
+            <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800 ring-1 ring-inset ring-amber-200">
+              <span className="flex items-center gap-1.5">
+                <AlertCircle className="h-4 w-4 shrink-0" />
+                Slip says <b>{ocrVehicleMismatch.ocrValue}</b>, closest saved vehicle is <b>{ocrVehicleMismatch.matchedValue}</b>.
+              </span>
+              <div className="flex gap-1.5">
                 <button
-                  key={mode.value}
                   type="button"
-                  onClick={() => setFormData((prev) => ({ ...prev, entryMode: mode.value }))}
-                  className={`flex-1 rounded-lg px-3 py-2 text-left transition ${formData.entryMode === mode.value ? 'bg-gradient-to-r from-blue-600 to-indigo-700 text-white shadow' : 'text-slate-600 hover:bg-slate-50'}`}
+                  onClick={() => {
+                    setVehicleQuery(ocrVehicleMismatch.ocrValue);
+                    setFormData((prev) => ({ ...prev, vehicleNo: ocrVehicleMismatch.ocrValue, vehicleId: '' }));
+                    setOcrVehicleMismatch(null);
+                  }}
+                  className="rounded-md bg-white px-2 py-1 font-semibold ring-1 ring-amber-300 hover:bg-amber-100"
                 >
-                  <span className="block text-[13px] font-bold">{mode.label}</span>
-                  <span className={`block text-[10px] ${formData.entryMode === mode.value ? 'text-white/80' : 'text-slate-400'}`}>{mode.hint}</span>
+                  Use slip
                 </button>
-              ))}
-            </div>
-
-            {/* Section 1: Primary Details (Blue) */}
-            <div className="rounded-2xl border border-blue-200 bg-white p-3 shadow-sm transition hover:shadow-md">
-              <h3 className="mb-3 flex items-center gap-2 text-[13px] font-bold text-blue-900">
-                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-blue-600 text-[10px] font-bold text-white">1</span>
-                Primary Details
-              </h3>
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-                {/* Entry Date */}
-                <div className="space-y-1">
-                  <label className={labelClass}>Entry Date</label>
-                  <div className="relative">
-                    <CalendarDays className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 pointer-events-none" />
-                    <input ref={dateInputRef} type="date" name="boulderDate" value={formData.boulderDate || ''} onChange={handleChange} className={`${inputClass} pl-9 focus:ring-blue-500`} autoFocus />
-                  </div>
-                </div>
-
-                {/* Vehicle No */}
-                <div className="space-y-1">
-                  <div className="flex items-center justify-between">
-                    <label className={labelClass}>Vehicle No</label>
-                    <button type="button" onClick={openInlineVehicleForm} className="text-[10px] font-bold text-blue-600 hover:underline">+ New Vehicle</button>
-                  </div>
-                  <div ref={vehicleSectionRef} className="relative" onBlurCapture={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) setIsVehicleSectionActive(false); }}>
-                    <input ref={vehicleInputRef} type="text" value={vehicleQuery} onFocus={handleVehicleFocus} onChange={handleVehicleInputChange} onKeyDown={handleVehicleInputKeyDown} className={`${inputClass} focus:ring-blue-500 uppercase`} placeholder="Type vehicle no..." autoComplete="off" />
-                    {isVehicleSectionActive && vehicleDropdownStyle && (
-                      <div className="fixed z-[80] overflow-hidden rounded-xl border border-blue-200 bg-white shadow-xl" style={vehicleDropdownStyle}>
-                        <div className="bg-blue-50 px-3 py-1.5 text-[10px] font-bold text-blue-700 uppercase">Vehicles ({filteredVehicles.length})</div>
-                        <div className="overflow-y-auto py-1" style={{ maxHeight: vehicleDropdownStyle.maxHeight }}>
-                          {filteredVehicles.length === 0 ? <div className="px-3 py-2 text-xs text-slate-500">No vehicles found</div> : filteredVehicles.map((v, i) => (
-                            <button key={v._id} type="button" onMouseDown={e => e.preventDefault()} onMouseEnter={() => setVehicleListIndex(i)} onClick={() => selectVehicle(v)} className={`w-full px-3 py-2 text-left text-xs ${i === vehicleListIndex ? 'bg-blue-100 text-blue-900' : 'text-slate-700 hover:bg-slate-50'}`}>{getVehicleDisplayName(v)}</button>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Party Name */}
-                <div className="space-y-1">
-                  <label className={labelClass}>Supplier Name</label>
-                  <div ref={partySectionRef} className="relative" onBlurCapture={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) setIsPartySectionActive(false); }}>
-                    <Building2 className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 pointer-events-none" />
-                    <input ref={partyInputRef} type="text" name="partyName" value={partyQuery} onFocus={handlePartyFocus} onChange={handlePartyInputChange} onKeyDown={handlePartyInputKeyDown} className={`${inputClass} pl-9 pr-10 focus:ring-blue-500`} placeholder="Type to search party..." autoComplete="off" />
-                    {isPartySectionActive && partyDropdownStyle && (
-                      <div className="fixed z-[80] overflow-hidden rounded-xl border border-blue-200 bg-white shadow-xl" style={partyDropdownStyle}>
-                        <div className="bg-blue-50 px-3 py-1.5 text-[10px] font-bold text-blue-700 uppercase">Suppliers ({filteredParties.length})</div>
-                        <div className="overflow-y-auto py-1" style={{ maxHeight: partyDropdownStyle.maxHeight }}>
-                          {filteredParties.length === 0 ? <div className="px-3 py-2 text-xs text-slate-500">No matching suppliers</div> : filteredParties.map((p, i) => (
-                            <button key={p._id || i} type="button" onMouseDown={e => e.preventDefault()} onMouseEnter={() => setPartyListIndex(i)} onClick={() => selectParty(p)} className={`w-full px-3 py-2 text-left text-xs ${i === partyListIndex ? 'bg-blue-100 text-blue-900' : 'text-slate-700 hover:bg-slate-50'}`}>{getPartyDisplayName(p)}</button>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
+                <button type="button" onClick={() => setOcrVehicleMismatch(null)} className="rounded-md bg-amber-600 px-2 py-1 font-semibold text-white hover:bg-amber-700">
+                  Keep saved
+                </button>
               </div>
-
-              {/* Time Details */}
-              {formData.slipImg && (
-                <div className="mt-3 grid grid-cols-2 gap-3 md:grid-cols-4">
-                  <div className="space-y-1">
-                    <label className={labelClass}>Entry Time</label>
-                    <input type="time" name="entryTime" value={formData.entryTime || ''} onChange={handleChange} className={`${inputClass} focus:ring-blue-500`} />
-                  </div>
-                  <div className="space-y-1">
-                    <label className={labelClass}>Exit Time</label>
-                    <input type="time" name="exitTime" value={formData.exitTime || ''} onChange={handleChange} className={`${inputClass} focus:ring-blue-500`} />
-                  </div>
-                </div>
-              )}
-
-              {ocrVehicleMismatch && (
-                <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-2 text-[10px] text-amber-800 flex justify-between items-center">
-                  <span>OCR read "{ocrVehicleMismatch.ocrValue}", matched last-4 digits with "{ocrVehicleMismatch.matchedValue}"</span>
-                  <div className="flex gap-2">
-                    <button type="button" onClick={() => { setVehicleQuery(ocrVehicleMismatch.ocrValue); setFormData(prev => ({ ...prev, vehicleNo: ocrVehicleMismatch.ocrValue, vehicleId: '' })); setOcrVehicleMismatch(null); }} className="px-2 py-1 bg-white border border-amber-300 rounded font-bold">Use OCR</button>
-                    <button type="button" onClick={() => setOcrVehicleMismatch(null)} className="px-2 py-1 bg-amber-600 text-white rounded font-bold">Use Matched</button>
-                  </div>
-                </div>
-              )}
             </div>
+          )}
+        </FormSection>
 
-            {/* Section 2: Weight Details (Emerald) */}
-            {isBulkMode ? (
-            <div className="rounded-2xl border border-emerald-200 bg-emerald-50/30 p-3 shadow-sm transition hover:shadow-md">
-              <h3 className="mb-3 flex items-center gap-2 text-[13px] font-bold text-emerald-900">
-                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-600 text-[10px] font-bold text-white">2</span>
-                Trip Details
-              </h3>
-              <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-                <div className="space-y-1">
-                  <label className={labelClass}>Average Weight / Trip (Ton)</label>
-                  <input type="number" name="averageWeightTon" value={formData.averageWeightTon || ''} onChange={handleChange} className={`${inputClass} focus:ring-emerald-500 font-bold`} placeholder="e.g. 10" step="0.01" min="0" />
-                </div>
-                <div className="space-y-1">
-                  <label className={labelClass}>No. of Trips</label>
-                  <input type="number" name="tripCount" value={formData.tripCount || ''} onChange={handleChange} className={`${inputClass} focus:ring-emerald-500 font-bold`} placeholder="e.g. 20" step="1" min="1" />
-                </div>
-                <div className="space-y-1">
-                  <label className={labelClass}>Total Weight (Ton)</label>
-                  <div className="relative">
-                    <Scale className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-emerald-400 pointer-events-none" />
-                    <input type="text" value={bulkTotalWeight > 0 ? (bulkTotalWeight / 1000).toLocaleString('en-IN', { maximumFractionDigits: 2 }) : ''} readOnly className={`${inputClass} pl-9 bg-emerald-50/50 font-bold text-emerald-700`} placeholder="0" />
-                  </div>
-                </div>
+        {isBulkMode ? (
+          <FormSection number={2} title="Trips" tone="emerald">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+              <div>
+                <label className="label" htmlFor="boulder-avg-weight">Avg. Weight / Trip (ton) <span className="text-rose-500">*</span></label>
+                <input id="boulder-avg-weight" className="input text-right font-semibold" type="number" name="averageWeightTon" value={formData.averageWeightTon || ''} onChange={handleChange} placeholder="10" step="0.01" min="0" />
               </div>
-              {bulkTotalWeight > 0 && (
-                <p className="mt-2 text-[11px] font-semibold text-emerald-800">
-                  {Math.floor(Number(formData.tripCount))} trips x {Number(formData.averageWeightTon).toLocaleString('en-IN', { maximumFractionDigits: 2 })} ton = {(bulkTotalWeight / 1000).toLocaleString('en-IN', { maximumFractionDigits: 2 })} ton ({bulkTotalWeight.toLocaleString('en-IN', { maximumFractionDigits: 2 })} kg)
+              <div>
+                <label className="label" htmlFor="boulder-trips">No. of Trips <span className="text-rose-500">*</span></label>
+                <input id="boulder-trips" className="input text-right font-semibold" type="number" name="tripCount" value={formData.tripCount || ''} onChange={handleChange} placeholder="20" step="1" min="1" />
+              </div>
+              <div className="col-span-2 sm:col-span-1">
+                <p className="label">Total Weight</p>
+                <p className="flex min-h-[2.5rem] items-center justify-end rounded-lg bg-white px-3 text-sm font-bold text-emerald-700 ring-1 ring-inset ring-emerald-200">
+                  {bulkTotalWeight > 0 ? formatTon(bulkTotalWeight) : '-'}
                 </p>
-              )}
-            </div>
-            ) : (
-            <div className="rounded-2xl border border-emerald-200 bg-emerald-50/30 p-3 shadow-sm transition hover:shadow-md">
-              <h3 className="mb-3 flex items-center gap-2 text-[13px] font-bold text-emerald-900">
-                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-600 text-[10px] font-bold text-white">2</span>
-                Weight Details
-              </h3>
-              <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-                <div className="space-y-1">
-                  <label className={labelClass}>Gross Weight (KG)</label>
-                  <input type="number" name="grossWeight" value={formData.grossWeight || ''} onChange={handleChange} className={`${inputClass} focus:ring-emerald-500 font-bold`} placeholder="0" step="0.01" />
-                </div>
-                <div className="space-y-1">
-                  <label className={labelClass}>Tare Weight (KG)</label>
-                  <input type="number" name="tareWeight" value={formData.tareWeight || ''} onChange={handleChange} className={`${inputClass} focus:ring-emerald-500 font-bold`} placeholder="0" step="0.01" />
-                </div>
-                <div className="space-y-1">
-                  <label className={labelClass}>Net Weight (KG)</label>
-                  <div className="relative">
-                    <Scale className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-emerald-400 pointer-events-none" />
-                    <input type="number" name="netWeight" value={formData.netWeight || ''} readOnly className={`${inputClass} pl-9 bg-emerald-50/50 font-bold text-emerald-700`} placeholder="0" />
-                  </div>
-                </div>
               </div>
             </div>
+            {bulkTotalWeight > 0 && (
+              <p className="text-xs text-slate-500">
+                {Math.floor(Number(formData.tripCount))} trips × {Number(formData.averageWeightTon).toLocaleString('en-IN', { maximumFractionDigits: 2 })} ton = {formatKg(bulkTotalWeight)}
+              </p>
             )}
-
-            {/* Section 3: Pricing Summary (Purple) */}
-            <div className="rounded-2xl border border-purple-200 bg-purple-50/30 p-3 shadow-sm transition hover:shadow-md">
-              <h3 className="mb-3 flex items-center gap-2 text-[13px] font-bold text-purple-900">
-                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-purple-600 text-[10px] font-bold text-white">3</span>
-                Pricing Summary
-              </h3>
-              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                <div className="space-y-1">
-                  <label className={labelClass}>Boulder Rate Per Ton</label>
-                  <div className="rounded-lg border border-purple-200 bg-white px-3 py-1.5 text-sm font-bold text-purple-700 shadow-inner">
-                    {boulderRatePerTon > 0 ? `${boulderRatePerTon.toLocaleString('en-IN')} Rs/Ton` : 'No rate set'}
-                  </div>
-                </div>
-                <div className="space-y-1">
-                  <label className={labelClass}>Total Payable Amount</label>
-                  <div className="rounded-lg border border-purple-200 bg-white px-3 py-1.5 text-sm font-bold text-emerald-700 shadow-inner">
-                    Rs {boulderTotalAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                  </div>
-                </div>
+          </FormSection>
+        ) : (
+          <FormSection number={2} title="Weight" tone="emerald" hint={formData.vehicleId ? 'Tare is filled from the saved vehicle. Change it if needed.' : ''}>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+              <div>
+                <label className="label" htmlFor="boulder-gross">Gross (kg) <span className="text-rose-500">*</span></label>
+                <input id="boulder-gross" className="input text-right font-semibold" type="number" name="grossWeight" value={formData.grossWeight || ''} onChange={handleChange} placeholder="0" step="0.01" />
               </div>
+              <div>
+                <label className="label" htmlFor="boulder-tare">Tare (kg) <span className="text-rose-500">*</span></label>
+                <input id="boulder-tare" className="input text-right font-semibold" type="number" name="tareWeight" value={formData.tareWeight || ''} onChange={handleChange} placeholder="0" step="0.01" />
+              </div>
+              <div className="col-span-2 sm:col-span-1">
+                <p className="label">Net Weight</p>
+                <p className="flex min-h-[2.5rem] items-center justify-between gap-2 rounded-lg bg-white px-3 text-sm ring-1 ring-inset ring-emerald-200">
+                  <Scale className="h-4 w-4 shrink-0 text-emerald-500" />
+                  {Number(formData.netWeight || 0) > 0 ? (
+                    <span className="text-right">
+                      <span className="font-bold text-emerald-700">{formatKg(formData.netWeight)}</span>
+                      <span className="ml-1.5 text-xs text-slate-500">{formatTon(formData.netWeight)}</span>
+                    </span>
+                  ) : <span className="text-slate-400">Gross − Tare</span>}
+                </p>
+              </div>
+            </div>
+          </FormSection>
+        )}
 
-              {formData.slipImg && (
-                <div className="mt-3">
-                  <label className={labelClass}>Slip Preview</label>
-                  <div className="relative group rounded-xl overflow-hidden border border-slate-200 bg-white shadow-sm">
-                    {isSlipPreviewImage ? <img src={formData.slipImg} alt="Slip" className="h-32 w-full object-cover" /> : <div className="h-32 flex items-center justify-center text-xs text-slate-400 bg-slate-50 italic">Document Uploaded</div>}
-                    <a href={formData.slipImg} target="_blank" rel="noreferrer" className="absolute inset-0 bg-slate-900/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center text-white text-xs font-bold gap-1"><Eye className="h-4 w-4" /> View Full Slip</a>
-                  </div>
-                </div>
-              )}
+        <FormSection number={3} title="Amount" tone="indigo">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_auto]">
+            <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 rounded-lg bg-white px-3 py-2.5 text-sm ring-1 ring-inset ring-indigo-200">
+              <span className="text-slate-600">
+                {boulderRatePerTon > 0
+                  ? <>{formatTon(payableWeight)} × ₹{boulderRatePerTon.toLocaleString('en-IN')} / ton</>
+                  : <span className="text-amber-700">{selectedParty ? 'No boulder rate set for this supplier' : 'Pick a supplier to see the amount'}</span>}
+              </span>
+              <span className="text-base font-bold text-slate-900">
+                ₹{boulderTotalAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </span>
             </div>
 
+            {formData.slipImg && (
+              <a
+                href={formData.slipImg}
+                target="_blank"
+                rel="noreferrer"
+                className="group flex items-center gap-2 rounded-lg bg-white p-1.5 pr-3 text-xs font-semibold text-slate-600 ring-1 ring-inset ring-slate-200 transition hover:text-primary-700 hover:ring-primary-300"
+              >
+                {isSlipPreviewImage
+                  ? <img src={formData.slipImg} alt="Weighbridge slip" className="h-10 w-10 rounded-md object-cover" />
+                  : <span className="flex h-10 w-10 items-center justify-center rounded-md bg-slate-100"><Eye className="h-4 w-4" /></span>}
+                View slip
+              </a>
+            )}
           </div>
+        </FormSection>
+      </FormPopup>
 
-          {/* Footer */}
-          <div className="border-t border-slate-200 bg-white px-4 py-3 flex items-center justify-between gap-3">
-            <div className="hidden md:block text-[10px] text-slate-400">Press <kbd className="rounded bg-slate-100 px-1 py-0.5 border">Esc</kbd> to cancel</div>
-            <div className="flex gap-2 w-full md:w-auto">
-              <button type="button" onClick={handleClose} className="flex-1 md:flex-none px-6 py-2 rounded-xl border border-slate-200 text-sm font-bold text-slate-600 hover:bg-slate-50 transition">Cancel</button>
-              <button type="submit" disabled={loading} className="flex-1 md:flex-none px-8 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-700 text-sm font-bold text-white shadow-lg hover:shadow-blue-500/30 transition disabled:opacity-50">
-                {loading ? 'Saving...' : (isEditing ? 'Update Entry' : 'Save Entry')}
-              </button>
-            </div>
-          </div>
-        </form>
-      </div>
+      {isOcrLoading && (
+        <div className="fixed inset-0 z-[70] flex flex-col items-center justify-center gap-3 bg-white/75 backdrop-blur-sm">
+          <Loader2 className="h-10 w-10 animate-spin text-primary-600" />
+          <p className="text-sm font-semibold text-primary-700">Reading the slip...</p>
+        </div>
+      )}
+
+      {scannerState && (
+        <DocumentScannerPreview
+          file={scannerState.file}
+          onCancel={() => setScannerState(null)}
+          onConfirm={async (processedFile) => {
+            const type = scannerState.type;
+            setScannerState(null);
+            if (type === 'ocr') await sendImageToOcr(processedFile);
+            else {
+              try {
+                setUploadingSlip(true);
+                const url = await uploadSlipFile(processedFile);
+                setFormData((prev) => ({ ...prev, slipImg: url }));
+                toast.success('Slip uploaded successfully');
+              } catch (error) {
+                toast.error(error?.message || 'Error uploading slip');
+              } finally {
+                setUploadingSlip(false);
+              }
+            }
+          }}
+        />
+      )}
 
       {showVehicleForm ? (
         <AddVehiclePopup
@@ -889,6 +930,6 @@ export default function BoulderEntry({ onModalFinish = null, editingEntry = null
           }}
         />
       ) : null}
-    </div>
+    </>
   );
 }
