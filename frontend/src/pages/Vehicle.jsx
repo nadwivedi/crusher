@@ -10,6 +10,7 @@ import CancelHirePopup from './MonthlyHire/component/CancelHirePopup';
 import MonthlyHireForm from './MonthlyHire/component/MonthlyHireForm';
 import StatCard from '../components/StatCard';
 import { getBasisLabel, getVehicleCategoryLabel, getVehicleHireRates } from '../utils/transport';
+import { formatHireDate, getHireStatus } from '../utils/monthlyHire';
 
 const TOAST_OPTIONS = { autoClose: 1200 };
 
@@ -24,9 +25,6 @@ const getTypeLabel = (vehicle) => {
   if (category) return category;
   return vehicle?.vehicleType === 'boulder' ? 'Boulder Load' : 'Sales';
 };
-
-const formatWeight = (value) => (Number(value || 0) > 0 ? `${Number(value).toLocaleString('en-IN')} kg` : '-');
-const formatCapacity = (value) => (Number(value || 0) > 0 ? `${Number(value)} m³` : '-');
 
 export default function Vehicle() {
   const navigate = useNavigate();
@@ -152,7 +150,7 @@ export default function Vehicle() {
     if (vehicle.ownership !== 'hired') return '';
     const hire = getVehicleHireRates(vehicle);
     if (hire.hireBasis === 'per_month') {
-      return `Hired · Monthly ₹${hire.hireRate.toLocaleString('en-IN')} · ${vehicle.monthlyHire ? 'running' : 'stopped'}`;
+      return `Hired · Monthly ₹${hire.hireRate.toLocaleString('en-IN')}`;
     }
     if (hire.hireBasis === 'per_trip') {
       const count = hire.tripRates.length;
@@ -160,6 +158,18 @@ export default function Vehicle() {
     }
     const rate = hire.hireRate > 0 ? ` @ ₹${hire.hireRate.toLocaleString('en-IN')}` : '';
     return `Hired · ${getBasisLabel(hire.hireBasis)}${rate}`;
+  };
+
+  // A monthly vehicle's hire period and status: the running hire, or the last one when the rent has stopped
+  const getHirePeriod = (vehicle) => {
+    if (vehicle.ownership !== 'hired' || vehicle.hireBasis !== 'per_month') return null;
+    const shownHire = vehicle.monthlyHire || vehicle.lastHire;
+    if (!shownHire) return { range: '—', status: { label: 'Not started', className: 'badge-orange' } };
+    const status = getHireStatus(shownHire);
+    return {
+      range: `${formatHireDate(shownHire.startDate)} → ${status.stop ? formatHireDate(status.stop) : 'until cancelled'}`,
+      status: vehicle.monthlyHire ? status : { ...status, label: status.isCancelled ? 'Cancelled' : 'Ended' }
+    };
   };
 
   // The running hire of a vehicle on monthly rent, as the hire popups expect it
@@ -281,10 +291,14 @@ export default function Vehicle() {
                     </div>
                     <p className="mt-0.5 truncate text-xs text-slate-500">
                       {getOwnerName(vehicle)}
-                      {Number(vehicle.unladenWeight || 0) > 0 && ` · ${formatWeight(vehicle.unladenWeight)}`}
-                      {Number(vehicle.capacityCubicMeter || 0) > 0 && ` · ${formatCapacity(vehicle.capacityCubicMeter)}`}
                     </p>
                     {getHireNote(vehicle) && <p className="truncate text-[11px] font-medium text-amber-700">{getHireNote(vehicle)}</p>}
+                    {getHirePeriod(vehicle) && (
+                      <p className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[11px] text-slate-500">
+                        <span>{getHirePeriod(vehicle).range}</span>
+                        <span className={getHirePeriod(vehicle).status.className}>{getHirePeriod(vehicle).status.label}</span>
+                      </p>
+                    )}
                   </div>
                   {renderActions(vehicle)}
                 </li>
@@ -292,13 +306,13 @@ export default function Vehicle() {
             </ul>
 
             <div className="hidden overflow-x-auto md:block">
-              <table className="w-full min-w-[760px] text-left">
+              <table className="w-full min-w-[820px] text-left">
                 <thead>
                   <tr>
                     <th className={TH}>Vehicle No.</th>
                     <th className={TH}>Owner / Party</th>
-                    <th className={`${TH} text-right`}>Unladen Weight</th>
-                    <th className={`${TH} text-right`}>Capacity</th>
+                    <th className={TH}>Hire Period</th>
+                    <th className={TH}>Status</th>
                     <th className={TH}>Type</th>
                     <th className={TH} />
                   </tr>
@@ -311,8 +325,12 @@ export default function Vehicle() {
                         <p className="font-medium text-slate-700">{getOwnerName(vehicle)}</p>
                         {getHireNote(vehicle) && <p className="text-xs font-medium text-amber-700">{getHireNote(vehicle)}</p>}
                       </td>
-                      <td className={`${TD} whitespace-nowrap text-right text-slate-600`}>{formatWeight(vehicle.unladenWeight)}</td>
-                      <td className={`${TD} whitespace-nowrap text-right text-slate-600`}>{formatCapacity(vehicle.capacityCubicMeter)}</td>
+                      <td className={`${TD} whitespace-nowrap text-sm text-slate-600`}>{getHirePeriod(vehicle)?.range || '—'}</td>
+                      <td className={TD}>
+                        {getHirePeriod(vehicle)
+                          ? <span className={getHirePeriod(vehicle).status.className}>{getHirePeriod(vehicle).status.label}</span>
+                          : <span className="text-slate-400">—</span>}
+                      </td>
                       <td className={TD}>
                         <span className={getTypeBadgeClass(vehicle.vehicleType)}>{getTypeLabel(vehicle)}</span>
                       </td>

@@ -9,20 +9,29 @@ const { scopedFilter, scopedIdFilter } = require("../utils/ownership");
 const { cleanTripRates } = require("../utils/transportBasis");
 const { todayDay, syncVehicleMonthlyHire, syncHireEntries, findActiveVehicleHire } = require("../utils/monthlyHire");
 
-// The running monthly hire of each vehicle on monthly rent, so the app can show and edit its from date
+// Each monthly vehicle's running hire (monthlyHire), and its latest hire even when stopped (lastHire), for its dates
 const attachMonthlyHires = async (userId, vehicles) => {
   const monthlyIds = vehicles.filter((vehicle) => vehicle.hireBasis === "per_month").map((vehicle) => vehicle._id);
   if (monthlyIds.length === 0) return vehicles.map((vehicle) => vehicle.toObject());
 
-  const hires = await MonthlyHire.find({
-    userId,
-    vehicleId: { $in: monthlyIds },
-    cancelledAt: null,
-    $or: [{ endDate: null }, { endDate: { $gte: new Date(todayDay()) } }],
-  }).sort({ startDate: 1 });
-  const byVehicle = new Map(hires.map((hire) => [String(hire.vehicleId), { _id: hire._id, startDate: hire.startDate, monthlyRate: hire.monthlyRate }]));
+  const hires = await MonthlyHire.find({ userId, vehicleId: { $in: monthlyIds } })
+    .select("vehicleId startDate endDate cancelledAt monthlyRate")
+    .sort({ startDate: 1 });
+  const today = new Date(todayDay());
+  const running = new Map();
+  const latest = new Map();
+  for (const hire of hires) {
+    const key = String(hire.vehicleId);
+    const summary = { _id: hire._id, startDate: hire.startDate, endDate: hire.endDate, cancelledAt: hire.cancelledAt, monthlyRate: hire.monthlyRate };
+    latest.set(key, summary);
+    if (!hire.cancelledAt && (!hire.endDate || hire.endDate >= today)) running.set(key, summary);
+  }
 
-  return vehicles.map((vehicle) => ({ ...vehicle.toObject(), monthlyHire: byVehicle.get(String(vehicle._id)) || null }));
+  return vehicles.map((vehicle) => ({
+    ...vehicle.toObject(),
+    monthlyHire: running.get(String(vehicle._id)) || null,
+    lastHire: latest.get(String(vehicle._id)) || null,
+  }));
 };
 
 // My own vehicle belongs to no party
