@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
+import { ArrowDownLeft, ArrowLeft, ArrowUpRight, Inbox, Scale, ShoppingCart } from 'lucide-react';
 import apiClient from '../utils/api';
-import PartyMonthlyHires from './MonthlyHire/component/PartyMonthlyHires';
+import StatCard from '../components/StatCard';
+import Segmented from '../components/Segmented';
 
 const toInputDate = (value) => {
   const date = value instanceof Date ? value : new Date(value);
@@ -34,7 +36,7 @@ const formatDateTime = (value) => {
   });
 };
 
-const formatCurrency = (value) => `Rs ${Number(value || 0).toLocaleString('en-IN', {
+const formatCurrency = (value) => `₹${Number(value || 0).toLocaleString('en-IN', {
   minimumFractionDigits: 2,
   maximumFractionDigits: 2
 })}`;
@@ -93,74 +95,42 @@ const formatLabel = (value) => {
   return normalized.charAt(0).toUpperCase() + normalized.slice(1);
 };
 
-const getTypeMeta = (type) => {
-  if (type === 'sale') {
-    return {
-      label: 'Sale',
-      className: 'border-amber-200 bg-amber-50 text-amber-700'
-    };
-  }
-
-  if (type === 'purchase') {
-    return {
-      label: 'Purchase',
-      className: 'border-emerald-200 bg-emerald-50 text-emerald-700'
-    };
-  }
-
-  if (type === 'receipt') {
-    return {
-      label: 'Receipt',
-      className: 'border-sky-200 bg-sky-50 text-sky-700'
-    };
-  }
-
-  if (type === 'payment') {
-    return {
-      label: 'Payment',
-      className: 'border-violet-200 bg-violet-50 text-violet-700'
-    };
-  }
-
-  if (type === 'expense') {
-    return {
-      label: 'Expense',
-      className: 'border-rose-200 bg-rose-50 text-rose-700'
-    };
-  }
-
-  if (type === 'transport') {
-    return {
-      label: 'Transport',
-      className: 'border-orange-200 bg-orange-50 text-orange-700'
-    };
-  }
-
-  if (type === 'purchaseReturn') {
-    return {
-      label: 'Purchase Return',
-      className: 'border-rose-200 bg-rose-50 text-rose-700'
-    };
-  }
-
-  if (type === 'saleReturn') {
-    return {
-      label: 'Sale Return',
-      className: 'border-fuchsia-200 bg-fuchsia-50 text-fuchsia-700'
-    };
-  }
-
-  return {
-    label: formatLabel(type),
-    className: 'border-slate-200 bg-slate-100 text-slate-700'
-  };
+const TYPE_BADGES = {
+  sale: { label: 'Sale', className: 'badge-orange' },
+  purchase: { label: 'Purchase', className: 'badge-green' },
+  receipt: { label: 'Receipt', className: 'badge-blue' },
+  payment: { label: 'Payment', className: 'badge-gray' },
+  expense: { label: 'Expense', className: 'badge-red' },
+  transport: { label: 'Transport', className: 'badge-orange' },
+  boulder: { label: 'Boulder', className: 'badge-green' },
+  purchaseReturn: { label: 'Purchase Return', className: 'badge-red' },
+  saleReturn: { label: 'Sale Return', className: 'badge-red' }
 };
+
+const getTypeMeta = (type) => TYPE_BADGES[type] || { label: formatLabel(type), className: 'badge-gray' };
 
 const getBalanceHint = (value) => {
   if (Number(value || 0) > 0) return 'Receivable';
   if (Number(value || 0) < 0) return 'Payable';
   return 'Settled';
 };
+
+// "₹12,000 Dr" (they owe me) / "₹8,000 Cr" (I owe them)
+const formatBalance = (value) => {
+  const amount = Number(value || 0);
+  if (amount === 0) return formatCurrency(0);
+  return `${formatCurrency(Math.abs(amount))} ${amount > 0 ? 'Dr' : 'Cr'}`;
+};
+
+const PERIODS = [
+  { key: '', label: 'All Time', shortLabel: 'All' },
+  { key: 'last7Days', label: '7 Days' },
+  { key: 'last30Days', label: '30 Days' },
+  { key: 'last1Year', label: '1 Year' }
+];
+
+const TH = 'tbl-head px-3 py-2 first:pl-5 last:pr-5';
+const TD = 'tbl-cell px-3 py-2.5 first:pl-5 last:pr-5';
 
 const getLedgerMaterialType = (row) => {
   const materialType = String(row?.materialType || '').trim();
@@ -186,12 +156,12 @@ function VoucherDetailModal({ detail, loading, error, onClose }) {
   if (!detail && !loading && !error) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 p-3" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-3" onClick={onClose}>
       <div
         className="max-h-[92vh] w-full max-w-4xl overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl"
         onClick={(event) => event.stopPropagation()}
       >
-        <div className="flex items-start justify-between gap-4 border-b border-slate-200 bg-gradient-to-r from-slate-900 via-cyan-900 to-sky-800 px-5 py-4 text-white">
+        <div className="flex items-start justify-between gap-4 bg-gradient-to-r from-[#1f2a3c] via-[#27374f] to-[#314866] px-5 py-4 text-white">
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-cyan-100">Voucher Detail</p>
             <h2 className="mt-1 text-xl font-bold">{detail?.title || 'Loading details'}</h2>
@@ -377,11 +347,9 @@ export default function PartyDetail() {
   const [ledger, setLedger] = useState([]);
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
-  const [filterType, setFilterType] = useState('custom');
-  const [selectedMonth, setSelectedMonth] = useState('');
+  const [period, setPeriod] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [selectedLedgerEntry, setSelectedLedgerEntry] = useState(null);
   const [voucherDetail, setVoucherDetail] = useState(null);
   const [voucherLoading, setVoucherLoading] = useState(false);
   const [voucherError, setVoucherError] = useState('');
@@ -524,31 +492,18 @@ export default function PartyDetail() {
     });
   }, [ledger]);
 
-  const handleApplyFilter = async () => {
-    const resolvedRange = resolveDateRange(filterType, fromDate, toDate, selectedMonth);
-
-    if (filterType === 'monthwise' && !selectedMonth) {
-      setError('Please select a month for month-wise ledger.');
-      return;
-    }
-
-    setFromDate(resolvedRange.fromDate);
-    setToDate(resolvedRange.toDate);
-    await loadPartyDetails(true, resolvedRange);
-  };
-
-  const handleClearFilter = async () => {
-    setFilterType('custom');
-    setSelectedMonth('');
-    setFromDate('');
-    setToDate('');
-    await loadPartyDetails(true, { fromDate: '', toDate: '' });
+  // The ledger for a period: all time, or the last 7 days, 30 days or year
+  const choosePeriod = async (value) => {
+    setPeriod(value);
+    const range = value ? resolveDateRange(value, '', '', '') : { fromDate: '', toDate: '' };
+    setFromDate(range.fromDate);
+    setToDate(range.toDate);
+    await loadPartyDetails(true, range);
   };
 
   const handleOpenVoucherDetail = async (row) => {
     if (!isLedgerDetailSupported(row)) return;
 
-    setSelectedLedgerEntry(row);
     setVoucherDetail(null);
     setVoucherError('');
     setVoucherLoading(true);
@@ -570,7 +525,6 @@ export default function PartyDetail() {
   };
 
   const handleCloseVoucherDetail = () => {
-    setSelectedLedgerEntry(null);
     setVoucherDetail(null);
     setVoucherError('');
     setVoucherLoading(false);
@@ -628,219 +582,184 @@ export default function PartyDetail() {
     window.location.href = whatsappUrl;
   };
 
+  const boughtTotal = summary.totalPurchases + summary.totalBoulderPayable - summary.totalPurchaseReturns;
+  const stats = [
+    {
+      icon: Scale,
+      label: closingBalance > 0 ? 'You Receive' : closingBalance < 0 ? 'You Pay' : 'Balance',
+      tone: closingBalance > 0 ? 'emerald' : closingBalance < 0 ? 'rose' : 'indigo',
+      value: formatCurrency(Math.abs(closingBalance)),
+      hint: closingBalance === 0 ? 'Settled' : `${getBalanceHint(closingBalance)} as of today`
+    },
+    {
+      icon: ArrowUpRight,
+      label: 'Sales',
+      tone: 'amber',
+      value: formatCurrency(summary.totalSales - summary.totalSaleReturns),
+      hint: formatSaleSummaryQuantity(summary)
+    },
+    {
+      icon: ShoppingCart,
+      label: 'Purchases & Boulder',
+      tone: 'blue',
+      value: formatCurrency(boughtTotal),
+      hint: summary.boulderQty > 0 ? `Boulder ${formatQuantity(summary.boulderQty / 1000)} ton` : 'Bought from this party'
+    },
+    {
+      icon: ArrowDownLeft,
+      label: 'Received',
+      tone: 'indigo',
+      value: formatCurrency(summary.totalReceipts),
+      hint: `Paid out ${formatCurrency(summary.totalPayments)}`
+    }
+  ];
+
+  const partyLine = [
+    party?.type ? formatLabel(party.type === 'cash-in-hand' ? 'Cash' : party.type) : '',
+    party?.mobile || '',
+    party?.address || ''
+  ].filter(Boolean).join(' · ');
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-purple-50 to-pink-50">
-      <div className="w-full px-3 md:px-4 lg:px-6 pt-4 lg:pt-6 pb-8">
-        <div className="mb-4">
-          <div className="flex items-center justify-between mb-2">
-            <h1 className="truncate text-xl font-bold text-gray-900 flex items-center gap-2">
-              <Link
-                to="/reports/party-ledger"
-                aria-label="Back to party ledger"
-                className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-600 shadow-sm transition hover:border-gray-300 hover:text-gray-900"
-              >
-                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                </svg>
-              </Link>
-              {party?.name || 'Party Ledger'}
-            </h1>
-            <button
-              onClick={handleShareOnWhatsApp}
-              disabled={!party?.mobile}
-              className="flex shrink-0 items-center gap-2 rounded-xl bg-[#25D366] px-4 py-2 text-sm font-bold text-white shadow-sm transition hover:bg-[#20bd5a] disabled:opacity-50"
-            >
-              <svg viewBox="0 0 24 24" fill="currentColor" className="h-5 w-5">
-                <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.888-.788-1.489-1.761-1.663-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51a12.8 12.8 0 0 0-.57-.01c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413Z"/>
-              </svg>
-              <span className="hidden sm:inline">Share Ledger</span>
-            </button>
+    <div className="page-fade-in space-y-3.5 px-3 pb-6 pt-3.5 md:space-y-4 lg:px-6 lg:pt-4">
+      <div className="page-header gap-2.5">
+        <div className="flex min-w-0 items-center gap-2">
+          <Link to="/reports/party-ledger" aria-label="Back to party ledger" className="icon-btn shrink-0">
+            <ArrowLeft size={18} />
+          </Link>
+          <div className="min-w-0">
+            <h1 className="page-title truncate">{party?.name || 'Party Ledger'}</h1>
+            <p className="page-subtitle truncate">{partyLine || 'Party ledger'}</p>
           </div>
-          <p className="mb-4 text-xs text-gray-500 md:text-sm pl-10">
-            {party?.type ? `Type: ${formatLabel(party.type)}` : 'Type: -'}
-            {' | '}
-            {`Mobile: ${party?.mobile || '-'}`}
-            {party?.address ? ` | ${party.address}` : ''}
-          </p>
-
-          {error ? (
-            <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-3 py-2.5 text-sm text-red-700">
-              {error}
-            </div>
-          ) : null}
         </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <Segmented options={PERIODS} value={period} onChange={choosePeriod} />
+          <button
+            type="button"
+            onClick={handleShareOnWhatsApp}
+            disabled={!party?.mobile}
+            title={party?.mobile ? 'Send the ledger summary on WhatsApp' : 'This party has no mobile number'}
+            className="inline-flex shrink-0 items-center gap-2 rounded-lg bg-[#25D366] px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-[#20bd5a] disabled:opacity-50"
+          >
+            <svg viewBox="0 0 24 24" fill="currentColor" className="h-4 w-4" aria-hidden="true">
+              <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.888-.788-1.489-1.761-1.663-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51a12.8 12.8 0 0 0-.57-.01c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413Z" />
+            </svg>
+            <span className="hidden sm:inline">Share</span>
+          </button>
+        </div>
+      </div>
 
-      {/* The cash party never hires a vehicle */}
-      {id && party?.type !== 'cash-in-hand' && (
-        <PartyMonthlyHires partyId={id} onChanged={() => loadPartyDetails(false)} />
-      )}
+      {error && <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm font-semibold text-rose-700">{error}</div>}
 
-      <div className="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden mt-6">
-        <div className="px-6 py-4 bg-gradient-to-r from-green-50 to-emerald-50 border-b border-gray-200">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-green-500 to-emerald-500 flex items-center justify-center">
-                <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
-                </svg>
-              </div>
-              <div>
-                <h2 className="text-lg font-bold text-gray-900">Transaction Ledger</h2>
-                <p className="text-xs text-gray-600">
-                  Sale, purchase, expense, receipt, payment, boulder, monthly hire, and return history.
-                </p>
-              </div>
-            </div>
-          </div>
+      <section className="grid grid-cols-2 gap-2 md:gap-3 lg:grid-cols-4">
+        {stats.map((stat) => <StatCard key={stat.label} compact {...stat} />)}
+      </section>
+
+      <section className="panel">
+        <div className="panel-header flex flex-wrap items-baseline justify-between gap-2 py-2.5">
+          <h2 className="text-sm font-bold text-slate-800">Ledger</h2>
+          <span className="text-xs text-slate-500">
+            {summary.entries} entr{summary.entries === 1 ? 'y' : 'ies'} · newest first · Dr = they owe you, Cr = you owe them
+          </span>
         </div>
 
         {loading ? (
-          <div className="px-4 py-10 text-center text-sm text-slate-500">Loading...</div>
+          <div className="flex flex-col items-center gap-3 py-14">
+            <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary-600 border-r-transparent" />
+            <p className="text-sm text-slate-400">Loading ledger…</p>
+          </div>
+        ) : sortedLedgerRows.length === 0 ? (
+          <div className="flex flex-col items-center gap-2 px-6 py-10 text-center">
+            <span className="flex h-11 w-11 items-center justify-center rounded-full bg-slate-100 text-slate-400"><Inbox size={20} /></span>
+            <p className="text-sm font-semibold text-slate-800">No entries {period ? 'in this period' : 'yet'}</p>
+          </div>
         ) : (
-          <div className="p-3 md:p-4">
-            <div className="space-y-3 md:hidden">
+          <>
+            {/* Phone: three short lines per entry */}
+            <ul className="divide-y divide-slate-100 md:hidden">
               {sortedLedgerRows.map((row, index) => {
                 const typeMeta = getTypeMeta(row.type);
-
                 return (
-                  <article
-                    key={`${row.refId || 'party-ledger'}-${index}`}
-                    className="rounded-2xl border border-slate-200 bg-gradient-to-b from-white to-slate-50/50 p-4 shadow-sm"
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="space-y-2">
-                        <span className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold ${typeMeta.className}`}>
-                          {getEntryTypeLabel(row)}
-                        </span>
-                        <div className="flex flex-col items-start">
-                          <p className="text-xs font-medium text-slate-500">{formatDate(row.date)}</p>
+                  <li key={`${row.refId || 'party-ledger'}-${index}`} className="px-4 py-2.5">
+                    <div className="flex items-center justify-between gap-3">
+                      <span className={typeMeta.className}>{getEntryTypeLabel(row)}</span>
+                      <span className="text-sm font-bold text-slate-900">{formatCurrency(row.amount)}</span>
+                    </div>
+                    <div className="mt-1 flex items-center justify-between gap-3 text-xs text-slate-500">
+                      <span className="min-w-0 truncate">
+                        {formatDate(row.date)}
+                        {' · '}
+                        {isLedgerDetailSupported(row) ? (
+                          <button type="button" onClick={() => handleOpenVoucherDetail(row)} className="font-semibold text-primary-600">
+                            {row.refNumber && row.refNumber !== '-' ? row.refNumber : 'Details'}
+                          </button>
+                        ) : (row.refNumber || '-')}
+                        {getLedgerMaterialType(row) !== '-' ? ` · ${getLedgerMaterialType(row)}` : ''}
+                        {getLedgerVehicleNumber(row) !== '-' ? ` · ${getLedgerVehicleNumber(row)}` : ''}
+                      </span>
+                      <span className={`shrink-0 font-semibold ${Number(row.displayRunningBalance || 0) > 0 ? 'text-emerald-700' : Number(row.displayRunningBalance || 0) < 0 ? 'text-rose-700' : 'text-slate-500'}`}>
+                        {formatBalance(row.displayRunningBalance)}
+                      </span>
+                    </div>
+                    {hasPaidAmount(row) && (
+                      <p className="text-[11px] text-slate-400">
+                        Paid {formatCurrency(row.paidAmount)}
+                        {Number(row.impact || 0) !== 0 ? ` · due ${formatCurrency(Math.abs(Number(row.impact || 0)))}` : ''}
+                      </p>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+
+            <div className="hidden overflow-x-auto md:block">
+              <table className="w-full min-w-[900px] text-left">
+                <thead>
+                  <tr>
+                    <th className={TH}>Date</th>
+                    <th className={TH}>Type</th>
+                    <th className={TH}>Material / Vehicle</th>
+                    <th className={`${TH} text-right`}>Quantity</th>
+                    <th className={`${TH} text-right`}>Amount</th>
+                    <th className={`${TH} text-right`}>Paid</th>
+                    <th className={`${TH} text-right`}>Due</th>
+                    <th className={`${TH} text-right`}>Balance</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {sortedLedgerRows.map((row, index) => {
+                    const typeMeta = getTypeMeta(row.type);
+                    const due = Number(row.impact || 0);
+                    const runningBalance = Number(row.displayRunningBalance || 0);
+                    return (
+                      <tr key={`${row.refId || 'party-ledger'}-${index}`} className="tbl-row">
+                        <td className={`${TD} whitespace-nowrap`}>
+                          {formatDate(row.date)}
                           {isLedgerDetailSupported(row) ? (
                             <button
                               type="button"
                               onClick={() => handleOpenVoucherDetail(row)}
-                              className="text-xs font-semibold text-blue-600 underline decoration-blue-300 underline-offset-2 transition hover:text-blue-800"
+                              className="block text-[11px] font-semibold leading-tight text-primary-600 hover:underline"
                             >
                               {row.refNumber && row.refNumber !== '-' ? row.refNumber : 'View details'}
                             </button>
                           ) : (
-                            <p className="text-xs text-slate-600">{row.refNumber || '-'}</p>
+                            <span className="block text-[11px] leading-tight text-slate-400">{row.refNumber || '-'}</span>
                           )}
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        {hasPaidAmount(row) ? (
-                          <div className="mt-3 space-y-2 rounded-xl bg-slate-50 p-3">
-                            <div className="flex justify-between items-center text-[11px]">
-                              <span className="text-slate-500 uppercase font-bold tracking-wider">{typeMeta.label} Total</span>
-                              <span className="font-black text-slate-800">{formatCurrency(row.amount)}</span>
-                            </div>
-                            <div className="flex justify-between items-center text-[11px]">
-                              <span className="text-slate-500 uppercase font-bold tracking-wider">Paid Amount</span>
-                              <span className="font-black text-emerald-600">{formatCurrency(row.paidAmount)}</span>
-                            </div>
-                            <div className="flex justify-between items-center text-[11px] pt-1 border-t border-slate-200">
-                              <span className="text-slate-500 uppercase font-bold tracking-wider">{typeMeta.label} Balance</span>
-                              <span className={`font-black ${Number(row.impact || 0) !== 0 ? (Number(row.impact || 0) > 0 ? 'text-rose-600' : 'text-emerald-600') : 'text-slate-400'}`}>
-                                {formatCurrency(Math.abs(Number(row.impact || 0)))}
-                              </span>
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="mt-3 flex justify-between items-center rounded-xl bg-slate-50 p-3 text-[11px]">
-                            <span className="text-slate-500 uppercase font-bold tracking-wider">Amount</span>
-                            <span className="font-black text-slate-900">{formatCurrency(row.amount)}</span>
-                          </div>
-                        )}
-                        <p className={`mt-2 text-xs font-semibold ${Number(row.displayRunningBalance || 0) >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
-                          Bal {formatCurrency(row.displayRunningBalance)}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="mt-4 space-y-2">
-                      <div className="flex items-center justify-between rounded-xl bg-slate-100/80 px-3 py-2 text-xs">
-                        <div className="min-w-0">
-                          <p className="font-medium uppercase tracking-wider text-slate-500">{getLedgerMaterialType(row)}</p>
-                          <p className="mt-1 font-semibold text-slate-800">{formatLedgerQuantity(row)}</p>
-                        </div>
-                        <div className="text-right">
-                          <p className="font-medium uppercase tracking-wider text-slate-500">Vehicle</p>
-                          <p className="mt-1 font-semibold text-slate-800">{getLedgerVehicleNumber(row)}</p>
-                        </div>
-                      </div>
-                    </div>
-                  </article>
-                );
-              })}
-            </div>
-
-            <div className="hidden overflow-x-auto md:block">
-              <table className="w-full min-w-[1000px] border-separate border-spacing-0">
-                <thead className="bg-gradient-to-r from-slate-800 via-slate-700 to-slate-800 text-white">
-                  <tr>
-                    <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider rounded-tl-xl">Date & Ref</th>
-                    <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider">Type</th>
-                    <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider">Material & Vehicle</th>
-                    <th className="px-6 py-4 text-center text-xs font-bold uppercase tracking-wider">Quantity</th>
-                    <th className="px-6 py-4 text-right text-xs font-bold uppercase tracking-wider">Total</th>
-                    <th className="px-6 py-4 text-right text-xs font-bold uppercase tracking-wider">Paid</th>
-                    <th className="px-6 py-4 text-right text-xs font-bold uppercase tracking-wider">Balance</th>
-                    <th className="px-6 py-4 text-right text-xs font-bold uppercase tracking-wider rounded-tr-xl">Running Balance</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 bg-white">
-                  {sortedLedgerRows.map((row, index) => {
-                    const typeMeta = getTypeMeta(row.type);
-
-                    return (
-                      <tr key={`${row.refId || 'party-ledger'}-${index}`} className="transition-colors hover:bg-slate-50">
-                        <td className="px-6 py-4">
-                          <div>
-                            <p className="text-sm font-semibold text-slate-800">{formatDate(row.date)}</p>
-                            {isLedgerDetailSupported(row) ? (
-                              <button
-                                type="button"
-                                onClick={() => handleOpenVoucherDetail(row)}
-                                className="text-xs font-semibold text-blue-600 underline decoration-blue-300 underline-offset-2 transition hover:text-blue-800"
-                              >
-                                {row.refNumber && row.refNumber !== '-' ? row.refNumber : 'View details'}
-                              </button>
-                            ) : (
-                              <p className="text-xs text-slate-500">{row.refNumber || '-'}</p>
-                            )}
-                          </div>
                         </td>
-                        <td className="px-6 py-4">
-                          <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${typeMeta.className}`}>
-                            {getEntryTypeLabel(row)}
-                          </span>
+                        <td className={TD}><span className={typeMeta.className}>{getEntryTypeLabel(row)}</span></td>
+                        <td className={TD}>
+                          <p className="font-medium text-slate-800">{getLedgerMaterialType(row)}</p>
+                          {getLedgerVehicleNumber(row) !== '-' && <p className="text-[11px] text-slate-500">{getLedgerVehicleNumber(row)}</p>}
                         </td>
-                        <td className="px-6 py-4">
-                          <div className="space-y-1">
-                            <p className="text-sm font-semibold text-slate-800">{getLedgerMaterialType(row)}</p>
-                            <p className="text-xs text-slate-500">{getLedgerVehicleNumber(row)}</p>
-                          </div>
+                        <td className={`${TD} whitespace-nowrap text-right text-slate-600`}>{formatLedgerQuantity(row)}</td>
+                        <td className={`${TD} whitespace-nowrap text-right font-semibold text-slate-900`}>{formatCurrency(row.amount)}</td>
+                        <td className={`${TD} whitespace-nowrap text-right text-emerald-700`}>{hasPaidAmount(row) ? formatCurrency(row.paidAmount) : '—'}</td>
+                        <td className={`${TD} whitespace-nowrap text-right ${due > 0 ? 'text-rose-700' : due < 0 ? 'text-emerald-700' : 'text-slate-400'}`}>
+                          {hasPaidAmount(row) ? formatCurrency(Math.abs(due)) : '—'}
                         </td>
-                        <td className="px-6 py-4 text-center">
-                          <p className="text-sm font-semibold text-slate-800">{formatLedgerQuantity(row)}</p>
-                        </td>
-                        <td className="px-6 py-4 text-right">
-                          <p className="text-sm font-bold text-slate-800">{formatCurrency(row.amount)}</p>
-                        </td>
-                        <td className="px-6 py-4 text-right">
-                          <p className="text-sm font-bold text-emerald-600">
-                            {hasPaidAmount(row) ? formatCurrency(row.paidAmount) : '-'}
-                          </p>
-                        </td>
-                        <td className="px-6 py-4 text-right">
-                          <p className={`text-sm font-bold ${Number(row.impact || 0) !== 0 ? (Number(row.impact || 0) > 0 ? 'text-rose-600' : 'text-emerald-600') : 'text-slate-400'}`}>
-                            {hasPaidAmount(row) ? formatCurrency(Math.abs(Number(row.impact || 0))) : '-'}
-                          </p>
-                        </td>
-                        <td className="px-6 py-4 text-right">
-                          <p className={`text-sm font-black ${(row.displayRunningBalance || 0) >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
-                            {formatCurrency(row.displayRunningBalance)}
-                          </p>
+                        <td className={`${TD} whitespace-nowrap text-right font-bold ${runningBalance > 0 ? 'text-emerald-700' : runningBalance < 0 ? 'text-rose-700' : 'text-slate-500'}`}>
+                          {formatBalance(runningBalance)}
                         </td>
                       </tr>
                     );
@@ -848,9 +767,9 @@ export default function PartyDetail() {
                 </tbody>
               </table>
             </div>
-          </div>
+          </>
         )}
-      </div>
+      </section>
 
       <VoucherDetailModal
         detail={voucherDetail}
@@ -858,7 +777,6 @@ export default function PartyDetail() {
         error={voucherError}
         onClose={handleCloseVoucherDetail}
       />
-      </div>
     </div>
   );
 }
