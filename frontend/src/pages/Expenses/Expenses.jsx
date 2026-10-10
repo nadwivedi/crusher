@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { CalendarDays, ChevronDown, Plus, Search } from 'lucide-react';
+import { CalendarDays, ChevronDown, Inbox, Pencil, Plus, Receipt, Search, Trash2, Wallet } from 'lucide-react';
 import { toast } from 'react-toastify';
 import apiClient from '../../utils/api';
 import { useAuth } from '../../context/AuthContext';
@@ -9,6 +9,7 @@ import useAccounts from '../../utils/useAccounts';
 import CustomRangePopup, { CustomRangeButton } from '../../components/CustomRangePopup';
 import MonthPickerPopup, { MonthRangeButton, getMonthRange } from '../../components/MonthPickerPopup';
 import FormSection from '../../components/FormSection';
+import StatCard from '../../components/StatCard';
 import OptionList from '../../components/OptionList';
 import AddExpensePopup from './component/AddExpensePopup';
 import AddExpenseTypePopup from './component/AddExpenseTypePopup';
@@ -160,13 +161,15 @@ const isWithinRange = (value, range, customFrom = '', customTo = '', monthValue 
 
 const getMethodBadgeClass = (method) => {
   const normalized = String(method || '').toLowerCase();
-  if (normalized === 'cash') return 'border border-emerald-200 bg-emerald-50 text-emerald-700';
-  if (normalized === 'bank') return 'border border-blue-200 bg-blue-50 text-blue-700';
-  if (normalized === 'upi') return 'border border-violet-200 bg-violet-50 text-violet-700';
-  if (normalized === 'card') return 'border border-amber-200 bg-amber-50 text-amber-700';
-  if (normalized === 'credit') return 'border border-rose-200 bg-rose-50 text-rose-700';
-  return 'border border-slate-200 bg-slate-100 text-slate-700';
+  if (normalized === 'cash') return 'badge-green';
+  if (normalized === 'bank' || normalized === 'upi') return 'badge-blue';
+  if (normalized === 'card') return 'badge-orange';
+  if (normalized === 'credit') return 'badge-red';
+  return 'badge-gray';
 };
+
+const TH = 'tbl-head px-3 py-2 first:pl-5 last:pr-5';
+const TD = 'tbl-cell px-3 py-2.5 first:pl-5 last:pr-5';
 
 // "₹12,500" or "−₹800" for an overdrawn account
 const formatAccountBalance = (value) => `${value < 0 ? '−' : ''}₹${Math.abs(Number(value || 0)).toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
@@ -1073,22 +1076,14 @@ export default function Expenses({ modalOnly = false, onModalFinish = null }) {
     const isGoods = Array.isArray(expense.items) && expense.items.length > 0;
 
     return (
-      <div className={`flex items-center justify-center gap-2 ${className}`}>
+      <div className={`flex items-center justify-end ${className}`}>
         {!isGoods && (
-          <button
-            type="button"
-            onClick={() => handleEdit(expense)}
-            className="inline-flex items-center justify-center rounded-md border border-blue-200 bg-white px-3 py-1.5 text-[11px] font-medium text-blue-700 shadow-sm transition hover:border-blue-300 hover:bg-blue-50"
-          >
-            Edit
+          <button type="button" title="Edit" aria-label="Edit" className="icon-btn p-1.5 hover:bg-blue-50 hover:text-blue-600" onClick={() => handleEdit(expense)}>
+            <Pencil size={16} />
           </button>
         )}
-        <button
-          type="button"
-          onClick={() => handleDelete(expense)}
-          className="inline-flex items-center justify-center rounded-md border border-rose-200 bg-white px-3 py-1.5 text-[11px] font-medium text-rose-700 shadow-sm transition hover:border-rose-300 hover:bg-rose-50"
-        >
-          Delete
+        <button type="button" title="Delete" aria-label="Delete" className="icon-btn p-1.5 hover:bg-rose-50 hover:text-rose-600" onClick={() => handleDelete(expense)}>
+          <Trash2 size={16} />
         </button>
       </div>
     );
@@ -1383,8 +1378,11 @@ export default function Expenses({ modalOnly = false, onModalFinish = null }) {
     return acc;
   }, { total: 0, cash: 0, credit: 0 }), [visibleExpenses]);
 
+  const categoryGrandTotal = categoryStats.reduce((sum, row) => sum + row.totalAmount, 0);
+  const showCategoryQty = categoryStats.some((item) => item.totalQty > 0);
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-100 via-slate-50 to-stone-100">
+    <div className="page-fade-in space-y-3.5 px-3 pb-6 pt-3.5 md:space-y-4 lg:px-6 lg:pt-4">
       {showMonthPicker && (
         <MonthPickerPopup
           month={selectedMonth}
@@ -1397,142 +1395,6 @@ export default function Expenses({ modalOnly = false, onModalFinish = null }) {
       {showCustomPicker && (
         <CustomRangePopup from={customFrom} to={customTo} onApply={applyCustomRange} onClose={closeCustomPicker} />
       )}
-      <div className="mx-auto max-w-[95%] px-4 py-6">
-        {error && (
-          <div className="mb-6 rounded-2xl border border-rose-200 bg-rose-50 px-6 py-4 text-sm font-semibold text-rose-700 shadow-lg">
-            {error}
-          </div>
-        )}
-
-        <div className="overflow-hidden rounded-3xl border border-slate-100 bg-white shadow-xl">
-          <div className="border-b border-slate-100 bg-white px-6 py-5">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <h2 className="text-lg font-black text-slate-800">Expense Table</h2>
-                <p className="text-sm text-slate-500">Search and review expense entries</p>
-              </div>
-
-              <div className="flex flex-col gap-3 sm:flex-row">
-                <div className="relative">
-                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                  <input
-                    type="text"
-                    placeholder="Search expenses..."
-                    value={search}
-                    onChange={(event) => setSearch(event.target.value)}
-                    className="w-full rounded-xl border-2 border-slate-400 bg-white py-2.5 pl-10 pr-4 text-sm font-medium text-slate-700 transition-all focus:border-sky-500 focus:outline-none focus:ring-4 focus:ring-sky-100 sm:w-64"
-                  />
-                </div>
-
-                <div className="relative">
-                  <CalendarDays className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                  <select
-                    value={tableRange}
-                    onChange={(event) => handleRangeChange(event.target.value)}
-                    className="w-full rounded-xl border-2 border-slate-300 bg-white py-2.5 pl-10 pr-4 text-sm font-medium text-slate-700 transition-all focus:border-sky-500 focus:outline-none focus:ring-4 focus:ring-sky-100 sm:w-52"
-                  >
-                    {EXPENSE_RANGE_OPTIONS.map((option) => (
-                      <option key={option.value} value={option.value}>{option.label}</option>
-                    ))}
-                  </select>
-                </div>
-
-                {tableRange === 'month' && (
-                  <MonthRangeButton month={selectedMonth} year={selectedYear} onClick={() => setShowMonthPicker(true)} />
-                )}
-
-                {tableRange === 'custom' && (
-                  <CustomRangeButton from={customFrom} to={customTo} onClick={() => setShowCustomPicker(true)} />
-                )}
-
-                <button
-                  type="button"
-                  onClick={handleOpenForm}
-                  disabled={expenseGroups.length === 0}
-                  className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl bg-slate-800 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-900 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  <Plus className="h-4 w-4" />
-                  Add Expense
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3 border-b border-slate-100 bg-slate-50 px-6 py-4 lg:grid-cols-4">
-            {[
-              { label: 'Total Expense', value: formatCurrency(expenseSummary.total), tone: 'text-rose-700' },
-              { label: 'Cash Expense', value: formatCurrency(expenseSummary.cash), tone: 'text-emerald-700' },
-              { label: 'Credit Expense', value: formatCurrency(expenseSummary.credit), tone: 'text-amber-700' },
-              { label: 'Entries', value: String(visibleExpenses.length), tone: 'text-slate-800' }
-            ].map((card) => (
-              <div key={card.label} className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{card.label}</p>
-                <p className={`mt-1 text-lg font-black ${card.tone}`}>{card.value}</p>
-              </div>
-            ))}
-          </div>
-
-          {categoryStats.length > 0 && (
-            <div className="border-b border-slate-100 px-6 py-4">
-              <div className="mb-3 flex items-center justify-between">
-                <h3 className="text-sm font-black text-slate-800">Category Wise Expense</h3>
-                {categoryFilter && (
-                  <button
-                    type="button"
-                    onClick={() => setCategoryFilter('')}
-                    className="text-xs font-semibold text-sky-600 hover:underline"
-                  >
-                    Clear filter
-                  </button>
-                )}
-              </div>
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[480px] text-sm">
-                  <thead>
-                    <tr className="text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
-                      <th className="py-2 pr-3">#</th>
-                      <th className="py-2 pr-3">Category</th>
-                      <th className="py-2 pr-3 text-right">Entries</th>
-                      {categoryStats.some((item) => item.totalQty > 0) && (
-                        <th className="py-2 pr-3 text-right">Quantity</th>
-                      )}
-                      <th className="py-2 pr-3 text-right">Amount</th>
-                      <th className="py-2 text-right">Share</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {categoryStats.map((item, index) => {
-                      const grandTotal = categoryStats.reduce((sum, row) => sum + row.totalAmount, 0);
-                      const share = grandTotal > 0 ? (item.totalAmount / grandTotal) * 100 : 0;
-                      const active = categoryFilter === item.key;
-                      return (
-                        <tr
-                          key={item.key}
-                          onClick={() => setCategoryFilter(active ? '' : item.key)}
-                          className={`cursor-pointer border-t border-slate-100 hover:bg-slate-50 ${active ? 'bg-sky-50' : ''}`}
-                        >
-                          <td className="py-2 pr-3 text-slate-500">{index + 1}</td>
-                          <td className="py-2 pr-3 font-semibold text-slate-800">{item.name}</td>
-                          <td className="py-2 pr-3 text-right text-slate-700">{item.count}</td>
-                          {categoryStats.some((row) => row.totalQty > 0) && (
-                            <td className="py-2 pr-3 text-right text-slate-700">
-                              {item.totalQty > 0
-                                ? `${item.totalQty.toLocaleString('en-IN', { maximumFractionDigits: 2 })}${item.unit ? ` ${item.unit}` : ''}`
-                                : ''}
-                            </td>
-                          )}
-                          <td className="py-2 pr-3 text-right font-bold text-slate-800">{formatCurrency(item.totalAmount)}</td>
-                          <td className="py-2 text-right text-slate-500">{share.toFixed(1)}%</td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-              <p className="mt-2 text-xs text-slate-400">Sorted by amount, highest first. Click a category to filter the table below.</p>
-            </div>
-          )}
-
       <AddExpenseTypePopup
         open={showTypePopup}
         name={newTypeName}
@@ -1747,123 +1609,189 @@ export default function Expenses({ modalOnly = false, onModalFinish = null }) {
         </AddExpensePopup>
       )}
 
-          {loading ? (
-            <div className="px-6 py-10 text-center text-slate-500">Loading...</div>
-          ) : (
-            <div className="p-3 sm:p-5">
-              <div className="space-y-3 md:hidden">
-                {visibleExpenses.map((expense) => (
-                  <article
-                    key={expense._id}
-                    className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-lg"
-                  >
-                    <div className="flex items-start justify-between gap-3 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white px-4 py-3">
-                      <div className="min-w-0">
-                        <p className="truncate text-sm font-bold text-slate-800">{expense.expenseGroup?.name || 'Expense Type'}</p>
-                        {getExpenseQtyLabel(expense) && (
-                          <p className="truncate text-xs font-semibold text-slate-500">Qty: {getExpenseQtyLabel(expense)}</p>
-                        )}
-                        <p className="mt-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">{expense.expenseNumber || '-'}</p>
-                        <p className="mt-1 text-xs text-slate-500">{formatDate(expense.expenseDate)}</p>
-                      </div>
-                      <div className="rounded-xl bg-emerald-50 px-3 py-1.5 text-right">
-                        <p className="text-[10px] uppercase tracking-[0.18em] text-emerald-600">Amount</p>
-                        <p className="mt-1 text-sm font-bold text-emerald-700">{formatCurrency(expense.amount)}</p>
-                      </div>
-                    </div>
-
-                    <div className="space-y-3 px-4 py-4 text-sm">
-                      <div className="flex items-center justify-between gap-3 rounded-xl bg-slate-50 px-3 py-2.5">
-                        <span className="text-xs font-medium uppercase tracking-[0.18em] text-slate-500">Party</span>
-                        <span className="text-right font-semibold text-slate-800">{expense.party?.name || '-'}</span>
-                      </div>
-
-                      <div className="flex items-center justify-between gap-3 rounded-xl bg-slate-50 px-3 py-2.5">
-                        <span className="text-xs font-medium uppercase tracking-[0.18em] text-slate-500">Paid From</span>
-                        <span className={`inline-flex rounded-md px-2.5 py-1 text-xs font-semibold capitalize ${getMethodBadgeClass(expense.method)}`}>
-                          {expense.account?.name || expense.method}
-                        </span>
-                      </div>
-
-                      <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5">
-                        <p className="text-xs font-medium uppercase tracking-[0.18em] text-slate-500">Notes</p>
-                        <p className="mt-1 break-words text-sm text-slate-700">{expense.notes || '-'}</p>
-                      </div>
-
-                      {renderExpenseActions(expense, 'pt-1')}
-                    </div>
-                  </article>
-                ))}
-
-                {visibleExpenses.length === 0 && (
-                  <div className="rounded-2xl border border-dashed border-slate-300 bg-white/80 px-6 py-10 text-center text-slate-500">
-                    No expenses found
-                  </div>
-                )}
-              </div>
-
-              <div className="hidden overflow-x-auto md:block">
-                <table className="w-full min-w-[920px] text-left">
-                  <thead>
-                    <tr>
-                      <th className="bg-gradient-to-r from-slate-800 via-slate-700 to-slate-800 px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-white lg:px-4 lg:py-3 lg:text-[10px] xl:px-6 xl:py-4 xl:text-xs">Date</th>
-                      <th className="bg-gradient-to-r from-slate-800 via-slate-700 to-slate-800 px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-white lg:px-4 lg:py-3 lg:text-[10px] xl:px-6 xl:py-4 xl:text-xs">Ref</th>
-                      <th className="bg-gradient-to-r from-slate-800 via-slate-700 to-slate-800 px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-white lg:px-4 lg:py-3 lg:text-[10px] xl:px-6 xl:py-4 xl:text-xs">Expense Type</th>
-                      <th className="bg-gradient-to-r from-slate-800 via-slate-700 to-slate-800 px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-white lg:px-4 lg:py-3 lg:text-[10px] xl:px-6 xl:py-4 xl:text-xs">Party</th>
-                      <th className="bg-gradient-to-r from-slate-800 via-slate-700 to-slate-800 px-6 py-4 text-right text-xs font-bold uppercase tracking-wider text-white lg:px-4 lg:py-3 lg:text-[10px] xl:px-6 xl:py-4 xl:text-xs">Amount</th>
-                      <th className="bg-gradient-to-r from-slate-800 via-slate-700 to-slate-800 px-6 py-4 text-center text-xs font-bold uppercase tracking-wider text-white lg:px-4 lg:py-3 lg:text-[10px] xl:px-6 xl:py-4 xl:text-xs">Paid From</th>
-                      <th className="bg-gradient-to-r from-slate-800 via-slate-700 to-slate-800 px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-white lg:px-4 lg:py-3 lg:text-[10px] xl:px-6 xl:py-4 xl:text-xs">Notes</th>
-                      {canManageExpenses && (
-                        <th className="bg-gradient-to-r from-slate-800 via-slate-700 to-slate-800 px-6 py-4 text-center text-xs font-bold uppercase tracking-wider text-white lg:px-4 lg:py-3 lg:text-[10px] xl:px-6 xl:py-4 xl:text-xs">Actions</th>
-                      )}
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {visibleExpenses.map((expense) => (
-                      <tr key={expense._id} className="transition-colors hover:bg-sky-50/50">
-                        <td className="px-6 py-4 text-sm font-medium text-slate-700 lg:px-4 lg:py-3 lg:text-[12px] xl:px-6 xl:py-4 xl:text-sm">
-                          {formatDate(expense.expenseDate)}
-                        </td>
-                        <td className="px-6 py-4 text-sm font-semibold text-slate-800 lg:px-4 lg:py-3 lg:text-[12px] xl:px-6 xl:py-4 xl:text-sm">
-                          {expense.expenseNumber || '-'}
-                        </td>
-                        <td className="px-6 py-4 text-sm font-semibold text-slate-800 lg:px-4 lg:py-3 lg:text-[12px] xl:px-6 xl:py-4 xl:text-sm">
-                          {expense.expenseGroup?.name || '-'}
-                          {getExpenseQtyLabel(expense) && (
-                            <div className="mt-0.5 text-xs font-medium text-slate-500">Qty: {getExpenseQtyLabel(expense)}</div>
-                          )}
-                        </td>
-                        <td className="px-6 py-4 text-sm text-slate-700 lg:px-4 lg:py-3 lg:text-[12px] xl:px-6 xl:py-4 xl:text-sm">{expense.party?.name || '-'}</td>
-                        <td className="px-6 py-4 text-right text-sm font-black text-emerald-600 lg:px-4 lg:py-3 lg:text-[12px] xl:px-6 xl:py-4 xl:text-sm">
-                          {formatCurrency(expense.amount)}
-                        </td>
-                        <td className="px-6 py-4 text-center lg:px-4 lg:py-3 xl:px-6 xl:py-4">
-                          <span className={`inline-flex rounded-md px-2.5 py-1 text-xs font-semibold capitalize lg:px-2 lg:py-0.5 lg:text-[10px] xl:px-2.5 xl:py-1 xl:text-xs ${getMethodBadgeClass(expense.method)}`}>
-                            {expense.account?.name || expense.method}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 text-sm text-slate-700 lg:px-4 lg:py-3 lg:text-[12px] xl:px-6 xl:py-4 xl:text-sm">
-                          <div className="max-w-[24rem] truncate">{expense.notes || '-'}</div>
-                        </td>
-                        {canManageExpenses && (
-                          <td className="px-6 py-4 lg:px-4 lg:py-3 xl:px-6 xl:py-4">{renderExpenseActions(expense)}</td>
-                        )}
-                      </tr>
-                    ))}
-                    {visibleExpenses.length === 0 && (
-                      <tr>
-                        <td colSpan={canManageExpenses ? 8 : 7} className="px-6 py-16 text-center text-slate-500">
-                          No expenses found
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
+      <div className="page-header gap-2.5">
+        <div className="min-w-0">
+          <h1 className="page-title">Expenses</h1>
+          <p className="page-subtitle">Every expense, by category, with how it was paid</p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="relative">
+            <CalendarDays className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <select
+              value={tableRange}
+              onChange={(event) => handleRangeChange(event.target.value)}
+              className="input w-auto py-1.5 pl-9"
+              aria-label="Period"
+            >
+              {EXPENSE_RANGE_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>{option.label}</option>
+              ))}
+            </select>
+          </div>
+          {tableRange === 'month' && (
+            <MonthRangeButton month={selectedMonth} year={selectedYear} onClick={() => setShowMonthPicker(true)} />
           )}
+          {tableRange === 'custom' && (
+            <CustomRangeButton from={customFrom} to={customTo} onClick={() => setShowCustomPicker(true)} />
+          )}
+          <button type="button" className="btn-primary" onClick={handleOpenForm} disabled={expenseGroups.length === 0}>
+            <Plus size={18} /> Add Expense
+          </button>
         </div>
       </div>
+
+      {error && <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm font-semibold text-rose-700">{error}</div>}
+
+      <section className="grid grid-cols-2 gap-2 md:gap-3 lg:grid-cols-4">
+        <StatCard compact icon={Wallet} tone="rose" label="Total Expense" value={formatCurrency(expenseSummary.total)} hint="In the selected period" />
+        <StatCard compact icon={Wallet} tone="emerald" label="Paid" value={formatCurrency(expenseSummary.cash)} hint="Cash or bank" />
+        <StatCard compact icon={Wallet} tone="amber" label="On Credit" value={formatCurrency(expenseSummary.credit)} hint="Still to pay" />
+        <StatCard compact icon={Receipt} tone="indigo" label="Entries" value={String(visibleExpenses.length)} hint={categoryFilter ? 'In the picked category' : 'All categories'} />
+      </section>
+
+      {categoryStats.length > 0 && (
+        <section className="panel">
+          <div className="panel-header flex items-baseline justify-between gap-2 py-2.5">
+            <h2 className="text-sm font-bold text-slate-800">By Category</h2>
+            {categoryFilter ? (
+              <button type="button" onClick={() => setCategoryFilter('')} className="text-xs font-semibold text-primary-600 hover:underline">
+                Show all categories
+              </button>
+            ) : (
+              <span className="text-[11px] text-slate-400">Tap a category to filter the list</span>
+            )}
+          </div>
+          <ul className="divide-y divide-slate-100">
+            {categoryStats.map((item) => {
+              const share = categoryGrandTotal > 0 ? (item.totalAmount / categoryGrandTotal) * 100 : 0;
+              const active = categoryFilter === item.key;
+              return (
+                <li key={item.key}>
+                  <button
+                    type="button"
+                    onClick={() => setCategoryFilter(active ? '' : item.key)}
+                    aria-pressed={active}
+                    className={`grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-1 px-4 py-2 text-left transition md:px-5 ${active ? 'bg-primary-50' : 'hover:bg-slate-50'}`}
+                  >
+                    <span className="min-w-0 truncate text-sm font-semibold text-slate-800">
+                      {item.name}
+                      <span className="ml-2 text-xs font-normal text-slate-500">
+                        {item.count} entr{item.count === 1 ? 'y' : 'ies'}
+                        {showCategoryQty && item.totalQty > 0
+                          ? ` · ${item.totalQty.toLocaleString('en-IN', { maximumFractionDigits: 2 })}${item.unit ? ` ${item.unit}` : ''}`
+                          : ''}
+                      </span>
+                    </span>
+                    <span className="text-sm font-bold text-slate-900">
+                      {formatCurrency(item.totalAmount)}
+                      <span className="ml-2 text-xs font-medium text-slate-400">{share.toFixed(0)}%</span>
+                    </span>
+                    <span className="col-span-2 h-1.5 overflow-hidden rounded-full bg-slate-100">
+                      <span className="block h-full rounded-full bg-rose-400" style={{ width: `${Math.max(share, 1)}%` }} />
+                    </span>
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      )}
+
+      <section className={`panel transition-opacity ${loading && visibleExpenses.length > 0 ? 'opacity-60' : ''}`}>
+        <div className="panel-header flex flex-wrap items-center justify-between gap-2 py-2.5">
+          <h2 className="text-sm font-bold text-slate-800">Expense List</h2>
+          <div className="relative min-w-0 flex-1 md:max-w-64">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <input
+              type="search"
+              placeholder="Search type, party or notes"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              className="input pl-9"
+            />
+          </div>
+        </div>
+
+        {loading && visibleExpenses.length === 0 ? (
+          <p className="py-12 text-center text-sm text-slate-400">Loading expenses…</p>
+        ) : visibleExpenses.length === 0 ? (
+          <div className="flex flex-col items-center gap-2 px-6 py-10 text-center">
+            <span className="flex h-11 w-11 items-center justify-center rounded-full bg-slate-100 text-slate-400"><Inbox size={20} /></span>
+            <p className="text-sm font-semibold text-slate-800">No expenses found</p>
+            <p className="text-xs text-slate-500">Try another period, category or search.</p>
+          </div>
+        ) : (
+          <>
+            {/* Phone: three short lines per expense */}
+            <ul className="divide-y divide-slate-100 md:hidden">
+              {visibleExpenses.map((expense) => (
+                <li key={expense._id} className="px-4 py-2.5">
+                  <div className="flex items-baseline justify-between gap-3">
+                    <p className="min-w-0 truncate text-sm font-semibold text-slate-800">{expense.expenseGroup?.name || 'Expense'}</p>
+                    <p className="shrink-0 text-sm font-bold text-rose-700">{formatCurrency(expense.amount)}</p>
+                  </div>
+                  <div className="mt-0.5 flex items-center justify-between gap-3 text-xs text-slate-500">
+                    <span className="min-w-0 truncate">
+                      {formatDate(expense.expenseDate)}
+                      {expense.party?.name ? ` · ${expense.party.name}` : ''}
+                      {getExpenseQtyLabel(expense) ? ` · ${getExpenseQtyLabel(expense)}` : ''}
+                    </span>
+                    <span className={`${getMethodBadgeClass(expense.method)} shrink-0 capitalize`}>{expense.account?.name || expense.method}</span>
+                  </div>
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="min-w-0 truncate text-[11px] text-slate-400">{expense.expenseNumber || '-'}{expense.notes ? ` · ${expense.notes}` : ''}</p>
+                    {renderExpenseActions(expense)}
+                  </div>
+                </li>
+              ))}
+            </ul>
+
+            <div className="hidden overflow-x-auto md:block">
+              <table className="w-full min-w-[860px] text-left">
+                <thead>
+                  <tr>
+                    <th className={TH}>Date</th>
+                    <th className={TH}>Expense Type</th>
+                    <th className={TH}>Party</th>
+                    <th className={`${TH} text-right`}>Amount</th>
+                    <th className={TH}>Paid From</th>
+                    <th className={TH}>Notes</th>
+                    {canManageExpenses && <th className={TH} />}
+                  </tr>
+                </thead>
+                <tbody>
+                  {visibleExpenses.map((expense) => (
+                    <tr key={expense._id} className="tbl-row">
+                      <td className={`${TD} whitespace-nowrap`}>
+                        {formatDate(expense.expenseDate)}
+                        <span className="block text-[11px] leading-tight text-slate-400">{expense.expenseNumber || '-'}</span>
+                      </td>
+                      <td className={TD}>
+                        <p className="font-semibold text-slate-800">{expense.expenseGroup?.name || '-'}</p>
+                        {getExpenseQtyLabel(expense) && <p className="text-[11px] text-slate-500">{getExpenseQtyLabel(expense)}</p>}
+                      </td>
+                      <td className={TD}>{expense.party?.name || '—'}</td>
+                      <td className={`${TD} whitespace-nowrap text-right font-bold text-rose-700`}>{formatCurrency(expense.amount)}</td>
+                      <td className={TD}><span className={`${getMethodBadgeClass(expense.method)} capitalize`}>{expense.account?.name || expense.method}</span></td>
+                      <td className={TD}><div className="max-w-[20rem] truncate text-slate-600" title={expense.notes || undefined}>{expense.notes || '—'}</div></td>
+                      {canManageExpenses && <td className={`${TD} py-1!`}>{renderExpenseActions(expense)}</td>}
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr className="border-t border-slate-200 bg-slate-50">
+                    <td className={`${TD} font-bold text-slate-900`} colSpan={3}>Total · {visibleExpenses.length} entr{visibleExpenses.length === 1 ? 'y' : 'ies'}</td>
+                    <td className={`${TD} whitespace-nowrap text-right font-bold text-rose-700`}>
+                      {formatCurrency(visibleExpenses.reduce((sum, expense) => sum + Number(expense.amount || 0), 0))}
+                    </td>
+                    <td className={TD} colSpan={canManageExpenses ? 3 : 2} />
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </>
+        )}
+      </section>
     </div>
   );
 }
