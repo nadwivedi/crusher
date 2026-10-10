@@ -1,15 +1,15 @@
 import { useEffect, useState } from 'react';
 import { toast } from 'react-toastify';
 import { useNavigate } from 'react-router-dom';
-import { LogOut, Monitor, Moon, Sun } from 'lucide-react';
+import { CloudSun, LogOut, Moon, Sun } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import EmployeeManagement from '../components/EmployeeManagement';
 import { getStoredTheme, setStoredTheme } from '../utils/theme';
 
 const THEME_OPTIONS = [
-  { value: 'light', label: 'Light', hint: 'White pages', Icon: Sun },
-  { value: 'dark', label: 'Dark', hint: 'Easy on the eyes at night', Icon: Moon },
-  { value: 'system', label: 'System', hint: 'Follow this device', Icon: Monitor }
+  { value: 'light', label: 'Light', hint: 'Bright white pages', Icon: Sun },
+  { value: 'soft', label: 'Soft', hint: 'Off-white grey, easy on the eyes', Icon: CloudSun },
+  { value: 'dark', label: 'Dark', hint: 'Dim charcoal grey, not too dark', Icon: Moon }
 ];
 
 // tonKey / cubicKey are the field names saved in the user's materialRates

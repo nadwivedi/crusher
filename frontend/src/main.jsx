@@ -6,11 +6,10 @@ import 'react-toastify/dist/ReactToastify.css'
 import './index.css'
 import App from './App.jsx'
 import { AuthProvider } from './context/AuthContext'
-import { applyTheme, watchSystemTheme } from './utils/theme'
+import { applyTheme } from './utils/theme'
 
 // Set light or dark before the first paint, so the page never flashes the wrong colours
 applyTheme()
-watchSystemTheme()
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
