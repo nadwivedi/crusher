@@ -110,7 +110,7 @@ export default function AdjustmentPopup({ hire, onClose, onDone }) {
         {isOffDays
           ? 'Off days are taken off at the month\'s day rate (monthly amount ÷ days in that month).'
           : 'The amount goes on the month the date falls in.'}
-        {' '}It shows on that month&apos;s line in the ledger; a month still running picks it up when it ends.
+        {' '}It shows on that month&apos;s line in the ledger straight away.
       </p>
     </FormPopup>
   );

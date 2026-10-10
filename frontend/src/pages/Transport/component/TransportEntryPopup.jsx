@@ -257,7 +257,7 @@ export default function TransportEntryPopup({ entry = null, hire = null, parties
   return (
     <FormPopup
       title={isEditingHire ? 'Edit Monthly Hire' : isEditing ? 'Edit Transport Entry' : 'Add Transport Entry'}
-      subtitle={isMonthly ? 'Monthly rent: each month goes to the ledger when it ends' : 'Vehicle rent or trips that are not part of a sale'}
+      subtitle={isMonthly ? 'Monthly rent: charged day by day in the ledger' : 'Vehicle rent or trips that are not part of a sale'}
       submitLabel={saving ? 'Saving...' : isEditingHire ? 'Update Hire' : isEditing ? 'Update Entry' : isMonthly ? 'Start Monthly Hire' : 'Save Entry'}
       maxWidth="max-w-lg"
       onSubmit={handleSubmit}
@@ -378,7 +378,7 @@ export default function TransportEntryPopup({ entry = null, hire = null, parties
             </div>
           </div>
           <p className="mt-1 text-xs text-slate-500">
-            Leave To Date blank to keep it running until you cancel it. Each month goes to the ledger when it ends; from the list
+            Leave To Date blank to keep it running until you cancel it. Each day adds the monthly amount ÷ days in that month to the ledger; from the list
             you can adjust a month (off days, less or extra amount) or cancel on any day.
             {isEditingHire && ' Changing the amount or dates re-works the months already in the ledger.'}
           </p>

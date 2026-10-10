@@ -34,7 +34,8 @@ const serializeHire = (hireDoc, bookedTotals = new Map()) => {
   const hire = typeof hireDoc.toObject === "function" ? hireDoc.toObject() : { ...hireDoc };
   const party = hire.partyId && typeof hire.partyId === "object" && hire.partyId.name !== undefined ? hire.partyId : null;
   const booked = bookedTotals.get(String(hire._id)) || { amount: 0, count: 0 };
-  const running = getHireMonths(hire).find((month) => !month.booked) || null;
+  // The month now running, in the ledger day by day
+  const running = getHireMonths(hire).find((month) => month.running) || null;
 
   return {
     ...hire,
@@ -44,7 +45,10 @@ const serializeHire = (hireDoc, bookedTotals = new Map()) => {
     bookedMonths: booked.count,
     runningMonth: running && {
       fromDate: new Date(running.fromDate),
-      toDate: new Date(running.toDate),
+      toDate: new Date(running.rangeEnd),
+      daysUsed: running.daysUsed,
+      monthDays: running.monthDays,
+      dayRate: Math.round(running.dayRate * 100) / 100,
       amount: running.amount,
       note: running.note,
     },

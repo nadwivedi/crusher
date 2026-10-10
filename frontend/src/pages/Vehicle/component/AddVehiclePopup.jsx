@@ -501,7 +501,7 @@ export default function AddVehiclePopup({ vehicle, onClose, onSave, onVehicleSav
             title="Pay Terms"
             tone="amber"
             hint={isMonthly
-              ? 'Each month is added to the owner\'s ledger when it ends. Adjust a month or cancel the rent from the Transport page.'
+              ? 'Each month is added to the owner\'s ledger day by day (monthly amount ÷ days in the month). Adjust a month or cancel it from the Vehicles page.'
               : 'Worked out on every sale and boulder entry this vehicle carries, and paid to its owner.'}
           >
             <HireRateFields

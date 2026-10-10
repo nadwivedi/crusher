@@ -149,7 +149,7 @@ export default function MonthlyHireForm({ hire = null, defaultPartyId = '', pres
   return (
     <FormPopup
       title={isEditing ? 'Edit Monthly Hire' : 'Start Monthly Hire'}
-      subtitle="Each month is added to the party's ledger when it ends"
+      subtitle="Charged day by day: the monthly amount ÷ days in the month, in the party's ledger"
       submitLabel={saving ? 'Saving...' : isEditing ? 'Update Hire' : 'Start Hire'}
       submitDisabled={saving}
       maxWidth="max-w-lg"

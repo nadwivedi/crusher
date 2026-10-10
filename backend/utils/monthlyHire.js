@@ -55,9 +55,9 @@ const getCutCharge = (hire, stop, rate, usedDays, monthDays) => {
 };
 
 /**
- * Every month of a hire up to its stop (or up to the running month while it has no stop), each with its charge.
- * booked: the month is over, so it belongs in the ledger. A month is booked on its last day; a month cut
- * short by the end or a cancel is booked on the stop day. Adjustments land in the month their date falls in;
+ * Every month of a hire up to today, each with its charge, all of them in the ledger. A finished month is booked on its
+ * last day; a month cut short by the end or a cancel on the stop day; the month now running up to today, so the ledger
+ * always shows what is owed so far. Adjustments land in the month their date falls in;
  * one dated after the stop goes to the last month.
  */
 const getHireMonths = (hire, today = todayDay()) => {
@@ -69,24 +69,43 @@ const getHireMonths = (hire, today = todayDay()) => {
   for (let index = 0; index < 1200; index += 1) {
     const from = addMonths(start, index);
     if (stop && from > stop.day) break;
-    if (!stop && from > today) break;
+    if (from > today) break;
 
     const monthEnd = addMonths(start, index + 1) - DAY_MS;
     const monthDays = dayCount(from, monthEnd);
     const isCut = Boolean(stop) && stop.day < monthEnd;
     const to = isCut ? stop.day : monthEnd;
-    const base = isCut ? getCutCharge(hire, stop, rate, dayCount(from, to), monthDays) : { amount: rate, note: "" };
+    const dayRate = rate / monthDays;
 
-    months.push({ fromDate: from, toDate: to, monthDays, base, booked: to <= today, adjustments: [] });
+    // The month now running is in the ledger day by day: the monthly amount ÷ days in the month, × days so far
+    if (to > today) {
+      const daysUsed = dayCount(from, today);
+      months.push({
+        fromDate: from,
+        toDate: today,
+        rangeEnd: to,
+        monthDays,
+        daysUsed,
+        dayRate,
+        base: { amount: round(dayRate * daysUsed), note: `${daysUsed} of ${monthDays} days so far at ${formatRs(round(dayRate))}/day (running)` },
+        booked: true,
+        running: true,
+        adjustments: [],
+      });
+      break;
+    }
+
+    const base = isCut ? getCutCharge(hire, stop, rate, dayCount(from, to), monthDays) : { amount: rate, note: "" };
+    months.push({ fromDate: from, toDate: to, rangeEnd: to, monthDays, daysUsed: dayCount(from, to), dayRate, base, booked: true, adjustments: [] });
     if (isCut) break;
   }
 
-  // Put each adjustment in its month
+  // Put each adjustment in its month; one dated after the hire stopped goes to the last month
   const last = months[months.length - 1];
   for (const adjustment of hire.adjustments || []) {
     const day = toDay(adjustment.date);
-    const month = months.find((item) => day >= item.fromDate && day <= item.toDate)
-      || (last && stop && day > last.toDate ? last : null);
+    const month = months.find((item) => day >= item.fromDate && day <= item.rangeEnd)
+      || (last && stop && day > last.rangeEnd ? last : null);
     if (month) month.adjustments.push(adjustment);
   }
 

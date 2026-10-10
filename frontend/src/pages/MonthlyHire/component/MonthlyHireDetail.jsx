@@ -142,11 +142,13 @@ export default function MonthlyHireDetail({ hireId, canEdit, onClose, onChanged 
                     <p className="text-xs text-slate-500">{hire.bookedMonths} month(s)</p>
                   </div>
                   <div className="rounded-lg bg-slate-50 px-3 py-2">
-                    <p className="text-[11px] font-semibold uppercase text-slate-400">This Month</p>
+                    <p className="text-[11px] font-semibold uppercase text-slate-400">This Month So Far</p>
                     {hire.runningMonth ? (
                       <>
                         <p className="text-sm font-bold text-slate-800">{formatRupees(hire.runningMonth.amount)}</p>
-                        <p className="text-xs text-slate-500">added on {formatHireDate(hire.runningMonth.toDate)}</p>
+                        <p className="text-xs text-slate-500">
+                          Day {hire.runningMonth.daysUsed} of {hire.runningMonth.monthDays} · {formatRupees(hire.runningMonth.dayRate)}/day
+                        </p>
                       </>
                     ) : <p className="text-sm text-slate-500">Nothing running</p>}
                   </div>
@@ -171,8 +173,8 @@ export default function MonthlyHireDetail({ hireId, canEdit, onClose, onChanged 
                   </div>
                 )}
 
-                <Section title="Months In Ledger" hint="Each month is added when it ends">
-                  {hire.entries?.length > 0 || hire.runningMonth ? (
+                <Section title="Months In Ledger" hint="The running month grows day by day until it ends">
+                  {hire.entries?.length > 0 ? (
                     <ul className="divide-y divide-slate-100">
                       {(hire.entries || []).map((entry) => (
                         <li key={entry._id} className="flex items-start justify-between gap-3 py-1.5">
@@ -183,15 +185,6 @@ export default function MonthlyHireDetail({ hireId, canEdit, onClose, onChanged 
                           <span className={`shrink-0 text-sm font-bold ${isPayable ? 'text-rose-700' : 'text-emerald-700'}`}>{formatRupees(entry.amount)}</span>
                         </li>
                       ))}
-                      {hire.runningMonth && (
-                        <li className="flex items-start justify-between gap-3 py-1.5 opacity-70">
-                          <div className="min-w-0">
-                            <p className="text-sm font-semibold text-slate-800">{formatHireDate(hire.runningMonth.fromDate)} – {formatHireDate(hire.runningMonth.toDate)}</p>
-                            <p className="text-[11px] text-slate-500">Running · added to the ledger on {formatHireDate(hire.runningMonth.toDate)}</p>
-                          </div>
-                          <span className="shrink-0 text-sm font-semibold text-slate-500">{formatRupees(hire.runningMonth.amount)}</span>
-                        </li>
-                      )}
                     </ul>
                   ) : <p className="py-1 text-sm text-slate-500">No month has ended yet.</p>}
                 </Section>
