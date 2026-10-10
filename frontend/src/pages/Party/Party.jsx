@@ -174,8 +174,9 @@ export default function Party() {
       dustRate: Number(party.dustRate || 0) || '',
       boulderRatePerTon: Number(party.boulderRatePerTon || 0) || '',
       boulderRatePerTrip: Number(party.boulderRatePerTrip || 0) || '',
-      hireBasis: party.hireBasis || 'per_ton',
-      hireRate: Number(party.hireRate || 0) || '',
+      // A rate saved on a basis no longer offered (per month and older ones) starts over at per ton
+      hireBasis: ['per_km', 'per_ton', 'per_trip'].includes(party.hireBasis) ? party.hireBasis : 'per_ton',
+      hireRate: ['per_km', 'per_ton'].includes(party.hireBasis) ? Number(party.hireRate || 0) || '' : '',
       tripRates: (party.tripRates || []).map((row) => ({ location: row.location, rate: String(row.rate ?? '') }))
     });
     setError('');

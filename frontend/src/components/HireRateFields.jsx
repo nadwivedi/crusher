@@ -1,8 +1,8 @@
 import { Plus, Trash2 } from 'lucide-react';
 import { TRANSPORT_BASIS_OPTIONS, getBasisUnit } from '../utils/transport';
 
-// A hired vehicle is paid per km, per ton, per trip or per month
-const HIRE_BASES = ['per_km', 'per_ton', 'per_trip', 'per_month'];
+// A party's transportation rate is per km, per ton or per trip. Monthly rent is set up as a monthly hire on the Transport page.
+const HIRE_BASES = ['per_km', 'per_ton', 'per_trip'];
 
 const EMPTY_TRIP_RATE = { location: '', rate: '' };
 
@@ -14,13 +14,12 @@ const toTitleCase = (value) => String(value || '')
  * How a transporter's vehicle is paid: the basis, then either one rate or a rate per location for per-trip hire.
  * onChange gets the changed fields: { hireBasis }, { hireRate } or { tripRates }.
  */
-export default function HireRateFields({ idPrefix, label = 'Pay Transporter', hireBasis, hireRate, tripRates, keepBasis = '', onChange }) {
-  const basis = hireBasis || 'per_ton';
+export default function HireRateFields({ idPrefix, label = 'Pay Transporter', hireBasis, hireRate, tripRates, onChange }) {
+  const basis = HIRE_BASES.includes(hireBasis) ? hireBasis : 'per_ton';
   const isPerTrip = basis === 'per_trip';
   const unit = getBasisUnit(basis);
   const rows = tripRates?.length ? tripRates : [EMPTY_TRIP_RATE];
-  // A basis saved before the list was cut down stays pickable so editing does not change it silently
-  const basisOptions = TRANSPORT_BASIS_OPTIONS.filter((option) => HIRE_BASES.includes(option.value) || option.value === keepBasis);
+  const basisOptions = TRANSPORT_BASIS_OPTIONS.filter((option) => HIRE_BASES.includes(option.value));
 
   const updateRow = (index, field, value) => {
     onChange({ tripRates: rows.map((row, rowIndex) => (rowIndex === index ? { ...row, [field]: value } : row)) });

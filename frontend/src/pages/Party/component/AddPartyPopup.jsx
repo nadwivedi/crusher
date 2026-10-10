@@ -222,7 +222,6 @@ function PartyForm({ editingId, loading, formData, error, handleCloseForm, handl
             hireBasis={formData.hireBasis}
             hireRate={formData.hireRate}
             tripRates={formData.tripRates}
-            keepBasis={formData.hireBasis}
             onChange={(fields) => Object.entries(fields).forEach(([name, value]) => setField(name, value))}
           />
         </FormSection>
