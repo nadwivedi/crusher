@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Ban, ChevronRight, Inbox, Pencil, Plus, RefreshCw, RotateCcw, Scale, Search, SlidersHorizontal, Trash2, Truck, Users } from 'lucide-react';
+import { Ban, ChevronRight, Eye, Inbox, MoreVertical, Pencil, Plus, RefreshCw, RotateCcw, Scale, Search, SlidersHorizontal, Trash2, Truck, Users } from 'lucide-react';
 import { toast } from 'react-toastify';
 import apiClient from '../utils/api';
 import AddVehiclePopup from './Vehicle/component/AddVehiclePopup';
@@ -37,6 +37,7 @@ export default function Vehicle() {
   const [editingVehicle, setEditingVehicle] = useState(null);
   // A vehicle on monthly rent: adjust a month, cancel the rent, or open the hire
   const [hireAction, setHireAction] = useState(null);
+  const [menu, setMenu] = useState(null);
 
   useEffect(() => {
     fetchVehicles();
@@ -71,8 +72,13 @@ export default function Vehicle() {
       if (isTypingTarget(event.target)) {
         return;
       }
-      // A popup open on the page closes itself first
+      // A popup open on the page closes itself first; an open menu just closes
       if (document.querySelector('.fixed.inset-0.z-50')) {
+        return;
+      }
+      if (document.querySelector('[data-vehicle-menu]')) {
+        event.preventDefault();
+        setMenu(null);
         return;
       }
 
@@ -192,32 +198,40 @@ export default function Vehicle() {
     if (changed) fetchVehicles();
   };
 
+  // Monthly rent actions for a vehicle, shown in its three-dot menu
+  const getMenuItems = (vehicle) => [
+    ...(vehicle.monthlyHire ? [
+      { label: 'Adjust a month', Icon: SlidersHorizontal, onClick: () => setHireAction({ type: 'adjust', hire: getVehicleHire(vehicle) }) },
+      { label: 'Cancel monthly rent', Icon: Ban, className: 'text-amber-700', onClick: () => setHireAction({ type: 'cancel', hire: getVehicleHire(vehicle) }) },
+      { label: 'Open monthly hire', Icon: ChevronRight, onClick: () => setHireAction({ type: 'open', hire: getVehicleHire(vehicle) }) }
+    ] : []),
+    ...(isRentStopped(vehicle) ? [
+      { label: 'Hire again', Icon: RotateCcw, className: 'text-emerald-700', onClick: () => setHireAction({ type: 'again', vehicle }) }
+    ] : [])
+  ];
+
+  // The menu sits on the page, not inside the scrolling table, so it is never cut off
+  const openMenu = (event, vehicle) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    setMenu({ vehicle, top: rect.bottom + 4, right: window.innerWidth - rect.right });
+  };
+
   const renderActions = (vehicle) => (
     <div className="flex items-center justify-end" onClick={(event) => event.stopPropagation()}>
-      {isRentStopped(vehicle) && (
-        <button type="button" title="Hire again on monthly rent" className="mr-1 inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-semibold text-emerald-700 hover:bg-emerald-50" onClick={() => setHireAction({ type: 'again', vehicle })}>
-          <RotateCcw size={14} /> Hire Again
-        </button>
-      )}
-      {vehicle.monthlyHire && (
-        <>
-          <button type="button" title="Adjust a month" aria-label="Adjust a month" className="icon-btn p-1.5 hover:bg-indigo-50 hover:text-indigo-600" onClick={() => setHireAction({ type: 'adjust', hire: getVehicleHire(vehicle) })}>
-            <SlidersHorizontal size={16} />
-          </button>
-          <button type="button" title="Cancel monthly rent" aria-label="Cancel monthly rent" className="icon-btn p-1.5 hover:bg-amber-50 hover:text-amber-600" onClick={() => setHireAction({ type: 'cancel', hire: getVehicleHire(vehicle) })}>
-            <Ban size={16} />
-          </button>
-          <button type="button" title="Open monthly hire" aria-label="Open monthly hire" className="icon-btn p-1.5" onClick={() => setHireAction({ type: 'open', hire: getVehicleHire(vehicle) })}>
-            <ChevronRight size={16} />
-          </button>
-        </>
-      )}
+      <button type="button" title="View ledger" aria-label="View ledger" className="icon-btn p-1.5 hover:bg-emerald-50 hover:text-emerald-600" onClick={() => navigate(`/vehicle/${vehicle._id}`)}>
+        <Eye size={16} />
+      </button>
       <button type="button" title="Edit" aria-label="Edit" className="icon-btn p-1.5 hover:bg-blue-50 hover:text-blue-600" onClick={() => handleOpenForm(vehicle)}>
         <Pencil size={16} />
       </button>
       <button type="button" title="Delete" aria-label="Delete" className="icon-btn p-1.5 hover:bg-rose-50 hover:text-rose-600" onClick={() => handleDelete(vehicle._id)}>
         <Trash2 size={16} />
       </button>
+      {getMenuItems(vehicle).length > 0 && (
+        <button type="button" title="Monthly rent" aria-label="Monthly rent options" aria-haspopup="menu" className="icon-btn p-1.5 hover:bg-slate-100" onClick={(event) => openMenu(event, vehicle)}>
+          <MoreVertical size={16} />
+        </button>
+      )}
     </div>
   );
 
@@ -350,6 +364,32 @@ export default function Vehicle() {
           onClose={handleCloseForm}
           onSave={fetchVehicles}
         />
+      )}
+      {menu && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setMenu(null)} onWheel={() => setMenu(null)} />
+          <div
+            data-vehicle-menu
+            role="menu"
+            className="fixed z-40 w-52 overflow-hidden rounded-lg bg-white py-1 shadow-xl ring-1 ring-slate-200"
+            style={{ top: menu.top, right: menu.right }}
+          >
+            {getMenuItems(menu.vehicle).map((item) => (
+              <button
+                key={item.label}
+                type="button"
+                role="menuitem"
+                className={`flex w-full items-center gap-2 px-3 py-2 text-left text-sm font-medium hover:bg-slate-50 ${item.className || 'text-slate-700'}`}
+                onClick={() => {
+                  setMenu(null);
+                  item.onClick();
+                }}
+              >
+                <item.Icon size={16} /> {item.label}
+              </button>
+            ))}
+          </div>
+        </>
       )}
       {hireAction?.type === 'adjust' && (
         <AdjustmentPopup hire={hireAction.hire} onClose={() => closeHireAction()} onDone={() => closeHireAction(true)} />
