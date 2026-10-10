@@ -108,6 +108,7 @@ export default function AddSalePopup({
   selectPricingMode,
   transportParties = [],
   tripLocations = [],
+  dispatchSuggestions = [],
   selectTransportMode,
   onOpenNewVehicle,
   onOpenNewParty,
@@ -323,6 +324,25 @@ export default function AddSalePopup({
                 )}
               </div>
             </div>
+          </div>
+
+          <div>
+            <label className="label" htmlFor="sale-dispatch-input">Dispatch Location</label>
+            <input
+              id="sale-dispatch-input"
+              className="input"
+              type="text"
+              name="dispatchLocation"
+              list="sale-dispatch-options"
+              value={formData.dispatchLocation || ''}
+              onChange={handleInputChange}
+              onKeyDown={handleSelectEnterMoveNext}
+              placeholder="Where the material is going, e.g. Raipur site"
+              autoComplete="off"
+            />
+            <datalist id="sale-dispatch-options">
+              {dispatchSuggestions.map((place) => <option key={place} value={place} />)}
+            </datalist>
           </div>
 
           {/* Weighbridge times come with a scanned slip */}

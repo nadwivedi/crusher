@@ -168,7 +168,7 @@ export default function HomeSalesLedger() {
                     <div className="flex items-start justify-between gap-3 bg-gradient-to-r from-sky-50 via-cyan-50 to-blue-50 p-3">
                       <div>
                         <p className="text-sm font-bold text-slate-900">{partyName}</p>
-                        <p className="text-xs text-slate-500">{sale.invoiceNumber || '-'} • {formatDate(sale.saleDate || sale.createdAt)}</p>
+                        <p className="text-xs text-slate-500">{sale.invoiceNumber || '-'} • {formatDate(sale.saleDate || sale.createdAt)}{sale.dispatchLocation ? ` • to ${sale.dispatchLocation}` : ''}</p>
                       </div>
                       <span className={`inline-flex rounded-full px-2.5 py-1 text-[10px] font-bold ${getMaterialBadgeClass(materialName)}`}>{String(materialName).toUpperCase()}</span>
                     </div>
@@ -219,7 +219,10 @@ export default function HomeSalesLedger() {
                       <td className="px-4 py-3 text-sm font-semibold text-slate-700 lg:px-2 lg:py-1.5 lg:text-[9px] xl:px-4 xl:py-3 xl:text-[12px]">{sale.invoiceNumber || '-'}</td>
                       <td className="px-4 py-3 text-sm text-slate-700 lg:px-2 lg:py-1.5 lg:text-[9px] xl:px-4 xl:py-3 xl:text-[12px]">{sale.vehicleNo || '-'}</td>
                       <td className="max-w-[16rem] px-4 py-3 text-xs text-amber-700 lg:px-2 lg:py-1.5 lg:text-[9px] xl:px-4 xl:py-3 xl:text-[11px]">{describeSaleTransport(sale, partyMap)}</td>
-                      <td className="px-4 py-3 text-sm text-slate-700 lg:px-2 lg:py-1.5 lg:text-[9px] xl:px-4 xl:py-3 xl:text-[12px]">{partyName}</td>
+                      <td className="px-4 py-3 text-sm text-slate-700 lg:px-2 lg:py-1.5 lg:text-[9px] xl:px-4 xl:py-3 xl:text-[12px]">
+                        {partyName}
+                        {sale.dispatchLocation && <span className="block text-[11px] text-slate-500 lg:text-[8px] xl:text-[11px]">To {sale.dispatchLocation}</span>}
+                      </td>
                       <td className="px-4 py-3 lg:px-2 lg:py-1.5 xl:px-4 xl:py-3">
                         {materialName && materialName !== '-' ? (
                           <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold lg:px-1.5 lg:py-0.5 lg:text-[9px] xl:px-2.5 xl:py-1 xl:text-xs ${getMaterialBadgeClass(materialName)}`}>

@@ -166,6 +166,7 @@ const getInitialFormData = () => ({
   pricingMode: 'per_ton',
   cubicMeterQty: '',
   rate: '',
+  dispatchLocation: '',
   ...NO_SALE_TRANSPORT,
   totalAmount: 0,
   // Most sales are on credit: nothing paid unless entered
@@ -803,6 +804,12 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
   );
 
   // Owners of hired vehicles come first when picking who a vehicle is hired from
+  // Places material was sent to before, and the picked vehicle's trip locations, offered while typing
+  const dispatchSuggestions = useMemo(() => [...new Set([
+    ...(selectedSaleVehicle ? getVehicleHireRates(selectedSaleVehicle).tripRates.map((row) => row.location) : []),
+    ...sales.map((sale) => String(sale.dispatchLocation || '').trim())
+  ].filter(Boolean))], [sales, selectedSaleVehicle]);
+
   const transportParties = useMemo(() => {
     const ownerIds = getVehicleOwnerIds(vehicles);
     return leadgers
@@ -2008,13 +2015,14 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
       setFormData({ ...formData, rate: value, totalAmount });
       return;
     }
-    // Picking a location fills in the vehicle's trip rate for it
+    // Picking a location fills in the vehicle's trip rate for it, and the dispatch location when that is still empty
     if (name === 'transportLocation') {
       const tripRate = getTripRate(getVehicleHireRates(selectedSaleVehicle), value);
       setFormData({
         ...formData,
         transportLocation: value,
-        transportRate: tripRate ? String(tripRate.rate || '') : formData.transportRate
+        transportRate: tripRate ? String(tripRate.rate || '') : formData.transportRate,
+        dispatchLocation: String(formData.dispatchLocation || '').trim() ? formData.dispatchLocation : value
       });
       return;
     }
@@ -2268,6 +2276,7 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
         pricingMode: formData.pricingMode || 'per_ton',
         cubicMeterQty: Number(formData.cubicMeterQty || 0),
         rate: Number(formData.rate || 0),
+        dispatchLocation: String(formData.dispatchLocation || '').trim(),
         transportMode: formData.transportMode || 'party',
         transportCharge: getSaleTransportCharge(formData),
         transporterId: formData.transportMode === 'hired' ? formData.transporterId : undefined,
@@ -2344,6 +2353,7 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
           pricingMode: sale.pricingMode || 'per_ton',
           cubicMeterQty: sale.cubicMeterQty || '',
           rate: sale.rate || '',
+        dispatchLocation: sale.dispatchLocation || '',
         transportMode: sale.transportMode || 'party',
         transportCharge: sale.transportCharge || '',
         transporterId: sale.transporterId?._id || sale.transporterId || '',
@@ -2524,6 +2534,7 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
             selectPricingMode={selectPricingMode}
             transportParties={transportParties}
         tripLocations={selectedSaleVehicle ? getVehicleHireRates(selectedSaleVehicle).tripRates : []}
+        dispatchSuggestions={dispatchSuggestions}
             selectTransportMode={selectTransportMode}
             onOpenNewVehicle={openInlineVehicleForm}
             onOpenNewParty={openInlinePartyForm}
@@ -2782,6 +2793,7 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
         selectPricingMode={selectPricingMode}
         transportParties={transportParties}
         tripLocations={selectedSaleVehicle ? getVehicleHireRates(selectedSaleVehicle).tripRates : []}
+        dispatchSuggestions={dispatchSuggestions}
         selectTransportMode={selectTransportMode}
         onOpenNewVehicle={openInlineVehicleForm}
         onOpenNewParty={openInlinePartyForm}
@@ -2921,7 +2933,10 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
                       return (
                         <li key={sale._id} className="px-4 py-2.5">
                           <div className="flex items-baseline justify-between gap-3">
-                            <p className="min-w-0 truncate text-sm font-semibold text-slate-800">{view.party}</p>
+                            <p className="min-w-0 truncate text-sm font-semibold text-slate-800">
+                              {view.party}
+                              {sale.dispatchLocation && <span className="font-normal text-slate-500"> · to {sale.dispatchLocation}</span>}
+                            </p>
                             <p className="shrink-0 text-sm font-bold text-slate-900">{formatRupees(sale.totalAmount)}</p>
                           </div>
                           <div className="mt-1 flex items-center justify-between gap-3">
@@ -2994,6 +3009,9 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
                               </td>
                               <td className={TD}>
                                 <p className="max-w-[14rem] truncate font-semibold text-slate-800" title={view.party}>{view.party}</p>
+                                {sale.dispatchLocation && (
+                                  <span className="block max-w-[14rem] truncate text-[11px] text-slate-500" title={`Dispatched to ${sale.dispatchLocation}`}>To {sale.dispatchLocation}</span>
+                                )}
                               </td>
                               <td className={TD}>
                                 <Plate>{sale.vehicleNo || '-'}</Plate>
