@@ -24,19 +24,22 @@ const getPartyMonthlyRate = (party) => (
   party?.hireBasis === 'per_month' && Number(party?.hireRate || 0) > 0 ? String(party.hireRate) : ''
 );
 
-const buildForm = (hire, defaultPartyId) => ({
-  direction: hire?.direction || 'payable',
-  partyId: hire?.partyId || defaultPartyId || '',
-  vehicleNo: hire?.vehicleNo || '',
-  monthlyRate: hire?.monthlyRate ? String(hire.monthlyRate) : '',
+const buildForm = (hire, defaultPartyId, preset) => ({
+  direction: hire?.direction || preset?.direction || 'payable',
+  partyId: hire?.partyId || preset?.partyId || defaultPartyId || '',
+  vehicleNo: hire?.vehicleNo || preset?.vehicleNo || '',
+  monthlyRate: hire?.monthlyRate ? String(hire.monthlyRate) : preset?.monthlyRate ? String(preset.monthlyRate) : '',
   startDate: toDayInput(hire?.startDate) || todayInput(),
   endDate: toDayInput(hire?.endDate),
   notes: hire?.notes || ''
 });
 
-/** Start or change a monthly hire: who, which vehicle, how much a month, and from when to when. */
-export default function MonthlyHireForm({ hire = null, defaultPartyId = '', onClose, onSaved }) {
-  const [formData, setFormData] = useState(() => buildForm(hire, defaultPartyId));
+/**
+ * Start or change a monthly hire: who, which vehicle, how much a month, and from when to when.
+ * preset: party, vehicle and amount already picked elsewhere (the transport entry form).
+ */
+export default function MonthlyHireForm({ hire = null, defaultPartyId = '', preset = null, onClose, onSaved }) {
+  const [formData, setFormData] = useState(() => buildForm(hire, defaultPartyId, preset));
   const [parties, setParties] = useState([]);
   const [vehicles, setVehicles] = useState([]);
   const [saving, setSaving] = useState(false);

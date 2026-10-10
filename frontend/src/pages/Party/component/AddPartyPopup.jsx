@@ -190,11 +190,9 @@ function PartyForm({ editingId, loading, formData, error, handleCloseForm, handl
       {formData.type === 'supplier' && (
         <FormSection
           number={++sectionNumber}
-          title="Transport"
+          title="Transport Provider"
           tone="indigo"
-          hint={formData.isTransportProvider
-            ? 'Boulder entries from this supplier are charged at these rates, plus transport. Vehicles hired from it are paid at the transportation rate.'
-            : 'Tick this if the supplier brings boulder in its own vehicles or gives vehicles on hire.'}
+          hint="Tick this if the supplier brings boulder in its own vehicles or gives vehicles on hire."
         >
           <button
             type="button"
@@ -208,27 +206,39 @@ function PartyForm({ editingId, loading, formData, error, handleCloseForm, handl
             </span>
             <span className="text-sm font-semibold text-slate-800">This supplier is a transport provider</span>
           </button>
+        </FormSection>
+      )}
 
-          {formData.isTransportProvider && (
-            <>
-              <div>
-                <span className="label">Boulder Rate</span>
-                <div className="grid grid-cols-2 gap-3">
-                  <RateInput name="boulderRatePerTon" label="Per Ton" value={formData.boulderRatePerTon} onChange={handleChange} />
-                  <RateInput name="boulderRatePerTrip" label="Per Trip" value={formData.boulderRatePerTrip} onChange={handleChange} unit="trip" />
-                </div>
-              </div>
-              <HireRateFields
-                idPrefix="party"
-                label="Transportation Rate"
-                hireBasis={formData.hireBasis}
-                hireRate={formData.hireRate}
-                tripRates={formData.tripRates}
-                keepBasis={formData.hireBasis}
-                onChange={(fields) => Object.entries(fields).forEach(([name, value]) => setField(name, value))}
-              />
-            </>
-          )}
+      {formData.type === 'supplier' && formData.isTransportProvider && (
+        <FormSection
+          number={++sectionNumber}
+          title="Transportation Rate"
+          tone="sky"
+          hint="Added to boulder entries when per ton or per trip, and used for vehicles hired from this supplier."
+        >
+          <HireRateFields
+            idPrefix="party"
+            label="Charged"
+            hireBasis={formData.hireBasis}
+            hireRate={formData.hireRate}
+            tripRates={formData.tripRates}
+            keepBasis={formData.hireBasis}
+            onChange={(fields) => Object.entries(fields).forEach(([name, value]) => setField(name, value))}
+          />
+        </FormSection>
+      )}
+
+      {formData.type === 'supplier' && formData.isTransportProvider && (
+        <FormSection
+          number={++sectionNumber}
+          title="Boulder Rate"
+          tone="amber"
+          hint="Filled in on each boulder entry from this supplier; the entry picks per ton or per trip."
+        >
+          <div className="grid grid-cols-2 gap-3">
+            <RateInput name="boulderRatePerTon" label="Per Ton" value={formData.boulderRatePerTon} onChange={handleChange} />
+            <RateInput name="boulderRatePerTrip" label="Per Trip" value={formData.boulderRatePerTrip} onChange={handleChange} unit="trip" />
+          </div>
         </FormSection>
       )}
 
