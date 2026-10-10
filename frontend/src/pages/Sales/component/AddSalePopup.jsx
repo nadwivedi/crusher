@@ -194,6 +194,8 @@ export default function AddSalePopup({
   const saleTransport = getSaleTransport(formData);
   const transportUnit = getBasisUnit(formData.transportBasis);
   const saleBalance = Number(formData.totalAmount || 0) - Number(formData.paidAmount || 0);
+  // The material on its own: the sale total less the transport charged to the party
+  const materialAmount = Math.max(0, Number(formData.totalAmount || 0) - transportCharge);
   const resolvedProductInputRef = productInputRef || localProductInputRef;
   const leadgerDropdownStyle = useFloatingDropdownPosition(leadgerSectionRef, isLeadgerSectionActive, [filteredLeadgers.length, leadgerListIndex]);
   const vehicleDropdownStyle = useFloatingDropdownPosition(vehicleSectionRef, isVehicleSectionActive, [filteredVehicles.length, vehicleListIndex]);
@@ -539,23 +541,29 @@ export default function AddSalePopup({
             </div>
           )}
 
-          {transportMode === 'hired' && (
+          {transportMode !== 'party' && (
             <div className="rounded-lg bg-white/70 px-3 py-2 text-xs text-slate-600 ring-1 ring-inset ring-amber-200">
-              {saleTransport.isPeriod ? (
-                <span>This vehicle is on <span className="font-semibold text-slate-800">{getBasisLabel(formData.transportBasis).toLowerCase()}</span> rent, so nothing is added for this trip. Enter the rent from the Transport page.</span>
-              ) : (
-                <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
-                  <span>You pay transporter: <span className="font-bold text-rose-600">{formatAmount(saleTransport.cost)}</span></span>
-                  <span>Party pays you: <span className="font-bold text-emerald-700">{formatAmount(transportCharge)}</span></span>
-                  <span>Transport margin: <span className={`font-bold ${transportCharge - saleTransport.cost < 0 ? 'text-rose-600' : 'text-slate-900'}`}>{formatAmount(transportCharge - saleTransport.cost)}</span></span>
-                </div>
+              <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
+                <span className="text-sm">
+                  Total Transport: <span className="font-bold text-slate-900">{formatAmount(transportCharge)}</span>
+                  <span className="ml-1 text-xs text-slate-500">charged to the party</span>
+                </span>
+                {transportMode === 'hired' && !saleTransport.isPeriod && (
+                  <span className="flex flex-wrap gap-x-4">
+                    <span>You pay transporter: <span className="font-bold text-rose-600">{formatAmount(saleTransport.cost)}</span></span>
+                    <span>Margin: <span className={`font-bold ${transportCharge - saleTransport.cost < 0 ? 'text-rose-600' : 'text-slate-900'}`}>{formatAmount(transportCharge - saleTransport.cost)}</span></span>
+                  </span>
+                )}
+              </div>
+              {transportMode === 'hired' && saleTransport.isPeriod && (
+                <p className="mt-1">This vehicle is on <span className="font-semibold text-slate-800">{getBasisLabel(formData.transportBasis).toLowerCase()}</span> rent, so nothing is owed to the transporter for this trip.</p>
               )}
             </div>
           )}
         </FormSection>
 
-        <FormSection number={4} title="Pricing & Payment" tone="indigo">
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <FormSection number={4} title="Pricing" tone="indigo">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div>
               <label className="label" htmlFor="sale-rate-input">{formData.pricingMode === 'per_ton' ? 'Rate Per Ton' : 'Rate Per M³'}</label>
               <div className="relative">
@@ -564,17 +572,40 @@ export default function AddSalePopup({
               </div>
             </div>
             <div>
-              <label className="label" htmlFor="sale-total-input">Total Amount</label>
+              <label className="label" htmlFor="sale-material-price">Material Price</label>
               <div className="relative">
                 <span className={PREFIX_CLASS}>₹</span>
-                <input id="sale-total-input" className={`${COMPUTED_CLASS} pl-7 text-primary-700`} type="number" name="totalAmount" value={formData.totalAmount || 0} readOnly />
+                <input id="sale-material-price" className={`${COMPUTED_CLASS} pl-7 text-primary-700`} type="number" value={materialAmount || 0} readOnly />
               </div>
             </div>
+          </div>
+        </FormSection>
+
+        <FormSection number={5} title="Final Price & Payment" tone="slate">
+          {/* Material + transport = what the party pays in all */}
+          <div className="grid grid-cols-[1fr_auto_1fr_auto_1fr] items-center gap-1.5 rounded-lg bg-white px-3 py-2.5 text-center ring-1 ring-inset ring-slate-200 sm:gap-3">
+            <div>
+              <p className="text-[11px] font-semibold uppercase text-slate-400">Material</p>
+              <p className="text-sm font-bold text-slate-800 sm:text-base">{formatAmount(materialAmount)}</p>
+            </div>
+            <span className="text-lg font-bold text-slate-400">+</span>
+            <div>
+              <p className="text-[11px] font-semibold uppercase text-slate-400">Transport</p>
+              <p className="text-sm font-bold text-slate-800 sm:text-base">{formatAmount(transportCharge)}</p>
+            </div>
+            <span className="text-lg font-bold text-slate-400">=</span>
+            <div>
+              <p className="text-[11px] font-semibold uppercase text-slate-400">Total</p>
+              <p className="text-base font-bold text-primary-700 sm:text-lg">{formatAmount(formData.totalAmount)}</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div>
               <label className="label" htmlFor="sale-paid-input">Paid Amount</label>
               <div className="relative">
                 <span className={PREFIX_CLASS}>₹</span>
-                <input id="sale-paid-input" ref={paidAmountInputRef} className="input pl-7 font-semibold text-emerald-700" type="number" name="paidAmount" value={formData.paidAmount || ''} onChange={handleInputChange} onKeyDown={handlePaidAmountEnterSubmit} placeholder="0" step="0.01" />
+                <input id="sale-paid-input" ref={paidAmountInputRef} className="input pl-7 font-semibold text-emerald-700" type="number" name="paidAmount" value={formData.paidAmount ?? ''} onChange={handleInputChange} onFocus={(event) => event.target.select()} onKeyDown={handlePaidAmountEnterSubmit} placeholder="0" step="0.01" />
               </div>
             </div>
             <div>
@@ -583,13 +614,8 @@ export default function AddSalePopup({
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 rounded-lg bg-white/70 px-3 py-2 text-xs text-slate-600 ring-1 ring-inset ring-indigo-200">
-            <span>
-              <span className="font-semibold text-slate-800">{saleTypePreview || 'Credit'} sale</span>
-              {transportCharge > 0 && (
-                <span className="ml-2">Material {formatAmount(Number(formData.totalAmount || 0) - transportCharge)} + Transport {formatAmount(transportCharge)}</span>
-              )}
-            </span>
+          <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 rounded-lg bg-white/70 px-3 py-2 text-sm text-slate-600 ring-1 ring-inset ring-slate-200">
+            <span className="font-semibold text-slate-800">{saleTypePreview || 'Credit'} sale</span>
             <span className="font-semibold">
               Balance: <span className={saleBalance < 0 ? 'text-rose-600' : 'text-slate-900'}>{formatAmount(saleBalance)}</span>
             </span>

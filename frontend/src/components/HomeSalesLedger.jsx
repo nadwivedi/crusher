@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { IndianRupee, ReceiptText, ShoppingCart, Truck } from 'lucide-react';
 import apiClient from '../utils/api';
+import { PERIOD_BASES, getBasisUnit, getSaleTransportCharge } from '../utils/transport';
 
 const formatCurrency = (value) => (
   `Rs ${Number(value || 0).toLocaleString('en-IN', {
@@ -8,6 +9,26 @@ const formatCurrency = (value) => (
     maximumFractionDigits: 2
   })}`
 );
+
+/**
+ * How the load was carried, in one line: "Party vehicle", "My vehicle · ₹800", or
+ * "Hired · Sharma Transport · ₹500 / trip · ₹800" (the rate paid to the transporter, then what the party is charged).
+ */
+const describeSaleTransport = (sale, partyMap) => {
+  const mode = sale.transportMode || 'party';
+  if (mode === 'party') return 'Party vehicle';
+  const charge = getSaleTransportCharge(sale);
+  const parts = [mode === 'hired' ? 'Hired' : 'My vehicle'];
+  if (mode === 'hired') {
+    const transporter = partyMap.get(String(sale.transporterId?._id || sale.transporterId || ''));
+    const unit = getBasisUnit(sale.transportBasis);
+    if (transporter) parts.push(transporter);
+    if (PERIOD_BASES.includes(sale.transportBasis)) parts.push('monthly rent');
+    else if (Number(sale.transportRate || 0) > 0) parts.push(`₹${Number(sale.transportRate).toLocaleString('en-IN')}${unit ? ` / ${unit}` : ''}`);
+  }
+  if (charge > 0) parts.push(`charged ₹${charge.toLocaleString('en-IN')}`);
+  return parts.join(' · ');
+};
 
 const formatDate = (value) => {
   const date = new Date(value);
@@ -154,6 +175,7 @@ export default function HomeSalesLedger() {
                     <div className="grid grid-cols-2 gap-3 p-3">
                       <div><p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500">Vehicle</p><p className="mt-1 text-sm font-semibold text-slate-800">{sale.vehicleNo || '-'}</p></div>
                       <div><p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500">Sale Type</p><p className="mt-1 text-sm font-semibold text-slate-800">{formatSaleTypeLabel(sale.saleType)}</p></div>
+                      <div className="col-span-2"><p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500">Transport</p><p className="mt-1 text-sm text-slate-800">{describeSaleTransport(sale, partyMap)}</p></div>
                     </div>
                     <div className="grid grid-cols-2 gap-3 border-t border-slate-100 p-3">
                       <div><p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500">Entry Time</p><p className="mt-1 text-sm text-slate-800">{formatTime(sale.entryTime)}</p></div>
@@ -172,12 +194,13 @@ export default function HomeSalesLedger() {
             </div>
 
             <div className="hidden overflow-x-auto lg:block">
-            <table className="w-full min-w-[900px] xl:min-w-[980px]">
+            <table className="w-full min-w-[1040px] xl:min-w-[1140px]">
               <thead>
                 <tr className="bg-[linear-gradient(135deg,#0f766e_0%,#0d9488_38%,#0891b2_72%,#0284c7_100%)] text-white">
                   <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-[0.14em] lg:px-2 lg:py-1 lg:text-[8px] xl:px-4 xl:py-3 xl:text-xs">Date</th>
                   <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-[0.14em] lg:px-2 lg:py-1 lg:text-[8px] xl:px-4 xl:py-3 xl:text-xs">Invoice</th>
                   <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-[0.14em] lg:px-2 lg:py-1 lg:text-[8px] xl:px-4 xl:py-3 xl:text-xs">Vehicle</th>
+                  <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-[0.14em] lg:px-2 lg:py-1 lg:text-[8px] xl:px-4 xl:py-3 xl:text-xs">Transport</th>
                   <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-[0.14em] lg:px-2 lg:py-1 lg:text-[8px] xl:px-4 xl:py-3 xl:text-xs">Party</th>
                   <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-[0.14em] lg:px-2 lg:py-1 lg:text-[8px] xl:px-4 xl:py-3 xl:text-xs">Material</th>
                   <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-[0.14em] lg:px-2 lg:py-1 lg:text-[8px] xl:px-4 xl:py-3 xl:text-xs">Entry</th>
@@ -195,6 +218,7 @@ export default function HomeSalesLedger() {
                       <td className="px-4 py-3 text-sm text-slate-700 lg:px-2 lg:py-1.5 lg:text-[9px] xl:px-4 xl:py-3 xl:text-[12px]">{formatDate(sale.saleDate || sale.createdAt)}</td>
                       <td className="px-4 py-3 text-sm font-semibold text-slate-700 lg:px-2 lg:py-1.5 lg:text-[9px] xl:px-4 xl:py-3 xl:text-[12px]">{sale.invoiceNumber || '-'}</td>
                       <td className="px-4 py-3 text-sm text-slate-700 lg:px-2 lg:py-1.5 lg:text-[9px] xl:px-4 xl:py-3 xl:text-[12px]">{sale.vehicleNo || '-'}</td>
+                      <td className="max-w-[16rem] px-4 py-3 text-xs text-amber-700 lg:px-2 lg:py-1.5 lg:text-[9px] xl:px-4 xl:py-3 xl:text-[11px]">{describeSaleTransport(sale, partyMap)}</td>
                       <td className="px-4 py-3 text-sm text-slate-700 lg:px-2 lg:py-1.5 lg:text-[9px] xl:px-4 xl:py-3 xl:text-[12px]">{partyName}</td>
                       <td className="px-4 py-3 lg:px-2 lg:py-1.5 xl:px-4 xl:py-3">
                         {materialName && materialName !== '-' ? (

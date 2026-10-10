@@ -6,7 +6,7 @@ import apiClient from '../../utils/api';
 import { useAuth } from '../../context/AuthContext';
 import { getSmartVehicleMatch, normalizeVehicleValue } from '../../utils/vehicleMatching';
 import useAccounts from '../../utils/useAccounts';
-import { getOwnershipLabel, getSaleTransport, getSaleTransportCharge, getTripRate, getSupplierRatesPayload, getVehicleHireRates, getVehicleOwnerIds } from '../../utils/transport';
+import { PERIOD_BASES, getBasisUnit, getOwnershipLabel, getSaleTransport, getSaleTransportCharge, getTripRate, getSupplierRatesPayload, getVehicleHireRates, getVehicleOwnerIds } from '../../utils/transport';
 import AddPartyPopup from '../Party/component/AddPartyPopup';
 import AddProductPopup from '../Products/component/AddProductPopup';
 import AddVehiclePopup from '../Vehicle/component/AddVehiclePopup';
@@ -168,7 +168,8 @@ const getInitialFormData = () => ({
   rate: '',
   ...NO_SALE_TRANSPORT,
   totalAmount: 0,
-  paidAmount: '',
+  // Most sales are on credit: nothing paid unless entered
+  paidAmount: '0',
   account: '',
   slipImg: '',
   notes: '',
@@ -931,8 +932,18 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
     selectLeadger(defaultCashLeadger);
   }, [showForm, editingId, defaultCashLeadger]);
 
+  // A cash sale is paid in full; moving from the cash party to another one puts the payment back to 0
+  const wasCashPartyRef = useRef(false);
   useEffect(() => {
-    if (!showForm || editingId || !isCashParty) return;
+    if (!showForm || editingId) return;
+    if (!isCashParty) {
+      if (wasCashPartyRef.current) {
+        setFormData((prev) => ({ ...prev, paidAmount: '0' }));
+      }
+      wasCashPartyRef.current = false;
+      return;
+    }
+    wasCashPartyRef.current = true;
 
     setFormData((prev) => {
       const nextPaidAmount = Number(prev.totalAmount || 0);
@@ -2622,6 +2633,16 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
     const paid = Number(sale.paidAmount || 0);
     const transporter = sale.transportMode === 'hired' ? resolveLeadgerNameById(sale.transporterId) : '';
     const ownVehicle = sale.transportMode && sale.transportMode !== 'party' ? getOwnershipLabel(sale.transportMode) : '';
+    const transportCharge = getSaleTransportCharge(sale);
+    // What the transporter is paid for this trip: "₹500 / trip · Raipur", "₹180 / ton", or monthly rent
+    const unit = getBasisUnit(sale.transportBasis);
+    const transportRate = sale.transportMode !== 'hired'
+      ? ''
+      : PERIOD_BASES.includes(sale.transportBasis)
+        ? 'On monthly rent'
+        : Number(sale.transportRate || 0) > 0
+          ? [`₹${Number(sale.transportRate).toLocaleString('en-IN')}${unit ? ` / ${unit}` : ''}`, sale.transportLocation].filter(Boolean).join(' · ')
+          : '';
 
     return {
       party: resolveLeadgerNameById(sale.partyId || sale.party) || sale.customerName || '—',
@@ -2629,7 +2650,12 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
       isCubic: sale.pricingMode === 'per_cubic_meter',
       netWeight: Number(sale.netWeight || sale.materialWeight || 0),
       transportNote: transporter ? `${ownVehicle} · ${transporter}` : ownVehicle,
-      transportCharge: getSaleTransportCharge(sale),
+      transportMode: sale.transportMode || 'party',
+      transporter,
+      transportRate,
+      transportCost: sale.transportMode === 'hired' ? getSaleTransport(sale).cost : 0,
+      transportCharge,
+      materialAmount: Math.max(0, Number(sale.totalAmount || 0) - transportCharge),
       paid,
       // Only a part-paid sale needs its balance spelled out; the Cash / Credit badge says the rest
       balance: paid > 0 && total > paid ? total - paid : 0
@@ -2908,6 +2934,11 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
                               {view.isCubic ? `${formatQty(sale.cubicMeterQty)} m³` : `${formatQty(view.netWeight / 1000)} T`}
                             </p>
                           </div>
+                          {view.transportMode !== 'party' && (
+                            <p className="truncate text-[11px] font-medium text-amber-700">
+                              {[view.transportNote, view.transportRate, view.transportCharge > 0 ? `Transport ${formatRupees(view.transportCharge)}` : ''].filter(Boolean).join(' · ')}
+                            </p>
+                          )}
                           <div className="flex items-center justify-between gap-2">
                             <div className="flex min-w-0 items-center gap-1.5 text-[11px] text-slate-400">
                               <span className={`${SALE_TYPE_BADGE[sale.type] || 'badge-red'} shrink-0`}>{formatSaleTypeLabel(sale.type)}</span>
@@ -2927,11 +2958,12 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
                   </ul>
 
                   <div className="hidden overflow-x-auto md:block">
-                    <table className="w-full min-w-[920px] text-left">
+                    <table className="w-full min-w-[1040px] text-left">
                       <thead>
                         <tr>
                           <th className={TH}>Date</th>
-                          <th className={TH}>Party / Vehicle</th>
+                          <th className={TH}>Party</th>
+                          <th className={TH}>Vehicle / Transport</th>
                           <th className={TH}>Material</th>
                           <th className={`${TH} text-right`}>Gross (kg)</th>
                           <th className={`${TH} text-right`}>Tare (kg)</th>
@@ -2961,13 +2993,18 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
                                 )}
                               </td>
                               <td className={TD}>
-                                <p className="max-w-[18rem] truncate font-semibold text-slate-800" title={view.party}>{view.party}</p>
-                                <div className="flex items-center gap-2">
-                                  <Plate>{sale.vehicleNo || '-'}</Plate>
-                                  {view.transportNote && (
-                                    <span className="max-w-[12rem] truncate text-[11px] font-medium text-amber-700" title={view.transportNote}>{view.transportNote}</span>
-                                  )}
-                                </div>
+                                <p className="max-w-[14rem] truncate font-semibold text-slate-800" title={view.party}>{view.party}</p>
+                              </td>
+                              <td className={TD}>
+                                <Plate>{sale.vehicleNo || '-'}</Plate>
+                                <span className="block max-w-[14rem] truncate text-[11px] font-medium text-amber-700" title={view.transportNote || 'Party vehicle'}>
+                                  {view.transportMode === 'party' ? 'Party vehicle' : view.transportNote}
+                                </span>
+                                {view.transportRate && (
+                                  <span className="block text-[11px] leading-tight text-slate-500">
+                                    Pay {view.transportRate}{view.transportCost > 0 ? ` = ${formatRupees(view.transportCost)}` : ''}
+                                  </span>
+                                )}
                               </td>
                               <td className={`${TD} whitespace-nowrap`}>
                                 {renderMaterial(view.material)}
@@ -2989,7 +3026,9 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
                               <td className={`${TD} whitespace-nowrap text-right`}>
                                 <span className="font-bold text-slate-900">{formatRupees(sale.totalAmount)}</span>
                                 {view.transportCharge > 0 && (
-                                  <span className="block text-[11px] leading-tight text-slate-400">incl. {formatRupees(view.transportCharge)} transport</span>
+                                  <span className="block text-[11px] leading-tight text-slate-400">
+                                    {formatRupees(view.materialAmount)} + {formatRupees(view.transportCharge)} transport
+                                  </span>
                                 )}
                               </td>
                               <td className={`${TD} whitespace-nowrap`}>
@@ -3007,7 +3046,7 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
                       </tbody>
                       <tfoot>
                         <tr className="border-t border-slate-200 bg-slate-50">
-                          <td className={`${TD} font-bold text-slate-900`} colSpan={5}>
+                          <td className={`${TD} font-bold text-slate-900`} colSpan={6}>
                             Total
                             <span className="ml-2 text-xs font-medium text-slate-500">
                               {entryCount(summary.count)} · {formatQty(summary.totalWeight / 1000)} T
