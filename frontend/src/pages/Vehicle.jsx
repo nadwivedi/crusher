@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Ban, ChevronRight, Eye, Inbox, MoreVertical, Pencil, Plus, RefreshCw, RotateCcw, Scale, Search, SlidersHorizontal, Trash2, Truck, Users } from 'lucide-react';
+import { Ban, CalendarClock, ChevronRight, Eye, Inbox, MoreVertical, Pencil, Plus, RefreshCw, RotateCcw, Search, SlidersHorizontal, Trash2, Truck, Users, Wallet } from 'lucide-react';
 import { toast } from 'react-toastify';
 import apiClient from '../utils/api';
 import AddVehiclePopup from './Vehicle/component/AddVehiclePopup';
@@ -9,8 +9,9 @@ import AdjustmentPopup from './MonthlyHire/component/AdjustmentPopup';
 import CancelHirePopup from './MonthlyHire/component/CancelHirePopup';
 import MonthlyHireForm from './MonthlyHire/component/MonthlyHireForm';
 import StatCard from '../components/StatCard';
-import { getBasisLabel, getVehicleCategoryLabel, getVehicleHireRates } from '../utils/transport';
-import { formatHireDate, getHireStatus } from '../utils/monthlyHire';
+import { getBasisLabel, getVehicleCategoryLabel, getVehicleHireRates, getVehicleOwnerIds } from '../utils/transport';
+import { formatHireDate, formatRupees, getHireStatus, toDayInput } from '../utils/monthlyHire';
+import { toLocalDateInput } from '../components/CustomRangePopup';
 
 const TOAST_OPTIONS = { autoClose: 1200 };
 
@@ -38,6 +39,8 @@ export default function Vehicle() {
   // A vehicle on monthly rent: adjust a month, cancel the rent, or open the hire
   const [hireAction, setHireAction] = useState(null);
   const [menu, setMenu] = useState(null);
+  // Hire money for the summary cards: this month's hire entries and what is owed to vehicle owners today
+  const [hireSummary, setHireSummary] = useState({ entries: [], balances: [] });
 
   useEffect(() => {
     fetchVehicles();
@@ -93,8 +96,16 @@ export default function Vehicle() {
   const fetchVehicles = async () => {
     try {
       setLoading(true);
-      const response = await apiClient.get('/vehicles', { params: { search } });
+      const [response, entryResponse, outstandingResponse] = await Promise.all([
+        apiClient.get('/vehicles', { params: { search } }),
+        apiClient.get('/transport'),
+        apiClient.get('/reports/outstanding')
+      ]);
       setVehicles(Array.isArray(response) ? response : []);
+      setHireSummary({
+        entries: Array.isArray(entryResponse) ? entryResponse : [],
+        balances: Array.isArray(outstandingResponse?.partyOutstanding) ? outstandingResponse.partyOutstanding : []
+      });
       setError('');
     } catch (err) {
       setError(err.message || 'Error fetching vehicles');
@@ -142,12 +153,27 @@ export default function Vehicle() {
     return party?.partyName || party?.name || '-';
   };
 
-  const boulderVehicles = vehicles.filter((v) => v.vehicleType === 'boulder').length;
-  const salesVehicles = vehicles.filter((v) => v.vehicleType === 'sales').length;
+  const hiredCount = vehicles.filter((v) => v.ownership === 'hired').length;
+  const onMonthlyRent = vehicles.filter((v) => v.monthlyHire);
+  const monthStart = toLocalDateInput(new Date(new Date().getFullYear(), new Date().getMonth(), 1));
+  const hireCostThisMonth = hireSummary.entries
+    .filter((entry) => entry.direction === 'payable' && toDayInput(entry.entryDate) >= monthStart)
+    .reduce((total, entry) => total + Number(entry.amount || 0), 0);
+  const ownerIds = getVehicleOwnerIds(vehicles);
+  const toPayOwners = hireSummary.balances
+    .filter((row) => ownerIds.has(String(row.partyId)) && Number(row.netBalance || 0) < 0)
+    .reduce((total, row) => total + Math.abs(Number(row.netBalance || 0)), 0);
   const stats = [
-    { label: 'Total Vehicles', value: vehicles.length, icon: Truck, tone: 'indigo' },
-    { label: 'Boulder Load', value: boulderVehicles, icon: Scale, tone: 'blue' },
-    { label: 'Sales Vehicles', value: salesVehicles, icon: Users, tone: 'amber' },
+    { label: 'Total Vehicles', value: vehicles.length, icon: Truck, tone: 'indigo', hint: `${hiredCount} hired · ${vehicles.length - hiredCount} mine` },
+    {
+      label: 'On Monthly Rent',
+      value: onMonthlyRent.length,
+      icon: CalendarClock,
+      tone: 'blue',
+      hint: `${formatRupees(onMonthlyRent.reduce((total, v) => total + Number(v.monthlyHire.monthlyRate || 0), 0))} a month`
+    },
+    { label: 'Hire Cost This Month', value: formatRupees(hireCostThisMonth), icon: Wallet, tone: 'amber', hint: 'Trips, extra charges and rent so far' },
+    { label: 'To Pay Owners', value: formatRupees(toPayOwners), icon: Users, tone: 'rose', hint: 'What vehicle owners are owed today' },
   ];
 
   const getOwnerName = (vehicle) => (vehicle.ownership === 'own' ? 'My Vehicle' : getPartyName(vehicle.partyId));
@@ -251,7 +277,7 @@ export default function Vehicle() {
         <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm font-semibold text-rose-700">{error}</div>
       )}
 
-      <section className="grid grid-cols-3 gap-2 md:gap-3">
+      <section className="grid grid-cols-2 gap-2 md:gap-3 lg:grid-cols-4">
         {stats.map((stat) => <StatCard key={stat.label} compact {...stat} />)}
       </section>
 

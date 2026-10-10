@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Ban, CalendarClock, ClipboardList, Inbox, Pencil, RotateCcw, SlidersHorizontal, Truck, Wallet } from 'lucide-react';
+import { ArrowLeft, Ban, CalendarClock, ClipboardList, Inbox, Pencil, Plus, RotateCcw, SlidersHorizontal, Trash2, Truck, Wallet } from 'lucide-react';
+import { toast } from 'react-toastify';
 import apiClient from '../utils/api';
 import StatCard from '../components/StatCard';
 import Segmented from '../components/Segmented';
 import { getBasisLabel, getVehicleCategoryLabel } from '../utils/transport';
 import { formatHireDate, formatRupees } from '../utils/monthlyHire';
 import AddVehiclePopup from './Vehicle/component/AddVehiclePopup';
+import HireEntryPopup from './Vehicle/component/HireEntryPopup';
 import MonthlyHireList from './MonthlyHire/component/MonthlyHireList';
 import MonthlyHireDetail from './MonthlyHire/component/MonthlyHireDetail';
 import MonthlyHireForm from './MonthlyHire/component/MonthlyHireForm';
@@ -70,6 +72,8 @@ const buildTimeline = (data) => {
       title: getEntryTitle(entry),
       detail: [entry.entryNumber, entry.partyName, describeEntry(entry)].filter(Boolean).join(' · '),
       hireId: entry.hireId,
+      // An extra charge added by hand is changed here; the rest come from sales, boulder entries and monthly rent
+      entry: entry.source === 'manual' ? entry : null,
       amount: Number(entry.amount || 0),
       direction: entry.direction,
       tone: entry.direction === 'receivable' ? 'badge-green' : 'badge-orange'
@@ -164,6 +168,28 @@ export default function VehicleLedger() {
   const timeline = useMemo(() => (data ? buildTimeline(data) : []), [data]);
   const visibleRows = useMemo(() => timeline.filter((row) => !view || row.view === view).reverse(), [timeline, view]);
 
+  const deleteEntry = async (entry) => {
+    if (!window.confirm(`Delete hire entry ${entry.entryNumber}?`)) return;
+    try {
+      await apiClient.delete(`/transport/${entry._id}`);
+      toast.success('Entry deleted');
+      load();
+    } catch (deleteError) {
+      toast.error(deleteError?.message || 'Error deleting entry');
+    }
+  };
+
+  const renderEntryActions = (row) => row.entry && (
+    <span className="inline-flex items-center" onClick={(event) => event.stopPropagation()}>
+      <button type="button" title="Edit entry" aria-label="Edit entry" className="icon-btn p-1.5 hover:bg-blue-50 hover:text-blue-600" onClick={() => setPopup({ entry: row.entry })}>
+        <Pencil size={14} />
+      </button>
+      <button type="button" title="Delete entry" aria-label="Delete entry" className="icon-btn p-1.5 hover:bg-rose-50 hover:text-rose-600" onClick={() => deleteEntry(row.entry)}>
+        <Trash2 size={14} />
+      </button>
+    </span>
+  );
+
   const closePopup = (changed = false) => {
     setPopup(null);
     if (changed) load();
@@ -207,6 +233,9 @@ export default function VehicleLedger() {
       )}
       {popup === 'adjust' && hireForPopups && <AdjustmentPopup hire={hireForPopups} onClose={() => closePopup()} onDone={() => closePopup(true)} />}
       {popup === 'cancel' && hireForPopups && <CancelHirePopup hire={hireForPopups} onClose={() => closePopup()} onDone={() => closePopup(true)} />}
+      {(popup === 'entry' || popup?.entry) && (
+        <HireEntryPopup vehicle={vehicle} entry={popup?.entry || null} onClose={() => closePopup()} onSaved={() => closePopup(true)} />
+      )}
       {popup?.hireId && (
         <MonthlyHireDetail hireId={popup.hireId} canEdit onClose={() => closePopup(true)} onChanged={load} />
       )}
@@ -230,6 +259,9 @@ export default function VehicleLedger() {
           )}
           {isMonthly && !runningHire && (
             <button type="button" className="btn-primary" onClick={() => setPopup('again')}><RotateCcw size={16} /> Hire Again</button>
+          )}
+          {isHired && (
+            <button type="button" className="btn-secondary" onClick={() => setPopup('entry')}><Plus size={16} /> Add Entry</button>
           )}
           <button type="button" className="btn-secondary" onClick={() => setPopup('edit')}><Pencil size={16} /> Edit Vehicle</button>
         </div>
@@ -285,7 +317,10 @@ export default function VehicleLedger() {
                       </span>
                     )}
                   </div>
-                  <p className="mt-1 text-xs text-slate-600">{row.detail}</p>
+                  <div className="mt-1 flex items-start justify-between gap-2">
+                    <p className="text-xs text-slate-600">{row.detail}</p>
+                    {renderEntryActions(row)}
+                  </div>
                   <p className="text-[11px] text-slate-400">{formatHireDate(row.date)}{row.running !== undefined ? ` · hire cost so far ${formatRupees(row.running)}` : ''}</p>
                 </li>
               ))}
@@ -300,6 +335,7 @@ export default function VehicleLedger() {
                     <th className={TH}>Details</th>
                     <th className={`${TH} text-right`}>Amount</th>
                     <th className={`${TH} text-right`}>Hire Cost So Far</th>
+                    <th className={`${TH} w-16`} />
                   </tr>
                 </thead>
                 <tbody>
@@ -314,6 +350,7 @@ export default function VehicleLedger() {
                       <td className={`${TD} whitespace-nowrap text-right font-semibold text-slate-800`}>
                         {row.running !== undefined ? formatRupees(row.running) : ''}
                       </td>
+                      <td className={`${TD} py-1!`}>{renderEntryActions(row)}</td>
                     </tr>
                   ))}
                 </tbody>

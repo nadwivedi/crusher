@@ -159,23 +159,26 @@ export default function MonthlyHireForm({ hire = null, defaultPartyId = '', pres
     >
       {error && <p className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-medium text-rose-700">{error}</p>}
 
-      <div className="grid grid-cols-2 gap-2">
-        {DIRECTIONS.map((direction) => (
-          <button
-            key={direction.key}
-            type="button"
-            onClick={() => setFormData((prev) => ({ ...prev, direction: direction.key }))}
-            aria-pressed={formData.direction === direction.key}
-            className={`rounded-lg border px-3 py-2 text-left transition ${formData.direction === direction.key ? direction.activeClass : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-100'}`}
-          >
-            <span className="flex items-center gap-1.5 text-sm font-semibold">
-              <direction.Icon size={16} />
-              {direction.label}
-            </span>
-            <span className={`block text-[11px] ${formData.direction === direction.key ? 'text-white/80' : 'text-slate-400'}`}>{direction.hint}</span>
-          </button>
-        ))}
-      </div>
+      {/* Giving my own vehicle on rent is not used for now; an old hire of that kind still shows its choice */}
+      {formData.direction === 'receivable' && (
+        <div className="grid grid-cols-2 gap-2">
+          {DIRECTIONS.map((direction) => (
+            <button
+              key={direction.key}
+              type="button"
+              onClick={() => setFormData((prev) => ({ ...prev, direction: direction.key }))}
+              aria-pressed={formData.direction === direction.key}
+              className={`rounded-lg border px-3 py-2 text-left transition ${formData.direction === direction.key ? direction.activeClass : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-100'}`}
+            >
+              <span className="flex items-center gap-1.5 text-sm font-semibold">
+                <direction.Icon size={16} />
+                {direction.label}
+              </span>
+              <span className={`block text-[11px] ${formData.direction === direction.key ? 'text-white/80' : 'text-slate-400'}`}>{direction.hint}</span>
+            </button>
+          ))}
+        </div>
+      )}
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div>

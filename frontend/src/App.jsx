@@ -31,7 +31,6 @@ import DayBook from './pages/DayBook';
 import Analytics from './pages/Analytics';
 import Setting from './pages/Setting';
 import Payroll from './pages/Payroll/Payroll';
-import Transport from './pages/Transport/Transport';
 import Accounts from './pages/Accounts/Accounts';
 import AccountLedger from './pages/Accounts/AccountLedger';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -151,7 +150,6 @@ function App() {
           <Route path="/reports/payment-report" element={<Payments />} />
           <Route path="/reports/profit-loss-report" element={<ProfitLossReport />} />
 
-          <Route path="/transport" element={<Transport />} />
           <Route path="/accounts" element={<Accounts />} />
           <Route path="/accounts/:id" element={<AccountLedger />} />
           <Route path="/payroll" element={<Payroll />} />
