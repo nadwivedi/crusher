@@ -47,6 +47,25 @@ export const getVehicleCategoryLabel = (category) => (
   VEHICLE_CATEGORY_OPTIONS.find((option) => option.value === category)?.label || ''
 );
 
+// A supplier that provides transport, or a party saved as a transporter before that type was folded into suppliers
+export const isTransportProvider = (party) => (
+  party?.type === 'transporter' || (party?.type === 'supplier' && Boolean(party?.isTransportProvider))
+);
+
+// The rate fields a party form saves. Only a transport provider keeps boulder and transportation rates.
+export const getSupplierRatesPayload = (form) => {
+  const provider = form?.type === 'supplier' && Boolean(form?.isTransportProvider);
+  const perTrip = form?.hireBasis === 'per_trip';
+  return {
+    isTransportProvider: provider,
+    boulderRatePerTon: provider ? Number(form.boulderRatePerTon || 0) : 0,
+    boulderRatePerTrip: provider ? Number(form.boulderRatePerTrip || 0) : 0,
+    hireBasis: form?.hireBasis || 'per_ton',
+    hireRate: provider && !perTrip ? Number(form.hireRate || 0) : 0,
+    tripRates: provider && perTrip ? getFilledTripRates(form.tripRates) : []
+  };
+};
+
 const hasHireRates = (source) => Boolean(source) && (
   source.hireBasis === 'per_trip' ? (source.tripRates || []).length > 0 : Number(source.hireRate || 0) > 0
 );

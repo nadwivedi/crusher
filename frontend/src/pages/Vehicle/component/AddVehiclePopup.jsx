@@ -7,7 +7,7 @@ import FormSection from '../../../components/FormSection';
 import AddPartyPopup from '../../Party/component/AddPartyPopup';
 import { handlePopupFormKeyDown } from '../../../utils/popupFormKeyboard';
 import { useFloatingDropdownPosition } from '../../../utils/useFloatingDropdownPosition';
-import { VEHICLE_CATEGORY_OPTIONS, VEHICLE_OWNERSHIP_OPTIONS, getFilledTripRates } from '../../../utils/transport';
+import { VEHICLE_CATEGORY_OPTIONS, VEHICLE_OWNERSHIP_OPTIONS, getSupplierRatesPayload, isTransportProvider } from '../../../utils/transport';
 
 const initialFormData = {
   partyId: '',
@@ -43,8 +43,7 @@ const getInitialPartyFormData = (type = 'customer') => ({
   dustRate: '',
   boulderRatePerTon: '',
   boulderRatePerTrip: '',
-  transportRate: '',
-  transportRateBasis: 'per_ton',
+  isTransportProvider: false,
   hireBasis: 'per_ton',
   hireRate: '',
   tripRates: []
@@ -96,7 +95,7 @@ export default function AddVehiclePopup({ vehicle, onClose, onSave, onVehicleSav
   // A hired vehicle is picked from transporters first; the cash party never owns a vehicle
   const partyOptions = useMemo(() => parties
     .filter((party) => party.type !== 'cash-in-hand')
-    .sort((a, b) => (isHiredVehicle ? Number(b.type === 'transporter') - Number(a.type === 'transporter') : 0)),
+    .sort((a, b) => (isHiredVehicle ? Number(isTransportProvider(b)) - Number(isTransportProvider(a)) : 0)),
   [parties, isHiredVehicle]);
 
   const selectedParty = useMemo(
@@ -172,7 +171,8 @@ export default function AddVehiclePopup({ vehicle, onClose, onSave, onVehicleSav
 
   const openInlinePartyForm = () => {
     setPartyFormData({
-      ...getInitialPartyFormData(isHiredVehicle ? 'transporter' : 'customer'),
+      ...getInitialPartyFormData(isHiredVehicle ? 'supplier' : 'customer'),
+      isTransportProvider: isHiredVehicle,
       name: selectedParty ? '' : toTitleCase(partyQuery)
     });
     setPartyPopupError('');
@@ -238,13 +238,7 @@ export default function AddVehiclePopup({ vehicle, onClose, onSave, onVehicleSav
         wmmRate: Number(partyFormData.wmmRate || 0),
         gsbRate: Number(partyFormData.gsbRate || 0),
         dustRate: Number(partyFormData.dustRate || 0),
-        boulderRatePerTon: Number(partyFormData.boulderRatePerTon || 0),
-        boulderRatePerTrip: Number(partyFormData.boulderRatePerTrip || 0),
-        transportRate: Number(partyFormData.transportRate || 0),
-        transportRateBasis: partyFormData.transportRateBasis || 'per_ton',
-        hireBasis: partyFormData.hireBasis || 'per_ton',
-        hireRate: partyFormData.hireBasis === 'per_trip' ? 0 : Number(partyFormData.hireRate || 0),
-        tripRates: partyFormData.hireBasis === 'per_trip' ? getFilledTripRates(partyFormData.tripRates) : []
+        ...getSupplierRatesPayload(partyFormData)
       });
       setParties((prev) => [createdParty, ...prev.filter((item) => String(item._id) !== String(createdParty._id))]);
       setShowPartyForm(false);

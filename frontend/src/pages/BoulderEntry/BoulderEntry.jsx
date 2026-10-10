@@ -47,6 +47,8 @@ const initialFormData = {
   tripCount: '',
   // Empty until picked: goes by whichever boulder rate the supplier has
   boulderRateBasis: '',
+  // Per-trip transport with several locations: the one this load came from
+  transportLocation: '',
   slipImg: ''
 };
 
@@ -55,16 +57,32 @@ const BOULDER_RATE_BASES = [
   { value: 'per_trip', label: 'Per Trip' }
 ];
 
-// The supplier's boulder and transport rates; a non-supplier has none
-const getSupplierRates = (party) => {
+/**
+ * The supplier's boulder and transport rates; a non-supplier has none.
+ * Transport comes from a transport provider's transportation rate when it is per ton or per trip;
+ * a per-trip rate is the picked location's, or the only location's.
+ */
+const getSupplierRates = (party, transportLocation = '') => {
   const isSupplier = party?.type === 'supplier';
   const toRate = (value) => (isSupplier ? Math.max(0, Number(value || 0) || 0) : 0);
-  return {
+  const rates = {
     perTon: toRate(party?.boulderRatePerTon),
     perTrip: toRate(party?.boulderRatePerTrip),
-    transport: toRate(party?.transportRate),
-    transportBasis: party?.transportRateBasis === 'per_trip' ? 'per_trip' : 'per_ton'
+    transport: 0,
+    transportBasis: 'per_ton',
+    tripLocations: []
   };
+  if (!isSupplier || !party?.isTransportProvider) return rates;
+
+  if (party.hireBasis === 'per_ton') {
+    return { ...rates, transport: toRate(party.hireRate) };
+  }
+  if (party.hireBasis === 'per_trip') {
+    const tripLocations = party.tripRates || [];
+    const trip = tripLocations.find((row) => row.location === transportLocation) || (tripLocations.length === 1 ? tripLocations[0] : null);
+    return { ...rates, transport: toRate(trip?.rate), transportBasis: 'per_trip', tripLocations };
+  }
+  return rates;
 };
 
 const getDefaultRateBasis = (rates) => (rates.perTon <= 0 && rates.perTrip > 0 ? 'per_trip' : 'per_ton');
@@ -131,7 +149,7 @@ export default function BoulderEntry({ onModalFinish = null, editingEntry = null
     )) || null;
   }, [formData.partyName, parties]);
 
-  const supplierRates = useMemo(() => getSupplierRates(selectedParty), [selectedParty]);
+  const supplierRates = useMemo(() => getSupplierRates(selectedParty, formData.transportLocation), [selectedParty, formData.transportLocation]);
   const boulderRateBasis = formData.boulderRateBasis || getDefaultRateBasis(supplierRates);
   const boulderRate = boulderRateBasis === 'per_trip' ? supplierRates.perTrip : supplierRates.perTon;
 
@@ -190,6 +208,7 @@ export default function BoulderEntry({ onModalFinish = null, editingEntry = null
       averageWeightTon: entryMode === 'bulk' ? String(Number(editingEntry.averageWeight || 0) / 1000) : '',
       tripCount: entryMode === 'bulk' ? String(editingEntry.tripCount || '') : '',
       boulderRateBasis: editingEntry.boulderRateBasis || 'per_ton',
+      transportLocation: editingEntry.transportLocation || '',
       slipImg: editingEntry.slipImg || ''
     });
     setVehicleQuery(vehicleNo);
@@ -399,7 +418,7 @@ export default function BoulderEntry({ onModalFinish = null, editingEntry = null
     const partyName = String(party?.partyName || party?.name || '').trim();
     if (!partyName) return;
     setPartyQuery(partyName);
-    setFormData((prev) => ({ ...prev, partyId: party._id || '', partyName, boulderRateBasis: getDefaultRateBasis(getSupplierRates(party)) }));
+    setFormData((prev) => ({ ...prev, partyId: party._id || '', partyName, boulderRateBasis: getDefaultRateBasis(getSupplierRates(party)), transportLocation: '' }));
     setIsPartySectionActive(false);
   };
 
@@ -518,6 +537,7 @@ export default function BoulderEntry({ onModalFinish = null, editingEntry = null
         entryTime: formData.entryTime,
         exitTime: formData.exitTime,
         boulderRateBasis,
+        transportLocation: formData.transportLocation,
         slipImg: formData.slipImg
       };
       const payload = isBulkMode
@@ -909,6 +929,22 @@ export default function BoulderEntry({ onModalFinish = null, editingEntry = null
                   })}
                 </div>
               </div>
+              {supplierRates.tripLocations.length > 1 && (
+                <div className="flex items-center gap-2">
+                  <label className="text-xs font-semibold text-slate-600" htmlFor="boulder-transport-location">Transport from</label>
+                  <select
+                    id="boulder-transport-location"
+                    className="input max-w-[16rem] py-1.5 text-sm"
+                    value={formData.transportLocation}
+                    onChange={(event) => setFormData((prev) => ({ ...prev, transportLocation: event.target.value }))}
+                  >
+                    <option value="">Select location</option>
+                    {supplierRates.tripLocations.map((row) => (
+                      <option key={row.location} value={row.location}>{row.location} · ₹{Number(row.rate || 0).toLocaleString('en-IN')}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
               <div className="rounded-lg bg-white px-3 py-2.5 text-sm ring-1 ring-inset ring-indigo-200">
                 <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
                   <span className="text-slate-600">

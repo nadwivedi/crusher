@@ -6,7 +6,7 @@ import apiClient from '../../utils/api';
 import { useAuth } from '../../context/AuthContext';
 import { getSmartVehicleMatch, normalizeVehicleValue } from '../../utils/vehicleMatching';
 import useAccounts from '../../utils/useAccounts';
-import { getOwnershipLabel, getSaleTransport, getSaleTransportCharge, getTripRate, getFilledTripRates, getVehicleHireRates } from '../../utils/transport';
+import { getOwnershipLabel, getSaleTransport, getSaleTransportCharge, getTripRate, getSupplierRatesPayload, getVehicleHireRates, isTransportProvider } from '../../utils/transport';
 import AddPartyPopup from '../Party/component/AddPartyPopup';
 import AddProductPopup from '../Products/component/AddProductPopup';
 import AddVehiclePopup from '../Vehicle/component/AddVehiclePopup';
@@ -193,8 +193,7 @@ const getInitialPartyFormData = (type = 'customer') => ({
   dustRate: '',
   boulderRatePerTon: '',
   boulderRatePerTrip: '',
-  transportRate: '',
-  transportRateBasis: 'per_ton',
+  isTransportProvider: false,
   hireBasis: 'per_ton',
   hireRate: '',
   tripRates: []
@@ -809,7 +808,7 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
   const transportParties = useMemo(() => leadgers
     .filter((leadger) => String(leadger.type || '').toLowerCase() !== 'cash-in-hand')
     .sort((a, b) => (
-      Number(b.type === 'transporter') - Number(a.type === 'transporter')
+      Number(isTransportProvider(b)) - Number(isTransportProvider(a))
       || String(a.name || '').localeCompare(String(b.name || ''))
     )), [leadgers]);
   const paidAmount = Math.max(0, Number(formData.paidAmount || 0));
@@ -2065,13 +2064,7 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
           wmmRate: Number(partyFormData.wmmRate || 0),
           gsbRate: Number(partyFormData.gsbRate || 0),
           dustRate: Number(partyFormData.dustRate || 0),
-          boulderRatePerTon: Number(partyFormData.boulderRatePerTon || 0),
-          boulderRatePerTrip: Number(partyFormData.boulderRatePerTrip || 0),
-          transportRate: Number(partyFormData.transportRate || 0),
-          transportRateBasis: partyFormData.transportRateBasis || 'per_ton',
-          hireBasis: partyFormData.hireBasis || 'per_ton',
-          hireRate: partyFormData.hireBasis === 'per_trip' ? 0 : Number(partyFormData.hireRate || 0),
-          tripRates: partyFormData.hireBasis === 'per_trip' ? getFilledTripRates(partyFormData.tripRates) : []
+          ...getSupplierRatesPayload(partyFormData)
         };
 
       const response = await apiClient.post('/parties', payload);

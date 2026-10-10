@@ -114,19 +114,13 @@ const partySchema = new mongoose.Schema(
       min: 0,
       set: normalizeRate,
     },
-    // What the supplier charges to bring the boulder, per ton or per trip
-    transportRate: {
-      type: Number,
-      default: 0,
-      min: 0,
-      set: normalizeRate,
+    // A supplier that also brings material or hires out vehicles. Its transportation rate is below.
+    // Older parties of type "transporter" count as transport providers too.
+    isTransportProvider: {
+      type: Boolean,
+      default: false,
     },
-    transportRateBasis: {
-      type: String,
-      enum: ["per_ton", "per_trip"],
-      default: "per_ton",
-    },
-    // Transporter: what its vehicles are hired at. Copied onto a hired vehicle when it is added.
+    // Transportation rate: what its vehicles are paid, on boulder entries and on hired vehicles
     hireBasis: {
       type: String,
       enum: TRANSPORT_BASES,

@@ -8,7 +8,7 @@ import StatCard from '../../components/StatCard';
 import Segmented from '../../components/Segmented';
 import CustomRangePopup, { toLocalDateInput, formatRangeLabel } from '../../components/CustomRangePopup';
 import MonthPickerPopup, { getMonthRange, formatMonthLabel } from '../../components/MonthPickerPopup';
-import { describeTransportBasis } from '../../utils/transport';
+import { describeTransportBasis, isTransportProvider } from '../../utils/transport';
 import TransportEntryPopup from './component/TransportEntryPopup';
 
 // The two views of the data panel
@@ -171,7 +171,7 @@ export default function Transport() {
   const partyOptions = useMemo(() => parties
     .filter((party) => party.type !== 'cash-in-hand')
     .sort((a, b) => (
-      Number(b.type === 'transporter') - Number(a.type === 'transporter')
+      Number(isTransportProvider(b)) - Number(isTransportProvider(a))
       || String(a.name || '').localeCompare(String(b.name || ''))
     )), [parties]);
 
@@ -227,7 +227,7 @@ export default function Transport() {
     };
 
     for (const party of parties) {
-      if (party.type === 'transporter') rowFor(party._id, party.name, party.type);
+      if (isTransportProvider(party)) rowFor(party._id, party.name, party.type);
     }
 
     for (const entry of periodEntries) {

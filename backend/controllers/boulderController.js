@@ -118,26 +118,45 @@ const resolvePartySnapshot = async ({ partyId, partyName, fallbackPartyId = null
   return { partyId: null, partyName: "" };
 };
 
-const NO_RATES = { boulderRatePerTon: 0, boulderRatePerTrip: 0, transportRate: 0, transportRateBasis: "per_ton" };
+const NO_RATES = { boulderRatePerTon: 0, boulderRatePerTrip: 0, transportRate: 0, transportRateBasis: "per_ton", transportLocation: "" };
 
-// The supplier's boulder and transport rates at the time of the entry
-const resolveBoulderRateSnapshot = async (partyId, userId) => {
+/**
+ * The supplier's boulder and transport rates at the time of the entry.
+ * Transport is added only for a transport provider paid per ton or per trip; a per-trip rate is the picked location's
+ * (or the only location's). Per km and per month hire is booked from the Transport page instead.
+ */
+const resolveBoulderRateSnapshot = async (partyId, userId, transportLocation = "") => {
   if (!partyId || !mongoose.Types.ObjectId.isValid(partyId)) {
     return { ...NO_RATES };
   }
 
   const party = await Party.findOne({ _id: partyId, userId })
-    .select("type boulderRatePerTon boulderRatePerTrip transportRate transportRateBasis");
+    .select("type isTransportProvider boulderRatePerTon boulderRatePerTrip hireBasis hireRate tripRates");
   if (!party || party.type !== "supplier") {
     return { ...NO_RATES };
   }
 
-  return {
+  const rates = {
+    ...NO_RATES,
     boulderRatePerTon: Math.max(0, toSafeNumber(party.boulderRatePerTon)),
     boulderRatePerTrip: Math.max(0, toSafeNumber(party.boulderRatePerTrip)),
-    transportRate: Math.max(0, toSafeNumber(party.transportRate)),
-    transportRateBasis: RATE_BASES.includes(party.transportRateBasis) ? party.transportRateBasis : "per_ton",
   };
+  if (!party.isTransportProvider) return rates;
+
+  if (party.hireBasis === "per_ton") {
+    return { ...rates, transportRateBasis: "per_ton", transportRate: Math.max(0, toSafeNumber(party.hireRate)) };
+  }
+
+  if (party.hireBasis === "per_trip") {
+    const tripRates = party.tripRates || [];
+    const wanted = `${transportLocation || ""}`.trim().toLowerCase();
+    const trip = tripRates.find((row) => row.location.toLowerCase() === wanted) || (tripRates.length === 1 ? tripRates[0] : null);
+    if (trip) {
+      return { ...rates, transportRateBasis: "per_trip", transportRate: Math.max(0, toSafeNumber(trip.rate)), transportLocation: trip.location };
+    }
+  }
+
+  return rates;
 };
 
 const normalizeBoulderPayload = async (payload, userId) => {
@@ -297,7 +316,7 @@ const normalizeBoulderPayload = async (payload, userId) => {
     normalizedPayload.partyName = partySnapshot.partyName;
   }
 
-  const rates = await resolveBoulderRateSnapshot(normalizedPayload.partyId, userId);
+  const rates = await resolveBoulderRateSnapshot(normalizedPayload.partyId, userId, normalizedPayload.transportLocation);
   // The entry picks how the boulder is charged; without a choice it goes by whichever rate the supplier has
   const boulderRateBasis = RATE_BASES.includes(normalizedPayload.boulderRateBasis)
     ? normalizedPayload.boulderRateBasis

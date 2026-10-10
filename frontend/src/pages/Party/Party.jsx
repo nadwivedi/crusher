@@ -4,7 +4,7 @@ import { Pencil, Search, Wallet, ChevronRight, Users } from 'lucide-react';
 import { toast } from 'react-toastify';
 import apiClient from '../../utils/api';
 import AddPartyPopup from './component/AddPartyPopup';
-import { getFilledTripRates } from '../../utils/transport';
+import { getSupplierRatesPayload, isTransportProvider } from '../../utils/transport';
 
 const getInitialForm = () => ({
   type: '',
@@ -20,8 +20,7 @@ const getInitialForm = () => ({
   dustRate: '',
   boulderRatePerTon: '',
   boulderRatePerTrip: '',
-  transportRate: '',
-  transportRateBasis: 'per_ton',
+  isTransportProvider: false,
   hireBasis: 'per_ton',
   hireRate: '',
   tripRates: []
@@ -56,7 +55,7 @@ const getTypeBadgeClass = (type) => {
   return 'border border-emerald-200 bg-emerald-50 text-emerald-700';
 };
 
-const getTypeLabel = (type) => PARTY_TYPE_LABELS[type] || 'Supplier';
+const getTypeLabel = (party) => (isTransportProvider(party) ? 'Supplier · Transport' : PARTY_TYPE_LABELS[party?.type] || 'Supplier');
 const getDefaultOpeningBalanceType = (partyType) => (['supplier', 'transporter'].includes(partyType) ? 'payable' : 'receivable');
 const resolveOpeningBalanceType = (party) => {
   const explicitType = String(party?.openingBalanceType || '').trim().toLowerCase();
@@ -161,7 +160,8 @@ export default function Party() {
   const handleEdit = (party) => {
     setEditingId(party._id);
     setFormData({
-      type: ['supplier', 'customer', 'transporter', 'cash-in-hand'].includes(party.type) ? party.type : 'supplier',
+      type: ['supplier', 'customer', 'cash-in-hand'].includes(party.type) ? party.type : 'supplier',
+      isTransportProvider: isTransportProvider(party),
       name: String(party.name || ''),
       mobile: String(party.mobile || '').replace(/\D/g, '').slice(0, 10),
       openingBalance: Math.abs(Number(party.openingBalance || 0)) || '',
@@ -174,8 +174,6 @@ export default function Party() {
       dustRate: Number(party.dustRate || 0) || '',
       boulderRatePerTon: Number(party.boulderRatePerTon || 0) || '',
       boulderRatePerTrip: Number(party.boulderRatePerTrip || 0) || '',
-      transportRate: Number(party.transportRate || 0) || '',
-      transportRateBasis: party.transportRateBasis || 'per_ton',
       hireBasis: party.hireBasis || 'per_ton',
       hireRate: Number(party.hireRate || 0) || '',
       tripRates: (party.tripRates || []).map((row) => ({ location: row.location, rate: String(row.rate ?? '') }))
@@ -216,13 +214,7 @@ export default function Party() {
         wmmRate: Number(formData.wmmRate || 0),
         gsbRate: Number(formData.gsbRate || 0),
         dustRate: Number(formData.dustRate || 0),
-        boulderRatePerTon: Number(formData.boulderRatePerTon || 0),
-        boulderRatePerTrip: Number(formData.boulderRatePerTrip || 0),
-        transportRate: Number(formData.transportRate || 0),
-        transportRateBasis: formData.transportRateBasis || 'per_ton',
-        hireBasis: formData.hireBasis || 'per_ton',
-        hireRate: formData.hireBasis === 'per_trip' ? 0 : Number(formData.hireRate || 0),
-        tripRates: formData.hireBasis === 'per_trip' ? getFilledTripRates(formData.tripRates) : []
+        ...getSupplierRatesPayload(formData)
       };
 
       if (editingId) {
@@ -353,8 +345,8 @@ export default function Party() {
                           </div>
                           <div className="min-w-0">
                             <h3 className="truncate text-base font-black text-slate-800 transition-colors group-hover:text-indigo-700">{item.name || '-'}</h3>
-                            <p className={`mt-1 inline-flex rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${getTypeBadgeClass(item.type)}`}>
-                              {getTypeLabel(item.type)}
+                            <p className={`mt-1 inline-flex rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${getTypeBadgeClass(item.type === 'transporter' ? 'supplier' : item.type)}`}>
+                              {getTypeLabel(item)}
                             </p>
                           </div>
                         </div>
@@ -404,8 +396,8 @@ export default function Party() {
                         >
                           <td className="px-6 py-4 font-black text-slate-800">{item.name || '-'}</td>
                           <td className="px-6 py-4">
-                            <span className={`inline-flex rounded-md px-2.5 py-1 text-xs font-semibold capitalize ${getTypeBadgeClass(item.type)}`}>
-                              {getTypeLabel(item.type)}
+                            <span className={`inline-flex rounded-md px-2.5 py-1 text-xs font-semibold capitalize ${getTypeBadgeClass(item.type === 'transporter' ? 'supplier' : item.type)}`}>
+                              {getTypeLabel(item)}
                             </span>
                           </td>
                           <td className="px-6 py-4 font-bold text-slate-600">{item.mobile || '-'}</td>

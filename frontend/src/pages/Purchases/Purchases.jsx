@@ -9,7 +9,7 @@ import AddProductPopup from '../Products/component/AddProductPopup';
 import StatCard from '../../components/StatCard';
 import Segmented from '../../components/Segmented';
 import AddPurchasePopup from './component/AddPurchasePopup';
-import { getFilledTripRates } from '../../utils/transport';
+import { getSupplierRatesPayload } from '../../utils/transport';
 
 const PURCHASE_TYPES = {
   cash: { label: 'Cash', badge: 'badge-green' },
@@ -152,8 +152,7 @@ export default function Purchases({ modalOnly = false, onModalFinish = null }) {
     dustRate: '',
     boulderRatePerTon: '',
   boulderRatePerTrip: '',
-  transportRate: '',
-  transportRateBasis: 'per_ton',
+  isTransportProvider: false,
   hireBasis: 'per_ton',
   hireRate: '',
   tripRates: []
@@ -948,13 +947,7 @@ export default function Purchases({ modalOnly = false, onModalFinish = null }) {
           wmmRate: Number(partyFormData.wmmRate || 0),
           gsbRate: Number(partyFormData.gsbRate || 0),
           dustRate: Number(partyFormData.dustRate || 0),
-          boulderRatePerTon: Number(partyFormData.boulderRatePerTon || 0),
-          boulderRatePerTrip: Number(partyFormData.boulderRatePerTrip || 0),
-          transportRate: Number(partyFormData.transportRate || 0),
-          transportRateBasis: partyFormData.transportRateBasis || 'per_ton',
-          hireBasis: partyFormData.hireBasis || 'per_ton',
-          hireRate: partyFormData.hireBasis === 'per_trip' ? 0 : Number(partyFormData.hireRate || 0),
-          tripRates: partyFormData.hireBasis === 'per_trip' ? getFilledTripRates(partyFormData.tripRates) : []
+          ...getSupplierRatesPayload(partyFormData)
         };
 
         const response = await apiClient.post('/parties', payload);

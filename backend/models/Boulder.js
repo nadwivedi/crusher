@@ -96,6 +96,12 @@ const boulderSchema = new mongoose.Schema(
       enum: ["per_ton", "per_trip"],
       default: "per_ton",
     },
+    // Per-trip transport: the location whose rate was used
+    transportLocation: {
+      type: String,
+      trim: true,
+      default: "",
+    },
     transportRate: {
       type: Number,
       default: 0,
