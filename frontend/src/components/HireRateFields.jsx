@@ -22,7 +22,8 @@ const toTitleCase = (value) => String(value || '')
  * onChange gets the changed fields: { hireBasis }, { hireRate } or { tripRates }.
  */
 export default function HireRateFields({ idPrefix, label = 'Pay Transporter', hireBasis, hireRate, tripRates, onChange }) {
-  const basis = HIRE_BASES.includes(hireBasis) ? hireBasis : 'per_ton';
+  // Nothing picked means the vehicle has no rate set
+  const basis = HIRE_BASES.includes(hireBasis) ? hireBasis : '';
   const isPerTrip = basis === 'per_trip';
   const unit = getBasisUnit(basis);
   const rows = tripRates?.length ? tripRates : [EMPTY_TRIP_RATE];
@@ -45,12 +46,13 @@ export default function HireRateFields({ idPrefix, label = 'Pay Transporter', hi
         <div>
           <label className="label" htmlFor={`${idPrefix}-hire-basis-input`}>{label}</label>
           <select id={`${idPrefix}-hire-basis-input`} className="input" value={basis} onChange={(event) => onChange({ hireBasis: event.target.value })}>
+            <option value="">No rate set</option>
             {basisOptions.map((option) => (
               <option key={option.value} value={option.value}>{option.label}</option>
             ))}
           </select>
         </div>
-        {!isPerTrip && (
+        {basis && !isPerTrip && (
           <div>
             <label className="label" htmlFor={`${idPrefix}-hire-rate-input`}>{isMonthly ? 'Monthly Amount' : 'Rate'}</label>
             <div className="relative">

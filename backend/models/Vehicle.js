@@ -47,11 +47,11 @@ const vehicleSchema = new mongoose.Schema(
       enum: ["party", "own", "hired"],
       default: "party",
     },
-    // What I pay the transporter for a hired vehicle
+    // How a hired vehicle is paid; empty when no rate is set
     hireBasis: {
       type: String,
-      enum: TRANSPORT_BASES,
-      default: "per_ton",
+      enum: ["", ...TRANSPORT_BASES],
+      default: "",
     },
     hireRate: {
       type: Number,

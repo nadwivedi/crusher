@@ -17,8 +17,8 @@ const initialFormData = {
   category: 'truck',
   vehicleType: 'sales',
   ownership: 'own',
-  // A hired vehicle's pay terms: a fixed rate, or a monthly rent from a date
-  hireBasis: 'per_trip',
+  // A hired vehicle's pay terms: none, a fixed rate, or a monthly rent from a date
+  hireBasis: '',
   hireRate: '',
   tripRates: [],
   monthlyFrom: ''
@@ -312,16 +312,19 @@ export default function AddVehiclePopup({ vehicle, onClose, onSave, onVehicleSav
       setError('Please select the owner you hire it from');
       return;
     }
-    if (isHiredVehicle) {
-      const payError = formData.hireBasis === 'per_trip'
-        ? getTripRatesError(formData.tripRates)
-        : Number(formData.hireRate || 0) > 0 ? '' : isMonthly ? 'Enter the monthly amount' : 'Enter the rate';
-      if (payError) {
-        setError(payError);
-        return;
-      }
-      if (isMonthly && !formData.monthlyFrom) {
-        setError('Enter the date the monthly rent starts');
+    // The rate is optional; monthly rent needs its amount and start date, and trip locations must not repeat
+    if (isMonthly && !(Number(formData.hireRate || 0) > 0)) {
+      setError('Enter the monthly amount, or choose "No rate set"');
+      return;
+    }
+    if (isMonthly && !formData.monthlyFrom) {
+      setError('Enter the date the monthly rent starts');
+      return;
+    }
+    if (isHiredVehicle && formData.hireBasis === 'per_trip' && getFilledTripRates(formData.tripRates).length > 0) {
+      const tripError = getTripRatesError(formData.tripRates);
+      if (tripError) {
+        setError(tripError);
         return;
       }
     }
@@ -335,7 +338,7 @@ export default function AddVehiclePopup({ vehicle, onClose, onSave, onVehicleSav
         category: formData.category || 'truck',
         ownership,
         // Pay terms: a fixed rate (per trip with a rate per location, per ton, per km) or a monthly rent from a date
-        hireBasis: isHiredVehicle ? formData.hireBasis || 'per_trip' : 'per_ton',
+        hireBasis: isHiredVehicle ? formData.hireBasis || '' : '',
         hireRate: isHiredVehicle && formData.hireBasis !== 'per_trip' ? Number(formData.hireRate || 0) : 0,
         tripRates: isHiredVehicle && formData.hireBasis === 'per_trip' ? getFilledTripRates(formData.tripRates) : [],
         monthlyFrom: isMonthly ? formData.monthlyFrom : undefined,

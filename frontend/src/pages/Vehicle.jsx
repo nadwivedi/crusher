@@ -180,6 +180,7 @@ export default function Vehicle() {
 
   const getHireNote = (vehicle) => {
     if (vehicle.ownership !== 'hired') return '';
+    if (!vehicle.hireBasis) return 'Hired · no rate set';
     const hire = getVehicleHireRates(vehicle);
     if (hire.hireBasis === 'per_month') {
       return `Hired · Monthly ₹${hire.hireRate.toLocaleString('en-IN')}`;

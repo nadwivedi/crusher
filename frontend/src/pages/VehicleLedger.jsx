@@ -221,11 +221,13 @@ export default function VehicleLedger() {
 
   const payTerms = !isHired
     ? 'My vehicle'
-    : isMonthly
-      ? `Monthly rent ${formatRupees(vehicle.hireRate)}`
-      : vehicle.hireBasis === 'per_trip'
-        ? `Per trip · ${(vehicle.tripRates || []).length} location(s)`
-        : `${getBasisLabel(vehicle.hireBasis)} ${formatRupees(vehicle.hireRate)}`;
+    : !vehicle.hireBasis
+      ? 'No rate set'
+      : isMonthly
+        ? `Monthly rent ${formatRupees(vehicle.hireRate)}`
+        : vehicle.hireBasis === 'per_trip'
+          ? `Per trip · ${(vehicle.tripRates || []).length} location(s)`
+          : `${getBasisLabel(vehicle.hireBasis)} ${formatRupees(vehicle.hireRate)}`;
 
   const hireForPopups = runningHire && { ...runningHire, vehicleNo: vehicle.vehicleNo };
   const ownerId = typeof vehicle.partyId === 'object' ? vehicle.partyId?._id : vehicle.partyId;
