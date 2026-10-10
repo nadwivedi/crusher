@@ -1,9 +1,16 @@
 import { useEffect, useState } from 'react';
 import { toast } from 'react-toastify';
 import { useNavigate } from 'react-router-dom';
-import { LogOut } from 'lucide-react';
+import { LogOut, Monitor, Moon, Sun } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import EmployeeManagement from '../components/EmployeeManagement';
+import { getStoredTheme, setStoredTheme } from '../utils/theme';
+
+const THEME_OPTIONS = [
+  { value: 'light', label: 'Light', hint: 'White pages', Icon: Sun },
+  { value: 'dark', label: 'Dark', hint: 'Easy on the eyes at night', Icon: Moon },
+  { value: 'system', label: 'System', hint: 'Follow this device', Icon: Monitor }
+];
 
 // tonKey / cubicKey are the field names saved in the user's materialRates
 const MATERIALS = [
@@ -44,6 +51,12 @@ export default function Setting() {
   const navigate = useNavigate();
   const [materialRates, setMaterialRates] = useState(() => readUserMaterialRates(user));
   const [saving, setSaving] = useState(false);
+  const [theme, setTheme] = useState(getStoredTheme);
+
+  const chooseTheme = (value) => {
+    setTheme(value);
+    setStoredTheme(value);
+  };
 
   useEffect(() => {
     setMaterialRates(readUserMaterialRates(user));
@@ -111,7 +124,7 @@ export default function Setting() {
     <div className="page-fade-in max-w-5xl space-y-4 px-3 pb-8 pt-4 md:space-y-5 lg:px-6 lg:pt-5">
       <div>
         <h1 className="page-title">Settings</h1>
-        <p className="page-subtitle">Your account, material rates and staff logins</p>
+        <p className="page-subtitle">Your account, appearance, material rates and staff logins</p>
       </div>
 
       {/* Account */}
@@ -139,6 +152,31 @@ export default function Setting() {
       </section>
 
       {/* Material rates */}
+      {/* Appearance: kept on this device */}
+      <section className="card">
+        <h2 className="text-sm font-bold text-slate-900">Appearance</h2>
+        <p className="mt-0.5 text-xs text-slate-500">Choose how the app looks on this device.</p>
+        <div className="mt-3 grid grid-cols-3 gap-2">
+          {THEME_OPTIONS.map((option) => {
+            const active = theme === option.value;
+            return (
+              <button
+                key={option.value}
+                type="button"
+                onClick={() => chooseTheme(option.value)}
+                aria-pressed={active}
+                className={`rounded-xl border px-3 py-2.5 text-left transition ${active ? 'border-primary-600 bg-primary-600 text-white' : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-100'}`}
+              >
+                <span className="flex items-center gap-2 text-sm font-semibold">
+                  <option.Icon size={16} /> {option.label}
+                </span>
+                <span className={`mt-0.5 hidden text-[11px] sm:block ${active ? 'text-white/80' : 'text-slate-400'}`}>{option.hint}</span>
+              </button>
+            );
+          })}
+        </div>
+      </section>
+
       <section className="panel">
         <div className="panel-header">
           <h2 className="text-sm font-bold text-slate-900">Material Rates</h2>
