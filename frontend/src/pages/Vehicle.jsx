@@ -1,9 +1,13 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Inbox, Pencil, Plus, RefreshCw, Scale, Search, Trash2, Truck, Users } from 'lucide-react';
+import { Ban, ChevronRight, Inbox, Pencil, Plus, RefreshCw, RotateCcw, Scale, Search, SlidersHorizontal, Trash2, Truck, Users } from 'lucide-react';
 import { toast } from 'react-toastify';
 import apiClient from '../utils/api';
 import AddVehiclePopup from './Vehicle/component/AddVehiclePopup';
+import MonthlyHireDetail from './MonthlyHire/component/MonthlyHireDetail';
+import AdjustmentPopup from './MonthlyHire/component/AdjustmentPopup';
+import CancelHirePopup from './MonthlyHire/component/CancelHirePopup';
+import MonthlyHireForm from './MonthlyHire/component/MonthlyHireForm';
 import StatCard from '../components/StatCard';
 import { getBasisLabel, getVehicleCategoryLabel, getVehicleHireRates } from '../utils/transport';
 
@@ -33,6 +37,8 @@ export default function Vehicle() {
   const [search, setSearch] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [editingVehicle, setEditingVehicle] = useState(null);
+  // A vehicle on monthly rent: adjust a month, cancel the rent, or open the hire
+  const [hireAction, setHireAction] = useState(null);
 
   useEffect(() => {
     fetchVehicles();
@@ -65,6 +71,10 @@ export default function Vehicle() {
       }
 
       if (isTypingTarget(event.target)) {
+        return;
+      }
+      // A popup open on the page closes itself first
+      if (document.querySelector('.fixed.inset-0.z-50')) {
         return;
       }
 
@@ -142,7 +152,7 @@ export default function Vehicle() {
     if (vehicle.ownership !== 'hired') return '';
     const hire = getVehicleHireRates(vehicle);
     if (hire.hireBasis === 'per_month') {
-      return `Hired · Monthly ₹${hire.hireRate.toLocaleString('en-IN')}${vehicle.monthlyHire ? ' · running' : ''}`;
+      return `Hired · Monthly ₹${hire.hireRate.toLocaleString('en-IN')} · ${vehicle.monthlyHire ? 'running' : 'stopped'}`;
     }
     if (hire.hireBasis === 'per_trip') {
       const count = hire.tripRates.length;
@@ -152,8 +162,46 @@ export default function Vehicle() {
     return `Hired · ${getBasisLabel(hire.hireBasis)}${rate}`;
   };
 
+  // The running hire of a vehicle on monthly rent, as the hire popups expect it
+  const getVehicleHire = (vehicle) => (vehicle.monthlyHire
+    ? { ...vehicle.monthlyHire, partyName: getPartyName(vehicle.partyId), vehicleNo: vehicle.vehicleNo, direction: 'payable' }
+    : null);
+
+  // A monthly vehicle whose rent was cancelled or ended can be hired again
+  const isRentStopped = (vehicle) => vehicle.ownership === 'hired' && vehicle.hireBasis === 'per_month' && !vehicle.monthlyHire;
+
+  const getHireAgainPreset = (vehicle) => ({
+    direction: 'payable',
+    partyId: typeof vehicle.partyId === 'object' ? vehicle.partyId?._id : vehicle.partyId,
+    vehicleNo: vehicle.vehicleNo,
+    monthlyRate: vehicle.hireRate
+  });
+
+  const closeHireAction = (changed = false) => {
+    setHireAction(null);
+    if (changed) fetchVehicles();
+  };
+
   const renderActions = (vehicle) => (
-    <div className="flex items-center justify-end">
+    <div className="flex items-center justify-end" onClick={(event) => event.stopPropagation()}>
+      {isRentStopped(vehicle) && (
+        <button type="button" title="Hire again on monthly rent" className="mr-1 inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-semibold text-emerald-700 hover:bg-emerald-50" onClick={() => setHireAction({ type: 'again', vehicle })}>
+          <RotateCcw size={14} /> Hire Again
+        </button>
+      )}
+      {vehicle.monthlyHire && (
+        <>
+          <button type="button" title="Adjust a month" aria-label="Adjust a month" className="icon-btn p-1.5 hover:bg-indigo-50 hover:text-indigo-600" onClick={() => setHireAction({ type: 'adjust', hire: getVehicleHire(vehicle) })}>
+            <SlidersHorizontal size={16} />
+          </button>
+          <button type="button" title="Cancel monthly rent" aria-label="Cancel monthly rent" className="icon-btn p-1.5 hover:bg-amber-50 hover:text-amber-600" onClick={() => setHireAction({ type: 'cancel', hire: getVehicleHire(vehicle) })}>
+            <Ban size={16} />
+          </button>
+          <button type="button" title="Open monthly hire" aria-label="Open monthly hire" className="icon-btn p-1.5" onClick={() => setHireAction({ type: 'open', hire: getVehicleHire(vehicle) })}>
+            <ChevronRight size={16} />
+          </button>
+        </>
+      )}
       <button type="button" title="Edit" aria-label="Edit" className="icon-btn p-1.5 hover:bg-blue-50 hover:text-blue-600" onClick={() => handleOpenForm(vehicle)}>
         <Pencil size={16} />
       </button>
@@ -225,7 +273,7 @@ export default function Vehicle() {
             {/* Phone: two short lines per vehicle */}
             <ul className="divide-y divide-slate-100 md:hidden">
               {vehicles.map((vehicle) => (
-                <li key={vehicle._id} className="flex items-center justify-between gap-3 px-4 py-2.5">
+                <li key={vehicle._id} className="flex cursor-pointer items-center justify-between gap-3 px-4 py-2.5 active:bg-slate-50" onClick={() => navigate(`/vehicle/${vehicle._id}`)}>
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
                       <p className="truncate font-mono text-sm font-semibold text-slate-800">{vehicle.vehicleNo}</p>
@@ -257,7 +305,7 @@ export default function Vehicle() {
                 </thead>
                 <tbody>
                   {vehicles.map((vehicle) => (
-                    <tr key={vehicle._id} className="tbl-row">
+                    <tr key={vehicle._id} className="tbl-row cursor-pointer" title="Open the vehicle's ledger" onClick={() => navigate(`/vehicle/${vehicle._id}`)}>
                       <td className={`${TD} whitespace-nowrap font-mono font-semibold text-slate-800`}>{vehicle.vehicleNo}</td>
                       <td className={TD}>
                         <p className="font-medium text-slate-700">{getOwnerName(vehicle)}</p>
@@ -284,6 +332,18 @@ export default function Vehicle() {
           onClose={handleCloseForm}
           onSave={fetchVehicles}
         />
+      )}
+      {hireAction?.type === 'adjust' && (
+        <AdjustmentPopup hire={hireAction.hire} onClose={() => closeHireAction()} onDone={() => closeHireAction(true)} />
+      )}
+      {hireAction?.type === 'cancel' && (
+        <CancelHirePopup hire={hireAction.hire} onClose={() => closeHireAction()} onDone={() => closeHireAction(true)} />
+      )}
+      {hireAction?.type === 'again' && (
+        <MonthlyHireForm preset={getHireAgainPreset(hireAction.vehicle)} onClose={() => closeHireAction()} onSaved={() => closeHireAction(true)} />
+      )}
+      {hireAction?.type === 'open' && (
+        <MonthlyHireDetail hireId={hireAction.hire._id} canEdit onClose={() => closeHireAction(true)} onChanged={fetchVehicles} />
       )}
     </div>
   );

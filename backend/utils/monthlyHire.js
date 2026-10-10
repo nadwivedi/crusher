@@ -174,10 +174,11 @@ const findActiveVehicleHire = (userId, vehicleId) => MonthlyHire.findOne({
 
 /**
  * A hired vehicle on monthly rent always has a running monthly hire, made and kept from the vehicle's own terms.
- * Saving the vehicle starts the hire (from monthlyFrom, today if none), or updates the running one.
+ * Saving the vehicle starts the hire (from monthlyFrom, today if none), or updates the running one. startIfNone false:
+ * a monthly vehicle whose rent was cancelled stays stopped until it is hired again.
  * When the vehicle stops being on monthly rent, its running hire is cancelled today.
  */
-const syncVehicleMonthlyHire = async (vehicle, monthlyFrom = null) => {
+const syncVehicleMonthlyHire = async (vehicle, monthlyFrom = null, { startIfNone = true } = {}) => {
   const active = await findActiveVehicleHire(vehicle.userId, vehicle._id);
   const isMonthly = vehicle.ownership === "hired" && vehicle.hireBasis === "per_month" && vehicle.partyId && Number(vehicle.hireRate) > 0;
   const fromDate = monthlyFrom && !Number.isNaN(new Date(monthlyFrom).getTime()) ? new Date(toDay(monthlyFrom)) : null;
@@ -199,7 +200,7 @@ const syncVehicleMonthlyHire = async (vehicle, monthlyFrom = null) => {
     return active;
   }
 
-  if (isMonthly) {
+  if (isMonthly && startIfNone) {
     const startDate = fromDate || new Date(todayDay());
     const hire = await MonthlyHire.create({
       userId: vehicle.userId,

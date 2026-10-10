@@ -6,6 +6,7 @@ import Products from './pages/Products/Products';
 import StockDetail from './pages/StockDetail';
 import StockGroups from './pages/StockGroups';
 import Vehicle from './pages/Vehicle';
+import VehicleLedger from './pages/VehicleLedger';
 import Sales from './pages/Sales/Sales';
 import Purchases from './pages/Purchases/Purchases';
 import Payments from './pages/Payments/Payments';
@@ -98,6 +99,7 @@ function App() {
           <Route path="/products" element={<Navigate to="/stock" replace />} />
           <Route path="/stock-groups" element={<StockGroups />} />
           <Route path="/vehicle" element={<Vehicle />} />
+          <Route path="/vehicle/:id" element={<VehicleLedger />} />
           <Route path="/banks" element={<Navigate to="/accounts" replace />} />
           <Route path="/expense-types" element={<ExpenseTypes />} />
           <Route path="/expense-groups" element={<Navigate to="/expense-types" replace />} />

@@ -184,6 +184,12 @@ const createMonthlyHire = async (req, res) => {
       return res.status(400).json({ message: "This vehicle already has a running monthly hire. Adjust or cancel that one instead." });
     }
     const hire = new MonthlyHire({ ...fields, userId: req.userId });
+    if (fields.vehicleId && fields.direction === "payable") {
+      await Vehicle.updateOne(
+        { _id: fields.vehicleId, userId: req.userId },
+        { ownership: "hired", hireBasis: "per_month", hireRate: fields.monthlyRate, partyId: fields.partyId, tripRates: [] }
+      );
+    }
     addHistory(hire, "Started", `${formatRs(hire.monthlyRate)} a month from ${formatDay(hire.startDate)}${hire.endDate ? ` to ${formatDay(hire.endDate)}` : ", until cancelled"}`);
     return await saveAndRespond(req, res, hire, 201);
   } catch (error) {
