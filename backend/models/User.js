@@ -38,6 +38,22 @@ const userSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+    // Last time the account (owner or any of its staff) used the app; kept to within a few minutes
+    lastActivityAt: {
+      type: Date,
+      default: null,
+    },
+    // Subscription: yearly (price per year) or lifetime (one-time price). Set by the admin.
+    planType: {
+      type: String,
+      enum: ["yearly", "lifetime"],
+      default: "yearly",
+    },
+    planPrice: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
     featureAccess: {
       saleReturn: {
         type: Boolean,

@@ -54,6 +54,8 @@ const generateToken = (id) => (
   })
 );
 
+const { redeemAccessToken, createAdminSessionToken } = require("../utils/adminAccess");
+
 const getCookieOptions = () => {
   const isProduction = process.env.NODE_ENV === "production";
 
@@ -217,6 +219,28 @@ module.exports = {
   signupUser,
   loginUser,
   employeeLogin,
+  // An admin's one-time link: becomes an app session for that user, without counting as their sign-in
+  adminAccessLogin: async (req, res) => {
+    try {
+      const { userId, adminId } = redeemAccessToken(req.body?.token);
+      const user = await User.findById(userId);
+      if (!user) {
+        return res.status(404).json({ success: false, message: "User not found" });
+      }
+
+      setAuthCookie(res, createAdminSessionToken(user._id, adminId));
+      const sanitized = sanitizeUser(user);
+      sanitized.role = 'owner';
+      sanitized.adminAccess = true;
+      return res.json({ success: true, user: sanitized });
+    } catch (error) {
+      const expired = error.name === "TokenExpiredError";
+      return res.status(401).json({
+        success: false,
+        message: expired ? "This access link has expired. Open it again from the admin panel." : error.message || "Invalid access link",
+      });
+    }
+  },
   getCurrentUser: async (req, res) => {
     try {
       if (req.employee) {
@@ -257,6 +281,7 @@ module.exports = {
 
       const sanitized = sanitizeUser(user);
       sanitized.role = 'owner';
+      if (req.adminAccess) sanitized.adminAccess = true;
 
       return res.json({
         success: true,

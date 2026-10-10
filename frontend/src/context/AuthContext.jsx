@@ -1,4 +1,4 @@
-import { createContext, useState, useContext, useEffect } from 'react';
+import { createContext, useCallback, useState, useContext, useEffect } from 'react';
 import apiClient from '../utils/api';
 
 const AuthContext = createContext();
@@ -76,6 +76,20 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // The admin panel's one-time link: a session as that user, marked as admin access
+  const adminAccessLogin = useCallback(async (token) => {
+    try {
+      const response = await apiClient.post('/users/admin-access', { token });
+      if (response?.success && response.user) {
+        setUser(response.user);
+        return { success: true };
+      }
+      return { success: false, message: response?.message };
+    } catch (error) {
+      return { success: false, message: error.message || 'This access link did not work.' };
+    }
+  }, []);
+
   const logout = async () => {
     setUser(null);
     try {
@@ -98,6 +112,7 @@ export const AuthProvider = ({ children }) => {
     loading,
     login,
     employeeLogin,
+    adminAccessLogin,
     register,
     logout,
     updateUserSettings,

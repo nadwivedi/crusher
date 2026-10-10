@@ -1,5 +1,6 @@
 const bcrypt = require("bcryptjs");
 const User = require("../models/User");
+const { createAccessLink } = require("../utils/adminAccess");
 
 const saltRounds = 10;
 
@@ -13,17 +14,31 @@ const sanitizeAdminUser = (user) => ({
   state: user.state || "",
   district: user.district || "",
   lastLoginAt: user.lastLoginAt || null,
+  lastActivityAt: user.lastActivityAt || null,
+  planType: user.planType || "yearly",
+  planPrice: Number(user.planPrice || 0),
   createdAt: user.createdAt,
   updatedAt: user.updatedAt,
 });
 
 const validateMobile = (mobile = "") => /^\d{10}$/.test(String(mobile).trim());
 
+const PLAN_TYPES = ["yearly", "lifetime"];
+
+// The plan from the request, or an error message for the admin
+const readPlan = (body = {}) => {
+  const planType = String(body.planType || "").trim();
+  if (!PLAN_TYPES.includes(planType)) return { error: "Choose a yearly or lifetime plan" };
+  const planPrice = Number(body.planPrice);
+  if (!Number.isFinite(planPrice) || planPrice < 0) return { error: "Enter a valid plan price" };
+  return { planType, planPrice: Math.round(planPrice * 100) / 100 };
+};
+
 const getUsers = async (_req, res) => {
   try {
     const users = await User.find({})
       .sort({ createdAt: -1 })
-      .select("name email mobile state district lastLoginAt createdAt updatedAt");
+      .select("name email mobile state district lastLoginAt lastActivityAt planType planPrice createdAt updatedAt");
 
     return res.json({
       success: true,
@@ -52,6 +67,11 @@ const createUser = async (req, res) => {
       return res.status(400).json({ success: false, message: "Password must be at least 6 characters" });
     }
 
+    const plan = readPlan(req.body);
+    if (plan.error) {
+      return res.status(400).json({ success: false, message: plan.error });
+    }
+
     const normalizedMobile = mobile.trim();
     const normalizedEmail = email?.trim() ? email.trim().toLowerCase() : "";
 
@@ -73,6 +93,8 @@ const createUser = async (req, res) => {
       password: await hashPassword(password),
       state: state?.trim() || "",
       district: district?.trim() || "",
+      planType: plan.planType,
+      planPrice: plan.planPrice,
     });
 
     return res.status(201).json({
@@ -125,6 +147,15 @@ const updateUser = async (req, res) => {
       user.email = normalizedEmail || undefined;
     }
 
+    if (req.body.planType !== undefined || req.body.planPrice !== undefined) {
+      const plan = readPlan({ planType: req.body.planType ?? user.planType, planPrice: req.body.planPrice ?? user.planPrice });
+      if (plan.error) {
+        return res.status(400).json({ success: false, message: plan.error });
+      }
+      user.planType = plan.planType;
+      user.planPrice = plan.planPrice;
+    }
+
     if (name !== undefined) user.name = name.trim();
     if (state !== undefined) user.state = state.trim();
     if (district !== undefined) user.district = district.trim();
@@ -168,7 +199,22 @@ const deleteUser = async (req, res) => {
   }
 };
 
+// A one-time link that opens the crusher app signed in as this user
+const getUserAccessLink = async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id).select("_id name");
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+    return res.json({ success: true, data: { url: createAccessLink(user._id, req.adminId), name: user.name } });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ success: false, message: "Failed to create access link" });
+  }
+};
+
 module.exports = {
+  getUserAccessLink,
   getUsers,
   createUser,
   updateUser,

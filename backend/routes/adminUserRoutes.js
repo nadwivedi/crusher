@@ -1,5 +1,6 @@
 const express = require("express");
 const {
+  getUserAccessLink,
   getUsers,
   createUser,
   updateUser,
@@ -14,5 +15,6 @@ router.get("/", getUsers);
 router.post("/", createUser);
 router.put("/:id", updateUser);
 router.delete("/:id", deleteUser);
+router.post("/:id/access", getUserAccessLink);
 
 module.exports = router;

@@ -1,47 +1,38 @@
-import { LayoutDashboard, Users2, Mountain } from 'lucide-react'
+import { LogOut, Mountain, Users2 } from 'lucide-react'
 
-const navigation = [
-  { label: 'Dashboard', icon: LayoutDashboard, active: false },
-  { label: 'Users', icon: Users2, active: true },
-]
-
-function Sidebar({ userCount = 0 }) {
+/** Left rail of the admin panel: brand, the Users section, and the signed-in admin with logout. */
+function Sidebar({ userCount = 0, adminEmail = '', onLogout }) {
   return (
-    <aside className="flex w-full flex-col gap-8 border-b border-white/10 bg-slate-950/60 p-6 backdrop-blur-xl lg:h-screen lg:w-64 lg:border-b-0 lg:border-r lg:p-6">
+    <aside className="flex w-full flex-col gap-6 border-b border-stone-200 bg-[#fbfaf7] p-4 lg:sticky lg:top-0 lg:h-screen lg:w-60 lg:border-b-0 lg:border-r lg:p-5">
       <div className="flex items-center gap-3">
-        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-400 to-blue-600 shadow-lg shadow-blue-500/20">
-          <Mountain className="h-5 w-5 text-white" strokeWidth={2.5} />
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-stone-900">
+          <Mountain className="h-5 w-5 text-white" strokeWidth={2.25} />
         </div>
         <div>
-          <p className="text-[0.7rem] font-semibold uppercase tracking-[0.2em] text-sky-400">Crusher</p>
-          <h2 className="text-lg font-bold leading-tight text-white">Admin Panel</h2>
+          <p className="text-sm font-semibold leading-tight text-stone-900">Crusher Admin</p>
+          <p className="text-xs text-stone-500">Control panel</p>
         </div>
       </div>
 
-      <nav className="flex flex-col gap-1.5" aria-label="Admin navigation">
-        {navigation.map((item) => (
-          <button
-            key={item.label}
-            type="button"
-            className={`group flex w-full items-center gap-3 rounded-xl px-3.5 py-2.5 text-sm font-medium transition-colors ${
-              item.active
-                ? 'bg-gradient-to-r from-sky-500/20 to-blue-500/10 text-white ring-1 ring-inset ring-sky-400/30'
-                : 'text-slate-400 hover:bg-white/5 hover:text-slate-200'
-            }`}
-          >
-            <item.icon className={`h-4.5 w-4.5 ${item.active ? 'text-sky-400' : 'text-slate-500 group-hover:text-slate-300'}`} strokeWidth={2} />
-            <span>{item.label}</span>
-            {item.label === 'Users' ? (
-              <span className="ml-auto rounded-full bg-sky-500/15 px-2 py-0.5 text-[0.7rem] font-semibold text-sky-300">
-                {userCount}
-              </span>
-            ) : null}
-          </button>
-        ))}
+      <nav className="flex flex-col gap-1" aria-label="Admin navigation">
+        <span className="flex items-center gap-3 rounded-lg bg-stone-900 px-3 py-2 text-sm font-semibold text-white">
+          <Users2 className="h-4 w-4" />
+          Users
+          <span className="ml-auto rounded-full bg-white/15 px-2 py-0.5 text-[11px] font-semibold">{userCount}</span>
+        </span>
       </nav>
 
-      <div className="mt-auto hidden rounded-2xl bg-white/5 p-4 text-xs leading-relaxed text-slate-400 lg:block">
-        Users are managed from this workspace.
+      <div className="mt-auto hidden rounded-xl border border-stone-200 bg-white p-3 lg:block">
+        <p className="text-[11px] font-medium uppercase tracking-wide text-stone-400">Signed in as</p>
+        <p className="mt-0.5 truncate text-sm font-semibold text-stone-800" title={adminEmail}>{adminEmail || 'Admin'}</p>
+        <button
+          type="button"
+          onClick={onLogout}
+          className="mt-2.5 flex w-full items-center justify-center gap-1.5 rounded-lg border border-stone-300 bg-white py-1.5 text-xs font-semibold text-stone-700 transition hover:bg-stone-100"
+        >
+          <LogOut className="h-3.5 w-3.5" />
+          Logout
+        </button>
       </div>
     </aside>
   )

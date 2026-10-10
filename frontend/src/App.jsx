@@ -1,6 +1,7 @@
 import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
 import Login from './pages/Login';
+import AdminAccess from './pages/AdminAccess';
 import Dashboard from './pages/Dashboard';
 import Products from './pages/Products/Products';
 import StockDetail from './pages/StockDetail';
@@ -78,6 +79,7 @@ function App() {
     <>
       <Routes location={location}>
         {/* Public Routes */}
+        <Route path="/admin-access" element={<AdminAccess />} />
         <Route
           path="/login"
           element={isAuthenticated ? <Navigate to="/" /> : <Login />}
