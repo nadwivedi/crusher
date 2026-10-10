@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowDownLeft, ArrowUpRight, CalendarClock, ChevronRight, ClipboardList, HandCoins, Inbox, Pencil, Plus, RefreshCw, Scale, Search, Trash2, Users } from 'lucide-react';
+import { ArrowDownLeft, ArrowUpRight, Ban, ChevronRight, ClipboardList, HandCoins, Inbox, Pencil, Plus, RefreshCw, RotateCcw, Scale, Search, SlidersHorizontal, Trash2, Users } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import apiClient from '../../utils/api';
@@ -8,17 +8,16 @@ import StatCard from '../../components/StatCard';
 import Segmented from '../../components/Segmented';
 import CustomRangePopup, { toLocalDateInput, formatRangeLabel } from '../../components/CustomRangePopup';
 import MonthPickerPopup, { getMonthRange, formatMonthLabel } from '../../components/MonthPickerPopup';
-import { describeTransportBasis, isTransportProvider } from '../../utils/transport';
+import { describeTransportBasis, getVehicleOwnerIds } from '../../utils/transport';
 import TransportEntryPopup from './component/TransportEntryPopup';
-import MonthlyHireForm from '../MonthlyHire/component/MonthlyHireForm';
 import MonthlyHireDetail from '../MonthlyHire/component/MonthlyHireDetail';
-import MonthlyHireList from '../MonthlyHire/component/MonthlyHireList';
-import { formatRupees, getHireStatus } from '../../utils/monthlyHire';
+import AdjustmentPopup from '../MonthlyHire/component/AdjustmentPopup';
+import CancelHirePopup from '../MonthlyHire/component/CancelHirePopup';
+import { formatHireDate, formatRupees, getHireStatus } from '../../utils/monthlyHire';
 
 // The two views of the data panel
 const TABS = [
   { key: 'entries', label: 'Entries', icon: ClipboardList },
-  { key: 'hires', label: 'Monthly Hire', shortLabel: 'Monthly', icon: CalendarClock },
   { key: 'parties', label: 'Transporter Ledger', shortLabel: 'Ledger', icon: Users }
 ];
 
@@ -86,7 +85,8 @@ const isIncome = (entry) => entry.direction === 'receivable';
 const getEntryKindLabel = (entry) => {
   if (entry.billedInSale) return 'Charged in sale';
   if (entry.source === 'sale') return 'Hired for sale';
-  if (entry.source === 'monthly_hire') return isIncome(entry) ? 'Monthly rent' : 'Monthly hire';
+  if (entry.source === 'boulder') return 'Hired for boulder';
+  if (entry.isHire || entry.source === 'monthly_hire') return isIncome(entry) ? 'Monthly rent' : 'Monthly hire';
   return isIncome(entry) ? 'My vehicle given' : 'Hired vehicle';
 };
 
@@ -130,9 +130,10 @@ export default function Transport() {
   const [tab, setTab] = useState('entries');
   const [showForm, setShowForm] = useState(false);
   const [editingEntry, setEditingEntry] = useState(null);
-  // A new per-month entry continues as a monthly hire; a booked month opens its hire
-  const [monthlyPreset, setMonthlyPreset] = useState(null);
+  // Monthly hires sit in the entry list: edit one in the entry form, open its detail, adjust or cancel it
+  const [editingHire, setEditingHire] = useState(null);
   const [openHireId, setOpenHireId] = useState('');
+  const [hireAction, setHireAction] = useState(null);
   const [showCustomPicker, setShowCustomPicker] = useState(false);
   const [showMonthPicker, setShowMonthPicker] = useState(false);
   const [selectedMonth, setSelectedMonth] = useState(String(new Date().getMonth()));
@@ -143,14 +144,14 @@ export default function Transport() {
     const handleKeyDown = (event) => {
       // With a popup open, Esc closes the popup instead of leaving the page
       if (event.defaultPrevented) return;
-      if (event.key === 'Escape' && !showCustomPicker && !showMonthPicker && !showForm && !monthlyPreset && !openHireId) {
+      if (event.key === 'Escape' && !showCustomPicker && !showMonthPicker && !showForm && !openHireId && !hireAction) {
         navigate('/');
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [navigate, showCustomPicker, showMonthPicker, showForm, monthlyPreset, openHireId]);
+  }, [navigate, showCustomPicker, showMonthPicker, showForm, openHireId, hireAction]);
 
   useEffect(() => {
     loadData();
@@ -180,13 +181,16 @@ export default function Transport() {
     }
   };
 
-  // Anyone but the cash party can hire out or hire a vehicle; transporters come first
+  // Owners of hired vehicles
+  const vehicleOwnerIds = useMemo(() => getVehicleOwnerIds(vehicles), [vehicles]);
+
+  // Anyone but the cash party can hire out or hire a vehicle; vehicle owners come first
   const partyOptions = useMemo(() => parties
     .filter((party) => party.type !== 'cash-in-hand')
     .sort((a, b) => (
-      Number(isTransportProvider(b)) - Number(isTransportProvider(a))
+      Number(vehicleOwnerIds.has(String(b._id))) - Number(vehicleOwnerIds.has(String(a._id)))
       || String(a.name || '').localeCompare(String(b.name || ''))
-    )), [parties]);
+    )), [parties, vehicleOwnerIds]);
 
   // ─── Entries in the selected period (search / kind applied after) ───────────
   const periodEntries = useMemo(() => entries.filter((entry) => {
@@ -197,15 +201,50 @@ export default function Transport() {
     return true;
   }), [entries, fromDate, toDate]);
 
+  /**
+   * The list: every entry, except that a monthly hire is one row instead of a row per month.
+   * A hire row shows what its months in the period add up to, so the list total still matches.
+   */
   const filteredEntries = useMemo(() => {
     const normalizedSearch = String(searchTerm || '').trim().toLowerCase();
-    return periodEntries.filter((entry) => {
-      if (kindFilter && entry.direction !== kindFilter) return false;
-      if (!normalizedSearch) return true;
-      return [entry.vehicleNo, entry.partyName, entry.entryNumber, entry.invoiceNumber, entry.notes]
-        .some((value) => String(value || '').toLowerCase().includes(normalizedSearch));
-    });
-  }, [periodEntries, searchTerm, kindFilter]);
+    const matches = (values) => !normalizedSearch
+      || values.some((value) => String(value || '').toLowerCase().includes(normalizedSearch));
+
+    const plainRows = periodEntries.filter((entry) => (
+      entry.source !== 'monthly_hire'
+      && (!kindFilter || entry.direction === kindFilter)
+      && matches([entry.vehicleNo, entry.partyName, entry.entryNumber, entry.invoiceNumber, entry.notes])
+    ));
+
+    const hireRows = hires
+      .filter((hire) => (!kindFilter || hire.direction === kindFilter) && matches([hire.partyName, hire.vehicleNo, hire.notes]))
+      .map((hire) => {
+        const months = periodEntries.filter((entry) => String(entry.hireId) === String(hire._id));
+        const status = getHireStatus(hire);
+        const start = toDayKey(hire.startDate);
+        // Shown when a month of it falls in the period, or it was running during the period
+        const overlaps = (!toDate || start <= toDate) && (!fromDate || !status.stop || status.stop >= fromDate);
+        if (months.length === 0 && !overlaps) return null;
+        const lastMonth = months.reduce((latest, entry) => (!latest || toDayKey(entry.entryDate) > toDayKey(latest.entryDate) ? entry : latest), null);
+        return {
+          _id: `hire-${hire._id}`,
+          isHire: true,
+          hire,
+          status,
+          direction: hire.direction,
+          partyName: hire.partyName,
+          vehicleNo: hire.vehicleNo,
+          entryDate: lastMonth?.entryDate || hire.startDate,
+          entryNumber: `${months.length} month${months.length === 1 ? '' : 's'} in ledger`,
+          amount: months.reduce((total, entry) => total + Number(entry.amount || 0), 0)
+        };
+      })
+      .filter(Boolean);
+
+    return [...plainRows, ...hireRows].sort((a, b) => (
+      toDayKey(b.entryDate || b.createdAt).localeCompare(toDayKey(a.entryDate || a.createdAt))
+    ));
+  }, [periodEntries, hires, searchTerm, kindFilter, fromDate, toDate]);
 
   const periodTotals = useMemo(() => periodEntries.reduce((acc, entry) => {
     const amount = Number(entry.amount || 0);
@@ -240,7 +279,7 @@ export default function Transport() {
     };
 
     for (const party of parties) {
-      if (isTransportProvider(party)) rowFor(party._id, party.name, party.type);
+      if (vehicleOwnerIds.has(String(party._id))) rowFor(party._id, party.name, party.type);
     }
 
     for (const entry of periodEntries) {
@@ -256,7 +295,7 @@ export default function Transport() {
     return [...map.values()]
       .map((row) => ({ ...row, balance: balanceByParty.get(row.partyId) || 0 }))
       .sort((a, b) => a.balance - b.balance || a.partyName.localeCompare(b.partyName));
-  }, [parties, periodEntries, balances]);
+  }, [parties, periodEntries, balances, vehicleOwnerIds]);
 
   const toPay = partySummary.reduce((sum, row) => sum + (row.balance < 0 ? Math.abs(row.balance) : 0), 0);
   const toReceive = partySummary.reduce((sum, row) => sum + (row.balance > 0 ? row.balance : 0), 0);
@@ -329,12 +368,30 @@ export default function Transport() {
 
   const openForm = (entry = null) => {
     setEditingEntry(entry);
+    setEditingHire(null);
+    setShowForm(true);
+  };
+
+  const openHireForm = (hire) => {
+    setEditingEntry(null);
+    setEditingHire(hire);
     setShowForm(true);
   };
 
   const closeForm = () => {
     setShowForm(false);
     setEditingEntry(null);
+    setEditingHire(null);
+  };
+
+  const resumeHire = async (hire) => {
+    try {
+      await apiClient.post(`/monthly-hires/${hire._id}/resume`);
+      toast.success('Monthly hire resumed');
+      await loadData();
+    } catch (err) {
+      toast.error(err?.message || 'Error resuming monthly hire');
+    }
   };
 
   const handleSaved = () => {
@@ -382,18 +439,50 @@ export default function Transport() {
   );
 
   const renderKind = (entry) => (
-    <span className={isIncome(entry) ? 'badge-green' : 'badge-red'}>{getEntryKindLabel(entry)}</span>
+    <span className="inline-flex flex-wrap items-center gap-1">
+      <span className={isIncome(entry) ? 'badge-green' : 'badge-red'}>{getEntryKindLabel(entry)}</span>
+      {entry.isHire && <span className={entry.status.className}>{entry.status.label}</span>}
+    </span>
   );
 
-  // Entries that come from a sale are changed by editing the sale; a month from a monthly hire opens the hire
-  const renderActions = (entry) => (entry.source === 'monthly_hire' ? (
-    <div className="flex justify-end">
-      <button type="button" className="text-[11px] font-semibold text-primary-600 hover:underline" onClick={() => setOpenHireId(String(entry.hireId))}>
-        Open hire
+  // "Rs 30,000 / month · 01 Jul 2026 → until cancelled" for a hire, the basis for anything else
+  const describeRow = (entry) => (entry.isHire
+    ? `${formatRupees(entry.hire.monthlyRate)} / month · ${formatHireDate(entry.hire.startDate)} → ${entry.status.stop ? formatHireDate(entry.status.stop) : 'until cancelled'}`
+    : describeTransportBasis(entry));
+
+  const stopRowClick = (handler) => (event) => {
+    event.stopPropagation();
+    handler();
+  };
+
+  // A monthly hire row: adjust a month, cancel or resume, edit, open. Entries from a sale are changed by editing the sale.
+  const renderActions = (entry) => (entry.isHire ? (
+    <div className="flex items-center justify-end">
+      {canEdit && (
+        <>
+          <button type="button" title="Adjust a month" aria-label="Adjust a month" className="icon-btn p-1.5 hover:bg-indigo-50 hover:text-indigo-600" onClick={stopRowClick(() => setHireAction({ type: 'adjust', hire: entry.hire }))}>
+            <SlidersHorizontal size={16} />
+          </button>
+          {entry.hire.cancelledAt ? (
+            <button type="button" title="Resume hire" aria-label="Resume hire" className="icon-btn p-1.5 hover:bg-emerald-50 hover:text-emerald-600" onClick={stopRowClick(() => resumeHire(entry.hire))}>
+              <RotateCcw size={16} />
+            </button>
+          ) : entry.status.key !== 'ended' && (
+            <button type="button" title="Cancel hire" aria-label="Cancel hire" className="icon-btn p-1.5 hover:bg-amber-50 hover:text-amber-600" onClick={stopRowClick(() => setHireAction({ type: 'cancel', hire: entry.hire }))}>
+              <Ban size={16} />
+            </button>
+          )}
+          <button type="button" title="Edit hire" aria-label="Edit hire" className="icon-btn p-1.5 hover:bg-blue-50 hover:text-blue-600" onClick={stopRowClick(() => openHireForm(entry.hire))}>
+            <Pencil size={16} />
+          </button>
+        </>
+      )}
+      <button type="button" title="Open hire" aria-label="Open hire" className="icon-btn p-1.5" onClick={stopRowClick(() => setOpenHireId(entry.hire._id))}>
+        <ChevronRight size={16} />
       </button>
     </div>
-  ) : entry.source === 'sale' ? (
-    <p className="text-right text-[11px] font-medium text-slate-400">{entry.invoiceNumber || 'Sale'}</p>
+  ) : entry.source === 'sale' || entry.source === 'boulder' ? (
+    <p className="text-right text-[11px] font-medium text-slate-400">{entry.source === 'sale' ? entry.invoiceNumber || 'Sale' : entry.notes || 'Boulder'}</p>
   ) : (
     <div className="flex items-center justify-end">
       {canEdit && (
@@ -436,29 +525,35 @@ export default function Transport() {
       {showForm && (
         <TransportEntryPopup
           entry={editingEntry}
+          hire={editingHire}
           parties={partyOptions}
           vehicles={vehicles}
           onClose={closeForm}
           onSaved={handleSaved}
-          onStartMonthlyHire={(preset) => {
-            closeForm();
-            setMonthlyPreset(preset);
-          }}
-        />
-      )}
-      {monthlyPreset && (
-        <MonthlyHireForm
-          preset={monthlyPreset}
-          onClose={() => setMonthlyPreset(null)}
-          onSaved={(saved) => {
-            setMonthlyPreset(null);
-            loadData();
-            if (saved?._id) setOpenHireId(saved._id);
-          }}
         />
       )}
       {openHireId && (
         <MonthlyHireDetail hireId={openHireId} canEdit={canEdit} onClose={() => setOpenHireId('')} onChanged={loadData} />
+      )}
+      {hireAction?.type === 'adjust' && (
+        <AdjustmentPopup
+          hire={hireAction.hire}
+          onClose={() => setHireAction(null)}
+          onDone={() => {
+            setHireAction(null);
+            loadData();
+          }}
+        />
+      )}
+      {hireAction?.type === 'cancel' && (
+        <CancelHirePopup
+          hire={hireAction.hire}
+          onClose={() => setHireAction(null)}
+          onDone={() => {
+            setHireAction(null);
+            loadData();
+          }}
+        />
       )}
 
       <div className="page-header gap-2.5">
@@ -495,11 +590,6 @@ export default function Transport() {
             <div className="panel-header py-2.5 flex flex-wrap items-center justify-between gap-2.5">
               <Segmented options={TABS} value={tab} onChange={setTab} />
               <div className="flex min-w-0 flex-1 basis-56 items-center justify-end gap-2">
-                {tab === 'hires' && canAdd && (
-                  <button type="button" className="btn-secondary" onClick={() => setMonthlyPreset({})}>
-                    <Plus size={16} /> Start Monthly Hire
-                  </button>
-                )}
                 {tab === 'entries' && (
                   <>
                     <Segmented options={KIND_FILTERS} value={kindFilter} onChange={setKindFilter} className="shrink-0" />
@@ -525,7 +615,7 @@ export default function Transport() {
               ? renderEmpty(
                 'No transport entries found',
                 entries.length === 0
-                  ? 'Add a transport charge on a sale, or use "Add Entry" for vehicle rent.'
+                  ? 'Add a transport charge on a sale, or use "Add Entry" for vehicle rent (Per Month for a monthly hire).'
                   : 'Try changing the search or the period.'
               )
               : (
@@ -546,7 +636,7 @@ export default function Transport() {
                           {renderKind(entry)}
                         </div>
                         <div className="flex items-center justify-between gap-2">
-                          <p className="min-w-0 truncate text-[11px] text-slate-400">{entry.entryNumber} · {describeTransportBasis(entry)}</p>
+                          <p className="min-w-0 truncate text-[11px] text-slate-400">{entry.entryNumber} · {describeRow(entry)}</p>
                           {renderActions(entry)}
                         </div>
                       </li>
@@ -567,7 +657,7 @@ export default function Transport() {
                       </thead>
                       <tbody>
                         {filteredEntries.map((entry) => (
-                          <tr key={entry._id} className="tbl-row">
+                          <tr key={entry._id} className={`tbl-row ${entry.isHire ? 'cursor-pointer' : ''}`} onClick={entry.isHire ? () => setOpenHireId(entry.hire._id) : undefined}>
                             <td className={`${TD} whitespace-nowrap`}>
                               {formatDate(entry.entryDate)}
                               <span className="block text-[11px] leading-tight text-slate-400">{entry.entryNumber}</span>
@@ -578,7 +668,7 @@ export default function Transport() {
                             </td>
                             <td className={TD}>{renderKind(entry)}</td>
                             <td className={TD}>
-                              {describeTransportBasis(entry)}
+                              {describeRow(entry)}
                               {(entry.fromDate || entry.toDate || entry.notes) && (
                                 <span className="block max-w-[16rem] truncate text-[11px] leading-tight text-slate-400">
                                   {[
@@ -611,28 +701,12 @@ export default function Transport() {
                   </div>
 
                   <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-0.5 border-t border-slate-100 px-4 py-2 text-xs text-slate-500 md:px-5">
-                    <span>Showing {filteredEntries.length} of {entryCount(periodEntries.length)}</span>
+                    <span>Showing {filteredEntries.length} row{filteredEntries.length === 1 ? '' : 's'} · a monthly hire is one row, tap it for its months</span>
                     {/* The table has its own total row; phones get the totals here */}
                     <span className="font-semibold text-slate-700 md:hidden">
                       Income {formatCurrency(listTotals.income)} · Cost {formatCurrency(listTotals.cost)}
                     </span>
                   </div>
-                </>
-              ))}
-
-            {tab === 'hires' && (hires.length === 0
-              ? renderEmpty('No monthly hires yet', 'Use "Start Monthly Hire", or Add Entry with Per Month, when a vehicle is taken or given on monthly rent.')
-              : (
-                <>
-                  <MonthlyHireList hires={hires} onOpen={(hire) => setOpenHireId(hire._id)} />
-                  <p className="border-t border-slate-100 px-4 py-2 text-xs text-slate-500 md:px-5">
-                    {(() => {
-                      const running = hires.filter((hire) => getHireStatus(hire).key === 'running');
-                      const pay = running.filter((hire) => hire.direction !== 'receivable').reduce((total, hire) => total + Number(hire.monthlyRate || 0), 0);
-                      const receive = running.filter((hire) => hire.direction === 'receivable').reduce((total, hire) => total + Number(hire.monthlyRate || 0), 0);
-                      return `${running.length} running · you pay ${formatRupees(pay)} a month${receive > 0 ? ` · you receive ${formatRupees(receive)} a month` : ''} · each month goes to the ledger when it ends · tap a hire to cancel or adjust`;
-                    })()}
-                  </p>
                 </>
               ))}
 

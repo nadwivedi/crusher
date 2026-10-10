@@ -1,5 +1,4 @@
 const mongoose = require("mongoose");
-const { TRANSPORT_BASES, TRIP_RATES_FIELD } = require("../utils/transportBasis");
 
 const normalizeRate = (value) => {
   if (value === "" || value === null || value === undefined) return 0;
@@ -114,25 +113,6 @@ const partySchema = new mongoose.Schema(
       min: 0,
       set: normalizeRate,
     },
-    // A supplier that also brings material or hires out vehicles. Its transportation rate is below.
-    // Older parties of type "transporter" count as transport providers too.
-    isTransportProvider: {
-      type: Boolean,
-      default: false,
-    },
-    // Transportation rate: what its vehicles are paid, on boulder entries and on hired vehicles
-    hireBasis: {
-      type: String,
-      enum: TRANSPORT_BASES,
-      default: "per_ton",
-    },
-    hireRate: {
-      type: Number,
-      default: 0,
-      min: 0,
-      set: normalizeRate,
-    },
-    tripRates: TRIP_RATES_FIELD,
   },
   {
     timestamps: true,

@@ -1,8 +1,15 @@
 import { Plus, Trash2 } from 'lucide-react';
-import { TRANSPORT_BASIS_OPTIONS, getBasisUnit } from '../utils/transport';
+import { getBasisUnit } from '../utils/transport';
 
-// A party's transportation rate is per km, per ton or per trip. Monthly rent is set up as a monthly hire on the Transport page.
-const HIRE_BASES = ['per_km', 'per_ton', 'per_trip'];
+// A hired vehicle is paid a fixed rate (per trip, per ton or per km) or a monthly rent
+const HIRE_BASES = ['per_trip', 'per_ton', 'per_km', 'per_month'];
+
+const BASIS_LABELS = {
+  per_trip: 'Per Trip',
+  per_ton: 'Per Ton',
+  per_km: 'Per KM',
+  per_month: 'Monthly Rent'
+};
 
 const EMPTY_TRIP_RATE = { location: '', rate: '' };
 
@@ -11,7 +18,7 @@ const toTitleCase = (value) => String(value || '')
   .replace(/\b[a-z]/g, (char) => char.toUpperCase());
 
 /**
- * How a transporter's vehicle is paid: the basis, then either one rate or a rate per location for per-trip hire.
+ * How a hired vehicle is paid: the basis, then one rate, a rate per location for per-trip hire, or the monthly amount.
  * onChange gets the changed fields: { hireBasis }, { hireRate } or { tripRates }.
  */
 export default function HireRateFields({ idPrefix, label = 'Pay Transporter', hireBasis, hireRate, tripRates, onChange }) {
@@ -19,7 +26,8 @@ export default function HireRateFields({ idPrefix, label = 'Pay Transporter', hi
   const isPerTrip = basis === 'per_trip';
   const unit = getBasisUnit(basis);
   const rows = tripRates?.length ? tripRates : [EMPTY_TRIP_RATE];
-  const basisOptions = TRANSPORT_BASIS_OPTIONS.filter((option) => HIRE_BASES.includes(option.value));
+  const isMonthly = basis === 'per_month';
+  const basisOptions = HIRE_BASES.map((value) => ({ value, label: BASIS_LABELS[value] }));
 
   const updateRow = (index, field, value) => {
     onChange({ tripRates: rows.map((row, rowIndex) => (rowIndex === index ? { ...row, [field]: value } : row)) });
@@ -44,7 +52,7 @@ export default function HireRateFields({ idPrefix, label = 'Pay Transporter', hi
         </div>
         {!isPerTrip && (
           <div>
-            <label className="label" htmlFor={`${idPrefix}-hire-rate-input`}>{unit ? 'Rate' : 'Fixed Amount'}</label>
+            <label className="label" htmlFor={`${idPrefix}-hire-rate-input`}>{isMonthly ? 'Monthly Amount' : 'Rate'}</label>
             <div className="relative">
               <input
                 id={`${idPrefix}-hire-rate-input`}
@@ -56,7 +64,7 @@ export default function HireRateFields({ idPrefix, label = 'Pay Transporter', hi
                 step="0.01"
                 placeholder="0"
               />
-              <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-xs font-semibold text-slate-400">{unit ? `₹/${unit}` : '₹'}</span>
+              <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-xs font-semibold text-slate-400">₹/{unit}</span>
             </div>
           </div>
         )}

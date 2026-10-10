@@ -4,18 +4,35 @@ import { toast } from 'react-toastify';
 import apiClient from '../../../utils/api';
 import FormPopup from '../../../components/FormPopup';
 import FormSection from '../../../components/FormSection';
+import HireRateFields from '../../../components/HireRateFields';
 import AddPartyPopup from '../../Party/component/AddPartyPopup';
 import { handlePopupFormKeyDown } from '../../../utils/popupFormKeyboard';
 import { useFloatingDropdownPosition } from '../../../utils/useFloatingDropdownPosition';
-import { VEHICLE_CATEGORY_OPTIONS, VEHICLE_OWNERSHIP_OPTIONS, getSupplierRatesPayload, isTransportProvider } from '../../../utils/transport';
+import { VEHICLE_CATEGORY_OPTIONS, VEHICLE_OWNERSHIP_OPTIONS, getFilledTripRates, getSupplierRatesPayload, getTripRatesError } from '../../../utils/transport';
+import { formatHireDate, toDayInput, todayInput } from '../../../utils/monthlyHire';
 
 const initialFormData = {
   partyId: '',
   vehicleNo: '',
   category: 'truck',
   vehicleType: 'sales',
-  ownership: 'own'
+  ownership: 'own',
+  // A hired vehicle's pay terms: a fixed rate, or a monthly rent from a date
+  hireBasis: 'per_trip',
+  hireRate: '',
+  tripRates: [],
+  monthlyFrom: ''
 };
+
+// The form for a vehicle: a monthly one shows the from date of its running hire
+const buildVehicleForm = (vehicle, defaultVehicleType) => (vehicle
+  ? {
+    ...vehicle,
+    hireRate: Number(vehicle.hireRate || 0) > 0 ? String(vehicle.hireRate) : '',
+    tripRates: (vehicle.tripRates || []).map((row) => ({ location: row.location, rate: String(row.rate ?? '') })),
+    monthlyFrom: toDayInput(vehicle.monthlyHire?.startDate) || todayInput()
+  }
+  : { ...initialFormData, vehicleType: defaultVehicleType || 'sales', monthlyFrom: todayInput() });
 
 // A vehicle is either mine or hired from a transporter; party vehicles are not added here
 const OWNERSHIP_OPTIONS = VEHICLE_OWNERSHIP_OPTIONS.filter((option) => option.value !== 'party');
@@ -42,11 +59,7 @@ const getInitialPartyFormData = (type = 'customer') => ({
   gsbRate: '',
   dustRate: '',
   boulderRatePerTon: '',
-  boulderRatePerTrip: '',
-  isTransportProvider: false,
-  hireBasis: 'per_ton',
-  hireRate: '',
-  tripRates: []
+  boulderRatePerTrip: ''
 });
 
 
@@ -56,7 +69,7 @@ const toTitleCase = (value) => String(value || '')
 
 /** Add or edit a vehicle. Opened from the vehicle master and from the sale and boulder forms. */
 export default function AddVehiclePopup({ vehicle, onClose, onSave, onVehicleSaved = null, defaultVehicleType = 'sales' }) {
-  const [formData, setFormData] = useState(vehicle || initialFormData);
+  const [formData, setFormData] = useState(() => buildVehicleForm(vehicle, defaultVehicleType));
   const [parties, setParties] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -74,9 +87,11 @@ export default function AddVehiclePopup({ vehicle, onClose, onSave, onVehicleSav
   const ownership = OWNERSHIP_OPTIONS.some((option) => option.value === formData.ownership) ? formData.ownership : '';
   const isOwnVehicle = ownership === 'own';
   const isHiredVehicle = ownership === 'hired';
+  const isMonthly = isHiredVehicle && formData.hireBasis === 'per_month';
+  const runningHire = vehicle?.monthlyHire || null;
 
   useEffect(() => {
-    setFormData(vehicle || { ...initialFormData, vehicleType: defaultVehicleType || 'sales' });
+    setFormData(buildVehicleForm(vehicle, defaultVehicleType));
   }, [defaultVehicleType, vehicle]);
 
   useEffect(() => {
@@ -92,10 +107,10 @@ export default function AddVehiclePopup({ vehicle, onClose, onSave, onVehicleSav
     fetchParties();
   }, []);
 
-  // A hired vehicle is picked from transporters first; the cash party never owns a vehicle
+  // A hired vehicle's owner is picked from suppliers first; the cash party never owns a vehicle
   const partyOptions = useMemo(() => parties
     .filter((party) => party.type !== 'cash-in-hand')
-    .sort((a, b) => (isHiredVehicle ? Number(isTransportProvider(b)) - Number(isTransportProvider(a)) : 0)),
+    .sort((a, b) => (isHiredVehicle ? Number(b.type === 'supplier') - Number(a.type === 'supplier') : 0)),
   [parties, isHiredVehicle]);
 
   const selectedParty = useMemo(
@@ -172,7 +187,6 @@ export default function AddVehiclePopup({ vehicle, onClose, onSave, onVehicleSav
   const openInlinePartyForm = () => {
     setPartyFormData({
       ...getInitialPartyFormData(isHiredVehicle ? 'supplier' : 'customer'),
-      isTransportProvider: isHiredVehicle,
       name: selectedParty ? '' : toTitleCase(partyQuery)
     });
     setPartyPopupError('');
@@ -295,8 +309,21 @@ export default function AddVehiclePopup({ vehicle, onClose, onSave, onVehicleSav
       return;
     }
     if (isHiredVehicle && !formData.partyId) {
-      setError('Please select the transporter');
+      setError('Please select the owner you hire it from');
       return;
+    }
+    if (isHiredVehicle) {
+      const payError = formData.hireBasis === 'per_trip'
+        ? getTripRatesError(formData.tripRates)
+        : Number(formData.hireRate || 0) > 0 ? '' : isMonthly ? 'Enter the monthly amount' : 'Enter the rate';
+      if (payError) {
+        setError(payError);
+        return;
+      }
+      if (isMonthly && !formData.monthlyFrom) {
+        setError('Enter the date the monthly rent starts');
+        return;
+      }
     }
 
     setLoading(true);
@@ -307,6 +334,11 @@ export default function AddVehiclePopup({ vehicle, onClose, onSave, onVehicleSav
         vehicleNo: String(formData.vehicleNo || '').trim().toUpperCase(),
         category: formData.category || 'truck',
         ownership,
+        // Pay terms: a fixed rate (per trip with a rate per location, per ton, per km) or a monthly rent from a date
+        hireBasis: isHiredVehicle ? formData.hireBasis || 'per_trip' : 'per_ton',
+        hireRate: isHiredVehicle && formData.hireBasis !== 'per_trip' ? Number(formData.hireRate || 0) : 0,
+        tripRates: isHiredVehicle && formData.hireBasis === 'per_trip' ? getFilledTripRates(formData.tripRates) : [],
+        monthlyFrom: isMonthly ? formData.monthlyFrom : undefined,
         ...(isEditing ? {} : { vehicleType: formData.vehicleType || 'sales' })
       };
 
@@ -462,6 +494,48 @@ export default function AddVehiclePopup({ vehicle, onClose, onSave, onVehicleSav
           )}
 
         </FormSection>
+
+        {isHiredVehicle && (
+          <FormSection
+            number={3}
+            title="Pay Terms"
+            tone="amber"
+            hint={isMonthly
+              ? 'Each month is added to the owner\'s ledger when it ends. Adjust a month or cancel the rent from the Transport page.'
+              : 'Worked out on every sale and boulder entry this vehicle carries, and paid to its owner.'}
+          >
+            <HireRateFields
+              idPrefix="vehicle"
+              label="Paid"
+              hireBasis={formData.hireBasis}
+              hireRate={formData.hireRate}
+              tripRates={formData.tripRates}
+              onChange={(fields) => {
+                setFormData((prev) => ({ ...prev, ...fields }));
+                setError('');
+              }}
+            />
+            {isMonthly && (
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="label" htmlFor="vehicle-monthly-from">Rent From</label>
+                  <input
+                    id="vehicle-monthly-from"
+                    className="input"
+                    type="date"
+                    value={formData.monthlyFrom || ''}
+                    onChange={(event) => setFormData((prev) => ({ ...prev, monthlyFrom: event.target.value }))}
+                  />
+                </div>
+                <p className="self-end pb-2 text-xs text-slate-500">
+                  {runningHire
+                    ? `Running since ${formatHireDate(runningHire.startDate)}. Changing the amount or date re-works its months.`
+                    : 'Saving starts the monthly rent from this date.'}
+                </p>
+              </div>
+            )}
+          </FormSection>
+        )}
       </FormPopup>
 
       <AddPartyPopup

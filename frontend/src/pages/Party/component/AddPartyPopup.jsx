@@ -1,8 +1,7 @@
 import { useState } from 'react';
-import { Check, ChevronDown, Store, User } from 'lucide-react';
+import { ChevronDown, Store, User } from 'lucide-react';
 import FormPopup from '../../../components/FormPopup';
 import FormSection from '../../../components/FormSection';
-import HireRateFields from '../../../components/HireRateFields';
 import { handlePopupFormKeyDown } from '../../../utils/popupFormKeyboard';
 
 const TYPE_OPTIONS = [
@@ -190,49 +189,9 @@ function PartyForm({ editingId, loading, formData, error, handleCloseForm, handl
       {formData.type === 'supplier' && (
         <FormSection
           number={++sectionNumber}
-          title="Transport Provider"
-          tone="indigo"
-          hint="Tick this if the supplier brings boulder in its own vehicles or gives vehicles on hire."
-        >
-          <button
-            type="button"
-            role="checkbox"
-            aria-checked={Boolean(formData.isTransportProvider)}
-            onClick={() => setField('isTransportProvider', !formData.isTransportProvider)}
-            className={`flex w-full items-center gap-3 rounded-lg border px-3 py-2.5 text-left transition ${formData.isTransportProvider ? 'border-primary-600 bg-primary-50' : 'border-slate-300 bg-white hover:bg-slate-50'}`}
-          >
-            <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded border-2 ${formData.isTransportProvider ? 'border-primary-600 bg-primary-600 text-white' : 'border-slate-300 bg-white'}`}>
-              {formData.isTransportProvider && <Check size={14} strokeWidth={3} />}
-            </span>
-            <span className="text-sm font-semibold text-slate-800">This supplier is a transport provider</span>
-          </button>
-        </FormSection>
-      )}
-
-      {formData.type === 'supplier' && formData.isTransportProvider && (
-        <FormSection
-          number={++sectionNumber}
-          title="Transportation Rate"
-          tone="sky"
-          hint="Added to boulder entries when per ton or per trip, and used for vehicles hired from this supplier."
-        >
-          <HireRateFields
-            idPrefix="party"
-            label="Charged"
-            hireBasis={formData.hireBasis}
-            hireRate={formData.hireRate}
-            tripRates={formData.tripRates}
-            onChange={(fields) => Object.entries(fields).forEach(([name, value]) => setField(name, value))}
-          />
-        </FormSection>
-      )}
-
-      {formData.type === 'supplier' && formData.isTransportProvider && (
-        <FormSection
-          number={++sectionNumber}
           title="Boulder Rate"
           tone="amber"
-          hint="Filled in on each boulder entry from this supplier; the entry picks per ton or per trip."
+          hint="The price of boulder from this supplier, filled in on each boulder entry. Transport is set on each vehicle."
         >
           <div className="grid grid-cols-2 gap-3">
             <RateInput name="boulderRatePerTon" label="Per Ton" value={formData.boulderRatePerTon} onChange={handleChange} />

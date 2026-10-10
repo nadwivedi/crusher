@@ -4,7 +4,7 @@ import { ArrowDownLeft, ArrowUpRight } from 'lucide-react';
 import apiClient from '../../../utils/api';
 import FormPopup from '../../../components/FormPopup';
 import { handlePopupFormKeyDown } from '../../../utils/popupFormKeyboard';
-import { isTransportProvider } from '../../../utils/transport';
+import { getVehicleOwnerIds } from '../../../utils/transport';
 import { toDayInput, todayInput } from '../../../utils/monthlyHire';
 
 // payable: a vehicle I hired, so I pay. receivable: my vehicle given to a party, so I receive.
@@ -19,9 +19,9 @@ const getVehiclePartyId = (vehicle) => (
   typeof vehicle?.partyId === 'object' ? vehicle?.partyId?._id || '' : vehicle?.partyId || ''
 );
 
-// A transport provider's agreed monthly rate, when it has one
-const getPartyMonthlyRate = (party) => (
-  party?.hireBasis === 'per_month' && Number(party?.hireRate || 0) > 0 ? String(party.hireRate) : ''
+// A vehicle on monthly rent brings its agreed amount
+const getVehicleMonthlyRate = (vehicle) => (
+  vehicle?.hireBasis === 'per_month' && Number(vehicle?.hireRate || 0) > 0 ? String(vehicle.hireRate) : ''
 );
 
 const buildForm = (hire, defaultPartyId, preset) => ({
@@ -56,13 +56,14 @@ export default function MonthlyHireForm({ hire = null, defaultPartyId = '', pres
       .catch((loadError) => setError(loadError?.message || 'Error loading parties'));
   }, []);
 
-  // Transport providers first when I hire; anyone but the cash party can take my vehicle
+  // Owners of hired vehicles first when I hire; anyone but the cash party can take my vehicle
+  const ownerIds = useMemo(() => getVehicleOwnerIds(vehicles), [vehicles]);
   const partyOptions = useMemo(() => parties
     .filter((party) => party.type !== 'cash-in-hand')
     .sort((a, b) => (
-      (isPayable ? Number(isTransportProvider(b)) - Number(isTransportProvider(a)) : 0)
+      (isPayable ? Number(ownerIds.has(String(b._id))) - Number(ownerIds.has(String(a._id))) : 0)
       || String(a.name || '').localeCompare(String(b.name || ''))
-    )), [parties, isPayable]);
+    )), [parties, isPayable, ownerIds]);
 
   // Hired vehicles when I pay, my own vehicles when I receive
   const vehicleOptions = useMemo(
@@ -77,14 +78,7 @@ export default function MonthlyHireForm({ hire = null, defaultPartyId = '', pres
 
   const handleChange = (event) => {
     const { name, value } = event.target;
-    setFormData((prev) => {
-      const next = { ...prev, [name]: value };
-      // A transport provider's monthly rate comes with it
-      if (name === 'partyId' && !prev.monthlyRate) {
-        next.monthlyRate = getPartyMonthlyRate(parties.find((party) => party._id === value));
-      }
-      return next;
-    });
+    setFormData((prev) => ({ ...prev, [name]: value }));
     setError('');
   };
 
@@ -100,7 +94,7 @@ export default function MonthlyHireForm({ hire = null, defaultPartyId = '', pres
         const partyId = getVehiclePartyId(vehicle);
         if (partyId) {
           next.partyId = partyId;
-          if (!prev.monthlyRate) next.monthlyRate = getPartyMonthlyRate(parties.find((party) => party._id === partyId));
+          if (!prev.monthlyRate) next.monthlyRate = getVehicleMonthlyRate(vehicle);
         }
       }
       return next;
@@ -189,7 +183,7 @@ export default function MonthlyHireForm({ hire = null, defaultPartyId = '', pres
           <select id="hire-party" className="input" name="partyId" value={formData.partyId} onChange={handleChange}>
             <option value="">Select party</option>
             {partyOptions.map((party) => (
-              <option key={party._id} value={party._id}>{party.name}{isPayable && isTransportProvider(party) ? ' · transport' : ''}</option>
+              <option key={party._id} value={party._id}>{party.name}{isPayable && ownerIds.has(String(party._id)) ? ' · vehicle owner' : ''}</option>
             ))}
           </select>
         </div>

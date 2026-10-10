@@ -140,7 +140,10 @@ export default function Vehicle() {
 
   const getHireNote = (vehicle) => {
     if (vehicle.ownership !== 'hired') return '';
-    const hire = getVehicleHireRates(vehicle, parties);
+    const hire = getVehicleHireRates(vehicle);
+    if (hire.hireBasis === 'per_month') {
+      return `Hired · Monthly ₹${hire.hireRate.toLocaleString('en-IN')}${vehicle.monthlyHire ? ' · running' : ''}`;
+    }
     if (hire.hireBasis === 'per_trip') {
       const count = hire.tripRates.length;
       return `Hired · Per Trip · ${count} location${count === 1 ? '' : 's'}`;

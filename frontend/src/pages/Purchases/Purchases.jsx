@@ -151,11 +151,7 @@ export default function Purchases({ modalOnly = false, onModalFinish = null }) {
     gsbRate: '',
     dustRate: '',
     boulderRatePerTon: '',
-  boulderRatePerTrip: '',
-  isTransportProvider: false,
-  hireBasis: 'per_ton',
-  hireRate: '',
-  tripRates: []
+    boulderRatePerTrip: ''
   });
 
   const toTitleCase = (value) => String(value || '')

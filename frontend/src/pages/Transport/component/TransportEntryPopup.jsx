@@ -40,6 +40,21 @@ const countDays = (from, to) => {
   return days > 0 ? days : 0;
 };
 
+// A monthly hire opens with its agreed amount and dates
+const buildHireForm = (hire) => ({
+  direction: hire.direction || 'payable',
+  entryDate: toLocalDateInput(new Date()),
+  partyId: hire.partyId || '',
+  vehicleNo: hire.vehicleNo || '',
+  basis: 'per_month',
+  location: '',
+  quantity: '',
+  rate: hire.monthlyRate || '',
+  fromDate: toDateInput(hire.startDate),
+  toDate: toDateInput(hire.endDate),
+  notes: hire.notes || ''
+});
+
 const buildInitialForm = (entry) => ({
   direction: entry?.direction || 'payable',
   entryDate: toDateInput(entry?.entryDate) || toLocalDateInput(new Date()),
@@ -56,14 +71,17 @@ const buildInitialForm = (entry) => ({
 
 /**
  * Add or edit a transport entry that is not part of a sale: rent paid for a hired vehicle, or my vehicle given to a party.
- * A new per-month entry goes on as a monthly hire (onStartMonthlyHire), which has its own dates, cancel and adjustments.
+ * Per month is a monthly hire: it runs from a date until its end or until cancelled, each finished month goes to the
+ * ledger by itself, and it can be adjusted later. hire: an existing monthly hire to edit.
  */
-export default function TransportEntryPopup({ entry = null, parties = [], vehicles = [], onClose, onSaved, onStartMonthlyHire = null }) {
-  const [formData, setFormData] = useState(() => buildInitialForm(entry));
+export default function TransportEntryPopup({ entry = null, hire = null, parties = [], vehicles = [], onClose, onSaved }) {
+  const [formData, setFormData] = useState(() => (hire ? buildHireForm(hire) : buildInitialForm(entry)));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const isEditing = Boolean(entry?._id);
-  const isNewMonthly = !isEditing && formData.basis === 'per_month' && typeof onStartMonthlyHire === 'function';
+  const isEditingHire = Boolean(hire?._id);
+  // An old per-month entry is edited as it was; a new one becomes a monthly hire
+  const isMonthly = isEditingHire || (!isEditing && formData.basis === 'per_month');
   const isPayable = formData.direction === 'payable';
   const isFixed = formData.basis === 'fixed';
   const isPeriod = PERIOD_BASES.includes(formData.basis);
@@ -83,7 +101,7 @@ export default function TransportEntryPopup({ entry = null, parties = [], vehicl
   }, [vehicles, formData.vehicleNo]);
 
   // A hired vehicle's rates come from its transporter
-  const matchedHire = useMemo(() => getVehicleHireRates(matchedVehicle, parties), [matchedVehicle, parties]);
+  const matchedHire = useMemo(() => getVehicleHireRates(matchedVehicle), [matchedVehicle]);
   const tripLocations = matchedVehicle ? matchedHire.tripRates : [];
 
   const handleChange = (event) => {
@@ -114,7 +132,9 @@ export default function TransportEntryPopup({ entry = null, parties = [], vehicl
       const next = { ...prev, vehicleNo };
       if (vehicle?.ownership === 'hired' && prev.direction === 'payable') {
         next.partyId = getVehiclePartyId(vehicle) || prev.partyId;
-        const hire = getVehicleHireRates(vehicle, parties);
+        const hire = getVehicleHireRates(vehicle);
+        // A vehicle on monthly rent already has its running hire; this entry is something extra
+        if (hire.hireBasis === 'per_month') return next;
         next.basis = hire.hireBasis || prev.basis;
         if (hire.hireBasis === 'per_trip') {
           // A single location needs no picking
@@ -136,21 +156,57 @@ export default function TransportEntryPopup({ entry = null, parties = [], vehicl
     setError('');
   };
 
-  const handleSubmit = async () => {
-    if (saving) return;
-
-    if (isNewMonthly) {
-      onStartMonthlyHire({
-        direction: formData.direction,
-        partyId: formData.partyId,
-        vehicleNo: formData.vehicleNo.trim(),
-        monthlyRate: formData.rate
-      });
+  const saveMonthlyHire = async () => {
+    if (Number(formData.rate || 0) <= 0) {
+      setError('Monthly amount must be greater than 0');
+      return;
+    }
+    if (!formData.fromDate) {
+      setError('From date is required');
+      return;
+    }
+    if (formData.toDate && formData.toDate < formData.fromDate) {
+      setError('To date cannot be before the from date');
       return;
     }
 
+    const payload = {
+      direction: formData.direction,
+      partyId: formData.partyId,
+      vehicleId: matchedVehicle?._id || undefined,
+      vehicleNo: formData.vehicleNo.trim(),
+      monthlyRate: Number(formData.rate),
+      startDate: formData.fromDate,
+      endDate: formData.toDate || null,
+      notes: formData.notes.trim()
+    };
+
+    try {
+      setSaving(true);
+      setError('');
+      if (isEditingHire) {
+        await apiClient.put(`/monthly-hires/${hire._id}`, payload);
+      } else {
+        await apiClient.post('/monthly-hires', payload);
+      }
+      toast.success(isEditingHire ? 'Monthly hire updated' : 'Monthly hire started');
+      onSaved();
+    } catch (submitError) {
+      setError(submitError?.message || 'Error saving monthly hire');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleSubmit = async () => {
+    if (saving) return;
+
     if (!formData.partyId) {
       setError(isPayable ? 'Select the transporter you hired the vehicle from' : 'Select the party you gave the vehicle to');
+      return;
+    }
+    if (isMonthly) {
+      await saveMonthlyHire();
       return;
     }
     if (!formData.entryDate) {
@@ -200,9 +256,9 @@ export default function TransportEntryPopup({ entry = null, parties = [], vehicl
 
   return (
     <FormPopup
-      title={isEditing ? 'Edit Transport Entry' : 'Add Transport Entry'}
-      subtitle="Vehicle rent or trips that are not part of a sale"
-      submitLabel={saving ? 'Saving...' : isEditing ? 'Update Entry' : isNewMonthly ? 'Next: Set Dates' : 'Save Entry'}
+      title={isEditingHire ? 'Edit Monthly Hire' : isEditing ? 'Edit Transport Entry' : 'Add Transport Entry'}
+      subtitle={isMonthly ? 'Monthly rent: each month goes to the ledger when it ends' : 'Vehicle rent or trips that are not part of a sale'}
+      submitLabel={saving ? 'Saving...' : isEditingHire ? 'Update Hire' : isEditing ? 'Update Entry' : isMonthly ? 'Start Monthly Hire' : 'Save Entry'}
       maxWidth="max-w-lg"
       onSubmit={handleSubmit}
       onClose={onClose}
@@ -230,11 +286,13 @@ export default function TransportEntryPopup({ entry = null, parties = [], vehicl
         ))}
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <label className="label">Date *</label>
-          <input className="input" type="date" name="entryDate" value={formData.entryDate} onChange={handleChange} autoFocus disabled={isNewMonthly} />
-        </div>
+      <div className={`grid gap-3 ${isMonthly ? 'grid-cols-1' : 'grid-cols-2'}`}>
+        {!isMonthly && (
+          <div>
+            <label className="label">Date *</label>
+            <input className="input" type="date" name="entryDate" value={formData.entryDate} onChange={handleChange} autoFocus />
+          </div>
+        )}
         <div>
           <label className="label">Vehicle No</label>
           <input
@@ -264,23 +322,25 @@ export default function TransportEntryPopup({ entry = null, parties = [], vehicl
         {parties.length === 0 && <p className="mt-1 text-xs text-slate-500">Add the transporter under Masters → Party first.</p>}
       </div>
 
-      <div className={`grid gap-3 ${isFixed ? 'grid-cols-2' : 'grid-cols-3'}`}>
+      <div className={`grid gap-3 ${isFixed || isMonthly ? 'grid-cols-2' : 'grid-cols-3'}`}>
         <div>
           <label className="label">Charged *</label>
-          <select className="input" name="basis" value={formData.basis} onChange={handleChange}>
+          <select className="input" name="basis" value={formData.basis} onChange={handleChange} disabled={isEditingHire}>
             {TRANSPORT_BASIS_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>{option.label}</option>
+              <option key={option.value} value={option.value}>
+                {option.value === 'per_month' && !isEditing ? 'Per Month (monthly hire)' : option.label}
+              </option>
             ))}
           </select>
         </div>
-        {!isFixed && !isNewMonthly && (
+        {!isFixed && !isMonthly && (
           <div>
             <label className="label">{QUANTITY_LABELS[formData.basis]} *</label>
             <input className="input" type="number" name="quantity" value={formData.quantity} onChange={handleChange} min="0" step="0.001" placeholder="0" />
           </div>
         )}
         <div>
-          <label className="label">{isNewMonthly ? 'Monthly Amount (Rs)' : isFixed ? 'Amount (Rs) *' : `Rate / ${unit} *`}</label>
+          <label className="label">{isMonthly ? 'Monthly Amount (Rs) *' : isFixed ? 'Amount (Rs) *' : `Rate / ${unit} *`}</label>
           <input className="input" type="number" name="rate" value={formData.rate} onChange={handleChange} min="0" step="0.01" placeholder="0.00" />
         </div>
       </div>
@@ -305,14 +365,27 @@ export default function TransportEntryPopup({ entry = null, parties = [], vehicl
         </div>
       )}
 
-      {isNewMonthly && (
-        <p className="rounded-lg bg-indigo-50 px-3 py-2 text-xs text-indigo-800 ring-1 ring-inset ring-indigo-200">
-          Per month runs as a <span className="font-semibold">monthly hire</span>: next you set the from and to dates. Each month then goes to the
-          ledger when it ends, and you can cancel any day or adjust a month for off days or extra charges.
-        </p>
+      {isMonthly && (
+        <div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="label">From Date *</label>
+              <input className="input" type="date" name="fromDate" value={formData.fromDate} onChange={handleChange} />
+            </div>
+            <div>
+              <label className="label">To Date</label>
+              <input className="input" type="date" name="toDate" value={formData.toDate} min={formData.fromDate || undefined} onChange={handleChange} />
+            </div>
+          </div>
+          <p className="mt-1 text-xs text-slate-500">
+            Leave To Date blank to keep it running until you cancel it. Each month goes to the ledger when it ends; from the list
+            you can adjust a month (off days, less or extra amount) or cancel on any day.
+            {isEditingHire && ' Changing the amount or dates re-works the months already in the ledger.'}
+          </p>
+        </div>
       )}
 
-      {isPeriod && !isNewMonthly && (
+      {isPeriod && !isMonthly && (
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="label">Period From</label>
@@ -326,9 +399,12 @@ export default function TransportEntryPopup({ entry = null, parties = [], vehicl
       )}
 
       <div className={`flex items-center justify-between rounded-xl px-3 py-2 ring-1 ${isPayable ? 'bg-rose-50 ring-rose-200' : 'bg-emerald-50 ring-emerald-200'}`}>
-        <span className="text-xs font-semibold text-slate-600">{isPayable ? 'You pay the transporter' : 'The party pays you'}</span>
+        <span className="text-xs font-semibold text-slate-600">
+          {isPayable ? 'You pay the transporter' : 'The party pays you'}{isMonthly ? ' every month' : ''}
+        </span>
         <span className={`text-base font-bold ${isPayable ? 'text-rose-700' : 'text-emerald-700'}`}>
-          ₹{amount.toLocaleString('en-IN', { maximumFractionDigits: 2 })}
+          ₹{(isMonthly ? Number(formData.rate || 0) : amount).toLocaleString('en-IN', { maximumFractionDigits: 2 })}
+          {isMonthly && <span className="text-xs font-semibold"> / month</span>}
         </span>
       </div>
 

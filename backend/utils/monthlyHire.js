@@ -164,6 +164,68 @@ const syncHireEntries = async (hire) => {
   }
 };
 
+// The hire a vehicle is on now: not cancelled and not past its agreed end
+const findActiveVehicleHire = (userId, vehicleId) => MonthlyHire.findOne({
+  userId,
+  vehicleId,
+  cancelledAt: null,
+  $or: [{ endDate: null }, { endDate: { $gte: new Date(todayDay()) } }],
+}).sort({ startDate: -1 });
+
+/**
+ * A hired vehicle on monthly rent always has a running monthly hire, made and kept from the vehicle's own terms.
+ * Saving the vehicle starts the hire (from monthlyFrom, today if none), or updates the running one.
+ * When the vehicle stops being on monthly rent, its running hire is cancelled today.
+ */
+const syncVehicleMonthlyHire = async (vehicle, monthlyFrom = null) => {
+  const active = await findActiveVehicleHire(vehicle.userId, vehicle._id);
+  const isMonthly = vehicle.ownership === "hired" && vehicle.hireBasis === "per_month" && vehicle.partyId && Number(vehicle.hireRate) > 0;
+  const fromDate = monthlyFrom && !Number.isNaN(new Date(monthlyFrom).getTime()) ? new Date(toDay(monthlyFrom)) : null;
+
+  if (isMonthly && active) {
+    const changes = [];
+    if (Number(active.monthlyRate) !== Number(vehicle.hireRate)) changes.push(`rate ${formatRs(active.monthlyRate)} to ${formatRs(vehicle.hireRate)}`);
+    if (String(active.partyId) !== String(vehicle.partyId)) changes.push("owner changed");
+    if (fromDate && fromDate.getTime() !== toDay(active.startDate)) changes.push(`from date to ${formatDay(fromDate)}`);
+    if (changes.length === 0 && active.vehicleNo === vehicle.vehicleNo) return active;
+
+    active.monthlyRate = vehicle.hireRate;
+    active.partyId = vehicle.partyId;
+    active.vehicleNo = vehicle.vehicleNo;
+    if (fromDate) active.startDate = fromDate;
+    active.history.push({ at: new Date(), action: "Changed", note: `From the vehicle: ${changes.join(", ") || "vehicle number"}` });
+    await active.save();
+    await syncHireEntries(active);
+    return active;
+  }
+
+  if (isMonthly) {
+    const startDate = fromDate || new Date(todayDay());
+    const hire = await MonthlyHire.create({
+      userId: vehicle.userId,
+      direction: "payable",
+      partyId: vehicle.partyId,
+      vehicleId: vehicle._id,
+      vehicleNo: vehicle.vehicleNo,
+      monthlyRate: vehicle.hireRate,
+      startDate,
+      history: [{ at: new Date(), action: "Started", note: `${formatRs(vehicle.hireRate)} a month from ${formatDay(startDate)}, until cancelled` }],
+    });
+    await syncHireEntries(hire);
+    return hire;
+  }
+
+  if (active) {
+    const today = new Date(todayDay());
+    active.cancelledAt = today < active.startDate ? active.startDate : today;
+    active.cancelCharge = "prorata";
+    active.history.push({ at: new Date(), action: "Cancelled", note: "The vehicle is no longer on monthly rent; days used charged" });
+    await active.save();
+    await syncHireEntries(active);
+  }
+  return null;
+};
+
 // Books months that have finished since the last look, once a day per user.
 // Requests arriving together share one run, so a month is never booked twice.
 const lastSyncDay = new Map();
@@ -206,6 +268,8 @@ module.exports = {
   getHireStop,
   getHireMonths,
   syncHireEntries,
+  findActiveVehicleHire,
+  syncVehicleMonthlyHire,
   syncUserMonthlyHires,
   syncMonthlyHiresMiddleware,
 };

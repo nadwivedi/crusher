@@ -47,44 +47,26 @@ export const getVehicleCategoryLabel = (category) => (
   VEHICLE_CATEGORY_OPTIONS.find((option) => option.value === category)?.label || ''
 );
 
-// A supplier that provides transport, or a party saved as a transporter before that type was folded into suppliers
-export const isTransportProvider = (party) => (
-  party?.type === 'transporter' || (party?.type === 'supplier' && Boolean(party?.isTransportProvider))
-);
+// Parties that own a hired vehicle: the ones vehicles are hired from, listed first where a vehicle owner is picked
+export const getVehicleOwnerIds = (vehicles = []) => new Set(vehicles
+  .filter((vehicle) => vehicle.ownership === 'hired' && vehicle.partyId)
+  .map((vehicle) => String(typeof vehicle.partyId === 'object' ? vehicle.partyId._id : vehicle.partyId)));
 
-// The rate fields a party form saves. Only a transport provider keeps boulder and transportation rates.
+// The rate fields a party form saves: a supplier's boulder rates. Transport rates belong to each vehicle.
 export const getSupplierRatesPayload = (form) => {
-  const provider = form?.type === 'supplier' && Boolean(form?.isTransportProvider);
-  const perTrip = form?.hireBasis === 'per_trip';
+  const isSupplier = form?.type === 'supplier';
   return {
-    isTransportProvider: provider,
-    boulderRatePerTon: provider ? Number(form.boulderRatePerTon || 0) : 0,
-    boulderRatePerTrip: provider ? Number(form.boulderRatePerTrip || 0) : 0,
-    hireBasis: form?.hireBasis || 'per_ton',
-    hireRate: provider && !perTrip ? Number(form.hireRate || 0) : 0,
-    tripRates: provider && perTrip ? getFilledTripRates(form.tripRates) : []
+    boulderRatePerTon: isSupplier ? Number(form.boulderRatePerTon || 0) : 0,
+    boulderRatePerTrip: isSupplier ? Number(form.boulderRatePerTrip || 0) : 0
   };
 };
 
-const hasHireRates = (source) => Boolean(source) && (
-  source.hireBasis === 'per_trip' ? (source.tripRates || []).length > 0 : Number(source.hireRate || 0) > 0
-);
-
-/**
- * What a hired vehicle is paid at. The rates live on its transporter;
- * a vehicle saved before that keeps its own rates when the transporter has none.
- */
-export const getVehicleHireRates = (vehicle, parties = []) => {
-  const partyId = typeof vehicle?.partyId === 'object' ? vehicle?.partyId?._id : vehicle?.partyId;
-  const transporter = parties.find((party) => String(party._id) === String(partyId || ''))
-    || (typeof vehicle?.partyId === 'object' ? vehicle.partyId : null);
-  const source = hasHireRates(transporter) ? transporter : vehicle;
-  return {
-    hireBasis: source?.hireBasis || 'per_ton',
-    hireRate: Number(source?.hireRate || 0),
-    tripRates: source?.tripRates || []
-  };
-};
+// What a hired vehicle is paid at: its own pay terms, set when the vehicle is added
+export const getVehicleHireRates = (vehicle) => ({
+  hireBasis: vehicle?.hireBasis || 'per_ton',
+  hireRate: Number(vehicle?.hireRate || 0),
+  tripRates: vehicle?.tripRates || []
+});
 
 // The per-trip rate for a location on a hired vehicle, or null when the vehicle has none for it
 export const getTripRate = (vehicle, location) => (

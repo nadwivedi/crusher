@@ -57,32 +57,35 @@ const BOULDER_RATE_BASES = [
   { value: 'per_trip', label: 'Per Trip' }
 ];
 
-/**
- * The supplier's boulder and transport rates; a non-supplier has none.
- * Transport comes from a transport provider's transportation rate when it is per ton or per trip;
- * a per-trip rate is the picked location's, or the only location's.
- */
-const getSupplierRates = (party, transportLocation = '') => {
+// The supplier's boulder rates; a non-supplier has none
+const getSupplierRates = (party) => {
   const isSupplier = party?.type === 'supplier';
   const toRate = (value) => (isSupplier ? Math.max(0, Number(value || 0) || 0) : 0);
-  const rates = {
+  return {
     perTon: toRate(party?.boulderRatePerTon),
-    perTrip: toRate(party?.boulderRatePerTrip),
-    transport: 0,
-    transportBasis: 'per_ton',
-    tripLocations: []
+    perTrip: toRate(party?.boulderRatePerTrip)
   };
-  if (!isSupplier || !party?.isTransportProvider) return rates;
+};
 
-  if (party.hireBasis === 'per_ton') {
-    return { ...rates, transport: toRate(party.hireRate) };
-  }
-  if (party.hireBasis === 'per_trip') {
-    const tripLocations = party.tripRates || [];
+/**
+ * Transport for the load, from the vehicle's pay terms. A hired vehicle paid per ton or per trip costs that much and is
+ * paid to its owner; a per-trip rate is the picked location's, or the only location's. My own vehicle, one on monthly
+ * rent, or one paid per km adds nothing here.
+ */
+const getVehicleTransport = (vehicle, transportLocation = '') => {
+  const none = { transport: 0, transportBasis: 'per_ton', tripLocations: [], ownerId: '', isMonthly: false };
+  if (vehicle?.ownership !== 'hired' || !vehicle?.partyId) return none;
+
+  const ownerId = String(typeof vehicle.partyId === 'object' ? vehicle.partyId._id : vehicle.partyId);
+  const toRate = (value) => Math.max(0, Number(value || 0) || 0);
+  if (vehicle.hireBasis === 'per_month') return { ...none, ownerId, isMonthly: true };
+  if (vehicle.hireBasis === 'per_ton') return { ...none, ownerId, transport: toRate(vehicle.hireRate) };
+  if (vehicle.hireBasis === 'per_trip') {
+    const tripLocations = vehicle.tripRates || [];
     const trip = tripLocations.find((row) => row.location === transportLocation) || (tripLocations.length === 1 ? tripLocations[0] : null);
-    return { ...rates, transport: toRate(trip?.rate), transportBasis: 'per_trip', tripLocations };
+    return { ...none, ownerId, transport: toRate(trip?.rate), transportBasis: 'per_trip', tripLocations };
   }
-  return rates;
+  return { ...none, ownerId };
 };
 
 const getDefaultRateBasis = (rates) => (rates.perTon <= 0 && rates.perTrip > 0 ? 'per_trip' : 'per_ton');
@@ -149,7 +152,15 @@ export default function BoulderEntry({ onModalFinish = null, editingEntry = null
     )) || null;
   }, [formData.partyName, parties]);
 
-  const supplierRates = useMemo(() => getSupplierRates(selectedParty, formData.transportLocation), [selectedParty, formData.transportLocation]);
+  const supplierRates = useMemo(() => getSupplierRates(selectedParty), [selectedParty]);
+  const boulderVehicle = useMemo(() => {
+    const typed = String(formData.vehicleNo || '').replace(/[^A-Z0-9]/gi, '').toUpperCase();
+    return vehicles.find((vehicle) => String(vehicle._id) === String(formData.vehicleId || ''))
+      || (typed ? vehicles.find((vehicle) => String(vehicle.vehicleNo || '').replace(/[^A-Z0-9]/gi, '').toUpperCase() === typed) : null)
+      || null;
+  }, [vehicles, formData.vehicleId, formData.vehicleNo]);
+  const vehicleTransport = useMemo(() => getVehicleTransport(boulderVehicle, formData.transportLocation), [boulderVehicle, formData.transportLocation]);
+  const transportOwnerName = getPartyDisplayName(parties.find((party) => String(party._id) === vehicleTransport.ownerId)) || 'the vehicle owner';
   const boulderRateBasis = formData.boulderRateBasis || getDefaultRateBasis(supplierRates);
   const boulderRate = boulderRateBasis === 'per_trip' ? supplierRates.perTrip : supplierRates.perTon;
 
@@ -165,7 +176,7 @@ export default function BoulderEntry({ onModalFinish = null, editingEntry = null
   const payableTons = Math.max(0, (isBulkMode ? bulkTotalWeight : Number(formData.netWeight || 0)) / 1000) || 0;
   const payableTrips = isBulkMode ? Math.max(0, Math.floor(Number(formData.tripCount || 0)) || 0) : 1;
   const boulderAmount = (boulderRateBasis === 'per_trip' ? payableTrips : payableTons) * boulderRate;
-  const transportAmount = (supplierRates.transportBasis === 'per_trip' ? payableTrips : payableTons) * supplierRates.transport;
+  const transportAmount = (vehicleTransport.transportBasis === 'per_trip' ? payableTrips : payableTons) * vehicleTransport.transport;
   const boulderTotalAmount = boulderAmount + transportAmount;
 
   useEffect(() => {
@@ -319,10 +330,12 @@ export default function BoulderEntry({ onModalFinish = null, editingEntry = null
     if (!vehicle) return;
 
     const vehicleName = getVehicleDisplayName(vehicle);
-    const linkedPartyId = getVehiclePartyId(vehicle);
-    const linkedParty = linkedPartyId
-      ? parties.find((party) => String(party._id) === String(linkedPartyId))
-      : null;
+    // A hired vehicle's owner is filled in as the supplier only when it is a supplier; a vehicle owner who only
+    // carries the load is paid its transport separately
+    const ownerId = getVehiclePartyId(vehicle);
+    const owner = ownerId ? parties.find((party) => String(party._id) === String(ownerId)) : null;
+    const linkedParty = owner && (vehicle.ownership !== 'hired' || owner.type === 'supplier') ? owner : null;
+    const linkedPartyId = linkedParty ? ownerId : '';
     const linkedPartyName = getPartyDisplayName(linkedParty);
     setFormData((prev) => updateWeights({
       ...prev,
@@ -330,7 +343,8 @@ export default function BoulderEntry({ onModalFinish = null, editingEntry = null
       partyId: linkedPartyId || prev.partyId,
       vehicleNo: vehicleName,
       tareWeight: vehicle?.unladenWeight ?? prev.tareWeight,
-      partyName: linkedPartyName || prev.partyName
+      partyName: linkedPartyName || prev.partyName,
+      transportLocation: ''
     }));
     setVehicleQuery(vehicleName);
     if (linkedPartyName) {
@@ -929,7 +943,7 @@ export default function BoulderEntry({ onModalFinish = null, editingEntry = null
                   })}
                 </div>
               </div>
-              {supplierRates.tripLocations.length > 1 && (
+              {vehicleTransport.tripLocations.length > 1 && (
                 <div className="flex items-center gap-2">
                   <label className="text-xs font-semibold text-slate-600" htmlFor="boulder-transport-location">Transport from</label>
                   <select
@@ -939,7 +953,7 @@ export default function BoulderEntry({ onModalFinish = null, editingEntry = null
                     onChange={(event) => setFormData((prev) => ({ ...prev, transportLocation: event.target.value }))}
                   >
                     <option value="">Select location</option>
-                    {supplierRates.tripLocations.map((row) => (
+                    {vehicleTransport.tripLocations.map((row) => (
                       <option key={row.location} value={row.location}>{row.location} · ₹{Number(row.rate || 0).toLocaleString('en-IN')}</option>
                     ))}
                   </select>
@@ -954,23 +968,26 @@ export default function BoulderEntry({ onModalFinish = null, editingEntry = null
                         : <>Boulder: {formatTon(payableWeight)} × ₹{boulderRate.toLocaleString('en-IN')} / ton</>
                       : <span className="text-amber-700">{selectedParty ? `No boulder rate ${boulderRateBasis === 'per_trip' ? 'per trip' : 'per ton'} set for this supplier` : 'Pick a supplier to see the amount'}</span>}
                   </span>
-                  <span className={supplierRates.transport > 0 ? 'font-semibold text-slate-800' : 'text-base font-bold text-slate-900'}>{formatRupees(boulderAmount)}</span>
+                  <span className={vehicleTransport.transport > 0 ? 'font-semibold text-slate-800' : 'text-base font-bold text-slate-900'}>{formatRupees(boulderAmount)}</span>
                 </div>
-                {supplierRates.transport > 0 && (
+                {vehicleTransport.transport > 0 && (
                   <>
                     <div className="mt-1 flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
                       <span className="text-slate-600">
-                        {supplierRates.transportBasis === 'per_trip'
-                          ? <>Transport: {payableTrips} trip{payableTrips === 1 ? '' : 's'} × ₹{supplierRates.transport.toLocaleString('en-IN')} / trip</>
-                          : <>Transport: {formatTon(payableWeight)} × ₹{supplierRates.transport.toLocaleString('en-IN')} / ton</>}
+                        {vehicleTransport.transportBasis === 'per_trip'
+                          ? <>Transport to {transportOwnerName}: {payableTrips} trip{payableTrips === 1 ? '' : 's'} × ₹{vehicleTransport.transport.toLocaleString('en-IN')} / trip</>
+                          : <>Transport to {transportOwnerName}: {formatTon(payableWeight)} × ₹{vehicleTransport.transport.toLocaleString('en-IN')} / ton</>}
                       </span>
                       <span className="font-semibold text-slate-800">{formatRupees(transportAmount)}</span>
                     </div>
                     <div className="mt-1.5 flex items-center justify-between border-t border-slate-200 pt-1.5">
-                      <span className="font-semibold text-slate-700">Total to supplier</span>
+                      <span className="font-semibold text-slate-700">Total cost of this load</span>
                       <span className="text-base font-bold text-slate-900">{formatRupees(boulderTotalAmount)}</span>
                     </div>
                   </>
+                )}
+                {vehicleTransport.isMonthly && (
+                  <p className="mt-1 text-xs text-slate-500">This vehicle is on monthly rent, so no transport is added for this load.</p>
                 )}
               </div>
             </div>

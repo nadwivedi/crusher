@@ -4,6 +4,7 @@ const Counter = require("../models/Counter");
 const Party = require("../models/Party");
 const Vehicle = require("../models/Vehicle");
 const { scopedFilter, scopedIdFilter } = require("../utils/ownership");
+const { syncBoulderTransportEntry, deleteBoulderTransportEntry } = require("../utils/transport");
 
 const getCurrentTime = () => {
   const now = new Date();
@@ -118,45 +119,41 @@ const resolvePartySnapshot = async ({ partyId, partyName, fallbackPartyId = null
   return { partyId: null, partyName: "" };
 };
 
-const NO_RATES = { boulderRatePerTon: 0, boulderRatePerTrip: 0, transportRate: 0, transportRateBasis: "per_ton", transportLocation: "" };
+// The supplier's boulder rates at the time of the entry
+const resolveBoulderRateSnapshot = async (partyId, userId) => {
+  const rates = { boulderRatePerTon: 0, boulderRatePerTrip: 0 };
+  if (!partyId || !mongoose.Types.ObjectId.isValid(partyId)) return rates;
 
-/**
- * The supplier's boulder and transport rates at the time of the entry.
- * Transport is added only for a transport provider paid per ton or per trip; a per-trip rate is the picked location's
- * (or the only location's). Per km and per month hire is booked from the Transport page instead.
- */
-const resolveBoulderRateSnapshot = async (partyId, userId, transportLocation = "") => {
-  if (!partyId || !mongoose.Types.ObjectId.isValid(partyId)) {
-    return { ...NO_RATES };
-  }
+  const party = await Party.findOne({ _id: partyId, userId }).select("type boulderRatePerTon boulderRatePerTrip");
+  if (!party || party.type !== "supplier") return rates;
 
-  const party = await Party.findOne({ _id: partyId, userId })
-    .select("type isTransportProvider boulderRatePerTon boulderRatePerTrip hireBasis hireRate tripRates");
-  if (!party || party.type !== "supplier") {
-    return { ...NO_RATES };
-  }
-
-  const rates = {
-    ...NO_RATES,
+  return {
     boulderRatePerTon: Math.max(0, toSafeNumber(party.boulderRatePerTon)),
     boulderRatePerTrip: Math.max(0, toSafeNumber(party.boulderRatePerTrip)),
   };
-  if (!party.isTransportProvider) return rates;
+};
 
-  if (party.hireBasis === "per_ton") {
-    return { ...rates, transportRateBasis: "per_ton", transportRate: Math.max(0, toSafeNumber(party.hireRate)) };
+/**
+ * Transport for the load, from the vehicle's pay terms: a hired vehicle paid per ton or per trip costs that much,
+ * paid to its owner. A per-trip rate is the picked location's, or the only location's. My own vehicle, a vehicle on
+ * monthly rent, or one paid per km costs nothing here.
+ */
+const resolveVehicleTransport = (vehicle, transportLocation = "") => {
+  const none = { transporterId: null, transportRateBasis: "per_ton", transportRate: 0, transportLocation: "" };
+  if (!vehicle || vehicle.ownership !== "hired" || !vehicle.partyId) return none;
+
+  if (vehicle.hireBasis === "per_ton") {
+    return { ...none, transporterId: vehicle.partyId, transportRate: Math.max(0, toSafeNumber(vehicle.hireRate)) };
   }
-
-  if (party.hireBasis === "per_trip") {
-    const tripRates = party.tripRates || [];
+  if (vehicle.hireBasis === "per_trip") {
+    const tripRates = vehicle.tripRates || [];
     const wanted = `${transportLocation || ""}`.trim().toLowerCase();
     const trip = tripRates.find((row) => row.location.toLowerCase() === wanted) || (tripRates.length === 1 ? tripRates[0] : null);
     if (trip) {
-      return { ...rates, transportRateBasis: "per_trip", transportRate: Math.max(0, toSafeNumber(trip.rate)), transportLocation: trip.location };
+      return { transporterId: vehicle.partyId, transportRateBasis: "per_trip", transportRate: Math.max(0, toSafeNumber(trip.rate)), transportLocation: trip.location };
     }
   }
-
-  return rates;
+  return none;
 };
 
 const normalizeBoulderPayload = async (payload, userId) => {
@@ -316,7 +313,8 @@ const normalizeBoulderPayload = async (payload, userId) => {
     normalizedPayload.partyName = partySnapshot.partyName;
   }
 
-  const rates = await resolveBoulderRateSnapshot(normalizedPayload.partyId, userId, normalizedPayload.transportLocation);
+  const rates = await resolveBoulderRateSnapshot(normalizedPayload.partyId, userId);
+  const transport = resolveVehicleTransport(vehicle, normalizedPayload.transportLocation);
   // The entry picks how the boulder is charged; without a choice it goes by whichever rate the supplier has
   const boulderRateBasis = RATE_BASES.includes(normalizedPayload.boulderRateBasis)
     ? normalizedPayload.boulderRateBasis
@@ -328,13 +326,13 @@ const normalizeBoulderPayload = async (payload, userId) => {
     normalizedPayload.netWeight,
     trips
   );
-  const transportAmount = calculateRateAmount(rates.transportRateBasis, rates.transportRate, normalizedPayload.netWeight, trips);
+  const transportAmount = calculateRateAmount(transport.transportRateBasis, transport.transportRate, normalizedPayload.netWeight, trips);
 
-  Object.assign(normalizedPayload, rates, {
+  Object.assign(normalizedPayload, rates, transport, {
     boulderRateBasis,
     boulderAmount,
     transportAmount,
-    amount: Math.round((boulderAmount + transportAmount) * 100) / 100,
+    amount: boulderAmount,
   });
 
   return normalizedPayload;
@@ -346,6 +344,7 @@ const createBoulder = async (req, res) => {
     payload.userId = req.userId;
     payload.boulderNumber = await createBoulderNumber(req.userId, payload.boulderDate);
     const boulder = await Boulder.create(payload);
+    await syncBoulderTransportEntry(boulder);
     return res.status(201).json(boulder);
   } catch (error) {
     return res.status(400).json({
@@ -426,6 +425,7 @@ const editBoulder = async (req, res) => {
       return res.status(404).json({ message: "Boulder not found" });
     }
 
+    await syncBoulderTransportEntry(boulder);
     return res.json(boulder);
   } catch (error) {
     return res.status(400).json({
@@ -448,6 +448,7 @@ const deleteBoulder = async (req, res) => {
     if (!boulder) {
       return res.status(404).json({ message: "Boulder not found" });
     }
+    await deleteBoulderTransportEntry(boulder.userId, boulder._id);
 
     return res.json({ message: "Boulder deleted successfully" });
   } catch (error) {

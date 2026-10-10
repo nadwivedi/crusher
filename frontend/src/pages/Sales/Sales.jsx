@@ -6,7 +6,7 @@ import apiClient from '../../utils/api';
 import { useAuth } from '../../context/AuthContext';
 import { getSmartVehicleMatch, normalizeVehicleValue } from '../../utils/vehicleMatching';
 import useAccounts from '../../utils/useAccounts';
-import { getOwnershipLabel, getSaleTransport, getSaleTransportCharge, getTripRate, getSupplierRatesPayload, getVehicleHireRates, isTransportProvider } from '../../utils/transport';
+import { getOwnershipLabel, getSaleTransport, getSaleTransportCharge, getTripRate, getSupplierRatesPayload, getVehicleHireRates, getVehicleOwnerIds } from '../../utils/transport';
 import AddPartyPopup from '../Party/component/AddPartyPopup';
 import AddProductPopup from '../Products/component/AddProductPopup';
 import AddVehiclePopup from '../Vehicle/component/AddVehiclePopup';
@@ -113,14 +113,14 @@ const NO_SALE_TRANSPORT = {
   transportRate: ''
 };
 
-// The transport fields a sale starts with when this vehicle is picked. A hired vehicle's rates come from its transporter.
-const getVehicleTransportDefaults = (vehicle, currentCharge = '', parties = []) => {
+// The transport fields a sale starts with when this vehicle is picked. A hired vehicle is paid at its own pay terms.
+const getVehicleTransportDefaults = (vehicle, currentCharge = '') => {
   if (vehicle?.ownership === 'own') {
     return { ...NO_SALE_TRANSPORT, transportMode: 'own', transportCharge: currentCharge };
   }
 
   if (vehicle?.ownership === 'hired') {
-    const hire = getVehicleHireRates(vehicle, parties);
+    const hire = getVehicleHireRates(vehicle);
     // A per-trip vehicle with a single location needs no picking
     if (hire.hireBasis === 'per_trip') {
       const onlyTrip = hire.tripRates.length === 1 ? hire.tripRates[0] : null;
@@ -192,11 +192,7 @@ const getInitialPartyFormData = (type = 'customer') => ({
   gsbRate: '',
   dustRate: '',
   boulderRatePerTon: '',
-  boulderRatePerTrip: '',
-  isTransportProvider: false,
-  hireBasis: 'per_ton',
-  hireRate: '',
-  tripRates: []
+  boulderRatePerTrip: ''
 });
 
 const getCrusherRateKey = (materialType, pricingMode = 'per_ton') => {
@@ -805,12 +801,16 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
     [vehicles, formData.vehicleId]
   );
 
-  const transportParties = useMemo(() => leadgers
-    .filter((leadger) => String(leadger.type || '').toLowerCase() !== 'cash-in-hand')
-    .sort((a, b) => (
-      Number(isTransportProvider(b)) - Number(isTransportProvider(a))
-      || String(a.name || '').localeCompare(String(b.name || ''))
-    )), [leadgers]);
+  // Owners of hired vehicles come first when picking who a vehicle is hired from
+  const transportParties = useMemo(() => {
+    const ownerIds = getVehicleOwnerIds(vehicles);
+    return leadgers
+      .filter((leadger) => String(leadger.type || '').toLowerCase() !== 'cash-in-hand')
+      .sort((a, b) => (
+        Number(ownerIds.has(String(b._id))) - Number(ownerIds.has(String(a._id)))
+        || String(a.name || '').localeCompare(String(b.name || ''))
+      ));
+  }, [leadgers, vehicles]);
   const paidAmount = Math.max(0, Number(formData.paidAmount || 0));
   const totalAmountValue = Math.max(0, Number(formData.totalAmount || 0));
   const saleTypePreview = formatSaleTypeLabel(deriveSaleType(totalAmountValue, paidAmount));
@@ -1131,7 +1131,7 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
     setFormData((prev) => {
       const nextState = {
         ...prev,
-        ...getVehicleTransportDefaults(vehicle, prev.transportCharge, leadgers),
+        ...getVehicleTransportDefaults(vehicle, prev.transportCharge),
         vehicleId: vehicle._id,
         vehicleNo: vehicleNumber,
         tareWeight: unladenWeight,
@@ -1622,7 +1622,7 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
 
       const selectedVehicle = vehicles.find((vehicle) => String(vehicle._id) === String(prev.vehicleId || ''));
       const vehicleDefaults = selectedVehicle?.ownership === mode
-        ? getVehicleTransportDefaults(selectedVehicle, prev.transportCharge, leadgers)
+        ? getVehicleTransportDefaults(selectedVehicle, prev.transportCharge)
         : { ...NO_SALE_TRANSPORT, transportMode: mode, transportCharge: mode === 'party' ? '' : prev.transportCharge };
       const nextState = { ...prev, ...vehicleDefaults };
 
@@ -1999,7 +1999,7 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
     }
     // Picking a location fills in the vehicle's trip rate for it
     if (name === 'transportLocation') {
-      const tripRate = getTripRate(getVehicleHireRates(selectedSaleVehicle, leadgers), value);
+      const tripRate = getTripRate(getVehicleHireRates(selectedSaleVehicle), value);
       setFormData({
         ...formData,
         transportLocation: value,
@@ -2512,7 +2512,7 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
             getSaleBasisDisplayName={getSaleBasisDisplayName}
             selectPricingMode={selectPricingMode}
             transportParties={transportParties}
-        tripLocations={selectedSaleVehicle ? getVehicleHireRates(selectedSaleVehicle, leadgers).tripRates : []}
+        tripLocations={selectedSaleVehicle ? getVehicleHireRates(selectedSaleVehicle).tripRates : []}
             selectTransportMode={selectTransportMode}
             onOpenNewVehicle={openInlineVehicleForm}
             onOpenNewParty={openInlinePartyForm}
@@ -2755,7 +2755,7 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
         getSaleBasisDisplayName={getSaleBasisDisplayName}
         selectPricingMode={selectPricingMode}
         transportParties={transportParties}
-        tripLocations={selectedSaleVehicle ? getVehicleHireRates(selectedSaleVehicle, leadgers).tripRates : []}
+        tripLocations={selectedSaleVehicle ? getVehicleHireRates(selectedSaleVehicle).tripRates : []}
         selectTransportMode={selectTransportMode}
         onOpenNewVehicle={openInlineVehicleForm}
         onOpenNewParty={openInlinePartyForm}

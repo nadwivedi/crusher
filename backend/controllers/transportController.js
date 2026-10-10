@@ -146,6 +146,9 @@ const editTransportEntry = async (req, res) => {
     if (entry.source === "monthly_hire") {
       return res.status(400).json({ message: "This month is booked by a monthly hire. Open the hire to change it." });
     }
+    if (entry.source === "boulder") {
+      return res.status(400).json({ message: "This entry comes from a boulder entry. Edit the boulder entry to change it." });
+    }
 
     Object.assign(entry, await buildEntryFields(req.body, req.userId));
     await entry.save();
@@ -173,6 +176,9 @@ const deleteTransportEntry = async (req, res) => {
     }
     if (entry.source === "monthly_hire") {
       return res.status(400).json({ message: "This month is booked by a monthly hire. Cancel or delete the hire instead." });
+    }
+    if (entry.source === "boulder") {
+      return res.status(400).json({ message: "This entry comes from a boulder entry. Edit or delete the boulder entry instead." });
     }
 
     await entry.deleteOne();

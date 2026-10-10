@@ -146,6 +146,49 @@ const syncSaleTransportEntries = async (sale) => {
 
 const deleteSaleTransportEntries = (userId, saleId) => Transport.deleteMany({ userId, saleId });
 
+/** A boulder carried by a hired vehicle: one payable to the vehicle owner for its transport, or none. */
+const syncBoulderTransportEntry = async (boulder) => {
+  const existing = await Transport.findOne({ userId: boulder.userId, boulderId: boulder._id });
+  const amount = toNumber(boulder.transportAmount);
+
+  if (!boulder.transporterId || amount <= 0) {
+    if (existing) await existing.deleteOne();
+    return;
+  }
+
+  const isPerTrip = boulder.transportRateBasis === "per_trip";
+  const trips = boulder.entryMode === "bulk" ? toNumber(boulder.tripCount) : 1;
+  const fields = {
+    direction: "payable",
+    partyId: boulder.transporterId,
+    vehicleId: boulder.vehicleId || null,
+    vehicleNo: boulder.vehicleNo || "",
+    basis: isPerTrip ? "per_trip" : "per_ton",
+    location: isPerTrip ? boulder.transportLocation || "" : "",
+    quantity: isPerTrip ? trips : Math.round((toNumber(boulder.netWeight) / 1000) * 1000) / 1000,
+    rate: toNumber(boulder.transportRate),
+    amount,
+    entryDate: boulder.boulderDate || boulder.createdAt || new Date(),
+    notes: `Boulder ${boulder.boulderNumber || ""}`.trim(),
+  };
+
+  if (existing) {
+    Object.assign(existing, fields);
+    await existing.save();
+    return;
+  }
+
+  await Transport.create({
+    ...fields,
+    userId: boulder.userId,
+    source: "boulder",
+    boulderId: boulder._id,
+    entryNumber: await createTransportNumber(boulder.userId, fields.entryDate),
+  });
+};
+
+const deleteBoulderTransportEntry = (userId, boulderId) => Transport.deleteMany({ userId, boulderId });
+
 // A charge billed inside a sale is already in that sale's total, so it must not hit the party ledger twice
 const isBilledInSale = (entry) => entry?.source === "sale" && entry?.direction === "receivable";
 
@@ -155,5 +198,7 @@ module.exports = {
   resolveSaleTransport,
   syncSaleTransportEntries,
   deleteSaleTransportEntries,
+  syncBoulderTransportEntry,
+  deleteBoulderTransportEntry,
   isBilledInSale,
 };

@@ -24,11 +24,16 @@ const transportSchema = new mongoose.Schema(
       enum: ["payable", "receivable"],
       required: true,
     },
-    // "sale" entries are kept in step with their sale, "monthly_hire" ones with their monthly hire; neither is edited on its own
+    // "sale", "boulder" and "monthly_hire" entries are kept in step with what made them; none is edited on its own
     source: {
       type: String,
-      enum: ["manual", "sale", "monthly_hire"],
+      enum: ["manual", "sale", "boulder", "monthly_hire"],
       default: "manual",
+    },
+    boulderId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Boulder",
+      default: null,
     },
     hireId: {
       type: mongoose.Schema.Types.ObjectId,

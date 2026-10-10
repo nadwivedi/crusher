@@ -4,7 +4,7 @@ const Party = require("../models/Party");
 const Transport = require("../models/Transport");
 const Vehicle = require("../models/Vehicle");
 const { scopedFilter, scopedIdFilter } = require("../utils/ownership");
-const { toDay, todayDay, formatDay, getHireMonths, syncHireEntries } = require("../utils/monthlyHire");
+const { toDay, todayDay, formatDay, getHireMonths, syncHireEntries, findActiveVehicleHire } = require("../utils/monthlyHire");
 
 const DIRECTIONS = ["payable", "receivable"];
 const CANCEL_CHARGES = ["prorata", "full", "none", "custom"];
@@ -136,6 +136,9 @@ const getMonthlyHires = async (req, res) => {
     if (req.query.partyId && mongoose.Types.ObjectId.isValid(req.query.partyId)) {
       extra.partyId = req.query.partyId;
     }
+    if (req.query.vehicleId && mongoose.Types.ObjectId.isValid(req.query.vehicleId)) {
+      extra.vehicleId = req.query.vehicleId;
+    }
     const hires = await MonthlyHire.find(scopedFilter(req, extra))
       .populate("partyId", "name type")
       .sort({ startDate: -1, createdAt: -1 });
@@ -176,7 +179,11 @@ const getMonthlyHireById = async (req, res) => {
 
 const createMonthlyHire = async (req, res) => {
   try {
-    const hire = new MonthlyHire({ ...(await buildHireFields(req.body, req.userId)), userId: req.userId });
+    const fields = await buildHireFields(req.body, req.userId);
+    if (fields.vehicleId && await findActiveVehicleHire(req.userId, fields.vehicleId)) {
+      return res.status(400).json({ message: "This vehicle already has a running monthly hire. Adjust or cancel that one instead." });
+    }
+    const hire = new MonthlyHire({ ...fields, userId: req.userId });
     addHistory(hire, "Started", `${formatRs(hire.monthlyRate)} a month from ${formatDay(hire.startDate)}${hire.endDate ? ` to ${formatDay(hire.endDate)}` : ", until cancelled"}`);
     return await saveAndRespond(req, res, hire, 201);
   } catch (error) {
@@ -201,6 +208,13 @@ const editMonthlyHire = async (req, res) => {
       before.end !== (hire.endDate?.getTime() || null) ? `to date to ${hire.endDate ? formatDay(hire.endDate) : "until cancelled"}` : "",
     ].filter(Boolean);
     addHistory(hire, "Changed", changes.join(", ") || "details");
+    // A vehicle on monthly rent keeps the same amount as its hire
+    if (hire.vehicleId) {
+      await Vehicle.updateOne(
+        { _id: hire.vehicleId, userId: req.userId, hireBasis: "per_month" },
+        { hireRate: hire.monthlyRate, partyId: hire.partyId }
+      );
+    }
     return await saveAndRespond(req, res, hire);
   } catch (error) {
     return res.status(400).json({ message: error.message || "Failed to update monthly hire" });

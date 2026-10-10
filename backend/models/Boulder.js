@@ -96,6 +96,12 @@ const boulderSchema = new mongoose.Schema(
       enum: ["per_ton", "per_trip"],
       default: "per_ton",
     },
+    // Owner of the hired vehicle that carried it; its transport is a separate payable to them
+    transporterId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Party",
+      default: null,
+    },
     // Per-trip transport: the location whose rate was used
     transportLocation: {
       type: String,
@@ -112,7 +118,7 @@ const boulderSchema = new mongoose.Schema(
       default: 0,
       min: 0,
     },
-    // What I owe the supplier: boulder plus transport
+    // What I owe the supplier for the boulder. Transport goes to the vehicle owner as its own entry.
     amount: {
       type: Number,
       default: 0,

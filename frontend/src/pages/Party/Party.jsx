@@ -4,7 +4,7 @@ import { Pencil, Search, Wallet, ChevronRight, Users } from 'lucide-react';
 import { toast } from 'react-toastify';
 import apiClient from '../../utils/api';
 import AddPartyPopup from './component/AddPartyPopup';
-import { getSupplierRatesPayload, isTransportProvider } from '../../utils/transport';
+import { getSupplierRatesPayload } from '../../utils/transport';
 
 const getInitialForm = () => ({
   type: '',
@@ -19,11 +19,7 @@ const getInitialForm = () => ({
   gsbRate: '',
   dustRate: '',
   boulderRatePerTon: '',
-  boulderRatePerTrip: '',
-  isTransportProvider: false,
-  hireBasis: 'per_ton',
-  hireRate: '',
-  tripRates: []
+  boulderRatePerTrip: ''
 });
 
 const TOAST_OPTIONS = { autoClose: 1200 };
@@ -55,7 +51,7 @@ const getTypeBadgeClass = (type) => {
   return 'border border-emerald-200 bg-emerald-50 text-emerald-700';
 };
 
-const getTypeLabel = (party) => (isTransportProvider(party) ? 'Supplier · Transport' : PARTY_TYPE_LABELS[party?.type] || 'Supplier');
+const getTypeLabel = (party) => PARTY_TYPE_LABELS[party?.type] || 'Supplier';
 const getDefaultOpeningBalanceType = (partyType) => (['supplier', 'transporter'].includes(partyType) ? 'payable' : 'receivable');
 const resolveOpeningBalanceType = (party) => {
   const explicitType = String(party?.openingBalanceType || '').trim().toLowerCase();
@@ -161,7 +157,6 @@ export default function Party() {
     setEditingId(party._id);
     setFormData({
       type: ['supplier', 'customer', 'cash-in-hand'].includes(party.type) ? party.type : 'supplier',
-      isTransportProvider: isTransportProvider(party),
       name: String(party.name || ''),
       mobile: String(party.mobile || '').replace(/\D/g, '').slice(0, 10),
       openingBalance: Math.abs(Number(party.openingBalance || 0)) || '',
@@ -173,11 +168,7 @@ export default function Party() {
       gsbRate: Number(party.gsbRate || 0) || '',
       dustRate: Number(party.dustRate || 0) || '',
       boulderRatePerTon: Number(party.boulderRatePerTon || 0) || '',
-      boulderRatePerTrip: Number(party.boulderRatePerTrip || 0) || '',
-      // A rate saved on a basis no longer offered (per month and older ones) starts over at per ton
-      hireBasis: ['per_km', 'per_ton', 'per_trip'].includes(party.hireBasis) ? party.hireBasis : 'per_ton',
-      hireRate: ['per_km', 'per_ton'].includes(party.hireBasis) ? Number(party.hireRate || 0) || '' : '',
-      tripRates: (party.tripRates || []).map((row) => ({ location: row.location, rate: String(row.rate ?? '') }))
+      boulderRatePerTrip: Number(party.boulderRatePerTrip || 0) || ''
     });
     setError('');
     setShowForm(true);
