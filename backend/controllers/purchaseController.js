@@ -1,5 +1,6 @@
 const mongoose = require("mongoose");
 const Purchase = require("../models/Purchase");
+const PurchaseReturn = require("../models/PurchaseReturn");
 const Payment = require("../models/Payment");
 const Stock = require("../models/Stock");
 const Counter = require("../models/Counter");
@@ -250,6 +251,11 @@ const updatePurchase = async (req, res) => {
       return res.status(404).json({ message: "Purchase not found" });
     }
 
+    const linkedReturn = await PurchaseReturn.findOne({ userId: req.userId, purchase: purchase._id }).select("voucherNumber");
+    if (linkedReturn) {
+      return res.status(400).json({ message: `This purchase has return ${linkedReturn.voucherNumber}. Delete the return first.` });
+    }
+
     const normalizedItems = normalizeItems(req.body.items);
     const itemError = validateItems(normalizedItems);
     if (itemError) {
@@ -313,6 +319,11 @@ const deletePurchase = async (req, res) => {
     const purchase = await Purchase.findOne(scopedIdFilter(req, id));
     if (!purchase) {
       return res.status(404).json({ message: "Purchase not found" });
+    }
+
+    const linkedReturn = await PurchaseReturn.findOne({ userId: req.userId, purchase: purchase._id }).select("voucherNumber");
+    if (linkedReturn) {
+      return res.status(400).json({ message: `This purchase has return ${linkedReturn.voucherNumber}. Delete the return first.` });
     }
 
     await adjustStockLevels(req.userId, purchase.items || [], -1);

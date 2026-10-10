@@ -5,8 +5,10 @@ const MaterialUsed = require("../models/MaterialUsed");
 const Party = require("../models/Party");
 const Payment = require("../models/Payment");
 const Purchase = require("../models/Purchase");
+const PurchaseReturn = require("../models/PurchaseReturn");
 const Receipt = require("../models/Receipt");
 const Sales = require("../models/Sales");
+const SaleReturn = require("../models/SaleReturn");
 const Stock = require("../models/Stock");
 const Transport = require("../models/Transport");
 const { scopedFilter, scopedIdFilter } = require("../utils/ownership");
@@ -46,6 +48,13 @@ const formatReceiptNumber = (value) => {
   if (!Number.isInteger(parsed) || parsed <= 0) return "-";
   return `REC-${String(parsed).padStart(2, "0")}`;
 };
+
+// "40MM 2 ton, 20MM 1 ton"
+const buildReturnSummary = (entry) => (entry.items || [])
+  .map((item) => `${item.productName || "Item"} ${toNumber(item.quantity)}${item.unit ? ` ${item.unit}` : ""}`)
+  .join(", ");
+
+const sumReturnQty = (entry) => (entry.items || []).reduce((sum, item) => sum + toNumber(item.quantity), 0);
 
 const withinRange = (dateValue, fromDate, toDate) => {
   const date = dateValue ? new Date(dateValue) : null;
@@ -178,7 +187,7 @@ const buildSaleMaterialSummary = (sale) => {
     .join(" / ") || "-";
 };
 
-const buildLedgerRowsForParty = ({ party, sales, purchases, receipts, payments, boulders, transports = [], expenses = [], fromDate, toDate }) => {
+const buildLedgerRowsForParty = ({ party, sales, purchases, receipts, payments, boulders, transports = [], expenses = [], saleReturns = [], purchaseReturns = [], fromDate, toDate }) => {
   const openingImpact = getPartyOpeningImpact(party);
   const openingDate = party?.createdAt || new Date(0);
   const rows = [];
@@ -373,6 +382,49 @@ const buildLedgerRowsForParty = ({ party, sales, purchases, receipts, payments, 
         quantityLabel: describeTransportBasis(item),
         amount: toNumber(item.amount),
         impact: item.direction === "payable" ? -toNumber(item.amount) : toNumber(item.amount),
+      })),
+    // Goods the customer sent back: they owe me less
+    ...saleReturns
+      .filter((item) => String(item.party?._id || item.party) === String(party._id))
+      .filter((item) => withinRange(item.voucherDate || item.createdAt, fromDate, toDate))
+      .map((item) => ({
+        type: "saleReturn",
+        displayType: getEntryDisplayType("saleReturn"),
+        materialType: item.items?.[0]?.productName || "Material",
+        refId: item._id,
+        partyId: party._id,
+        partyName: party.name || "-",
+        date: item.voucherDate || item.createdAt,
+        entryCreatedAt: item.createdAt,
+        refNumber: item.voucherNumber || "-",
+        itemSummary: `Against invoice ${item.sale?.invoiceNumber || "-"} | ${buildReturnSummary(item)}`,
+        note: String(item.notes || "").trim(),
+        method: item.sale?.invoiceNumber || "-",
+        pricingMode: item.pricingMode || "per_ton",
+        // Same unit as sale rows: kg for per-ton sales, m3 otherwise
+        quantity: item.pricingMode === "per_cubic_meter" ? sumReturnQty(item) : sumReturnQty(item) * 1000,
+        amount: toNumber(item.totalAmount),
+        impact: -toNumber(item.totalAmount),
+      })),
+    // Goods I sent back to the supplier: I owe them less
+    ...purchaseReturns
+      .filter((item) => String(item.party?._id || item.party) === String(party._id))
+      .filter((item) => withinRange(item.voucherDate || item.createdAt, fromDate, toDate))
+      .map((item) => ({
+        type: "purchaseReturn",
+        displayType: getEntryDisplayType("purchaseReturn"),
+        refId: item._id,
+        partyId: party._id,
+        partyName: party.name || "-",
+        date: item.voucherDate || item.createdAt,
+        entryCreatedAt: item.createdAt,
+        refNumber: item.voucherNumber || "-",
+        itemSummary: `Against ${formatPurchaseNumber(item.purchase?.purchaseNumber)} | ${buildReturnSummary(item)}`,
+        note: String(item.notes || "").trim(),
+        method: formatPurchaseNumber(item.purchase?.purchaseNumber),
+        quantity: sumReturnQty(item),
+        amount: toNumber(item.totalAmount),
+        impact: toNumber(item.totalAmount),
       }))
   );
 
@@ -451,7 +503,7 @@ const buildSummary = (entries) => entries.reduce((acc, entry) => {
 const getPartyLedgerData = async ({ userId, partyId, fromDate, toDate }) => {
   const partyFilter = partyId ? { _id: partyId } : {};
 
-  const [parties, sales, purchases, receipts, payments, boulders, transports, expenses] = await Promise.all([
+  const [parties, sales, purchases, receipts, payments, boulders, transports, expenses, saleReturns, purchaseReturns] = await Promise.all([
     Party.find({ userId, ...partyFilter }).sort({ name: 1 }),
     Sales.find({ userId, ...(partyId ? { partyId } : {}) }).populate("partyId", "name").sort({ saleDate: 1, createdAt: 1 }),
     Purchase.find({ userId, ...(partyId ? { party: partyId } : {}) }).populate("party", "name").sort({ purchaseDate: 1, createdAt: 1 }),
@@ -463,6 +515,8 @@ const getPartyLedgerData = async ({ userId, partyId, fromDate, toDate }) => {
       .populate("expenseGroup", "name")
       .populate("account", "name")
       .sort({ expenseDate: 1, createdAt: 1 }),
+    SaleReturn.find({ userId, ...(partyId ? { party: partyId } : {}) }).populate("sale", "invoiceNumber").sort({ voucherDate: 1, createdAt: 1 }),
+    PurchaseReturn.find({ userId, ...(partyId ? { party: partyId } : {}) }).populate("purchase", "purchaseNumber").sort({ voucherDate: 1, createdAt: 1 }),
   ]);
 
   const ledgerRows = parties.flatMap((party) => buildLedgerRowsForParty({
@@ -474,6 +528,8 @@ const getPartyLedgerData = async ({ userId, partyId, fromDate, toDate }) => {
     boulders,
     transports,
     expenses,
+    saleReturns,
+    purchaseReturns,
     fromDate,
     toDate,
   }));
@@ -495,7 +551,10 @@ const getStockLedgerData = async ({ userId, productId, fromDate, toDate }) => {
     materialUsedFilter.materialType = productId;
   }
 
-  const [stocks, purchases, materialUsedEntries] = await Promise.all([
+  const purchaseReturnFilter = { userId };
+  if (productId) purchaseReturnFilter["items.product"] = productId;
+
+  const [stocks, purchases, materialUsedEntries, purchaseReturns] = await Promise.all([
     Stock.find(stockFilter).sort({ name: 1 }),
     Purchase.find(purchaseFilter)
       .populate("party", "name")
@@ -505,6 +564,9 @@ const getStockLedgerData = async ({ userId, productId, fromDate, toDate }) => {
       .populate("vehicle", "vehicleNo vehicleNumber")
       .populate("materialType", "name unit")
       .sort({ usedDate: 1, createdAt: 1 }),
+    PurchaseReturn.find(purchaseReturnFilter)
+      .populate("party", "name")
+      .sort({ voucherDate: 1, createdAt: 1 }),
   ]);
 
   const ledgerRows = [
@@ -555,6 +617,29 @@ const getStockLedgerData = async ({ userId, productId, fromDate, toDate }) => {
         amount: 0,
         note: String(entry.notes || "").trim(),
       })),
+    ...purchaseReturns
+      .filter((entry) => withinRange(entry.voucherDate || entry.createdAt, fromDate, toDate))
+      .flatMap((entry) => (entry.items || [])
+        .filter((item) => !productId || String(item.product) === String(productId))
+        .map((item, index) => ({
+          type: "purchaseReturn",
+          displayType: getEntryDisplayType("purchaseReturn"),
+          refId: `${entry._id}-${index}`,
+          sourceRefId: entry._id,
+          productId: item.product,
+          productName: item.productName || "-",
+          unit: item.unit || "",
+          partyName: entry.party?.name || "-",
+          date: entry.voucherDate || entry.createdAt,
+          entryCreatedAt: entry.createdAt,
+          refNumber: entry.voucherNumber || "-",
+          vehicleNo: "-",
+          inQty: 0,
+          outQty: toNumber(item.quantity),
+          rate: toNumber(item.unitPrice),
+          amount: toNumber(item.total),
+          note: String(entry.notes || "").trim(),
+        }))),
   ].sort((firstRow, secondRow) => {
     const firstTime = new Date(firstRow.entryCreatedAt || firstRow.date).getTime() || 0;
     const secondTime = new Date(secondRow.entryCreatedAt || secondRow.date).getTime() || 0;
@@ -724,6 +809,48 @@ const getPartyLedgerEntryDetail = async (req, res) => {
               unit: item.unit || item.product?.unit || "",
             }))
           : [],
+      });
+    }
+
+    if (type === "salereturn" || type === "purchasereturn") {
+      const isSale = type === "salereturn";
+      const entry = isSale
+        ? await SaleReturn.findOne(scopedIdFilter(req, refId)).populate("party", "name").populate("sale", "invoiceNumber saleDate")
+        : await PurchaseReturn.findOne(scopedIdFilter(req, refId)).populate("party", "name").populate("purchase", "purchaseNumber purchaseDate supplierInvoice");
+      if (!entry) return res.status(404).json({ message: `${isSale ? "Sale" : "Purchase"} return not found` });
+
+      const against = isSale ? entry.sale?.invoiceNumber || "-" : formatPurchaseNumber(entry.purchase?.purchaseNumber);
+
+      return res.json({
+        type: isSale ? "saleReturn" : "purchaseReturn",
+        title: isSale ? "Sale Return Voucher" : "Purchase Return Voucher",
+        refNumber: entry.voucherNumber || "-",
+        partyName: entry.party?.name || "-",
+        amount: toNumber(entry.totalAmount),
+        quantity: sumReturnQty(entry),
+        method: against,
+        date: entry.voucherDate || entry.createdAt,
+        accountName: entry.party?.name || "-",
+        linkedReference: against,
+        notes: String(entry.notes || "").trim(),
+        fields: [
+          { label: "Return Date", value: entry.voucherDate || entry.createdAt },
+          { label: isSale ? "Against Invoice" : "Against Purchase", value: against },
+          ...(isSale
+            ? [{ label: "Invoice Date", value: entry.sale?.saleDate || "-" }]
+            : [
+                { label: "Purchase Date", value: entry.purchase?.purchaseDate || "-" },
+                { label: "Supplier Invoice", value: entry.purchase?.supplierInvoice || "-" },
+              ]),
+        ],
+        items: (entry.items || []).map((item, index) => ({
+          id: `${entry._id}-${index}`,
+          productName: item.productName || "Item",
+          quantity: toNumber(item.quantity),
+          unitPrice: toNumber(item.unitPrice),
+          total: toNumber(item.total),
+          unit: item.unit || "",
+        })),
       });
     }
 
@@ -911,6 +1038,8 @@ const getDayBook = async (req, res) => {
       boulders,
       materialUsedEntries,
       transports,
+      saleReturns,
+      purchaseReturns,
     ] = await Promise.all([
       Sales.find(scopedFilter(req)).populate("partyId", "name").sort({ saleDate: -1, createdAt: -1 }),
       Purchase.find(scopedFilter(req)).populate("party", "name").sort({ purchaseDate: -1, createdAt: -1 }),
@@ -920,9 +1049,33 @@ const getDayBook = async (req, res) => {
       Boulder.find(scopedFilter(req)).sort({ boulderDate: -1, createdAt: -1 }),
       MaterialUsed.find(scopedFilter(req)).populate("vehicle", "vehicleNo vehicleNumber").populate("materialType", "name").sort({ usedDate: -1, createdAt: -1 }),
       Transport.find(scopedFilter(req)).populate("partyId", "name").sort({ entryDate: -1, createdAt: -1 }),
+      SaleReturn.find(scopedFilter(req)).populate("party", "name").populate("sale", "invoiceNumber").sort({ voucherDate: -1, createdAt: -1 }),
+      PurchaseReturn.find(scopedFilter(req)).populate("party", "name").populate("purchase", "purchaseNumber").sort({ voucherDate: -1, createdAt: -1 }),
     ]);
 
+    // Returns change what a party owes, not cash, so they carry no in / out amount
+    const returnEntries = [
+      ...saleReturns.map((item) => ({ item, type: "saleReturn", against: `Invoice ${item.sale?.invoiceNumber || "-"}` })),
+      ...purchaseReturns.map((item) => ({ item, type: "purchaseReturn", against: formatPurchaseNumber(item.purchase?.purchaseNumber) })),
+    ]
+      .filter(({ item }) => withinRange(item.voucherDate || item.createdAt, fromDate, toDate))
+      .map(({ item, type, against }) => ({
+        type,
+        displayType: getEntryDisplayType(type),
+        refId: item._id,
+        date: item.voucherDate || item.createdAt,
+        entryCreatedAt: item.createdAt,
+        voucherNumber: item.voucherNumber || "-",
+        partyName: item.party?.name || "-",
+        method: [against, buildReturnSummary(item)].filter(Boolean).join(" | "),
+        totalAmount: toNumber(item.totalAmount),
+        amount: toNumber(item.totalAmount),
+        inAmount: 0,
+        outAmount: 0,
+      }));
+
     const entries = [
+      ...returnEntries,
       ...sales
         .filter((item) => withinRange(item.saleDate || item.createdAt, fromDate, toDate))
         .map((item) => {

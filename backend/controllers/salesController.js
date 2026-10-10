@@ -1,5 +1,6 @@
 const mongoose = require("mongoose");
 const Sales = require("../models/Sales");
+const SaleReturn = require("../models/SaleReturn");
 const Counter = require("../models/Counter");
 const Receipt = require("../models/Receipt");
 const Party = require("../models/Party");
@@ -432,6 +433,11 @@ const editSales = async (req, res) => {
       return res.status(404).json({ message: "Sales not found" });
     }
 
+    const linkedReturn = await SaleReturn.findOne({ userId: req.userId, sale: sales._id }).select("voucherNumber");
+    if (linkedReturn) {
+      return res.status(400).json({ message: `This sale has return ${linkedReturn.voucherNumber}. Delete the return first.` });
+    }
+
     const updatePayload = await resolveSalesVehicle(normalizeSalesPayload(req.body), req.userId);
     // Allow correcting the invoice / slip number; a blank value keeps the existing one
     const nextInvoiceNumber = normalizeInvoiceNumber(updatePayload.invoiceNumber);
@@ -499,6 +505,11 @@ const deleteSales = async (req, res) => {
   }
 
   try {
+    const linkedReturn = await SaleReturn.findOne({ userId: req.userId, sale: id }).select("voucherNumber");
+    if (linkedReturn) {
+      return res.status(400).json({ message: `This sale has return ${linkedReturn.voucherNumber}. Delete the return first.` });
+    }
+
     const sales = await Sales.findOneAndDelete(scopedIdFilter(req, id));
 
     if (!sales) {

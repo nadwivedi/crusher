@@ -58,7 +58,7 @@ const formatLedgerQuantity = (row) => {
   const quantity = Number(row?.quantity || 0);
   if (!Number.isFinite(quantity) || quantity <= 0) return '-';
 
-  if (row?.type === 'sale') {
+  if (row?.type === 'sale' || row?.type === 'saleReturn') {
     return isPerCubicMeter(row?.pricingMode) ? `${formatQuantity(quantity)} m3` : formatWeightWithTon(quantity);
   }
 
@@ -135,14 +135,14 @@ const getTypeMeta = (type) => {
     };
   }
 
-  if (type === 'purchase return') {
+  if (type === 'purchaseReturn') {
     return {
       label: 'Purchase Return',
       className: 'border-rose-200 bg-rose-50 text-rose-700'
     };
   }
 
-  if (type === 'sale return') {
+  if (type === 'saleReturn') {
     return {
       label: 'Sale Return',
       className: 'border-fuchsia-200 bg-fuchsia-50 text-fuchsia-700'
@@ -472,12 +472,12 @@ export default function PartyDetail() {
         acc.boulderQty += quantity;
       }
 
-      if (row.type === 'purchase return') {
+      if (row.type === 'purchaseReturn') {
         acc.totalPurchaseReturns += amount;
         acc.purchaseReturnQty += quantity;
       }
 
-      if (row.type === 'sale return') {
+      if (row.type === 'saleReturn') {
         acc.totalSaleReturns += amount;
       }
 
