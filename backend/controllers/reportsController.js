@@ -128,10 +128,15 @@ const getEntryDisplayType = (baseType, entryType = "") => {
 };
 
 // "Vehicle CG04AB1234 | 120 km x Rs 40"
+// A monthly hire row reads "Rs 30,000/month"; its note says which days and any adjustments
 const buildTransportSummary = (entry) => [
   entry.vehicleNo ? `Vehicle ${entry.vehicleNo}` : "",
-  describeTransportBasis(entry),
+  entry.source === "monthly_hire" ? `${formatAmount(entry.rate)}/month` : describeTransportBasis(entry),
 ].filter(Boolean).join(" | ");
+
+const getTransportDisplayType = (entry) => (entry.source === "monthly_hire"
+  ? entry.direction === "payable" ? "Monthly Hire" : "Monthly Rent"
+  : getEntryDisplayType("transport", entry.direction));
 
 const getSaleAmounts = (sale) => {
   const totalAmount = Math.max(0, toNumber(sale?.totalAmount));
@@ -375,7 +380,7 @@ const buildLedgerRowsForParty = ({ party, sales, purchases, receipts, payments, 
       .filter((item) => withinRange(item.entryDate || item.createdAt, fromDate, toDate))
       .map((item) => ({
         type: "transport",
-        displayType: getEntryDisplayType("transport", item.direction),
+        displayType: getTransportDisplayType(item),
         materialType: "Transport",
         refId: item._id,
         partyId: party._id,
@@ -388,7 +393,7 @@ const buildLedgerRowsForParty = ({ party, sales, purchases, receipts, payments, 
         note: String(item.notes || "").trim(),
         method: item.vehicleNo || "-",
         quantity: toNumber(item.quantity),
-        quantityLabel: describeTransportBasis(item),
+        quantityLabel: item.source === "monthly_hire" ? `${formatAmount(item.rate)}/month` : describeTransportBasis(item),
         amount: toNumber(item.amount),
         impact: item.direction === "payable" ? -toNumber(item.amount) : toNumber(item.amount),
       })),
@@ -1010,12 +1015,14 @@ const getPartyLedgerEntryDetail = async (req, res) => {
 
       return res.json({
         type: "transport",
-        title: entry.direction === "payable" ? "Transport Hire Voucher" : "Transport Income Voucher",
+        title: entry.source === "monthly_hire"
+          ? entry.direction === "payable" ? "Monthly Hire Voucher" : "Monthly Rent Voucher"
+          : entry.direction === "payable" ? "Transport Hire Voucher" : "Transport Income Voucher",
         refNumber: entry.entryNumber || "-",
         partyName: entry.partyId?.name || "-",
         amount: toNumber(entry.amount),
         quantity: toNumber(entry.quantity),
-        quantityLabel: describeTransportBasis(entry),
+        quantityLabel: entry.source === "monthly_hire" ? `${formatAmount(entry.rate)}/month` : describeTransportBasis(entry),
         method: entry.vehicleNo || "-",
         date: entry.entryDate || entry.createdAt,
         accountName: entry.partyId?.name || "-",
@@ -1226,7 +1233,7 @@ const getDayBook = async (req, res) => {
         .filter((item) => withinRange(item.entryDate || item.createdAt, fromDate, toDate))
         .map((item) => ({
           type: "transport",
-          displayType: getEntryDisplayType("transport", item.direction),
+          displayType: getTransportDisplayType(item),
           refId: item._id,
           date: item.entryDate || item.createdAt,
           entryCreatedAt: item.createdAt,

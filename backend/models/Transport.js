@@ -24,11 +24,16 @@ const transportSchema = new mongoose.Schema(
       enum: ["payable", "receivable"],
       required: true,
     },
-    // "sale" entries are kept in step with their sale and cannot be edited on their own
+    // "sale" entries are kept in step with their sale, "monthly_hire" ones with their monthly hire; neither is edited on its own
     source: {
       type: String,
-      enum: ["manual", "sale"],
+      enum: ["manual", "sale", "monthly_hire"],
       default: "manual",
+    },
+    hireId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "MonthlyHire",
+      default: null,
     },
     saleId: {
       type: mongoose.Schema.Types.ObjectId,
@@ -100,5 +105,6 @@ const transportSchema = new mongoose.Schema(
 transportSchema.index({ userId: 1, entryNumber: 1 }, { unique: true });
 transportSchema.index({ userId: 1, entryDate: -1, createdAt: -1 });
 transportSchema.index({ userId: 1, saleId: 1 });
+transportSchema.index({ userId: 1, hireId: 1 });
 
 module.exports = mongoose.models.Transport || mongoose.model("Transport", transportSchema);

@@ -12,10 +12,12 @@ const {
   getProfitLossReport,
 } = require("../controllers/reportsController");
 const auth = require("../middleware/auth");
+const { syncMonthlyHiresMiddleware } = require("../utils/monthlyHire");
 
 const router = express.Router();
 
 router.use(auth);
+router.use(syncMonthlyHiresMiddleware);
 
 router.get("/day-book", getDayBook);
 router.get("/outstanding", getOutstanding);

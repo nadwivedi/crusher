@@ -7,11 +7,13 @@ const {
   deleteParty,
 } = require("../controllers/partyController");
 const auth = require("../middleware/auth");
+const { syncMonthlyHiresMiddleware } = require("../utils/monthlyHire");
 const checkPermission = require("../middleware/role");
 
 const router = express.Router();
 
 router.use(auth);
+router.use(syncMonthlyHiresMiddleware);
 
 router.get("/", getAllParties);
 router.get("/:id", getPartyById);

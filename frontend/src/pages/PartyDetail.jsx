@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import apiClient from '../utils/api';
+import PartyMonthlyHires from './MonthlyHire/component/PartyMonthlyHires';
 
 const toInputDate = (value) => {
   const date = value instanceof Date ? value : new Date(value);
@@ -669,6 +670,10 @@ export default function PartyDetail() {
           ) : null}
         </div>
 
+      {/* The cash party never hires a vehicle */}
+      {id && party?.type !== 'cash-in-hand' && (
+        <PartyMonthlyHires partyId={id} onChanged={() => loadPartyDetails(false)} />
+      )}
 
       <div className="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden mt-6">
         <div className="px-6 py-4 bg-gradient-to-r from-green-50 to-emerald-50 border-b border-gray-200">
@@ -682,7 +687,7 @@ export default function PartyDetail() {
               <div>
                 <h2 className="text-lg font-bold text-gray-900">Transaction Ledger</h2>
                 <p className="text-xs text-gray-600">
-                  Sale, purchase, expense, receipt, payment, boulder, transport, and return history.
+                  Sale, purchase, expense, receipt, payment, boulder, monthly hire, and return history.
                 </p>
               </div>
             </div>
