@@ -18,8 +18,8 @@ const formatDate = (value) => {
 const isIn = (row) => row.type === 'to_dump';
 
 const KIND = {
-  to_dump: { label: 'Boulder → Dump', badge: 'badge-orange' },
-  to_hopper: { label: 'Dump → Hopper', badge: 'badge-blue' }
+  to_dump: { label: 'Dump Boulder Entry', badge: 'badge-orange' },
+  to_hopper: { label: 'Dump Boulder to Hopper', badge: 'badge-blue' }
 };
 
 // How the weight was taken: slip, trips × average, or trips fed
@@ -32,7 +32,7 @@ const describeWeight = (row) => {
 const EMPTY_LEDGER = { openingBalance: 0, closingBalance: 0, currentBalance: 0, totals: {}, rows: [] };
 
 /**
- * Dump boulder stock: Boulder → Dump entries in, Dump → Hopper entries out, with a running balance.
+ * Dump boulder stock: Dump Boulder Entry entries in, Dump Boulder to Hopper entries out, with a running balance.
  * fromDate / toDate: the page's period (empty = all time). refreshKey: reload when it changes.
  */
 export default function DumpStock({ fromDate, toDate, refreshKey, canEdit }) {
@@ -85,8 +85,8 @@ export default function DumpStock({ fromDate, toDate, refreshKey, canEdit }) {
   const summary = [
     { label: 'On dump now', value: `${formatTon(ledger.currentBalance)} T`, tone: 'text-amber-700', strong: true },
     ...(hasPeriod ? [{ label: 'Opening', value: `${formatTon(ledger.openingBalance)} T`, tone: 'text-slate-800' }] : []),
-    { label: 'Boulder → Dump', value: `+${formatTon(totals.dumped)} T`, tone: 'text-emerald-700' },
-    { label: 'Dump → Hopper', value: `−${formatTon(totals.toHopper)} T`, tone: 'text-blue-700' },
+    { label: 'Dump Boulder Entry', value: `+${formatTon(totals.dumped)} T`, tone: 'text-emerald-700' },
+    { label: 'Dump Boulder to Hopper', value: `−${formatTon(totals.toHopper)} T`, tone: 'text-blue-700' },
     ...(hasPeriod ? [{ label: 'Closing', value: `${formatTon(ledger.closingBalance)} T`, tone: 'text-slate-900' }] : [])
   ];
 
@@ -117,10 +117,10 @@ export default function DumpStock({ fromDate, toDate, refreshKey, canEdit }) {
         </dl>
         <div className="flex flex-wrap gap-2">
           <button type="button" className="btn-secondary" onClick={() => setPopup({ type: 'to_dump' })}>
-            <ArrowUpFromLine size={16} /> Boulder → Dump
+            <ArrowUpFromLine size={16} /> Dump Boulder Entry
           </button>
           <button type="button" className="btn-primary" onClick={() => setPopup({ type: 'to_hopper' })}>
-            <ArrowDownToLine size={16} /> Dump → Hopper
+            <ArrowDownToLine size={16} /> Dump Boulder to Hopper
           </button>
         </div>
       </div>
@@ -138,7 +138,7 @@ export default function DumpStock({ fromDate, toDate, refreshKey, canEdit }) {
             <Inbox size={20} />
           </span>
           <p className="text-sm font-semibold text-slate-800">No dump entries {hasPeriod ? 'in this period' : 'yet'}</p>
-          <p className="text-xs text-slate-500">Use "Boulder → Dump" when boulder is unloaded on the dump instead of the hopper.</p>
+          <p className="text-xs text-slate-500">Use "Dump Boulder Entry" when boulder is unloaded on the dump instead of the hopper.</p>
         </div>
       ) : (
         <>

@@ -119,7 +119,7 @@ const editDumpMovement = async (req, res) => {
       assertBalance(balanceWithout - movement.weight, balanceWithout);
     } else if (balanceWithout + movement.weight < -0.5) {
       const fed = Math.min(existing.weight, -balanceWithout);
-      throw new Error(`${formatTons(fed)} ton of this boulder has already gone to the hopper. Reduce the Dump → Hopper entries first.`);
+      throw new Error(`${formatTons(fed)} ton of this boulder has already gone to the hopper. Reduce the Dump Boulder to Hopper entries first.`);
     }
 
     Object.assign(existing, movement);
@@ -142,7 +142,7 @@ const deleteDumpMovement = async (req, res) => {
       const balanceWithout = await getDumpBalance(req.userId, { excludeId: existing._id });
       if (balanceWithout < -0.5) {
         const fed = Math.min(existing.weight, -balanceWithout);
-        return res.status(400).json({ message: `${formatTons(fed)} ton of this boulder has already gone to the hopper. Reduce the Dump → Hopper entries first.` });
+        return res.status(400).json({ message: `${formatTons(fed)} ton of this boulder has already gone to the hopper. Reduce the Dump Boulder to Hopper entries first.` });
       }
     }
 
@@ -168,7 +168,7 @@ const parseDay = (value, endOfDay) => {
 };
 
 /**
- * Dump stock ledger: every Boulder → Dump (in) and Dump → Hopper (out), oldest first with a running balance.
+ * Dump stock ledger: every Dump Boulder Entry (in) and Dump Boulder to Hopper (out), oldest first with a running balance.
  * With a period, earlier entries make the opening balance. Boulder entries (straight to the hopper) are totalled
  * too, so the hopper feed for the period is complete.
  */

@@ -20,8 +20,8 @@ const fromEntry = (entry) => ({
 });
 
 /**
- * Boulder → Dump Site: boulder unloaded on the dump at site instead of the hopper (e.g. hopper down).
- * It adds to dump stock; a Dump → Hopper entry takes it out when it is fed. No party bill: that is the Boulder Entry.
+ * Dump Boulder Entry: boulder unloaded on the dump at site instead of the hopper (e.g. hopper down).
+ * It adds to dump stock; a Dump Boulder to Hopper entry takes it out when it is fed. No party bill: that is the Boulder Entry.
  */
 export default function DumpSiteEntry({ onModalFinish, editingEntry = null }) {
   const isEditing = Boolean(editingEntry?._id);
@@ -77,10 +77,10 @@ export default function DumpSiteEntry({ onModalFinish, editingEntry = null }) {
       };
       if (isEditing) await apiClient.put(`/dump-stock/${editingEntry._id}`, payload);
       else await apiClient.post('/dump-stock', payload);
-      toast.success(isEditing ? 'Dump site entry updated' : 'Boulder added to dump site');
+      toast.success(isEditing ? 'Dump boulder entry updated' : 'Dump boulder entry saved');
       close();
     } catch (error) {
-      toast.error(error?.message || 'Error saving dump site entry');
+      toast.error(error?.message || 'Error saving dump boulder entry');
     } finally {
       setSaving(false);
     }
@@ -88,7 +88,7 @@ export default function DumpSiteEntry({ onModalFinish, editingEntry = null }) {
 
   return (
     <FormPopup
-      title={isEditing ? 'Edit Boulder → Dump Site' : 'Boulder → Dump Site'}
+      title={isEditing ? 'Edit Dump Boulder Entry' : 'Dump Boulder Entry'}
       subtitle="Boulder unloaded on the dump at site instead of the hopper"
       submitLabel={saving ? 'Saving...' : isEditing ? 'Update Entry' : 'Save Entry'}
       submitDisabled={saving}

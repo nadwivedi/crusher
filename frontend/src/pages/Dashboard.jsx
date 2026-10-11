@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
   Mountain, FileText, Wallet, HandCoins, Send, ShoppingCart, PackageMinus, Layers,
-  ArrowDownLeft, ArrowUpRight
+  ArrowDownLeft, ArrowUpRight, ArrowUpFromLine, ArrowDownToLine, Undo2, RotateCcw, SlidersHorizontal,
+  LayoutGrid
 } from 'lucide-react';
 import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid,
@@ -11,6 +12,7 @@ import {
 import apiClient from '../utils/api';
 import StatCard from '../components/StatCard';
 import Segmented from '../components/Segmented';
+import MoreEntriesPopup from '../components/MoreEntriesPopup';
 
 const fmt = (n) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(n || 0);
 const fmtNum = (n) => new Intl.NumberFormat('en-IN', { maximumFractionDigits: 2 }).format(n || 0);
@@ -61,12 +63,13 @@ const QUICK_ENTRIES = [
   { label: 'Money Paid', stateKey: 'homeQuickPayment', icon: Send, tone: 'bg-rose-50 text-rose-700 ring-rose-100' },
   { label: 'Material Used', stateKey: 'homeQuickMaterialUsed', icon: PackageMinus, tone: 'bg-indigo-50 text-indigo-700 ring-indigo-100' },
 ];
+// Less frequent entries, in the popup behind the "More Entries" button
 const MORE_ENTRIES = [
-  { label: 'Boulder → Dump Site', stateKey: 'homeQuickDumpIn' },
-  { label: 'Dump Site → Hopper', stateKey: 'homeQuickDumpOut' },
-  { label: 'Purchase Return', stateKey: 'homeQuickPurchaseReturn' },
-  { label: 'Sale Return', stateKey: 'homeQuickSaleReturn' },
-  { label: 'Stock Adjustment', stateKey: 'homeQuickStockAdjustment' },
+  { label: 'Dump Boulder Entry', hint: 'Hopper down? Unload on the dump', stateKey: 'homeQuickDumpIn', icon: ArrowUpFromLine, tone: 'from-amber-400 to-orange-500' },
+  { label: 'Dump Boulder to Hopper', hint: 'Feed boulder from the dump', stateKey: 'homeQuickDumpOut', icon: ArrowDownToLine, tone: 'from-sky-400 to-blue-600' },
+  { label: 'Purchase Return', hint: 'Goods sent back to a supplier', stateKey: 'homeQuickPurchaseReturn', icon: Undo2, tone: 'from-rose-400 to-pink-600' },
+  { label: 'Sale Return', hint: 'Material a customer sent back', stateKey: 'homeQuickSaleReturn', icon: RotateCcw, tone: 'from-emerald-400 to-teal-600' },
+  { label: 'Stock Adjustment', hint: 'Correct stock after counting', stateKey: 'homeQuickStockAdjustment', icon: SlidersHorizontal, tone: 'from-violet-400 to-fuchsia-600' },
 ];
 const QUICK_STATE_KEYS = [
   'homeQuickBoulder', 'homeQuickSale', 'homeQuickPurchase', 'homeQuickPayment',
@@ -123,6 +126,7 @@ export default function Dashboard() {
   const [rangeKey, setRangeKey] = useState('today');
   const [range, setRange] = useState(() => ({ from: toInputDate(new Date()), to: toInputDate(new Date()) }));
   const [custom, setCustom] = useState(range);
+  const [showMoreEntries, setShowMoreEntries] = useState(false);
 
   const entryPopupOpen = QUICK_STATE_KEYS.some((key) => location.state?.[key]);
 
@@ -306,6 +310,17 @@ export default function Dashboard() {
       ) : (
       <div className={`space-y-3.5 transition-opacity md:space-y-4 ${loading ? 'pointer-events-none opacity-50' : ''}`}>
 
+      {showMoreEntries && (
+        <MoreEntriesPopup
+          entries={MORE_ENTRIES}
+          onClose={() => setShowMoreEntries(false)}
+          onPick={(entry) => {
+            setShowMoreEntries(false);
+            openQuickEntry(entry);
+          }}
+        />
+      )}
+
       {/* KPI cards */}
       {/* Three in a row on every screen; the compact tile keeps them readable on phones */}
       <section className="grid grid-cols-3 gap-2 md:gap-3">
@@ -319,18 +334,15 @@ export default function Dashboard() {
             <h3 className="text-sm font-bold text-white">Quick Entry</h3>
             <p className="text-xs text-primary-100">Add today's entries without leaving the dashboard</p>
           </div>
-          <div className="flex flex-wrap gap-2">
-            {MORE_ENTRIES.map((entry) => (
-              <button
-                key={entry.label}
-                type="button"
-                onClick={() => openQuickEntry(entry)}
-                className="rounded-lg border border-white/30 bg-white/10 px-3 py-1 text-xs font-semibold text-white transition hover:bg-white/20"
-              >
-                {entry.label}
-              </button>
-            ))}
-          </div>
+          <button
+            type="button"
+            onClick={() => setShowMoreEntries(true)}
+            aria-haspopup="dialog"
+            className="inline-flex items-center gap-1.5 rounded-xl bg-white/15 px-3.5 py-2 text-xs font-bold text-white shadow-sm ring-1 ring-inset ring-white/35 transition hover:bg-white/25 md:text-sm"
+          >
+            <LayoutGrid size={16} />
+            More Entries
+          </button>
         </div>
         {/*
           Columns follow the panel's own width (not the screen's), so a tile is always wide enough for its label.
@@ -352,6 +364,7 @@ export default function Dashboard() {
             </button>
           ))}
         </div>
+
       </section>
 
       {/* Cash flow */}

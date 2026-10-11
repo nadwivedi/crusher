@@ -7,7 +7,7 @@ import FormSection from '../../components/FormSection';
 import { findVehicle, formatTon, toDateInput, useDumpBalance, useVehicles } from './dumpUtils';
 
 /**
- * Dump Site → Hopper: boulder taken from the dump at site and fed to the hopper. It reduces dump stock.
+ * Dump Boulder to Hopper: boulder taken from the dump at site and fed to the hopper. It reduces dump stock.
  * Weight is typed in ton, or worked out from trips × average ton per trip.
  */
 export default function DumpToHopper({ onModalFinish, editingEntry = null }) {
@@ -73,10 +73,10 @@ export default function DumpToHopper({ onModalFinish, editingEntry = null }) {
       };
       if (isEditing) await apiClient.put(`/dump-stock/${editingEntry._id}`, payload);
       else await apiClient.post('/dump-stock', payload);
-      toast.success(isEditing ? 'Dump → Hopper updated' : 'Boulder fed from dump to hopper');
+      toast.success(isEditing ? 'Dump boulder to hopper updated' : 'Dump boulder to hopper saved');
       close();
     } catch (error) {
-      toast.error(error?.message || 'Error saving dump → hopper entry');
+      toast.error(error?.message || 'Error saving dump boulder to hopper entry');
     } finally {
       setSaving(false);
     }
@@ -84,7 +84,7 @@ export default function DumpToHopper({ onModalFinish, editingEntry = null }) {
 
   return (
     <FormPopup
-      title={isEditing ? 'Edit Dump Site → Hopper' : 'Dump Site → Hopper'}
+      title={isEditing ? 'Edit Dump Boulder to Hopper' : 'Dump Boulder to Hopper'}
       subtitle="Boulder taken from the dump at site into the hopper"
       submitLabel={saving ? 'Saving...' : isEditing ? 'Update Entry' : 'Save Entry'}
       submitDisabled={saving || overStock}
