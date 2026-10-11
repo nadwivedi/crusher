@@ -1,13 +1,15 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Boxes, ChevronRight, FileBarChart, FileText, Fuel, Mountain, Package, ReceiptText, RefreshCw, Users, Wallet } from 'lucide-react';
+import { Boxes, ChevronRight, FileBarChart, FileText, Fuel, Mountain, Package, ReceiptText, RefreshCw, ShoppingCart, Users, Wallet, Warehouse } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { filterRestrictedItems } from '../utils/featureAccess';
 
 const REPORT_ITEMS = [
   { name: 'Party Ledger', path: '/reports/party-ledger', Icon: Users },
   { name: 'Boulder Ledger', path: '/reports/boulder-ledger', Icon: Mountain },
+  { name: 'Dump Boulder Ledger', path: '/reports/boulder-ledger?tab=dump', Icon: Warehouse },
   { name: 'Sales Report', path: '/reports/sales-report', Icon: FileText },
+  { name: 'Purchase Report', path: '/reports/purchase-report', Icon: ShoppingCart },
   { name: 'Stock Ledger', path: '/reports/stock-ledger', Icon: Boxes },
   { name: 'Material Used Ledger', path: '/reports/material-used-ledger', Icon: Package },
   { name: 'Sale Return Report', path: '/reports/sale-return-report', Icon: RefreshCw },

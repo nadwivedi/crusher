@@ -3,7 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import {
   LayoutDashboard, BookOpenText, ChartNoAxesCombined, Mountain, FileText, HandCoins, Send, Wallet,
-  PackageMinus, IdCard, ChartColumn, Users, Layers, Scale, Boxes, Truck, Landmark, Tags,
+  PackageMinus, IdCard, ChartColumn, Users, Boxes, Truck, Landmark, Tags,
   Settings, X, ShoppingCart
 } from 'lucide-react';
 import Logo from './Logo';
@@ -32,11 +32,9 @@ const navGroups = [
   },
   {
     label: 'Reports',
+    // Every ledger and report is listed on the Reports page; any /reports/... page keeps this item active
     items: [
       { to: '/reports', icon: ChartColumn, label: 'Reports' },
-      { to: '/reports/party-ledger', icon: Users, label: 'Party Ledger' },
-      { to: '/reports/stock-ledger', icon: Layers, label: 'Stock Ledger' },
-      { to: '/reports/profit-loss-report', icon: Scale, label: 'Profit & Loss' },
     ]
   },
   {
