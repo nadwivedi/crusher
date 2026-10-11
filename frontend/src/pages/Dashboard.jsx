@@ -62,6 +62,8 @@ const QUICK_ENTRIES = [
   { label: 'Material Used', stateKey: 'homeQuickMaterialUsed', icon: PackageMinus, tone: 'bg-indigo-50 text-indigo-700 ring-indigo-100' },
 ];
 const MORE_ENTRIES = [
+  { label: 'Boulder → Dump Site', stateKey: 'homeQuickDumpIn' },
+  { label: 'Dump Site → Hopper', stateKey: 'homeQuickDumpOut' },
   { label: 'Purchase Return', stateKey: 'homeQuickPurchaseReturn' },
   { label: 'Sale Return', stateKey: 'homeQuickSaleReturn' },
   { label: 'Stock Adjustment', stateKey: 'homeQuickStockAdjustment' },
@@ -69,7 +71,7 @@ const MORE_ENTRIES = [
 const QUICK_STATE_KEYS = [
   'homeQuickBoulder', 'homeQuickSale', 'homeQuickPurchase', 'homeQuickPayment',
   'homeQuickReceipt', 'homeQuickMaterialUsed', 'homeQuickPurchaseReturn', 'homeQuickExpense',
-  'homeQuickSaleReturn', 'homeQuickStockAdjustment'
+  'homeQuickSaleReturn', 'homeQuickStockAdjustment', 'homeQuickDumpIn', 'homeQuickDumpOut'
 ];
 const quickEntryState = (currentState, stateKey) => ({
   ...(currentState || {}),

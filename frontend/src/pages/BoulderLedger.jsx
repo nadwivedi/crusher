@@ -1,18 +1,20 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ClipboardList, Eye, Inbox, IndianRupee, Mountain, Pencil, Plus, RefreshCw, Repeat, Search, Trash2, Truck, X } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { ClipboardList, Eye, Inbox, IndianRupee, Mountain, Pencil, Plus, RefreshCw, Repeat, Search, Trash2, Truck, Warehouse, X } from 'lucide-react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import apiClient from '../utils/api';
 import { useAuth } from '../context/AuthContext';
 import StatCard from '../components/StatCard';
 import Segmented from '../components/Segmented';
 import BoulderEntry from './BoulderEntry/BoulderEntry';
+import DumpStock from './BoulderEntry/DumpStock';
 import CustomRangePopup, { toLocalDateInput, formatRangeLabel } from '../components/CustomRangePopup';
 import MonthPickerPopup, { getMonthRange, formatMonthLabel } from '../components/MonthPickerPopup';
 
 // The two views of the data panel
 const TABS = [
   { key: 'entries', label: 'Entries', icon: ClipboardList },
-  { key: 'vehicles', label: 'Vehicle-wise', icon: Truck }
+  { key: 'vehicles', label: 'Vehicle-wise', icon: Truck },
+  { key: 'dump', label: 'Dump Stock', icon: Warehouse }
 ];
 
 // Table cells a little tighter than the app default, so every column fits without scrolling
@@ -150,7 +152,11 @@ export default function BoulderLedger() {
   const [{ fromDate, toDate }, setDateRange] = useState({ fromDate: '', toDate: '' });
   const [editingEntry, setEditingEntry] = useState(null);
   const [showAddEntry, setShowAddEntry] = useState(false);
-  const [tab, setTab] = useState('entries');
+  const [searchParams] = useSearchParams();
+  // ?tab=dump (from the Reports page) opens the dump stock straight away
+  const [tab, setTab] = useState(() => (TABS.some((item) => item.key === searchParams.get('tab')) ? searchParams.get('tab') : 'entries'));
+  // Bumped after every reload so the dump stock tab reloads too
+  const [dumpRefresh, setDumpRefresh] = useState(0);
   const [showCustomPicker, setShowCustomPicker] = useState(false);
   const [showMonthPicker, setShowMonthPicker] = useState(false);
   const [selectedMonth, setSelectedMonth] = useState(String(new Date().getMonth()));
@@ -200,6 +206,7 @@ export default function BoulderLedger() {
       setError(err.message || 'Error loading boulder ledger');
     } finally {
       setLoading(false);
+      setDumpRefresh((value) => value + 1);
     }
   };
 
@@ -580,6 +587,15 @@ export default function BoulderLedger() {
                   </div>
                 </>
               ))}
+
+            {tab === 'dump' && (
+              <DumpStock
+                fromDate={fromDate}
+                toDate={toDate}
+                refreshKey={dumpRefresh}
+                canEdit={canDeleteBoulders}
+              />
+            )}
 
             {tab === 'vehicles' && (vehicleSummary.length === 0
               ? renderEmpty('No vehicles', 'No boulder came in during this period.')

@@ -1,6 +1,7 @@
 const Bank = require("../models/Bank");
 const Boulder = require("../models/Boulder");
 const Counter = require("../models/Counter");
+const DumpMovement = require("../models/DumpMovement");
 const MaterialUsed = require("../models/MaterialUsed");
 const Party = require("../models/Party");
 const Payment = require("../models/Payment");
@@ -18,6 +19,7 @@ const MODELS = [
   Vehicle,
   Stock,
   Boulder,
+  DumpMovement,
   Sales,
   Purchase,
   Payment,

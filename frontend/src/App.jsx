@@ -18,6 +18,8 @@ import PartyDetail from './pages/PartyDetail';
 import Expenses from './pages/Expenses/Expenses';
 import ExpenseTypes from './pages/ExpenseGroups';
 import BoulderEntry from './pages/BoulderEntry/BoulderEntry';
+import DumpSiteEntry from './pages/BoulderEntry/DumpSiteEntry';
+import DumpToHopper from './pages/BoulderEntry/DumpToHopper';
 import StockAdjustment from './pages/StockAdjustment';
 import SaleReturn from './pages/SaleReturn/SaleReturn';
 import PurchaseReturn from './pages/PurchaseReturn/PurchaseReturn';
@@ -65,6 +67,8 @@ function App() {
       homeQuickExpense,
       homeQuickSaleReturn,
       homeQuickStockAdjustment,
+      homeQuickDumpIn,
+      homeQuickDumpOut,
       backgroundLocation,
       ...restState
     } = currentState;
@@ -177,6 +181,18 @@ function App() {
       {location.pathname === '/' && location.state?.homeQuickBoulder && (
         <ProtectedRoute>
           <BoulderEntry modalOnly onModalFinish={clearHomeQuickShortcutState} />
+        </ProtectedRoute>
+      )}
+
+      {location.pathname === '/' && location.state?.homeQuickDumpIn && (
+        <ProtectedRoute>
+          <DumpSiteEntry onModalFinish={clearHomeQuickShortcutState} />
+        </ProtectedRoute>
+      )}
+
+      {location.pathname === '/' && location.state?.homeQuickDumpOut && (
+        <ProtectedRoute>
+          <DumpToHopper onModalFinish={clearHomeQuickShortcutState} />
         </ProtectedRoute>
       )}
 

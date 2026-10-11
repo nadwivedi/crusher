@@ -581,7 +581,8 @@ export default function BoulderEntry({ onModalFinish = null, editingEntry = null
       setPartyQuery('');
       if (onModalFinish) onModalFinish();
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Error creating boulder entry');
+      // apiClient rejects with the response body: { message, error }
+      toast.error(error?.error || error?.message || 'Error saving boulder entry');
     } finally {
       setLoading(false);
     }
