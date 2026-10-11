@@ -1,5 +1,8 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { ClipboardList, Eye, Inbox, IndianRupee, Mountain, Pencil, Plus, RefreshCw, Repeat, Search, Trash2, Truck, Warehouse, X } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import {
+  CalendarDays, ClipboardList, Eye, Filter, Gauge, Inbox, IndianRupee, Mountain, Pencil, Plus, RefreshCw, Repeat,
+  Search, Trash2, Truck, Warehouse, X
+} from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import apiClient from '../utils/api';
 import { useAuth } from '../context/AuthContext';
@@ -7,12 +10,13 @@ import StatCard from '../components/StatCard';
 import Segmented from '../components/Segmented';
 import BoulderEntry from './BoulderEntry/BoulderEntry';
 import DumpStock from './BoulderEntry/DumpStock';
-import CustomRangePopup, { toLocalDateInput, formatRangeLabel } from '../components/CustomRangePopup';
+import { toLocalDateInput } from '../components/CustomRangePopup';
 import MonthPickerPopup, { getMonthRange, formatMonthLabel } from '../components/MonthPickerPopup';
 
-// The two views of the data panel
+// The views of the data panel
 const TABS = [
   { key: 'entries', label: 'Entries', icon: ClipboardList },
+  { key: 'days', label: 'Day-wise', icon: CalendarDays },
   { key: 'vehicles', label: 'Vehicle-wise', icon: Truck },
   { key: 'dump', label: 'Dump Stock', icon: Warehouse }
 ];
@@ -35,6 +39,12 @@ const formatDate = (value) => {
   const date = value ? new Date(value) : null;
   if (!date || Number.isNaN(date.getTime())) return '-';
   return date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+};
+
+const formatDay = (dayKey) => {
+  const date = new Date(`${dayKey}T00:00:00`);
+  if (Number.isNaN(date.getTime())) return dayKey;
+  return date.toLocaleDateString('en-GB', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' });
 };
 
 const parseWeightFromMethod = (method, label) => {
@@ -73,6 +83,9 @@ const getBulkSummary = (entry) => (
   `${formatNumber(entry.tripCount)} trips × ${formatTon(entry.averageWeight)} T`
 );
 
+const getVehicleKey = (entry) => String(entry.vehicleNo || '-').toUpperCase();
+const getPartyKey = (entry) => String(entry.partyName || '').trim();
+
 // Local calendar day (toISOString would shift early-morning IST times to the previous day)
 const toDayKey = (value) => {
   const date = value instanceof Date ? value : new Date(value);
@@ -93,14 +106,10 @@ const resolvePresetRange = (preset) => {
   const today = toDayKey(now);
 
   if (preset === 'today') return { fromDate: today, toDate: today };
+  if (preset === 'yesterday') return { fromDate: daysAgoKey(1), toDate: daysAgoKey(1) };
   if (preset === 'last7') return { fromDate: daysAgoKey(6), toDate: today };
   if (preset === 'last30') return { fromDate: daysAgoKey(29), toDate: today };
-  if (preset === 'last1Year') {
-    const start = new Date(now);
-    start.setFullYear(start.getFullYear() - 1);
-    start.setDate(start.getDate() + 1);
-    return { fromDate: toDayKey(start), toDate: today };
-  }
+  if (preset === 'thisMonth') return { fromDate: toDayKey(new Date(now.getFullYear(), now.getMonth(), 1)), toDate: today };
   if (preset === 'yearWise') {
     return { fromDate: toDayKey(new Date(now.getFullYear(), 0, 1)), toDate: toDayKey(new Date(now.getFullYear(), 11, 31)) };
   }
@@ -110,12 +119,12 @@ const resolvePresetRange = (preset) => {
 const PRESETS = [
   { key: '', label: 'All' },
   { key: 'today', label: 'Today' },
+  { key: 'yesterday', label: 'Yesterday' },
   { key: 'last7', label: '7 Days' },
   { key: 'last30', label: '30 Days' },
-  { key: 'monthWise', label: 'Month' },
-  { key: 'last1Year', label: '12 Months', shortLabel: '12 Mo' },
-  { key: 'yearWise', label: 'This Year', shortLabel: 'Year' },
-  { key: 'custom', label: 'Custom' }
+  { key: 'thisMonth', label: 'This Month', shortLabel: 'Month' },
+  { key: 'monthWise', label: 'Pick Month', shortLabel: 'Pick' },
+  { key: 'yearWise', label: 'This Year', shortLabel: 'Year' }
 ];
 
 const emptyTotals = () => ({ count: 0, trips: 0, grossWeight: 0, tareWeight: 0, netWeight: 0, amount: 0 });
@@ -139,8 +148,24 @@ function Plate({ children }) {
   );
 }
 
+/** A removable chip for one active filter. */
+function FilterChip({ label, onClear }) {
+  return (
+    <button
+      type="button"
+      onClick={onClear}
+      title="Remove this filter"
+      className="inline-flex max-w-full items-center gap-1 rounded-full bg-primary-600 px-2.5 py-1 text-xs font-semibold text-white transition hover:bg-primary-700"
+    >
+      <span className="truncate">{label}</span>
+      <X size={13} className="shrink-0" />
+    </button>
+  );
+}
+
 export default function BoulderLedger() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { user } = useAuth();
   const canDeleteBoulders = user?.role !== 'employee' && (user?.role === 'owner' || user?.permissions?.edit);
   const [boulders, setBoulders] = useState([]);
@@ -148,34 +173,34 @@ export default function BoulderLedger() {
   const [error, setError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [vehicleFilter, setVehicleFilter] = useState('');
+  const [partyFilter, setPartyFilter] = useState('');
   const [datePreset, setDatePreset] = useState('');
   const [{ fromDate, toDate }, setDateRange] = useState({ fromDate: '', toDate: '' });
   const [editingEntry, setEditingEntry] = useState(null);
   const [showAddEntry, setShowAddEntry] = useState(false);
-  const [searchParams] = useSearchParams();
   // ?tab=dump (from the Reports page) opens the dump stock straight away
   const [tab, setTab] = useState(() => (TABS.some((item) => item.key === searchParams.get('tab')) ? searchParams.get('tab') : 'entries'));
   // Bumped after every reload so the dump stock tab reloads too
   const [dumpRefresh, setDumpRefresh] = useState(0);
-  const [showCustomPicker, setShowCustomPicker] = useState(false);
   const [showMonthPicker, setShowMonthPicker] = useState(false);
+  // The filter panel opens from the Filters button in the header
+  const [showFilters, setShowFilters] = useState(false);
   const [selectedMonth, setSelectedMonth] = useState(String(new Date().getMonth()));
   const [selectedYear, setSelectedYear] = useState(String(new Date().getFullYear()));
-  const rangeBeforeCustomRef = useRef({ preset: '', range: { fromDate: '', toDate: '' } });
 
   useEffect(() => {
     const handleKeyDown = (event) => {
       // With an entry popup open, Esc closes the popup instead of leaving the page.
       // defaultPrevented covers the popup's own Esc handler, which has already closed it by the time this runs.
       if (event.defaultPrevented) return;
-      if (event.key === 'Escape' && !showCustomPicker && !showMonthPicker && !showAddEntry && !editingEntry) {
+      if (event.key === 'Escape' && !showMonthPicker && !showAddEntry && !editingEntry) {
         navigate('/');
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [navigate, showCustomPicker, showMonthPicker, showAddEntry, editingEntry]);
+  }, [navigate, showMonthPicker, showAddEntry, editingEntry]);
 
   useEffect(() => {
     loadBoulders();
@@ -210,7 +235,7 @@ export default function BoulderLedger() {
     }
   };
 
-  // ─── Entries in the selected period (search / vehicle applied after) ────────
+  // ─── Filters: period → supplier + search → vehicle ─────────────────────────
   const periodBoulders = useMemo(() => boulders.filter((entry) => {
     const day = getEntryDayKey(entry);
     if (!day) return false;
@@ -219,104 +244,121 @@ export default function BoulderLedger() {
     return true;
   }), [boulders, fromDate, toDate]);
 
+  // Everything but the vehicle filter: the vehicle-wise list compares vehicles within it
+  const baseBoulders = useMemo(() => {
+    const normalizedSearch = String(searchTerm || '').trim().toLowerCase();
+    return periodBoulders.filter((entry) => {
+      if (partyFilter && getPartyKey(entry) !== partyFilter) return false;
+      if (!normalizedSearch) return true;
+      return String(entry.vehicleNo || '').toLowerCase().includes(normalizedSearch)
+        || String(entry.partyName || '').toLowerCase().includes(normalizedSearch)
+        || String(entry.boulderNumber || '').toLowerCase().includes(normalizedSearch);
+    });
+  }, [periodBoulders, partyFilter, searchTerm]);
+
+  const filteredBoulders = useMemo(() => (
+    vehicleFilter ? baseBoulders.filter((entry) => getVehicleKey(entry) === vehicleFilter) : baseBoulders
+  ), [baseBoulders, vehicleFilter]);
+
+  const totals = useMemo(() => filteredBoulders.reduce(addToTotals, emptyTotals()), [filteredBoulders]);
+
+  // Every vehicle and supplier ever used, so a filter stays put when the period changes
+  const vehicleOptions = useMemo(() => {
+    const counts = new Map();
+    for (const entry of boulders) counts.set(getVehicleKey(entry), 0);
+    for (const entry of periodBoulders) counts.set(getVehicleKey(entry), (counts.get(getVehicleKey(entry)) || 0) + getEntryTrips(entry));
+    return [...counts.entries()]
+      .map(([vehicleNo, trips]) => ({ vehicleNo, trips }))
+      .sort((a, b) => b.trips - a.trips || a.vehicleNo.localeCompare(b.vehicleNo));
+  }, [boulders, periodBoulders]);
+
+  const partyOptions = useMemo(() => (
+    [...new Set(boulders.map(getPartyKey).filter(Boolean))].sort((a, b) => a.localeCompare(b))
+  ), [boulders]);
+
   const vehicleSummary = useMemo(() => {
     const map = new Map();
-    for (const entry of periodBoulders) {
-      const vehicleNo = String(entry.vehicleNo || '-').toUpperCase();
-      const row = map.get(vehicleNo) || { vehicleNo, parties: new Set(), lastDate: null, ...emptyTotals() };
+    for (const entry of baseBoulders) {
+      const vehicleNo = getVehicleKey(entry);
+      const row = map.get(vehicleNo) || { vehicleNo, parties: new Set(), days: new Set(), lastDate: null, ...emptyTotals() };
       addToTotals(row, entry);
-      const party = String(entry.partyName || '').trim();
+      const party = getPartyKey(entry);
       if (party) row.parties.add(party);
+      row.days.add(getEntryDayKey(entry));
       const date = new Date(entry.boulderDate || entry.createdAt);
       if (!row.lastDate || date > row.lastDate) row.lastDate = date;
       map.set(vehicleNo, row);
     }
     return [...map.values()]
-      .map((row) => ({ ...row, parties: [...row.parties] }))
+      .map((row) => ({ ...row, parties: [...row.parties], dayCount: row.days.size }))
       .sort((a, b) => b.netWeight - a.netWeight);
-  }, [periodBoulders]);
+  }, [baseBoulders]);
 
-  const filteredBoulders = useMemo(() => {
-    const normalizedSearch = String(searchTerm || '').trim().toLowerCase();
-    return periodBoulders.filter((entry) => {
-      if (vehicleFilter && String(entry.vehicleNo || '').toUpperCase() !== vehicleFilter) return false;
-      if (!normalizedSearch) return true;
-      return String(entry.vehicleNo || '').toLowerCase().includes(normalizedSearch)
-        || String(entry.partyName || '').toLowerCase().includes(normalizedSearch);
-    });
-  }, [periodBoulders, searchTerm, vehicleFilter]);
+  const daySummary = useMemo(() => {
+    const map = new Map();
+    for (const entry of filteredBoulders) {
+      const day = getEntryDayKey(entry);
+      const row = map.get(day) || { day, vehicles: new Set(), ...emptyTotals() };
+      addToTotals(row, entry);
+      row.vehicles.add(getVehicleKey(entry));
+      map.set(day, row);
+    }
+    return [...map.values()]
+      .map((row) => ({ ...row, vehicleCount: row.vehicles.size }))
+      .sort((a, b) => b.day.localeCompare(a.day));
+  }, [filteredBoulders]);
 
-  const periodTotals = useMemo(() => periodBoulders.reduce(addToTotals, emptyTotals()), [periodBoulders]);
-  const listTotals = useMemo(() => filteredBoulders.reduce(addToTotals, emptyTotals()), [filteredBoulders]);
-
-  // Drop the vehicle filter if that vehicle has no entries in the new period
-  useEffect(() => {
-    if (vehicleFilter && !vehicleSummary.some((row) => row.vehicleNo === vehicleFilter)) setVehicleFilter('');
-  }, [vehicleSummary, vehicleFilter]);
+  const baseTotals = useMemo(() => baseBoulders.reduce(addToTotals, emptyTotals()), [baseBoulders]);
 
   const periodLabel = (() => {
     if (datePreset === 'monthWise') return formatMonthLabel(selectedMonth, selectedYear);
-    if (datePreset === 'custom') return formatRangeLabel(fromDate, toDate);
     if (!fromDate && !toDate) return 'All time';
     if (fromDate === toDate) return formatDate(fromDate);
+    if (!fromDate) return `Up to ${formatDate(toDate)}`;
+    if (!toDate) return `From ${formatDate(fromDate)}`;
     return `${formatDate(fromDate)} – ${formatDate(toDate)}`;
   })();
 
   const handlePresetChange = (value) => {
     if (value === 'monthWise') {
-      if (datePreset !== 'monthWise') rangeBeforeCustomRef.current = { preset: datePreset, range: { fromDate, toDate } };
-      setDatePreset('monthWise');
       setShowMonthPicker(true);
       return;
     }
-
-    if (value === 'custom') {
-      if (datePreset !== 'custom') rangeBeforeCustomRef.current = { preset: datePreset, range: { fromDate, toDate } };
-      setDatePreset('custom');
-      setShowCustomPicker(true);
-      return;
-    }
-
-    const resolvedRange = resolvePresetRange(value);
-    rangeBeforeCustomRef.current = { preset: value, range: resolvedRange };
     setDatePreset(value);
-    setDateRange(resolvedRange);
+    setDateRange(resolvePresetRange(value));
   };
 
-  const closeMonthPicker = () => {
-    setShowMonthPicker(false);
-    // Cancelled straight after choosing "Month": go back to the previous filter.
-    if (rangeBeforeCustomRef.current.preset !== 'monthWise') {
-      setDatePreset(rangeBeforeCustomRef.current.preset);
-      setDateRange(rangeBeforeCustomRef.current.range);
-    }
+  // Typing a date makes it a custom range
+  const handleDateInput = (name, value) => {
+    setDatePreset('custom');
+    setDateRange((prev) => {
+      const next = { ...prev, [name]: value };
+      // Keep From before To
+      if (next.fromDate && next.toDate && next.fromDate > next.toDate) {
+        if (name === 'fromDate') next.toDate = next.fromDate;
+        else next.fromDate = next.toDate;
+      }
+      return next;
+    });
   };
 
   const applyMonth = (month, year) => {
     const bounds = getMonthRange(month, year);
-    const range = { fromDate: bounds.from, toDate: bounds.to };
     setSelectedMonth(month);
     setSelectedYear(year);
     setDatePreset('monthWise');
-    setDateRange(range);
-    rangeBeforeCustomRef.current = { preset: 'monthWise', range };
+    setDateRange({ fromDate: bounds.from, toDate: bounds.to });
     setShowMonthPicker(false);
   };
 
-  const closeCustomPicker = () => {
-    setShowCustomPicker(false);
-    // Cancelled straight after choosing "Custom": go back to the previous filter.
-    if (rangeBeforeCustomRef.current.preset !== 'custom') {
-      setDatePreset(rangeBeforeCustomRef.current.preset);
-      setDateRange(rangeBeforeCustomRef.current.range);
-    }
-  };
+  const activeFilterCount = [fromDate || toDate, vehicleFilter, partyFilter, searchTerm.trim()].filter(Boolean).length;
 
-  const applyCustomRange = (from, to) => {
-    setDatePreset('custom');
-    setDateRange({ fromDate: from, toDate: to });
-    rangeBeforeCustomRef.current = { preset: 'custom', range: { fromDate: from, toDate: to } };
-    setShowCustomPicker(false);
+  const clearFilters = () => {
+    setDatePreset('');
+    setDateRange({ fromDate: '', toDate: '' });
+    setVehicleFilter('');
+    setPartyFilter('');
+    setSearchTerm('');
   };
 
   const handleDelete = async (id) => {
@@ -340,30 +382,41 @@ export default function BoulderLedger() {
     loadBoulders();
   };
 
-  const getPartyDisplayName = (entry) => String(entry?.partyName || '').trim() || '—';
+  const getPartyDisplayName = (entry) => getPartyKey(entry) || '—';
 
   const maxVehicleWeight = vehicleSummary[0]?.netWeight || 0;
-  const periodTons = periodTotals.netWeight / 1000;
+  const maxDayWeight = daySummary.reduce((max, row) => Math.max(max, row.netWeight), 0);
+  const tons = totals.netWeight / 1000;
+  const dayCount = daySummary.length;
   const initialLoading = loading && boulders.length === 0;
 
-  // Picking a vehicle in the vehicle-wise list opens its entries
+  // Picking a vehicle in the vehicle-wise list filters everything to it
   const openVehicle = (vehicleNo) => {
     setVehicleFilter(vehicleNo);
     setTab('entries');
   };
 
+  const lastTrip = filteredBoulders.reduce((latest, entry) => {
+    const date = new Date(entry.boulderDate || entry.createdAt);
+    return !latest || date > latest ? date : latest;
+  }, null);
+
   const stats = [
-    { icon: Mountain, label: 'Net Boulder', tone: 'emerald', value: `${formatTon(periodTotals.netWeight)} tons`, hint: `${formatNumber(periodTotals.netWeight)} kg` },
-    { icon: Repeat, label: 'Trips', tone: 'blue', value: formatNumber(periodTotals.trips), hint: entryCount(periodTotals.count) },
-    {
-      icon: Truck, label: 'Vehicles', tone: 'indigo',
-      value: formatNumber(vehicleSummary.length),
-      hint: vehicleSummary[0] ? `Most: ${vehicleSummary[0].vehicleNo}` : 'No vehicles'
-    },
+    { icon: Mountain, label: 'Boulder Crushed', tone: 'emerald', value: `${formatTon(totals.netWeight)} T`, hint: `${formatNumber(totals.netWeight)} kg` },
+    { icon: Repeat, label: 'Trips', tone: 'blue', value: formatNumber(totals.trips), hint: entryCount(totals.count) },
+    { icon: Gauge, label: 'Avg per Trip', tone: 'teal', value: `${totals.trips > 0 ? formatNumber(tons / totals.trips) : 0} T`, hint: 'Net weight ÷ trips' },
+    { icon: CalendarDays, label: 'Working Days', tone: 'amber', value: formatNumber(dayCount), hint: dayCount > 0 ? `${formatNumber(tons / dayCount)} T per day` : 'No boulder' },
+    vehicleFilter
+      ? { icon: Truck, label: 'Last Trip', tone: 'indigo', value: lastTrip ? formatDate(lastTrip) : '—', hint: vehicleFilter }
+      : {
+          icon: Truck, label: 'Vehicles', tone: 'indigo',
+          value: formatNumber(vehicleSummary.length),
+          hint: vehicleSummary[0] ? `Most: ${vehicleSummary[0].vehicleNo}` : 'No vehicles'
+        },
     {
       icon: IndianRupee, label: 'Amount', tone: 'rose',
-      value: formatCurrency(periodTotals.amount),
-      hint: periodTons > 0 ? `${formatCurrency(periodTotals.amount / periodTons)} per ton` : 'No boulder'
+      value: formatCurrency(totals.amount),
+      hint: tons > 0 ? `${formatCurrency(totals.amount / tons)} per ton` : 'No boulder'
     }
   ];
 
@@ -392,45 +445,153 @@ export default function BoulderLedger() {
       </span>
       <p className="text-sm font-semibold text-slate-800">{title}</p>
       <p className="text-xs text-slate-500">{text}</p>
+      {activeFilterCount > 0 && (
+        <button type="button" className="btn-secondary mt-1 text-xs" onClick={clearFilters}>Clear filters</button>
+      )}
     </div>
   );
 
-  const vehicleBar = (row) => (
+  const bar = (value, max, color = 'bg-emerald-500') => (
     <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-100">
-      <div className="h-full rounded-full bg-emerald-500" style={{ width: `${maxVehicleWeight > 0 ? Math.max((row.netWeight / maxVehicleWeight) * 100, 2) : 0}%` }} />
+      <div className={`h-full rounded-full ${color}`} style={{ width: `${max > 0 ? Math.max((value / max) * 100, 2) : 0}%` }} />
     </div>
   );
+
+  // One chip per active filter, shown in the open panel and under the header when it is closed
+  const filterChips = (
+    <>
+      {(fromDate || toDate) && <FilterChip label={periodLabel} onClear={() => handlePresetChange('')} />}
+      {vehicleFilter && <FilterChip label={`Vehicle ${vehicleFilter}`} onClear={() => setVehicleFilter('')} />}
+      {partyFilter && <FilterChip label={partyFilter} onClear={() => setPartyFilter('')} />}
+      {searchTerm.trim() && <FilterChip label={`“${searchTerm.trim()}”`} onClear={() => setSearchTerm('')} />}
+    </>
+  );
+
+  // What the stats are about, in words
+  const scopeLabel = [vehicleFilter, partyFilter, periodLabel].filter(Boolean).join(' · ');
 
   return (
-    <div className="page-fade-in space-y-3.5 px-3 pb-6 pt-3.5 md:space-y-4 lg:px-6 lg:pt-4">
+    <div className="page-fade-in space-y-3.5 px-3 pb-24 pt-3.5 md:space-y-4 md:pb-6 lg:px-6 lg:pt-4">
       {showMonthPicker && (
         <MonthPickerPopup
           month={selectedMonth}
           year={selectedYear}
           subtitle="Choose the year, then the month to view boulder entries"
           onApply={applyMonth}
-          onClose={closeMonthPicker}
+          onClose={() => setShowMonthPicker(false)}
         />
-      )}
-      {showCustomPicker && (
-        <CustomRangePopup from={fromDate} to={toDate} onApply={applyCustomRange} onClose={closeCustomPicker} />
       )}
       {editingEntry && <BoulderEntry editingEntry={editingEntry} onModalFinish={handleCloseEdit} />}
       {showAddEntry && <BoulderEntry onModalFinish={handleCloseAdd} />}
 
-      {/* The page is three blocks: period filter, the period's totals, then one panel with the data */}
       <div className="page-header gap-2.5">
         <div className="min-w-0">
           <h1 className="page-title">Boulder Ledger</h1>
           <p className="page-subtitle">Boulder received for crushing · {periodLabel}</p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <Segmented options={PRESETS} value={datePreset} onChange={handlePresetChange} />
-          <button type="button" className="btn-primary" onClick={() => setShowAddEntry(true)}>
-            <Plus size={18} /> Add Boulder
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setShowFilters((open) => !open)}
+            aria-expanded={showFilters}
+            aria-controls="boulder-filters"
+            title={showFilters ? 'Hide filters' : 'Show filters'}
+            className={`relative inline-flex shrink-0 items-center gap-1.5 rounded-xl px-3 py-2.5 text-sm font-semibold ring-1 ring-inset transition ${
+              showFilters || activeFilterCount > 0
+                ? 'bg-primary-50 text-primary-700 ring-primary-300'
+                : 'bg-white text-slate-600 ring-slate-300 hover:bg-slate-50'
+            }`}
+          >
+            <Filter size={18} />
+            <span className="hidden sm:inline">Filters</span>
+            {activeFilterCount > 0 && (
+              <span className="absolute -right-1.5 -top-1.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-primary-600 px-1 text-[11px] font-bold text-white">
+                {activeFilterCount}
+              </span>
+            )}
+          </button>
+          <button type="button" className="icon-btn shrink-0" title="Refresh" aria-label="Refresh" onClick={loadBoulders}>
+            <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
+          </button>
+          <button type="button" className="btn-primary px-5 py-2.5 text-[15px] shadow-md shadow-primary-600/25" onClick={() => setShowAddEntry(true)}>
+            <Plus size={20} /> Add Boulder
           </button>
         </div>
       </div>
+
+      {/* Filters: period, dates, vehicle, supplier, search. Hidden until the Filters button is pressed */}
+      {showFilters && (
+      <section id="boulder-filters" className="panel space-y-3 p-3 md:p-4">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <Segmented options={PRESETS} value={datePreset} onChange={handlePresetChange} />
+          {activeFilterCount > 0 && (
+            <button type="button" onClick={clearFilters} className="inline-flex items-center gap-1 text-xs font-semibold text-slate-500 transition hover:text-rose-600">
+              <X size={14} /> Clear all filters
+            </button>
+          )}
+        </div>
+        <div className="grid grid-cols-2 gap-2.5 md:grid-cols-3 xl:grid-cols-5">
+          <div>
+            <label className="label" htmlFor="boulder-filter-from">From</label>
+            <input id="boulder-filter-from" type="date" className="input" value={fromDate} max={toDate || undefined} onChange={(e) => handleDateInput('fromDate', e.target.value)} />
+          </div>
+          <div>
+            <label className="label" htmlFor="boulder-filter-to">To</label>
+            <input id="boulder-filter-to" type="date" className="input" value={toDate} min={fromDate || undefined} onChange={(e) => handleDateInput('toDate', e.target.value)} />
+          </div>
+          <div>
+            <label className="label" htmlFor="boulder-filter-vehicle">Vehicle No</label>
+            <select id="boulder-filter-vehicle" className={`input font-mono ${vehicleFilter ? 'ring-2 ring-primary-500' : ''}`} value={vehicleFilter} onChange={(e) => setVehicleFilter(e.target.value)}>
+              <option value="">All vehicles</option>
+              {vehicleOptions.map((option) => (
+                <option key={option.vehicleNo} value={option.vehicleNo}>
+                  {option.vehicleNo}{option.trips ? ` · ${formatNumber(option.trips)} trips` : ''}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="label" htmlFor="boulder-filter-party">Supplier</label>
+            <select id="boulder-filter-party" className={`input ${partyFilter ? 'ring-2 ring-primary-500' : ''}`} value={partyFilter} onChange={(e) => setPartyFilter(e.target.value)}>
+              <option value="">All suppliers</option>
+              {partyOptions.map((party) => <option key={party} value={party}>{party}</option>)}
+            </select>
+          </div>
+          <div className="col-span-2 md:col-span-2 xl:col-span-1">
+            <label className="label" htmlFor="boulder-filter-search">Search</label>
+            <div className="relative">
+              <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input
+                id="boulder-filter-search"
+                type="search"
+                className="input pl-9"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Vehicle, party or BOL no."
+              />
+            </div>
+          </div>
+        </div>
+        {activeFilterCount > 0 && (
+          <div className="flex flex-wrap items-center gap-1.5 border-t border-slate-100 pt-2.5">
+            <Filter size={14} className="text-slate-400" />
+            {filterChips}
+          </div>
+        )}
+        <div className="flex justify-end border-t border-slate-100 pt-2.5">
+          <button type="button" className="btn-secondary text-xs" onClick={() => setShowFilters(false)}>Done</button>
+        </div>
+      </section>
+      )}
+
+      {/* Filters closed: the active ones stay visible as chips */}
+      {!showFilters && activeFilterCount > 0 && (
+        <div className="flex flex-wrap items-center gap-1.5">
+          <Filter size={14} className="text-slate-400" />
+          {filterChips}
+          <button type="button" onClick={clearFilters} className="ml-1 text-xs font-semibold text-slate-500 transition hover:text-rose-600">Clear all</button>
+        </div>
+      )}
 
       {error && (
         <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm font-semibold text-rose-700">{error}</div>
@@ -443,45 +604,27 @@ export default function BoulderLedger() {
         </div>
       ) : (
         <div className={`space-y-3.5 transition-opacity md:space-y-4 ${loading ? 'pointer-events-none opacity-50' : ''}`}>
-          <section className="grid grid-cols-2 gap-2 md:gap-3 lg:grid-cols-4">
-            {stats.map((stat) => <StatCard key={stat.label} compact {...stat} />)}
-          </section>
+          {tab !== 'dump' && (
+            <section>
+              <p className="mb-1.5 truncate px-0.5 text-xs font-semibold text-slate-500">
+                Totals for <span className="text-slate-800">{scopeLabel}</span>
+              </p>
+              <div className="grid grid-cols-3 gap-2 md:gap-3 xl:grid-cols-6">
+                {stats.map((stat) => <StatCard key={stat.label} compact {...stat} />)}
+              </div>
+            </section>
+          )}
 
           <section className="panel">
-            <div className="panel-header py-2.5 flex flex-wrap items-center justify-between gap-2.5">
+            <div className="panel-header flex flex-wrap items-center justify-between gap-2.5 py-2.5">
               <Segmented options={TABS} value={tab} onChange={setTab} />
-              <div className="flex min-w-0 flex-1 basis-56 items-center justify-end gap-2">
-                {tab === 'entries' && vehicleFilter && (
-                  <button
-                    type="button"
-                    onClick={() => setVehicleFilter('')}
-                    title="Show all vehicles"
-                    className="inline-flex shrink-0 items-center gap-1 rounded-full bg-primary-600 px-2.5 py-1 text-xs font-semibold text-white transition hover:bg-primary-700"
-                  >
-                    {vehicleFilter}
-                    <X size={14} />
-                  </button>
-                )}
-                {tab === 'entries' && (
-                  <div className="relative min-w-0 flex-1 md:max-w-64">
-                    <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                    <input
-                      type="search"
-                      className="input pl-9"
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      placeholder="Search vehicle or party"
-                    />
-                  </div>
-                )}
-                <button type="button" className="icon-btn shrink-0" title="Refresh" aria-label="Refresh" onClick={loadBoulders}>
-                  <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
-                </button>
-              </div>
+              {tab === 'vehicles' && vehicleFilter && (
+                <span className="text-xs text-slate-500">Showing every vehicle · <b className="text-primary-700">{vehicleFilter}</b> highlighted</span>
+              )}
             </div>
 
             {tab === 'entries' && (filteredBoulders.length === 0
-              ? renderEmpty('No boulder entries found', boulders.length === 0 ? 'Add the first entry with "Add Boulder".' : 'Try changing the search or the period.')
+              ? renderEmpty('No boulder entries found', boulders.length === 0 ? 'Add the first entry with "Add Boulder".' : 'Nothing matches these filters.')
               : (
                 <>
                   {/* Phone: three short lines per entry */}
@@ -538,7 +681,9 @@ export default function BoulderLedger() {
                             </td>
                             <td className={TD}>
                               <p className="max-w-[18rem] truncate font-semibold text-slate-800" title={entry.partyName || undefined}>{getPartyDisplayName(entry)}</p>
-                              <Plate>{entry.vehicleNo || '-'}</Plate>
+                              <button type="button" onClick={() => setVehicleFilter(getVehicleKey(entry))} title="Show only this vehicle">
+                                <Plate>{entry.vehicleNo || '-'}</Plate>
+                              </button>
                             </td>
                             {isBulkEntry(entry) ? (
                               // A bulk entry has no weighbridge slip: its trips fill the gross / tare columns
@@ -564,14 +709,14 @@ export default function BoulderLedger() {
                           <td className={`${TD} font-bold text-slate-900`} colSpan={2}>
                             Total
                             <span className="ml-2 text-xs font-medium text-slate-500">
-                              {formatNumber(listTotals.trips)} trips · {formatTon(listTotals.netWeight)} T
+                              {formatNumber(totals.trips)} trips · {formatTon(totals.netWeight)} T
                             </span>
                           </td>
-                          <td className={`${TD} text-right font-semibold text-slate-800`}>{formatNumber(listTotals.grossWeight)}</td>
-                          <td className={`${TD} text-right font-semibold text-slate-800`}>{formatNumber(listTotals.tareWeight)}</td>
-                          <td className={`${TD} text-right font-bold text-emerald-700`}>{formatNumber(listTotals.netWeight)}</td>
+                          <td className={`${TD} text-right font-semibold text-slate-800`}>{formatNumber(totals.grossWeight)}</td>
+                          <td className={`${TD} text-right font-semibold text-slate-800`}>{formatNumber(totals.tareWeight)}</td>
+                          <td className={`${TD} text-right font-bold text-emerald-700`}>{formatNumber(totals.netWeight)}</td>
                           <td className={TD} />
-                          <td className={`${TD} whitespace-nowrap text-right font-bold text-slate-900`}>{formatCurrency(listTotals.amount)}</td>
+                          <td className={`${TD} whitespace-nowrap text-right font-bold text-slate-900`}>{formatCurrency(totals.amount)}</td>
                           <td className={TD} />
                         </tr>
                       </tfoot>
@@ -579,12 +724,166 @@ export default function BoulderLedger() {
                   </div>
 
                   <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-0.5 border-t border-slate-100 px-4 py-2 text-xs text-slate-500 md:px-5">
-                    <span>Showing {filteredBoulders.length} of {entryCount(periodBoulders.length)}</span>
+                    <span>{entryCount(filteredBoulders.length)} · tap a vehicle number to see only that vehicle</span>
                     {/* The table has its own total row; phones get the totals here */}
                     <span className="font-semibold text-slate-700 md:hidden">
-                      {formatNumber(listTotals.trips)} trips · {formatTon(listTotals.netWeight)} T · {formatCurrency(listTotals.amount)}
+                      {formatNumber(totals.trips)} trips · {formatTon(totals.netWeight)} T · {formatCurrency(totals.amount)}
                     </span>
                   </div>
+                </>
+              ))}
+
+            {tab === 'days' && (daySummary.length === 0
+              ? renderEmpty('No boulder on any day', 'Nothing matches these filters.')
+              : (
+                <>
+                  <ul className="divide-y divide-slate-100 md:hidden">
+                    {daySummary.map((row) => (
+                      <li key={row.day} className="px-4 py-2.5">
+                        <div className="flex items-baseline justify-between gap-3">
+                          <p className="text-sm font-semibold text-slate-800">{formatDay(row.day)}</p>
+                          <span className="shrink-0 text-sm font-bold text-emerald-700">{formatTon(row.netWeight)} T</span>
+                        </div>
+                        <div className="mt-1 flex items-center justify-between gap-3 text-xs text-slate-500">
+                          <span>{formatNumber(row.trips)} trips · {row.vehicleCount} vehicle{row.vehicleCount === 1 ? '' : 's'}</span>
+                          <span>{formatCurrency(row.amount)}</span>
+                        </div>
+                        <div className="mt-1.5 flex">{bar(row.netWeight, maxDayWeight)}</div>
+                      </li>
+                    ))}
+                  </ul>
+
+                  <div className="hidden overflow-x-auto md:block">
+                    <table className="w-full min-w-[760px] text-left">
+                      <thead>
+                        <tr>
+                          <th className={TH}>Date</th>
+                          <th className={`${TH} text-right`}>Trips</th>
+                          <th className={`${TH} text-right`}>Vehicles</th>
+                          <th className={TH}>Boulder</th>
+                          <th className={`${TH} text-right`}>Avg / Trip</th>
+                          <th className={`${TH} text-right`}>Amount</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {daySummary.map((row) => (
+                          <tr key={row.day} className="tbl-row">
+                            <td className={`${TD} whitespace-nowrap font-semibold text-slate-800`}>{formatDay(row.day)}</td>
+                            <td className={`${TD} text-right`}>{formatNumber(row.trips)}</td>
+                            <td className={`${TD} text-right text-slate-600`}>{row.vehicleCount}</td>
+                            <td className={TD}>
+                              <div className="flex items-center gap-3">
+                                <span className="w-20 shrink-0 whitespace-nowrap font-bold text-emerald-700">{formatTon(row.netWeight)} T</span>
+                                <div className="flex max-w-[220px] flex-1">{bar(row.netWeight, maxDayWeight)}</div>
+                              </div>
+                            </td>
+                            <td className={`${TD} text-right text-slate-600`}>{row.trips > 0 ? `${formatNumber(row.netWeight / 1000 / row.trips)} T` : '—'}</td>
+                            <td className={`${TD} whitespace-nowrap text-right font-semibold text-slate-800`}>{formatCurrency(row.amount)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                      <tfoot>
+                        <tr className="border-t border-slate-200 bg-slate-50">
+                          <td className={`${TD} font-bold text-slate-900`}>Total · {dayCount} day{dayCount === 1 ? '' : 's'}</td>
+                          <td className={`${TD} text-right font-semibold text-slate-800`}>{formatNumber(totals.trips)}</td>
+                          <td className={TD} />
+                          <td className={`${TD} whitespace-nowrap font-bold text-emerald-700`}>{formatTon(totals.netWeight)} T</td>
+                          <td className={`${TD} text-right text-slate-600`}>{totals.trips > 0 ? `${formatNumber(tons / totals.trips)} T` : '—'}</td>
+                          <td className={`${TD} whitespace-nowrap text-right font-bold text-slate-900`}>{formatCurrency(totals.amount)}</td>
+                        </tr>
+                      </tfoot>
+                    </table>
+                  </div>
+
+                  <p className="border-t border-slate-100 px-4 py-2 text-xs text-slate-500 md:px-5">
+                    One row per day, newest first{vehicleFilter ? ` · only ${vehicleFilter}` : ''}
+                  </p>
+                </>
+              ))}
+
+            {tab === 'vehicles' && (vehicleSummary.length === 0
+              ? renderEmpty('No vehicles', 'No boulder came in for these filters.')
+              : (
+                <>
+                  <ul className="divide-y divide-slate-100 md:hidden">
+                    {vehicleSummary.map((row) => (
+                      <li key={row.vehicleNo}>
+                        <button type="button" onClick={() => openVehicle(row.vehicleNo)} className={`w-full px-4 py-2.5 text-left active:bg-slate-50 ${vehicleFilter === row.vehicleNo ? 'bg-primary-50' : ''}`}>
+                          <div className="flex items-baseline justify-between gap-3">
+                            <p className="min-w-0 truncate text-sm font-semibold text-slate-800">{row.parties.join(', ') || '—'}</p>
+                            <span className="shrink-0 text-sm font-bold text-emerald-700">{formatTon(row.netWeight)} T</span>
+                          </div>
+                          <div className="mt-1 flex items-center justify-between gap-3">
+                            <Plate>{row.vehicleNo}</Plate>
+                            <span className="shrink-0 text-xs text-slate-500">{formatNumber(row.trips)} trips · {row.dayCount} days · {formatCurrency(row.amount)}</span>
+                          </div>
+                          <div className="mt-1.5 flex">{bar(row.netWeight, maxVehicleWeight)}</div>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+
+                  <div className="hidden overflow-x-auto md:block">
+                    <table className="w-full min-w-[820px] text-left">
+                      <thead>
+                        <tr>
+                          <th className={`${TH} w-10`}>#</th>
+                          <th className={TH}>Party / Vehicle</th>
+                          <th className={`${TH} text-right`}>Trips</th>
+                          <th className={`${TH} text-right`}>Days</th>
+                          <th className={TH}>Boulder</th>
+                          <th className={`${TH} text-right`}>Avg / Trip</th>
+                          <th className={`${TH} text-right`}>Amount</th>
+                          <th className={`${TH} text-right`}>Last Trip</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {vehicleSummary.map((row, index) => {
+                          const share = baseTotals.netWeight > 0 ? (row.netWeight / baseTotals.netWeight) * 100 : 0;
+                          return (
+                            <tr
+                              key={row.vehicleNo}
+                              onClick={() => openVehicle(row.vehicleNo)}
+                              className={`tbl-row cursor-pointer ${vehicleFilter === row.vehicleNo ? 'bg-primary-50' : ''}`}
+                            >
+                              <td className={`${TD} text-slate-400`}>{index + 1}</td>
+                              <td className={TD}>
+                                <p className="max-w-[18rem] truncate font-semibold text-slate-800" title={row.parties.join(', ') || undefined}>{row.parties.join(', ') || '—'}</p>
+                                <Plate>{row.vehicleNo}</Plate>
+                              </td>
+                              <td className={`${TD} text-right`}>{formatNumber(row.trips)}</td>
+                              <td className={`${TD} text-right text-slate-600`}>{row.dayCount}</td>
+                              <td className={TD}>
+                                <div className="flex items-center gap-3">
+                                  <span className="w-20 shrink-0 whitespace-nowrap font-bold text-emerald-700">{formatTon(row.netWeight)} T</span>
+                                  <div className="flex max-w-[180px] flex-1">{bar(row.netWeight, maxVehicleWeight)}</div>
+                                  <span className="w-9 shrink-0 text-right text-xs text-slate-400">{share.toFixed(0)}%</span>
+                                </div>
+                              </td>
+                              <td className={`${TD} text-right text-slate-600`}>{row.trips > 0 ? `${formatNumber(row.netWeight / 1000 / row.trips)} T` : '—'}</td>
+                              <td className={`${TD} whitespace-nowrap text-right font-semibold text-slate-800`}>{formatCurrency(row.amount)}</td>
+                              <td className={`${TD} whitespace-nowrap text-right text-slate-500`}>{formatDate(row.lastDate)}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                      <tfoot>
+                        <tr className="border-t border-slate-200 bg-slate-50">
+                          <td className={`${TD} font-bold text-slate-900`} colSpan={2}>Total · {vehicleSummary.length} vehicles</td>
+                          <td className={`${TD} text-right font-semibold text-slate-800`}>{formatNumber(baseTotals.trips)}</td>
+                          <td className={TD} />
+                          <td className={`${TD} whitespace-nowrap font-bold text-emerald-700`}>{formatTon(baseTotals.netWeight)} T</td>
+                          <td className={TD} />
+                          <td className={`${TD} whitespace-nowrap text-right font-bold text-slate-900`}>{formatCurrency(baseTotals.amount)}</td>
+                          <td className={TD} />
+                        </tr>
+                      </tfoot>
+                    </table>
+                  </div>
+
+                  <p className="border-t border-slate-100 px-4 py-2 text-xs text-slate-500 md:px-5">
+                    Most boulder first · tap a vehicle to see its entries and totals
+                  </p>
                 </>
               ))}
 
@@ -596,89 +895,18 @@ export default function BoulderLedger() {
                 canEdit={canDeleteBoulders}
               />
             )}
-
-            {tab === 'vehicles' && (vehicleSummary.length === 0
-              ? renderEmpty('No vehicles', 'No boulder came in during this period.')
-              : (
-                <>
-                  <ul className="divide-y divide-slate-100 md:hidden">
-                    {vehicleSummary.map((row) => (
-                      <li key={row.vehicleNo}>
-                        <button type="button" onClick={() => openVehicle(row.vehicleNo)} className="w-full px-4 py-2.5 text-left active:bg-slate-50">
-                          <div className="flex items-baseline justify-between gap-3">
-                            <p className="min-w-0 truncate text-sm font-semibold text-slate-800">{row.parties.join(', ') || '—'}</p>
-                            <span className="shrink-0 text-sm font-bold text-emerald-700">{formatTon(row.netWeight)} T</span>
-                          </div>
-                          <div className="mt-1 flex items-center justify-between gap-3">
-                            <Plate>{row.vehicleNo}</Plate>
-                            <span className="shrink-0 text-xs text-slate-500">{formatNumber(row.trips)} trips · {formatCurrency(row.amount)}</span>
-                          </div>
-                          <div className="mt-1.5 flex">{vehicleBar(row)}</div>
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-
-                  <div className="hidden overflow-x-auto md:block">
-                    <table className="w-full min-w-[760px] text-left">
-                      <thead>
-                        <tr>
-                          <th className={`${TH} w-10`}>#</th>
-                          <th className={TH}>Party / Vehicle</th>
-                          <th className={`${TH} text-right`}>Trips</th>
-                          <th className={TH}>Net Boulder</th>
-                          <th className={`${TH} text-right`}>Amount</th>
-                          <th className={`${TH} text-right`}>Last Trip</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {vehicleSummary.map((row, index) => {
-                          const share = periodTotals.netWeight > 0 ? (row.netWeight / periodTotals.netWeight) * 100 : 0;
-                          return (
-                            <tr
-                              key={row.vehicleNo}
-                              onClick={() => openVehicle(row.vehicleNo)}
-                              className={`tbl-row cursor-pointer ${vehicleFilter === row.vehicleNo ? 'bg-primary-50' : ''}`}
-                            >
-                              <td className={`${TD} text-slate-400`}>{index + 1}</td>
-                              <td className={TD}>
-                                <p className="max-w-[20rem] truncate font-semibold text-slate-800" title={row.parties.join(', ') || undefined}>{row.parties.join(', ') || '—'}</p>
-                                <Plate>{row.vehicleNo}</Plate>
-                              </td>
-                              <td className={`${TD} text-right`}>{formatNumber(row.trips)}</td>
-                              <td className={TD}>
-                                <div className="flex items-center gap-3">
-                                  <span className="w-20 shrink-0 whitespace-nowrap font-bold text-emerald-700">{formatTon(row.netWeight)} T</span>
-                                  <div className="flex max-w-[200px] flex-1">{vehicleBar(row)}</div>
-                                  <span className="w-9 shrink-0 text-right text-xs text-slate-400">{share.toFixed(0)}%</span>
-                                </div>
-                              </td>
-                              <td className={`${TD} whitespace-nowrap text-right font-semibold text-slate-800`}>{formatCurrency(row.amount)}</td>
-                              <td className={`${TD} whitespace-nowrap text-right text-slate-500`}>{formatDate(row.lastDate)}</td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                      <tfoot>
-                        <tr className="border-t border-slate-200 bg-slate-50">
-                          <td className={`${TD} font-bold text-slate-900`} colSpan={2}>Total</td>
-                          <td className={`${TD} text-right font-semibold text-slate-800`}>{formatNumber(periodTotals.trips)}</td>
-                          <td className={`${TD} whitespace-nowrap font-bold text-emerald-700`}>{formatTon(periodTotals.netWeight)} T</td>
-                          <td className={`${TD} whitespace-nowrap text-right font-bold text-slate-900`}>{formatCurrency(periodTotals.amount)}</td>
-                          <td className={TD} />
-                        </tr>
-                      </tfoot>
-                    </table>
-                  </div>
-
-                  <p className="border-t border-slate-100 px-4 py-2 text-xs text-slate-500 md:px-5">
-                    {vehicleSummary.length} vehicle{vehicleSummary.length === 1 ? '' : 's'}, most boulder first · tap one to see its entries
-                  </p>
-                </>
-              ))}
           </section>
         </div>
       )}
+
+      {/* Phones: Add Boulder always in reach */}
+      <button
+        type="button"
+        onClick={() => setShowAddEntry(true)}
+        className="fixed bottom-5 right-4 z-40 flex items-center gap-2 rounded-full bg-primary-600 px-5 py-3.5 text-sm font-bold text-white shadow-xl shadow-primary-600/30 transition hover:bg-primary-700 md:hidden"
+      >
+        <Plus size={20} /> Add Boulder
+      </button>
     </div>
   );
 }
