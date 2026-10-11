@@ -303,13 +303,14 @@ export default function DumpBoulder() {
     return { rows, opening, stockIn, stockOut, closing: rows.length ? rows[rows.length - 1].current : opening };
   }, [allRows, fromDate, toDate]);
 
+  // Newest entry on top, oldest at the bottom
   const visibleRows = useMemo(() => {
     const needle = filters.search.trim().toLowerCase();
     return period.rows.filter((row) => {
       if (filters.type && row.type !== filters.type) return false;
       if (!needle) return true;
       return [row.voucherNumber, row.vehicleNo, row.notes].some((value) => String(value || '').toLowerCase().includes(needle));
-    });
+    }).reverse();
   }, [period.rows, filters.type, filters.search]);
 
   const isFiltered = Boolean(filters.type || filters.search.trim());
@@ -442,11 +443,11 @@ export default function DumpBoulder() {
               )}
             </div>
 
-            {/* Phone: one card per row, previous + in/out = current */}
+            {/* Phone: one card per row, previous + in/out = current; newest on top */}
             <ul className="divide-y divide-slate-100 md:hidden">
-              <li className="flex items-center justify-between bg-slate-50 px-4 py-2.5 text-sm">
-                <span className="font-semibold text-slate-600">Opening stock</span>
-                <span className="font-bold text-slate-800">{ton(period.opening)}</span>
+              <li className="flex items-center justify-between bg-amber-50 px-4 py-2.5 text-sm">
+                <span className="font-bold text-slate-700">Closing stock</span>
+                <span className="font-black text-amber-700">{ton(period.closing)}</span>
               </li>
               {visibleRows.map((row) => (
                 <li key={row._id} className="px-4 py-3">
@@ -469,9 +470,9 @@ export default function DumpBoulder() {
               {visibleRows.length === 0 && (
                 <li className="flex flex-col items-center gap-2 px-6 py-10 text-center text-sm text-slate-500"><Inbox size={22} className="text-slate-300" />No entries in this period</li>
               )}
-              <li className="flex items-center justify-between bg-amber-50 px-4 py-2.5 text-sm">
-                <span className="font-bold text-slate-700">Closing stock</span>
-                <span className="font-black text-amber-700">{ton(period.closing)}</span>
+              <li className="flex items-center justify-between bg-slate-50 px-4 py-2.5 text-sm">
+                <span className="font-semibold text-slate-600">Opening stock</span>
+                <span className="font-bold text-slate-800">{ton(period.opening)}</span>
               </li>
             </ul>
 
@@ -493,11 +494,11 @@ export default function DumpBoulder() {
                   </tr>
                 </thead>
                 <tbody>
-                  <tr className="border-b border-slate-200 bg-slate-50">
+                  <tr className="border-b border-amber-200 bg-amber-50">
                     <td className={TD} />
-                    <td className={`${TD} whitespace-nowrap font-semibold text-slate-600`}>{fromDate ? formatDate(fromDate) : '—'}</td>
-                    <td className={`${TD} font-semibold text-slate-600`} colSpan={6}>Opening stock</td>
-                    <td className={`${TD} bg-amber-50/70 text-right font-bold text-slate-800`}>{ton(period.opening)}</td>
+                    <td className={`${TD} whitespace-nowrap font-semibold text-slate-700`}>{toDate ? formatDate(toDate) : 'Now'}</td>
+                    <td className={`${TD} font-bold text-slate-900`} colSpan={6}>Closing stock</td>
+                    <td className={`${TD} whitespace-nowrap text-right text-base font-black text-amber-700`}>{ton(period.closing)}</td>
                     <td className={TD} />
                   </tr>
                   {visibleRows.map((row, index) => (
@@ -528,6 +529,13 @@ export default function DumpBoulder() {
                       </td>
                     </tr>
                   )}
+                  <tr className="border-t border-slate-200 bg-slate-50">
+                    <td className={TD} />
+                    <td className={`${TD} whitespace-nowrap font-semibold text-slate-600`}>{fromDate ? formatDate(fromDate) : '—'}</td>
+                    <td className={`${TD} font-semibold text-slate-600`} colSpan={6}>Opening stock</td>
+                    <td className={`${TD} bg-amber-50/70 text-right font-bold text-slate-800`}>{ton(period.opening)}</td>
+                    <td className={TD} />
+                  </tr>
                 </tbody>
                 <tfoot>
                   <tr className="border-t-2 border-slate-200 bg-slate-50">
@@ -539,13 +547,6 @@ export default function DumpBoulder() {
                     <td className={`${TD} whitespace-nowrap bg-emerald-50/60 text-right font-black text-emerald-700`}>+ {ton(shownIn)}</td>
                     <td className={`${TD} whitespace-nowrap bg-blue-50/60 text-right font-black text-blue-700`}>− {ton(shownOut)}</td>
                     <td className={`${TD} bg-amber-50/70`} />
-                    <td className={TD} />
-                  </tr>
-                  <tr className="bg-amber-50">
-                    <td className={`${TD} font-bold text-slate-900`} colSpan={8}>
-                      Closing stock {toDate ? <span className="text-xs font-medium text-slate-500">· {formatDate(toDate)}</span> : ''}
-                    </td>
-                    <td className={`${TD} whitespace-nowrap text-right text-base font-black text-amber-700`}>{ton(period.closing)}</td>
                     <td className={TD} />
                   </tr>
                 </tfoot>
