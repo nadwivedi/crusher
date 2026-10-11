@@ -27,6 +27,7 @@ import ReportsHub from './pages/ReportsHub';
 import StockLedger from './pages/StockLedger';
 import PartyLedger from './pages/PartyLedger';
 import BoulderLedger from './pages/BoulderLedger';
+import DumpBoulder from './pages/DumpBoulder';
 import MaterialUsedLedger from './pages/MaterialUsedLedger';
 import DieselConsumptionReport from './pages/Reports/DieselConsumptionReport';
 import ProfitLossReport from './pages/Reports/ProfitLossReport';
@@ -139,6 +140,7 @@ function App() {
           <Route path="/reports/party-ledger" element={<PartyLedger />} />
           <Route path="/reports/stock-ledger" element={<StockLedger />} />
           <Route path="/reports/boulder-ledger" element={<BoulderLedger />} />
+          <Route path="/dump-boulder" element={<DumpBoulder />} />
           <Route path="/reports/material-used-ledger" element={<MaterialUsedLedger />} />
           <Route path="/reports/diesel-consumption" element={<DieselConsumptionReport />} />
           <Route path="/reports/sales-report" element={<Sales />} />

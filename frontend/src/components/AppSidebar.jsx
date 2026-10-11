@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import {
   LayoutDashboard, BookOpenText, ChartNoAxesCombined, Mountain, FileText, HandCoins, Send, Wallet,
   PackageMinus, IdCard, ChartColumn, Users, Boxes, Truck, Landmark, Tags,
-  Settings, X, ShoppingCart
+  Settings, X, ShoppingCart, Warehouse
 } from 'lucide-react';
 import Logo from './Logo';
 
@@ -21,6 +21,7 @@ const navGroups = [
     label: 'Operations',
     items: [
       { to: '/reports/boulder-ledger', icon: Mountain, label: 'Boulder' },
+      { to: '/dump-boulder', icon: Warehouse, label: 'Dump Boulder' },
       { to: '/reports/sales-report', icon: FileText, label: 'Sales' },
       { to: '/reports/purchase-report', icon: ShoppingCart, label: 'Purchases' },
       { to: '/reports/receipt-report', icon: HandCoins, label: 'Money Received' },

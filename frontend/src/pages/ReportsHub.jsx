@@ -7,7 +7,7 @@ import { filterRestrictedItems } from '../utils/featureAccess';
 const REPORT_ITEMS = [
   { name: 'Party Ledger', path: '/reports/party-ledger', Icon: Users },
   { name: 'Boulder Ledger', path: '/reports/boulder-ledger', Icon: Mountain },
-  { name: 'Dump Boulder Ledger', path: '/reports/boulder-ledger?tab=dump', Icon: Warehouse },
+  { name: 'Dump Boulder Ledger', path: '/dump-boulder', Icon: Warehouse },
   { name: 'Sales Report', path: '/reports/sales-report', Icon: FileText },
   { name: 'Purchase Report', path: '/reports/purchase-report', Icon: ShoppingCart },
   { name: 'Stock Ledger', path: '/reports/stock-ledger', Icon: Boxes },

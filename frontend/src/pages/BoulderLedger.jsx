@@ -1,15 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   CalendarDays, ClipboardList, Eye, Filter, Gauge, Inbox, IndianRupee, Mountain, Pencil, Plus, RefreshCw, Repeat,
-  Search, Trash2, Truck, Warehouse, X
+  Search, Trash2, Truck, X
 } from 'lucide-react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import apiClient from '../utils/api';
 import { useAuth } from '../context/AuthContext';
 import StatCard from '../components/StatCard';
 import Segmented from '../components/Segmented';
 import BoulderEntry from './BoulderEntry/BoulderEntry';
-import DumpStock from './BoulderEntry/DumpStock';
 import { toLocalDateInput } from '../components/CustomRangePopup';
 import MonthPickerPopup, { getMonthRange, formatMonthLabel } from '../components/MonthPickerPopup';
 
@@ -17,8 +16,7 @@ import MonthPickerPopup, { getMonthRange, formatMonthLabel } from '../components
 const TABS = [
   { key: 'entries', label: 'Entries', icon: ClipboardList },
   { key: 'days', label: 'Day-wise', icon: CalendarDays },
-  { key: 'vehicles', label: 'Vehicle-wise', icon: Truck },
-  { key: 'dump', label: 'Dump Stock', icon: Warehouse }
+  { key: 'vehicles', label: 'Vehicle-wise', icon: Truck }
 ];
 
 // Table cells a little tighter than the app default, so every column fits without scrolling
@@ -165,7 +163,6 @@ function FilterChip({ label, onClear }) {
 
 export default function BoulderLedger() {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
   const { user } = useAuth();
   const canDeleteBoulders = user?.role !== 'employee' && (user?.role === 'owner' || user?.permissions?.edit);
   const [boulders, setBoulders] = useState([]);
@@ -178,10 +175,7 @@ export default function BoulderLedger() {
   const [{ fromDate, toDate }, setDateRange] = useState({ fromDate: '', toDate: '' });
   const [editingEntry, setEditingEntry] = useState(null);
   const [showAddEntry, setShowAddEntry] = useState(false);
-  // ?tab=dump (from the Reports page) opens the dump stock straight away
-  const [tab, setTab] = useState(() => (TABS.some((item) => item.key === searchParams.get('tab')) ? searchParams.get('tab') : 'entries'));
-  // Bumped after every reload so the dump stock tab reloads too
-  const [dumpRefresh, setDumpRefresh] = useState(0);
+  const [tab, setTab] = useState('entries');
   const [showMonthPicker, setShowMonthPicker] = useState(false);
   // The filter panel opens from the Filters button in the header
   const [showFilters, setShowFilters] = useState(false);
@@ -231,7 +225,6 @@ export default function BoulderLedger() {
       setError(err.message || 'Error loading boulder ledger');
     } finally {
       setLoading(false);
-      setDumpRefresh((value) => value + 1);
     }
   };
 
@@ -604,16 +597,14 @@ export default function BoulderLedger() {
         </div>
       ) : (
         <div className={`space-y-3.5 transition-opacity md:space-y-4 ${loading ? 'pointer-events-none opacity-50' : ''}`}>
-          {tab !== 'dump' && (
-            <section>
-              <p className="mb-1.5 truncate px-0.5 text-xs font-semibold text-slate-500">
-                Totals for <span className="text-slate-800">{scopeLabel}</span>
-              </p>
-              <div className="grid grid-cols-3 gap-2 md:gap-3 xl:grid-cols-6">
-                {stats.map((stat) => <StatCard key={stat.label} compact {...stat} />)}
-              </div>
-            </section>
-          )}
+          <section>
+            <p className="mb-1.5 truncate px-0.5 text-xs font-semibold text-slate-500">
+              Totals for <span className="text-slate-800">{scopeLabel}</span>
+            </p>
+            <div className="grid grid-cols-3 gap-2 md:gap-3 xl:grid-cols-6">
+              {stats.map((stat) => <StatCard key={stat.label} compact {...stat} />)}
+            </div>
+          </section>
 
           <section className="panel">
             <div className="panel-header flex flex-wrap items-center justify-between gap-2.5 py-2.5">
@@ -887,14 +878,6 @@ export default function BoulderLedger() {
                 </>
               ))}
 
-            {tab === 'dump' && (
-              <DumpStock
-                fromDate={fromDate}
-                toDate={toDate}
-                refreshKey={dumpRefresh}
-                canEdit={canDeleteBoulders}
-              />
-            )}
           </section>
         </div>
       )}
