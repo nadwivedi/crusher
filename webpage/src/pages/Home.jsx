@@ -69,19 +69,19 @@ const softwareAppSchema = {
     {
       '@type': 'Offer',
       priceCurrency: 'INR',
-      price: '4999',
+      price: '6999',
       name: 'Basic',
     },
     {
       '@type': 'Offer',
       priceCurrency: 'INR',
-      price: '6999',
+      price: '8999',
       name: 'Advanced',
     },
     {
       '@type': 'Offer',
       priceCurrency: 'INR',
-      price: '8999',
+      price: '10999',
       name: 'Enterprise',
     },
   ],
@@ -118,7 +118,7 @@ const Home = () => {
     },
     {
       question: 'What are your pricing plans?',
-      answer: 'We offer flexible pricing starting at Rs 4,999/year for Basic, Rs 6,999/year for Advanced, and Rs 8,999/year for Enterprise with multi-plant support. All plans include a 14-day free trial with no credit card required.',
+      answer: 'We offer flexible pricing starting at Rs 6,999/year for Basic, Rs 8,999/year for Advanced, and Rs 10,999/year for Enterprise with multi-plant support. All plans include a 14-day free trial with no credit card required.',
     },
   ];
 

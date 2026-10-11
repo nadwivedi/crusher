@@ -280,7 +280,7 @@ export const landingPages = [
       { title: 'Review', text: 'Diesel, expenses, and P&L show what each tonne really cost.' },
     ],
     faq: [
-      { question: 'Is CrusherBook suitable for small quarries?', answer: 'Yes. Plans start at Rs 4,999 per year and the software is simple enough for a single munshi to run.' },
+      { question: 'Is CrusherBook suitable for small quarries?', answer: 'Yes. Plans start at Rs 6,999 per year and the software is simple enough for a single munshi to run.' },
       { question: 'Can I track diesel for each machine?', answer: 'Yes. Record diesel issued against machines or vehicles and use the diesel consumption report to compare usage.' },
       { question: 'Can I manage both mine and crusher in one account?', answer: 'Yes. Boulder inward, crushing, and dispatch are all part of the same flow, and multi-plant is available on the Enterprise plan.' },
     ],
@@ -337,7 +337,7 @@ export const landingPages = [
     ],
     faq: [
       { question: 'क्या यह ऐप हिंदी समझने वालों के लिए आसान है?', answer: 'Haan. CrusherBook bahut simple hai aur hamari team Hindi mein phone ya WhatsApp par setup aur training karwati hai.' },
-      { question: 'इसकी कीमत कितनी है?', answer: 'Plan Rs 4,999 saal se shuru hote hain. Pehle free demo dekhein, phir decide karein.' },
+      { question: 'इसकी कीमत कितनी है?', answer: 'Plan Rs 6,999 saal se shuru hote hain. Pehle free demo dekhein, phir decide karein.' },
       { question: 'क्या मुंशी एंट्री कर सकता है और मालिक मोबाइल पर देख सकता है?', answer: 'Haan. Munshi ko alag login milta hai, aur owner apne mobile par roz ka hisab, stock aur party ki baki dekh sakta hai.' },
       { question: 'क्या डेटा सुरक्षित है?', answer: 'Haan. Aapka data cloud par surakshit rehta hai aur har user sirf wahi dekh sakta hai jo aap allow karein.' },
     ],

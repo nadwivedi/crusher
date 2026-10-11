@@ -52,8 +52,8 @@ const buildSchema = (page) => {
       offers: {
         '@type': 'AggregateOffer',
         priceCurrency: 'INR',
-        lowPrice: '4999',
-        highPrice: '8999',
+        lowPrice: '6999',
+        highPrice: '10999',
         offerCount: '3',
       },
     },
@@ -108,7 +108,7 @@ export default function KeywordLanding({ slug }) {
           </p>
           <ContactActions primaryLabel="Get Free Demo on WhatsApp" secondaryLabel="Call Now" />
           <p className="mt-4 text-xs sm:text-sm text-brand-slate">
-            Plans from Rs 4,999/year · <Link to="/pricing" className="font-semibold text-brand-orange hover:underline">See pricing</Link>
+            Plans from Rs 6,999/year · <Link to="/pricing" className="font-semibold text-brand-orange hover:underline">See pricing</Link>
           </p>
         </div>
       </section>
