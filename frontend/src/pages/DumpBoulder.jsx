@@ -1,14 +1,15 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  ArrowDownToLine, ArrowUpFromLine, CalendarClock, Filter, Inbox, Pencil, RefreshCw, Search, Trash2, TrendingDown,
-  TrendingUp, Warehouse, X
+  ArrowDownToLine, ArrowUpFromLine, CalendarClock, CalendarDays, ChevronRight, ClipboardList, Filter, Inbox, Pencil,
+  RefreshCw, Search, Trash2, TrendingDown, TrendingUp, Warehouse, X
 } from 'lucide-react';
 import { toast } from 'react-toastify';
 import apiClient from '../utils/api';
 import { useAuth } from '../context/AuthContext';
 import { handlePopupFormKeyDown } from '../utils/popupFormKeyboard';
 import StatCard from '../components/StatCard';
+import Segmented from '../components/Segmented';
 import FormPopup from '../components/FormPopup';
 import FormSection from '../components/FormSection';
 import { toLocalDateInput } from '../components/CustomRangePopup';
@@ -66,9 +67,15 @@ const resolvePresetRange = (preset) => {
   return { fromDate: '', toDate: '' };
 };
 
+// The two views of the ledger panel
+const VIEWS = [
+  { key: 'entries', label: 'All Entries', icon: ClipboardList },
+  { key: 'months', label: 'Month-wise', icon: CalendarDays }
+];
+
 const DEFAULT_FILTERS = {
-  preset: 'thisMonth',
-  ...resolvePresetRange('thisMonth'),
+  preset: '',
+  ...resolvePresetRange(''),
   month: String(new Date().getMonth()),
   year: String(new Date().getFullYear()),
   type: '',
@@ -245,6 +252,7 @@ export default function DumpBoulder() {
   const [error, setError] = useState('');
   const [filters, setFilters] = useState(DEFAULT_FILTERS);
   const [showFilters, setShowFilters] = useState(false);
+  const [view, setView] = useState('entries');
   // { type: 'to_dump' | 'to_hopper', entry? }
   const [popup, setPopup] = useState(null);
   const { fromDate, toDate } = filters;
@@ -303,6 +311,44 @@ export default function DumpBoulder() {
     return { rows, opening, stockIn, stockOut, closing: rows.length ? rows[rows.length - 1].current : opening };
   }, [allRows, fromDate, toDate]);
 
+  // One row per month: opening, dumped, to hopper, closing; newest month on top
+  const months = useMemo(() => {
+    const map = new Map();
+    let running = period.opening;
+    for (const row of period.rows) {
+      const date = new Date(row.date);
+      const key = row.day.slice(0, 7);
+      let item = map.get(key);
+      if (!item) {
+        item = {
+          key,
+          month: String(date.getMonth()),
+          year: String(date.getFullYear()),
+          label: date.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' }),
+          opening: running, dumped: 0, dumpedCount: 0, used: 0, usedCount: 0, closing: running
+        };
+        map.set(key, item);
+      }
+      if (isStockIn(row)) {
+        item.dumped += row.weight;
+        item.dumpedCount += 1;
+      } else {
+        item.used += row.weight;
+        item.usedCount += 1;
+      }
+      running = row.current;
+      item.closing = running;
+    }
+    return [...map.values()].reverse();
+  }, [period]);
+
+  // A month row opens that month's entries
+  const openMonth = (item) => {
+    const bounds = getMonthRange(item.month, item.year);
+    setFilters((prev) => ({ ...prev, preset: 'monthWise', month: item.month, year: item.year, fromDate: bounds.from, toDate: bounds.to }));
+    setView('entries');
+  };
+
   // Newest entry on top, oldest at the bottom
   const visibleRows = useMemo(() => {
     const needle = filters.search.trim().toLowerCase();
@@ -312,10 +358,6 @@ export default function DumpBoulder() {
       return [row.voucherNumber, row.vehicleNo, row.notes].some((value) => String(value || '').toLowerCase().includes(needle));
     }).reverse();
   }, [period.rows, filters.type, filters.search]);
-
-  const isFiltered = Boolean(filters.type || filters.search.trim());
-  const shownIn = visibleRows.filter(isStockIn).reduce((sum, row) => sum + row.weight, 0);
-  const shownOut = visibleRows.filter((row) => !isStockIn(row)).reduce((sum, row) => sum + row.weight, 0);
 
   // Filters changed from the defaults (This Month, every entry, no search)
   const periodChanged = filters.preset !== DEFAULT_FILTERS.preset
@@ -429,7 +471,7 @@ export default function DumpBoulder() {
           <section className="panel">
             {/* What the table is showing; each filter can be removed here */}
             <div className="panel-header flex flex-wrap items-center gap-2 py-2.5">
-              <h3 className="mr-1 text-sm font-bold text-slate-900">Stock Ledger</h3>
+              <Segmented options={VIEWS} value={view} onChange={setView} className="mr-1" />
               <FilterChip
                 label={periodLabel}
                 onClear={periodChanged
@@ -443,6 +485,80 @@ export default function DumpBoulder() {
               )}
             </div>
 
+            {view === 'months' && (months.length === 0 ? (
+              <div className="flex flex-col items-center gap-2 px-6 py-12 text-center">
+                <Inbox size={24} className="text-slate-300" />
+                <p className="text-sm font-semibold text-slate-700">No dump boulder yet</p>
+                <p className="text-xs text-slate-500">Use "Stock In" when boulder is unloaded on the dump, and "Stock Out to Hopper" when it is fed.</p>
+              </div>
+            ) : (
+              <>
+                {/* Phone: one card per month */}
+                <ul className="divide-y divide-slate-100 md:hidden">
+                  {months.map((item) => (
+                    <li key={item.key}>
+                      <button type="button" onClick={() => openMonth(item)} className="w-full px-4 py-3 text-left active:bg-slate-50">
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="text-sm font-bold text-slate-900">{item.label}</p>
+                          <span className="flex items-center gap-1 text-xs text-slate-400">Entries <ChevronRight size={14} /></span>
+                        </div>
+                        <div className="mt-2 grid grid-cols-2 gap-2 text-sm">
+                          <div className="rounded-lg bg-emerald-50 px-2.5 py-1.5">
+                            <p className="text-[11px] font-semibold text-emerald-700">Dumped</p>
+                            <p className="font-black text-emerald-700">+ {ton(item.dumped)}</p>
+                          </div>
+                          <div className="rounded-lg bg-blue-50 px-2.5 py-1.5">
+                            <p className="text-[11px] font-semibold text-blue-700">To Hopper</p>
+                            <p className="font-black text-blue-700">− {ton(item.used)}</p>
+                          </div>
+                        </div>
+                        <p className="mt-1.5 text-xs text-slate-500">
+                          Stock {ton(item.opening)} → <b className="text-amber-700">{ton(item.closing)}</b>
+                        </p>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+
+                {/* Desktop: one row per month */}
+                <div className="hidden overflow-x-auto md:block">
+                  <table className="w-full min-w-[760px] text-left">
+                    <thead>
+                      <tr>
+                        <th className={TH}>Month</th>
+                        <th className={`${TH} text-right`}>Opening Stock</th>
+                        <th className={`${TH} bg-emerald-50/60 text-right text-emerald-800`}>Dumped (In)</th>
+                        <th className={`${TH} bg-blue-50/60 text-right text-blue-800`}>To Hopper (Out)</th>
+                        <th className={`${TH} bg-amber-50/70 text-right text-amber-800`}>Closing Stock</th>
+                        <th className={`${TH} w-10`} />
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {months.map((item) => (
+                        <tr key={item.key} onClick={() => openMonth(item)} className="tbl-row cursor-pointer" title="Show this month's entries">
+                          <td className={`${TD} whitespace-nowrap font-bold text-slate-900`}>{item.label}</td>
+                          <td className={`${TD} whitespace-nowrap text-right text-slate-500`}>{ton(item.opening)}</td>
+                          <td className={`${TD} whitespace-nowrap bg-emerald-50/40 text-right`}>
+                            <span className="font-bold text-emerald-700">+ {ton(item.dumped)}</span>
+                            <span className="block text-[11px] text-slate-400">{item.dumpedCount} {item.dumpedCount === 1 ? 'entry' : 'entries'}</span>
+                          </td>
+                          <td className={`${TD} whitespace-nowrap bg-blue-50/40 text-right`}>
+                            <span className="font-bold text-blue-700">− {ton(item.used)}</span>
+                            <span className="block text-[11px] text-slate-400">{item.usedCount} {item.usedCount === 1 ? 'entry' : 'entries'}</span>
+                          </td>
+                          <td className={`${TD} whitespace-nowrap bg-amber-50/60 text-right font-black text-amber-700`}>{ton(item.closing)}</td>
+                          <td className={`${TD} text-slate-300`}><ChevronRight size={16} /></td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <p className="border-t border-slate-100 px-4 py-2 text-xs text-slate-500 md:px-5">Newest month first · click a month to see its entries</p>
+              </>
+            ))}
+
+            {view === 'entries' && (
+            <>
             {/* Phone: one card per row, previous + in/out = current; newest on top */}
             <ul className="divide-y divide-slate-100 md:hidden">
               <li className="flex items-center justify-between bg-amber-50 px-4 py-2.5 text-sm">
@@ -537,21 +653,10 @@ export default function DumpBoulder() {
                     <td className={TD} />
                   </tr>
                 </tbody>
-                <tfoot>
-                  <tr className="border-t-2 border-slate-200 bg-slate-50">
-                    <td className={`${TD} font-bold text-slate-900`} colSpan={5}>
-                      {isFiltered ? 'Total of rows shown' : 'Total'}
-                      <span className="ml-2 text-xs font-medium text-slate-500">{visibleRows.length} entr{visibleRows.length === 1 ? 'y' : 'ies'}</span>
-                    </td>
-                    <td className={TD} />
-                    <td className={`${TD} whitespace-nowrap bg-emerald-50/60 text-right font-black text-emerald-700`}>+ {ton(shownIn)}</td>
-                    <td className={`${TD} whitespace-nowrap bg-blue-50/60 text-right font-black text-blue-700`}>− {ton(shownOut)}</td>
-                    <td className={`${TD} bg-amber-50/70`} />
-                    <td className={TD} />
-                  </tr>
-                </tfoot>
               </table>
             </div>
+            </>
+            )}
           </section>
         </div>
       )}
