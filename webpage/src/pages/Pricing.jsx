@@ -35,6 +35,7 @@ const plans = [
       'Weightbridge entry',
       'Faster weight capture',
       'Dispatch flow',
+      'Excel export of reports',
       '3 employee logins',
     ],
   },
