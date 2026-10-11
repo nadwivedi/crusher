@@ -32,6 +32,8 @@ const vehicleRoutes = require("./routes/vehicleRoutes");
 const ocrRoutes = require("./routes/ocrRoutes");
 
 dotenv.config({ path: path.join(__dirname, ".env") });
+// Count days in India time even when the server clock is UTC
+require("./config/timezone");
 
 const app = express();
 const PORT = process.env.PORT || 5000;
