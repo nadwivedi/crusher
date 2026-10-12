@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, Navigate } from 'react-router-dom';
 import {
-  ArrowRight, BarChart3, BookOpen, Boxes, Building2, Camera, ChevronDown, Factory, Fuel, Landmark,
+  ArrowRight, BarChart3, BookOpen, Boxes, Building2, Camera, ChevronDown, Factory, Fuel, Gauge, Landmark,
   MessageCircle, Mountain, Receipt, Scale, TriangleAlert, Truck, Undo2, UserCog, Users, Wallet,
 } from 'lucide-react';
 import ContactActions from '../components/ContactActions';
@@ -18,6 +18,7 @@ const iconMap = {
   chart: BarChart3,
   factory: Factory,
   fuel: Fuel,
+  gauge: Gauge,
   landmark: Landmark,
   message: MessageCircle,
   mountain: Mountain,
