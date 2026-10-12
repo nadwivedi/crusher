@@ -1,4 +1,5 @@
 const bcrypt = require("bcryptjs");
+const { ensureDieselStock } = require("../utils/diesel");
 const User = require("../models/User");
 const { createAccessLink } = require("../utils/adminAccess");
 
@@ -96,6 +97,8 @@ const createUser = async (req, res) => {
       planType: plan.planType,
       planPrice: plan.planPrice,
     });
+
+    await ensureDieselStock(user._id).catch(() => {});
 
     return res.status(201).json({
       success: true,

@@ -18,8 +18,9 @@ const buildSearchQuery = (search) => {
 
 const createStock = async (req, res) => {
   try {
+    const { isDiesel, ...body } = req.body;
     const stock = await Stock.create({
-      ...req.body,
+      ...body,
       userId: req.userId,
     });
     return res.status(201).json({ data: stock });
@@ -74,7 +75,8 @@ const editStock = async (req, res) => {
   }
 
   try {
-    const stock = await Stock.findOneAndUpdate(scopedIdFilter(req, id), req.body, {
+    const { isDiesel, userId, ...body } = req.body;
+    const stock = await Stock.findOneAndUpdate(scopedIdFilter(req, id), body, {
       new: true,
       runValidators: true,
     });
@@ -100,6 +102,11 @@ const deleteStock = async (req, res) => {
   }
 
   try {
+    const dieselItem = await Stock.findOne(scopedIdFilter(req, id, { isDiesel: true })).select("_id");
+    if (dieselItem) {
+      return res.status(400).json({ message: "Diesel is a default item used by the diesel report and cannot be deleted" });
+    }
+
     const stock = await Stock.findOneAndDelete(scopedIdFilter(req, id));
 
     if (!stock) {

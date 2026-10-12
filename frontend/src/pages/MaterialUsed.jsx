@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'react-toastify';
 import { Package, Truck, X } from 'lucide-react';
 import apiClient from '../utils/api';
+import { USED_FOR_OPTIONS, describeVehicle, meterLabel, meterUnitFor, sortVehiclesForFuel, usedForName, usedForOf } from '../utils/diesel';
 import { handlePopupFormKeyDown } from '../utils/popupFormKeyboard';
 import { useFloatingDropdownPosition } from '../utils/useFloatingDropdownPosition';
 
@@ -11,7 +12,9 @@ const TOAST_OPTIONS = {
 };
 
 const initialFormData = {
+  usedFor: 'vehicle',
   vehicle: '',
+  meterReading: '',
   materialType: '',
   usedQty: '',
   usedDate: new Date().toISOString().slice(0, 10),
@@ -19,6 +22,10 @@ const initialFormData = {
 };
 
 const formatQty = (value) => Number(value || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 });
+
+const OPTION_CLASS = 'rounded-lg border px-2 py-2 text-sm font-semibold transition';
+const ACTIVE_OPTION_CLASS = 'border-primary-600 bg-primary-50 text-primary-700 ring-1 ring-primary-600';
+const INACTIVE_OPTION_CLASS = 'border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50';
 
 function MaterialUsedForm({
   formData,
@@ -55,7 +62,9 @@ function MaterialUsedForm({
   getMaterialDisplayName,
   getMaterialStockText,
   selectVehicle,
-  selectMaterial
+  selectMaterial,
+  onUsedForChange,
+  lastReading
 }) {
   const vehicleDropdownStyle = useFloatingDropdownPosition(vehicleSectionRef, isVehicleSectionActive, [filteredVehicles.length, vehicleListIndex]);
   const materialDropdownStyle = useFloatingDropdownPosition(materialSectionRef, isMaterialSectionActive, [filteredMaterials.length, materialListIndex]);
@@ -69,13 +78,19 @@ function MaterialUsedForm({
   const stockAfter = Math.round((inStock - usedQty) * 100) / 100;
   const exceedsStock = Boolean(selectedMaterial) && stockAfter < 0;
 
+  const selectedVehicle = vehicles.find((vehicle) => vehicle._id === formData.vehicle);
+  const hasTarget = formData.usedFor === 'dg' || (formData.usedFor === 'vehicle' && Boolean(selectedVehicle));
+  const meterUnit = meterUnitFor(formData.usedFor, selectedVehicle?.category);
+  const reading = formData.meterReading === '' ? null : Number(formData.meterReading);
+  const readingBelowLast = Boolean(lastReading) && reading !== null && reading < lastReading.reading;
+
   return (
     <div className="flex max-h-[95vh] w-full max-w-lg flex-col overflow-hidden rounded-xl bg-white shadow-2xl md:rounded-2xl">
       <div className="flex-shrink-0 bg-gradient-to-r from-primary-700 to-primary-500 p-3 text-white md:px-5 md:py-4">
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0">
             <h2 className="truncate text-lg font-bold md:text-xl">{editingId ? 'Edit Material Used' : 'Add Material Used'}</h2>
-            <p className="mt-0.5 text-xs text-primary-100 md:text-sm">Stock of the material reduces automatically</p>
+            <p className="mt-0.5 text-xs text-primary-100 md:text-sm">Diesel or material given to a vehicle, DG set or the plant</p>
           </div>
           {onClose && (
             <button type="button" onClick={onClose} aria-label="Close popup" className="shrink-0 rounded-lg p-1.5 text-white transition hover:bg-white/20 md:p-2">
@@ -87,7 +102,25 @@ function MaterialUsedForm({
 
       <div className="flex-1 space-y-3 overflow-y-auto p-3 md:space-y-4 md:p-6">
         <div>
-          <label className="label">Vehicle No <span className="font-normal text-slate-400">(optional)</span></label>
+          <label className="label">Given To</label>
+          <div className="grid grid-cols-3 gap-2">
+            {USED_FOR_OPTIONS.map((option) => (
+              <button
+                key={option.key}
+                type="button"
+                onClick={() => onUsedForChange(option.key)}
+                aria-pressed={formData.usedFor === option.key}
+                className={`${OPTION_CLASS} ${formData.usedFor === option.key ? ACTIVE_OPTION_CLASS : INACTIVE_OPTION_CLASS}`}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {formData.usedFor === 'vehicle' && (
+        <div>
+          <label className="label">Vehicle *</label>
           <div
             ref={vehicleSectionRef}
             className="relative"
@@ -107,13 +140,13 @@ function MaterialUsedForm({
                 onChange={handleVehicleInputChange}
                 onKeyDown={handleVehicleInputKeyDown}
                 className="input pl-9"
-                placeholder="Type to search vehicle"
+                placeholder="Pick or type vehicle number"
                 autoComplete="off"
                 autoFocus
               />
             </div>
 
-            {isVehicleSectionActive && vehicleQuery.trim().length > 0 && vehicleDropdownStyle && (
+            {isVehicleSectionActive && vehicleDropdownStyle && (
               <div
                 className="fixed z-[80] overflow-hidden rounded-xl border border-amber-200 bg-white shadow-[0_18px_40px_rgba(15,23,42,0.18)]"
                 style={vehicleDropdownStyle}
@@ -148,6 +181,7 @@ function MaterialUsedForm({
                           }`}
                         >
                           <span className="truncate font-medium">{getVehicleDisplayName(vehicle)}</span>
+                          <span className="shrink-0 text-[11px] text-slate-500">{describeVehicle(vehicle)}</span>
                         </button>
                       );
                     })
@@ -157,6 +191,7 @@ function MaterialUsedForm({
             )}
           </div>
         </div>
+        )}
 
         <div>
           <label className="label">Material *</label>
@@ -275,6 +310,37 @@ function MaterialUsedForm({
           </div>
         </div>
 
+        {hasTarget && (
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="label">{meterLabel(meterUnit)} <span className="font-normal text-slate-400">(optional)</span></label>
+              <div className="relative">
+                <input
+                  type="number"
+                  min="0"
+                  step="any"
+                  value={formData.meterReading}
+                  onChange={(event) => setFormData((prev) => ({ ...prev, meterReading: event.target.value }))}
+                  placeholder="Meter now"
+                  className="input pr-10"
+                />
+                <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-xs font-semibold text-slate-400">{meterUnit}</span>
+              </div>
+            </div>
+            <div className="self-end pb-1 text-xs text-slate-500">
+              {lastReading ? (
+                <>
+                  <p>
+                    Last: <span className="font-semibold text-slate-700">{formatQty(lastReading.reading)} {meterUnit}</span>
+                    {' '}on {new Date(lastReading.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}
+                  </p>
+                  {readingBelowLast && <p className="mt-0.5 font-medium text-amber-700">Lower than the last reading</p>}
+                </>
+              ) : 'Helps work out the average (km/ltr or ltr/hr)'}
+            </div>
+          </div>
+        )}
+
         <div>
           <label className="label">Notes</label>
           <textarea
@@ -342,6 +408,18 @@ export default function MaterialUsed({ modalOnly = false, onModalFinish = null }
     return vehicles.filter((vehicle) => getVehicleDisplayName(vehicle).toLowerCase().includes(searchValue));
   }, [vehicles, vehicleQuery]);
 
+  // The meter reading noted at the last filling of the picked vehicle / the DG set
+  const lastReading = useMemo(() => {
+    const { usedFor, vehicle } = formData;
+    if (usedFor === 'other' || (usedFor === 'vehicle' && !vehicle)) return null;
+    const isSameTarget = (entry) => usedForOf(entry) === usedFor
+      && (usedFor === 'dg' || String(entry.vehicle?._id || entry.vehicle || '') === vehicle);
+    const last = entries
+      .filter((entry) => entry._id !== editingId && isSameTarget(entry) && entry.meterReading !== null && entry.meterReading !== undefined)
+      .sort((a, b) => new Date(b.usedDate || b.createdAt) - new Date(a.usedDate || a.createdAt) || new Date(b.createdAt) - new Date(a.createdAt))[0];
+    return last ? { reading: Number(last.meterReading), date: last.usedDate || last.createdAt } : null;
+  }, [entries, editingId, formData]);
+
   const filteredMaterials = useMemo(() => {
     const searchValue = String(materialQuery || '').trim().toLowerCase();
     if (!searchValue) return materials;
@@ -364,7 +442,7 @@ export default function MaterialUsed({ modalOnly = false, onModalFinish = null }
       setFetching(true);
       setError('');
       const response = await apiClient.get('/material-used', { params: { search: searchValue } });
-      setEntries(Array.isArray(response) ? response : []);
+      setEntries(Array.isArray(response?.data) ? response.data : Array.isArray(response) ? response : []);
     } catch (err) {
       setError(err.message || 'Error fetching material used entries');
     } finally {
@@ -372,20 +450,28 @@ export default function MaterialUsed({ modalOnly = false, onModalFinish = null }
     }
   };
 
-  const fetchOptions = async () => {
+  // A new entry starts with Diesel picked: it is what is given out most
+  const prefillDiesel = (materialList) => {
+    const diesel = materialList.find((material) => material.isDiesel);
+    if (!diesel) return;
+    setFormData((prev) => (prev.materialType ? prev : { ...prev, materialType: diesel._id }));
+    setMaterialQuery((prev) => prev || getMaterialDisplayName(diesel));
+  };
+
+  const fetchOptions = async ({ prefill = false } = {}) => {
     try {
       const [vehicleResponse, materialResponse] = await Promise.all([
         apiClient.get('/vehicles'),
         apiClient.get('/products')
       ]);
-      setVehicles(Array.isArray(vehicleResponse) ? vehicleResponse : []);
-      setMaterials(
-        Array.isArray(materialResponse?.data)
-          ? materialResponse.data
-          : Array.isArray(materialResponse)
-          ? materialResponse
-          : []
-      );
+      const materialList = Array.isArray(materialResponse?.data)
+        ? materialResponse.data
+        : Array.isArray(materialResponse)
+        ? materialResponse
+        : [];
+      setVehicles(sortVehiclesForFuel(Array.isArray(vehicleResponse) ? vehicleResponse : []));
+      setMaterials(materialList);
+      if (prefill) prefillDiesel(materialList);
     } catch (err) {
       setError(err.message || 'Error loading material options');
     }
@@ -393,7 +479,7 @@ export default function MaterialUsed({ modalOnly = false, onModalFinish = null }
 
   useEffect(() => {
     fetchEntries('');
-    fetchOptions();
+    fetchOptions({ prefill: true });
   }, []);
 
   useEffect(() => {
@@ -405,6 +491,11 @@ export default function MaterialUsed({ modalOnly = false, onModalFinish = null }
   }, [search]);
 
   const handleSave = async () => {
+    if (formData.usedFor === 'vehicle' && !formData.vehicle) {
+      toast.error('Select the vehicle from the list', TOAST_OPTIONS);
+      return;
+    }
+
     if (!formData.materialType) {
       toast.error('Material type is required', TOAST_OPTIONS);
       return;
@@ -421,7 +512,9 @@ export default function MaterialUsed({ modalOnly = false, onModalFinish = null }
     }
 
     const payload = {
-      vehicle: formData.vehicle || null,
+      usedFor: formData.usedFor,
+      vehicle: formData.usedFor === 'vehicle' ? formData.vehicle : null,
+      meterReading: formData.usedFor === 'other' ? '' : formData.meterReading,
       materialType: formData.materialType,
       usedQty: Number(formData.usedQty),
       usedDate: formData.usedDate || undefined,
@@ -439,7 +532,7 @@ export default function MaterialUsed({ modalOnly = false, onModalFinish = null }
       }
       resetForm();
       await fetchEntries();
-      await fetchOptions();
+      await fetchOptions({ prefill: true });
       if (modalOnly && onModalFinish) {
         onModalFinish();
       }
@@ -453,7 +546,9 @@ export default function MaterialUsed({ modalOnly = false, onModalFinish = null }
   const handleEdit = (entry) => {
     setEditingId(entry._id);
     setFormData({
+      usedFor: usedForOf(entry),
       vehicle: entry.vehicle?._id || '',
+      meterReading: entry.meterReading ?? '',
       materialType: entry.materialType?._id || '',
       usedQty: entry.usedQty || '',
       usedDate: entry.usedDate ? new Date(entry.usedDate).toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10),
@@ -463,10 +558,17 @@ export default function MaterialUsed({ modalOnly = false, onModalFinish = null }
     setMaterialQuery(entry.materialTypeName || entry.materialType?.name || '');
   };
 
+  // The whole list opens on focus; Enter only picks a vehicle once something is typed or an arrow key moved the highlight
   const handleVehicleFocus = () => {
     setIsVehicleSectionActive(true);
-    setVehicleListIndex(filteredVehicles.length > 0 ? 0 : -1);
+    setVehicleListIndex(vehicleQuery.trim() && filteredVehicles.length > 0 ? 0 : -1);
   };
+
+  const handleUsedForChange = (usedFor) => {
+    setFormData((prev) => (prev.usedFor === usedFor ? prev : { ...prev, usedFor, meterReading: '' }));
+  };
+
+
 
   const handleMaterialFocus = () => {
     setIsMaterialSectionActive(true);
@@ -489,6 +591,7 @@ export default function MaterialUsed({ modalOnly = false, onModalFinish = null }
     const value = event.target.value;
     setVehicleQuery(value);
     setIsVehicleSectionActive(true);
+    setVehicleListIndex(value.trim() ? 0 : -1);
     if (!value.trim()) {
       setFormData((prev) => ({ ...prev, vehicle: '' }));
       return;
@@ -524,7 +627,7 @@ export default function MaterialUsed({ modalOnly = false, onModalFinish = null }
     }
     if (event.key === 'Enter') {
       event.preventDefault();
-      if (vehicleQuery.trim().length > 0 && isVehicleSectionActive && filteredVehicles.length > 0 && vehicleListIndex !== -1) {
+      if (isVehicleSectionActive && filteredVehicles.length > 0 && vehicleListIndex !== -1) {
         selectVehicle(filteredVehicles[vehicleListIndex]);
       }
       materialInputRef.current?.focus();
@@ -627,6 +730,8 @@ export default function MaterialUsed({ modalOnly = false, onModalFinish = null }
         getMaterialStockText={getMaterialStockText}
         selectVehicle={selectVehicle}
         selectMaterial={selectMaterial}
+        onUsedForChange={handleUsedForChange}
+        lastReading={lastReading}
       />
 
       <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-[0_24px_60px_rgba(15,23,42,0.08)]">
@@ -655,7 +760,7 @@ export default function MaterialUsed({ modalOnly = false, onModalFinish = null }
             <thead>
               <tr className="bg-slate-50 text-left text-slate-600">
                 <th className="border-y border-slate-200 px-4 py-3 font-semibold">Used Date</th>
-                <th className="border-y border-slate-200 px-4 py-3 font-semibold">Vehicle No</th>
+                <th className="border-y border-slate-200 px-4 py-3 font-semibold">Given To</th>
                 <th className="border-y border-slate-200 px-4 py-3 font-semibold">Material Type</th>
                 <th className="border-y border-slate-200 px-4 py-3 font-semibold">Used Qty</th>
                 <th className="border-y border-slate-200 px-4 py-3 font-semibold">Notes</th>
@@ -677,7 +782,7 @@ export default function MaterialUsed({ modalOnly = false, onModalFinish = null }
                     <td className="px-4 py-3 text-slate-700">
                       {entry.usedDate ? new Date(entry.usedDate).toLocaleDateString('en-GB') : '-'}
                     </td>
-                    <td className="px-4 py-3 font-medium text-slate-800">{entry.vehicleNo || '-'}</td>
+                    <td className="px-4 py-3 font-medium text-slate-800">{usedForName(entry) || 'Plant / Other'}</td>
                     <td className="px-4 py-3 text-slate-700">{entry.materialTypeName || entry.materialType?.name || '-'}</td>
                     <td className="px-4 py-3 text-slate-700">{entry.usedQty} {entry.unit || entry.materialType?.unit || ''}</td>
                     <td className="px-4 py-3 text-slate-600">{entry.notes || '-'}</td>
@@ -750,6 +855,8 @@ export default function MaterialUsed({ modalOnly = false, onModalFinish = null }
               getMaterialStockText={getMaterialStockText}
               selectVehicle={selectVehicle}
               selectMaterial={selectMaterial}
+              onUsedForChange={handleUsedForChange}
+              lastReading={lastReading}
             />
           </form>
         </div>

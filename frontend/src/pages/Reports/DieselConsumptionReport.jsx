@@ -1,66 +1,380 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { 
-  ArrowLeft, 
-  Truck, 
-  Calendar, 
-  Filter, 
-  Search, 
-  TrendingUp, 
-  Info,
-  ChevronRight,
-  Download,
-  AlertCircle,
-  Fuel,
-  Activity,
-  History,
-  Droplets,
-  Layers,
-  MapPin,
-  Clock,
-  Printer
-} from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { ArrowLeft, CalendarDays, Factory, Fuel, Inbox, Plus, RefreshCw, Search, Truck } from 'lucide-react';
 import apiClient from '../../utils/api';
+import StatCard from '../../components/StatCard';
+import Segmented from '../../components/Segmented';
+import MaterialUsed from '../MaterialUsed';
+import { describeVehicle, meterUnitFor } from '../../utils/diesel';
+
+const formatNumber = (value) => Number(value || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 });
+const formatMoney = (value) => `₹${Number(value || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}`;
 
 const formatDate = (value) => {
-  if (!value) return '-';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return '-';
+  const date = value ? new Date(value) : null;
+  if (!date || Number.isNaN(date.getTime())) return '-';
   return date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 };
 
-const formatNumber = (value) => Number(value || 0).toLocaleString('en-IN', {
-  minimumFractionDigits: 0,
-  maximumFractionDigits: 2
-});
+// Local calendar date as YYYY-MM-DD ('' when the value is not a date)
+const toDateKey = (value) => {
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${date.getFullYear()}-${month}-${day}`;
+};
+
+const daysAgoKey = (days) => {
+  const date = new Date();
+  date.setDate(date.getDate() - days);
+  return toDateKey(date);
+};
+
+// "Mon, 07 Oct" for a YYYY-MM-DD key
+const formatDayKey = (key) => {
+  const [year, month, day] = key.split('-').map(Number);
+  return new Date(year, month - 1, day).toLocaleDateString('en-GB', { weekday: 'short', day: '2-digit', month: 'short' });
+};
+
+const PERIODS = [
+  { key: 'last7', label: 'Last 7 Days', shortLabel: '7 Days' },
+  { key: 'last30', label: 'Last 30 Days', shortLabel: '30 Days' },
+  { key: 'month', label: 'This Month', shortLabel: 'Month' },
+  { key: 'all', label: 'Lifetime' }
+];
+
+const periodRange = (key) => {
+  const today = toDateKey(new Date());
+  if (key === 'last7') return { from: daysAgoKey(6), to: today };
+  if (key === 'last30') return { from: daysAgoKey(29), to: today };
+  if (key === 'month') {
+    const now = new Date();
+    return { from: toDateKey(new Date(now.getFullYear(), now.getMonth(), 1)), to: today };
+  }
+  return { from: '', to: '' };
+};
+
+const inRange = (dateKey, range) => (!range.from || dateKey >= range.from) && (!range.to || dateKey <= range.to);
+
+// Every day from..to, newest first
+const daysBetween = (from, to) => {
+  const days = [];
+  const [y, m, d] = to.split('-').map(Number);
+  const cursor = new Date(y, m - 1, d);
+  for (let key = to; key >= from; key = toDateKey(cursor)) {
+    days.push(key);
+    cursor.setDate(cursor.getDate() - 1);
+  }
+  return days;
+};
+
+const TABS = [
+  { key: 'daily', label: 'Day-wise', icon: CalendarDays },
+  { key: 'dg', label: 'DG Set', icon: Factory },
+  { key: 'vehicle', label: 'Vehicles', icon: Truck },
+  { key: 'entries', label: 'All Entries', icon: Fuel }
+];
+
+const USED_FOR_TEXT = { dg: 'DG Set', vehicle: 'Vehicle', other: 'Plant / Other' };
+
+// A plant has one DG set: its report needs no picking
+const DG_TARGET = { kind: 'dg', key: 'dg', name: 'DG Set', subtitle: 'Plant generator', meterUnit: 'hr' };
+
+const sumQty = (rows) => rows.reduce((sum, row) => sum + row.qty, 0);
+
+// Oldest first; fills on the same date in the order they were entered
+const byOldest = (a, b) => new Date(a.date) - new Date(b.date) || new Date(a.createdAt) - new Date(b.createdAt);
+
+const isTargetRow = (row, target) => row.usedFor === target.kind && (target.kind === 'dg' || (row.vehicleId || row.vehicleNo) === target.key);
+
+/**
+ * Averages from meter readings, fill to fill: the diesel filled at one reading is burnt by the next reading.
+ * rows: one target's fills, oldest first. Each row gets `run` (km / hours since the last reading) and `average`.
+ * The total is from the first reading to the last; diesel filled at the last reading is not burnt yet, so it is left out.
+ */
+const meterAverages = (rows, unit) => {
+  const average = (run, fuel) => {
+    if (!(run > 0) || !(fuel > 0)) return null;
+    return unit === 'hr' ? fuel / run : run / fuel;
+  };
+
+  let previous = null;
+  let fuelSince = 0;
+  let firstReading = null;
+  let lastReading = null;
+  let totalFuel = 0;
+  const perRow = new Map();
+
+  rows.forEach((row) => {
+    if (row.meterReading !== null && row.meterReading !== undefined) {
+      const reading = Number(row.meterReading);
+      if (previous !== null && reading > previous) {
+        perRow.set(row._id, { run: reading - previous, average: average(reading - previous, fuelSince) });
+        totalFuel += fuelSince;
+        lastReading = reading;
+      }
+      if (firstReading === null) firstReading = reading;
+      if (previous === null || reading > previous) {
+        previous = reading;
+        fuelSince = 0;
+      }
+    }
+    if (previous !== null) fuelSince += row.qty;
+  });
+
+  const run = firstReading !== null && lastReading !== null ? lastReading - firstReading : 0;
+  return { perRow, run, average: average(run, totalFuel) };
+};
+
+const averageText = (value, unit) => {
+  if (value === null || value === undefined) return '-';
+  return unit === 'hr' ? `${formatNumber(value)} ltr/hr` : `${formatNumber(value)} km/ltr`;
+};
+
+const qtyCell = (qty, unit) => (qty > 0 ? <>{formatNumber(qty)}<span className="ml-1 text-xs font-medium text-slate-400">{unit}</span></> : <span className="text-slate-300">-</span>);
+
+// Today / 7 / 30 days / lifetime of a list of fills
+const periodTotals = (rows, keys) => {
+  const totals = { today: 0, d7: 0, d30: 0, life: 0, fills: rows.length, lastDate: null };
+  rows.forEach((row) => {
+    totals.life += row.qty;
+    if (row.dateKey <= keys.today) {
+      if (row.dateKey === keys.today) totals.today += row.qty;
+      if (row.dateKey >= keys.from7) totals.d7 += row.qty;
+      if (row.dateKey >= keys.from30) totals.d30 += row.qty;
+    }
+    if (!totals.lastDate || new Date(row.date) > new Date(totals.lastDate)) totals.lastDate = row.date;
+  });
+  return totals;
+};
+
+// One line per vehicle that ever got diesel, the most used in 30 days first
+const buildVehicleTargets = (usage, vehicles, keys) => {
+  const vehiclesById = new Map((vehicles || []).map((vehicle) => [String(vehicle._id), vehicle]));
+  const rowsByKey = new Map();
+  usage.filter((row) => row.usedFor === 'vehicle').forEach((row) => {
+    const key = row.vehicleId || row.vehicleNo;
+    rowsByKey.set(key, [...(rowsByKey.get(key) || []), row]);
+  });
+
+  return [...rowsByKey.entries()]
+    .map(([key, rows]) => {
+      const vehicle = vehiclesById.get(rows[0].vehicleId);
+      const meterUnit = meterUnitFor('vehicle', vehicle?.category);
+      return {
+        key,
+        kind: 'vehicle',
+        name: rows[0].vehicleNo || vehicle?.vehicleNo || '-',
+        subtitle: vehicle ? describeVehicle(vehicle) : '',
+        meterUnit,
+        ...periodTotals(rows, keys),
+        average: meterAverages([...rows].sort(byOldest), meterUnit).average
+      };
+    })
+    .sort((a, b) => b.d30 - a.d30 || b.life - a.life || a.name.localeCompare(b.name));
+};
+
+function EmptyState({ title, hint }) {
+  return (
+    <div className="flex flex-col items-center gap-2 px-6 py-12 text-center">
+      <span className="flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 text-slate-400">
+        <Inbox size={22} />
+      </span>
+      <p className="text-sm font-semibold text-slate-800">{title}</p>
+      {hint && <p className="max-w-md text-xs text-slate-500">{hint}</p>}
+    </div>
+  );
+}
+
+function QuickTotals({ totals, unit }) {
+  return (
+    <dl className="grid grid-cols-2 gap-px border-b border-slate-100 bg-slate-100 md:grid-cols-5">
+      {[
+        { label: 'Today', value: totals.today },
+        { label: 'Last 7 Days', value: totals.d7 },
+        { label: 'Last 30 Days', value: totals.d30 },
+        { label: 'Lifetime', value: totals.life },
+        { label: 'Per Day (30 days)', value: totals.d30 / 30 }
+      ].map((item) => (
+        <div key={item.label} className="bg-white px-4 py-3 last:col-span-2 md:last:col-span-1">
+          <dt className="text-xs font-medium text-slate-500">{item.label}</dt>
+          <dd className="mt-0.5 text-lg font-bold text-slate-900">{formatNumber(item.value)} <span className="text-xs font-medium text-slate-400">{unit}</span></dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
+
+// The DG set's or one vehicle's fills with meter readings and averages
+function TargetDetail({ target, usage, unit, onBack, children }) {
+  const [periodKey, setPeriodKey] = useState('last30');
+  const range = useMemo(() => periodRange(periodKey), [periodKey]);
+
+  const { rows, stats } = useMemo(() => {
+    const inPeriod = usage
+      .filter((row) => isTargetRow(row, target) && inRange(row.dateKey, range))
+      .sort(byOldest);
+    const meter = meterAverages(inPeriod, target.meterUnit);
+    return {
+      rows: inPeriod.map((row) => ({ ...row, ...meter.perRow.get(row._id) })).reverse(),
+      stats: { total: sumQty(inPeriod), fills: inPeriod.length, run: meter.run, average: meter.average }
+    };
+  }, [usage, target, range]);
+
+  return (
+    <section className="panel">
+      <div className="panel-header flex items-center gap-3">
+        {onBack && (
+          <button type="button" className="icon-btn" onClick={onBack} aria-label="Back to list" title="Back to list">
+            <ArrowLeft size={16} />
+          </button>
+        )}
+        <div className="min-w-0">
+          <h2 className="truncate text-sm font-bold text-slate-900">{target.name}</h2>
+          <p className="text-xs text-slate-500">{target.subtitle || USED_FOR_TEXT[target.kind]} · diesel given</p>
+        </div>
+      </div>
+
+      {children}
+
+      <div className="flex flex-col gap-3 border-b border-slate-100 px-4 py-3 md:flex-row md:items-center md:justify-between md:px-5">
+        <h3 className="text-sm font-bold text-slate-900">Date-wise Fills</h3>
+        <Segmented options={PERIODS} value={periodKey} onChange={setPeriodKey} />
+      </div>
+
+      <dl className="grid grid-cols-2 gap-px border-b border-slate-100 bg-slate-100 md:grid-cols-4">
+        {[
+          { label: 'Diesel Given', value: `${formatNumber(stats.total)} ${unit}` },
+          { label: 'Fills', value: formatNumber(stats.fills) },
+          { label: target.meterUnit === 'hr' ? 'Hours Run' : 'KM Run', value: stats.run > 0 ? `${formatNumber(stats.run)} ${target.meterUnit}` : '-' },
+          { label: 'Average', value: averageText(stats.average, target.meterUnit) }
+        ].map((item) => (
+          <div key={item.label} className="bg-white px-4 py-3">
+            <dt className="text-xs font-medium text-slate-500">{item.label}</dt>
+            <dd className="mt-0.5 text-lg font-bold text-slate-900">{item.value}</dd>
+          </div>
+        ))}
+      </dl>
+
+      {rows.length === 0 ? (
+        <EmptyState title="No diesel in this period" hint={target.kind === 'dg' ? 'Use "Give Diesel" and choose DG Set each time the DG is filled.' : 'Pick a longer period to see older fills.'} />
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[640px] text-left">
+            <thead>
+              <tr>
+                <th className="tbl-head">Date</th>
+                <th className="tbl-head text-right">Diesel</th>
+                <th className="tbl-head text-right">Meter</th>
+                <th className="tbl-head text-right">Run Since Last</th>
+                <th className="tbl-head text-right">Average</th>
+                <th className="tbl-head">Notes</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((row) => (
+                <tr key={row._id} className="tbl-row">
+                  <td className="tbl-cell whitespace-nowrap">{formatDate(row.date)}</td>
+                  <td className="tbl-cell whitespace-nowrap text-right font-bold text-slate-900">{qtyCell(row.qty, unit)}</td>
+                  <td className="tbl-cell whitespace-nowrap text-right">{row.meterReading !== null ? `${formatNumber(row.meterReading)} ${target.meterUnit}` : '-'}</td>
+                  <td className="tbl-cell whitespace-nowrap text-right">{row.run ? `${formatNumber(row.run)} ${target.meterUnit}` : '-'}</td>
+                  <td className="tbl-cell whitespace-nowrap text-right">{averageText(row.average, target.meterUnit)}</td>
+                  <td className="tbl-cell text-slate-500"><div className="max-w-[16rem] truncate" title={row.notes || undefined}>{row.notes || '-'}</div></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      <p className="border-t border-slate-100 px-4 py-2.5 text-xs text-slate-500 md:px-5">
+        Average needs the {target.meterUnit === 'hr' ? 'hour meter' : 'KM'} reading at each fill: it divides the {target.meterUnit === 'hr' ? 'hours' : 'KM'} run between two fills by the diesel filled at the first one.
+      </p>
+    </section>
+  );
+}
+
+// Today / 7 / 30 days / lifetime per vehicle
+function VehicleSummary({ targets, unit, onOpen }) {
+  return (
+    <>
+      <ul className="divide-y divide-slate-100 md:hidden">
+        {targets.map((target) => (
+          <li key={target.key}>
+            <button type="button" className="w-full px-4 py-3 text-left" onClick={() => onOpen(target)}>
+              <div className="flex items-baseline justify-between gap-3">
+                <p className="min-w-0 truncate font-semibold text-slate-800">{target.name}</p>
+                <p className="shrink-0 text-xs text-slate-500">Last: {target.lastDate ? formatDate(target.lastDate) : '-'}</p>
+              </div>
+              {target.subtitle && <p className="text-xs text-slate-500">{target.subtitle}</p>}
+              <div className="mt-2 grid grid-cols-4 gap-2 text-center">
+                {[['Today', target.today], ['7 Days', target.d7], ['30 Days', target.d30], ['Lifetime', target.life]].map(([label, qty]) => (
+                  <div key={label} className="rounded-lg bg-slate-50 px-1 py-1.5">
+                    <p className="text-[10px] font-medium text-slate-500">{label}</p>
+                    <p className="text-sm font-bold text-slate-900">{formatNumber(qty)}</p>
+                  </div>
+                ))}
+              </div>
+            </button>
+          </li>
+        ))}
+      </ul>
+
+      <div className="hidden overflow-x-auto md:block">
+        <table className="w-full min-w-[820px] text-left">
+          <thead>
+            <tr>
+              <th className="tbl-head">Vehicle</th>
+              <th className="tbl-head text-right">Today</th>
+              <th className="tbl-head text-right">Last 7 Days</th>
+              <th className="tbl-head text-right">Last 30 Days</th>
+              <th className="tbl-head text-right">Lifetime</th>
+              <th className="tbl-head text-right">Fills</th>
+              <th className="tbl-head text-right">Average</th>
+              <th className="tbl-head">Last Filled</th>
+            </tr>
+          </thead>
+          <tbody>
+            {targets.map((target) => (
+              <tr key={target.key} className="tbl-row cursor-pointer" onClick={() => onOpen(target)}>
+                <td className="tbl-cell">
+                  <p className="font-semibold text-primary-700">{target.name}</p>
+                  {target.subtitle && <p className="text-xs text-slate-500">{target.subtitle}</p>}
+                </td>
+                <td className="tbl-cell whitespace-nowrap text-right">{qtyCell(target.today, unit)}</td>
+                <td className="tbl-cell whitespace-nowrap text-right">{qtyCell(target.d7, unit)}</td>
+                <td className="tbl-cell whitespace-nowrap text-right font-bold text-slate-900">{qtyCell(target.d30, unit)}</td>
+                <td className="tbl-cell whitespace-nowrap text-right">{qtyCell(target.life, unit)}</td>
+                <td className="tbl-cell whitespace-nowrap text-right">{formatNumber(target.fills)}</td>
+                <td className="tbl-cell whitespace-nowrap text-right">{averageText(target.average, target.meterUnit)}</td>
+                <td className="tbl-cell whitespace-nowrap">{target.lastDate ? formatDate(target.lastDate) : '-'}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </>
+  );
+}
 
 export default function DieselConsumptionReport() {
   const navigate = useNavigate();
-  const [data, setData] = useState({ summary: [], ledger: [], totalDieselUsed: 0, productName: 'Diesel', unit: 'Ltrs' });
+  const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [dateRange, setDateRange] = useState('7');
-  const [searchQuery, setSearchQuery] = useState('');
+  const [tab, setTab] = useState('daily');
+  const [periodKey, setPeriodKey] = useState('last7');
+  const [search, setSearch] = useState('');
+  const [selectedKey, setSelectedKey] = useState('');
+  const [showAddEntry, setShowAddEntry] = useState(false);
 
   const loadData = async () => {
+    setLoading(true);
+    setError('');
     try {
-      setLoading(true);
-      const params = new URLSearchParams();
-      if (dateRange !== 'all') {
-        const now = new Date();
-        let fromDate;
-        if (dateRange === '1') fromDate = new Date(now.setDate(now.getDate() - 1));
-        else if (dateRange === '7') fromDate = new Date(now.setDate(now.getDate() - 7));
-        else if (dateRange === '30') fromDate = new Date(now.setDate(now.getDate() - 30));
-        else if (dateRange === '90') fromDate = new Date(now.setDate(now.getDate() - 90));
-        if (fromDate) params.append('fromDate', fromDate.toISOString());
-      }
-
-      const response = await apiClient.get(`/reports/diesel-consumption?${params.toString()}`);
-      setData(response || { summary: [], ledger: [], totalDieselUsed: 0, productName: 'Diesel', unit: 'Ltrs' });
-      setError('');
+      setData(await apiClient.get('/reports/diesel-consumption'));
     } catch (err) {
-      setError(err.message || 'Failed to load report');
+      setError(err.message || 'Failed to load the diesel report');
     } finally {
       setLoading(false);
     }
@@ -68,289 +382,331 @@ export default function DieselConsumptionReport() {
 
   useEffect(() => {
     loadData();
-  }, [dateRange]);
+  }, []);
 
   useEffect(() => {
     const handleKeyDown = (event) => {
-      if (event.key === 'Escape') navigate('/reports');
+      // The entry popup handles Esc itself
+      if (event.defaultPrevented || event.key !== 'Escape' || showAddEntry) return;
+      if (selectedKey) setSelectedKey('');
+      else navigate('/reports');
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [navigate]);
+  }, [navigate, showAddEntry, selectedKey]);
 
-  const filteredSummary = useMemo(() => {
-    if (!searchQuery) return data.summary;
-    return data.summary.filter(v => v.vehicleNo.toLowerCase().includes(searchQuery.toLowerCase()));
-  }, [data.summary, searchQuery]);
+  const unit = data?.diesel?.unit || 'ltr';
+
+  const usage = useMemo(() => (data?.usage || []).map((row) => ({ ...row, dateKey: toDateKey(row.date) })), [data]);
+  const purchases = useMemo(() => (data?.purchases || []).map((row) => ({ ...row, dateKey: toDateKey(row.date) })), [data]);
+
+  // Recomputed when the date changes, so a page left open overnight moves to the new day
+  const todayKey = toDateKey(new Date());
+  const keys = useMemo(() => ({ today: todayKey, from7: daysAgoKey(6), from30: daysAgoKey(29) }), [todayKey]);
+
+  const totals = useMemo(() => {
+    const between = (from) => usage.filter((row) => row.dateKey >= from && row.dateKey <= keys.today);
+    const split = (rows) => ({
+      total: sumQty(rows),
+      dg: sumQty(rows.filter((row) => row.usedFor === 'dg')),
+      vehicle: sumQty(rows.filter((row) => row.usedFor === 'vehicle')),
+      other: sumQty(rows.filter((row) => row.usedFor === 'other'))
+    });
+    return {
+      today: split(between(keys.today)),
+      d7: split(between(keys.from7)),
+      d30: split(between(keys.from30)),
+      bought30: sumQty(purchases.filter((row) => row.dateKey >= keys.from30 && row.dateKey <= keys.today))
+    };
+  }, [usage, purchases, keys]);
+
+  const dgTotals = useMemo(() => periodTotals(usage.filter((row) => row.usedFor === 'dg'), keys), [usage, keys]);
+  const vehicleTargets = useMemo(() => buildVehicleTargets(usage, data?.vehicles, keys), [usage, data, keys]);
+
+  const searchText = search.trim().toLowerCase();
+  const visibleVehicles = searchText
+    ? vehicleTargets.filter((target) => `${target.name} ${target.subtitle}`.toLowerCase().includes(searchText))
+    : vehicleTargets;
+  const selectedVehicle = selectedKey ? vehicleTargets.find((target) => target.key === selectedKey) : null;
+
+  const range = useMemo(() => periodRange(periodKey), [periodKey]);
+
+  // Day-wise: every day of the period (empty days too, so a missed DG fill shows); lifetime lists only days with entries
+  const days = useMemo(() => {
+    const byDay = new Map();
+    const blank = (key) => ({ key, dg: 0, vehicle: 0, other: 0, total: 0, bought: 0 });
+    if (range.from) daysBetween(range.from, range.to).forEach((key) => byDay.set(key, blank(key)));
+
+    usage.forEach((row) => {
+      if (!row.dateKey || !inRange(row.dateKey, range)) return;
+      const day = byDay.get(row.dateKey) || blank(row.dateKey);
+      day[row.usedFor] += row.qty;
+      day.total += row.qty;
+      byDay.set(row.dateKey, day);
+    });
+    purchases.forEach((row) => {
+      if (!row.dateKey || !inRange(row.dateKey, range)) return;
+      const day = byDay.get(row.dateKey) || blank(row.dateKey);
+      day.bought += row.qty;
+      byDay.set(row.dateKey, day);
+    });
+
+    return [...byDay.values()].sort((a, b) => b.key.localeCompare(a.key));
+  }, [usage, purchases, range]);
+
+  const dayTotals = useMemo(() => days.reduce((sum, day) => ({
+    dg: sum.dg + day.dg,
+    vehicle: sum.vehicle + day.vehicle,
+    other: sum.other + day.other,
+    total: sum.total + day.total,
+    bought: sum.bought + day.bought
+  }), { dg: 0, vehicle: 0, other: 0, total: 0, bought: 0 }), [days]);
+
+  // In and out together, newest first
+  const ledger = useMemo(() => {
+    const rows = [
+      ...usage.map((row) => ({
+        id: `out-${row._id}`,
+        date: row.date,
+        dateKey: row.dateKey,
+        kind: USED_FOR_TEXT[row.usedFor],
+        name: row.usedFor === 'vehicle' ? row.vehicleNo || '-' : USED_FOR_TEXT[row.usedFor],
+        out: row.qty,
+        in: 0,
+        detail: [row.meterReading !== null ? `Meter ${formatNumber(row.meterReading)}` : '', row.notes].filter(Boolean).join(' · ')
+      })),
+      ...purchases.map((row, index) => ({
+        id: `in-${row._id}-${index}`,
+        date: row.date,
+        dateKey: row.dateKey,
+        kind: 'Purchase',
+        name: row.partyName || '-',
+        out: 0,
+        in: row.qty,
+        detail: [row.refNo, row.rate ? `${formatMoney(row.rate)}/${unit}` : ''].filter(Boolean).join(' · ')
+      }))
+    ];
+    return rows
+      .filter((row) => inRange(row.dateKey, range))
+      .filter((row) => !searchText || `${row.kind} ${row.name} ${row.detail}`.toLowerCase().includes(searchText))
+      .sort((a, b) => new Date(b.date) - new Date(a.date));
+  }, [usage, purchases, range, searchText, unit]);
+
+  const changeTab = (key) => {
+    setTab(key);
+    setSelectedKey('');
+    setSearch('');
+  };
+
+  const splitHint = (split) => (split.total > 0
+    ? `DG ${formatNumber(split.dg)} · Vehicles ${formatNumber(split.vehicle)}${split.other ? ` · Other ${formatNumber(split.other)}` : ''}`
+    : 'No diesel given');
+
+  const avgRate = Number(data?.avgRate || 0);
+  const stats = [
+    {
+      icon: Fuel,
+      label: 'Diesel in Stock',
+      tone: 'emerald',
+      value: `${formatNumber(data?.diesel?.currentStock)} ${unit}`,
+      hint: totals.bought30 > 0 ? `Bought ${formatNumber(totals.bought30)} ${unit} in 30 days` : 'Add diesel through Purchase'
+    },
+    { icon: CalendarDays, label: 'Given Today', tone: 'blue', value: `${formatNumber(totals.today.total)} ${unit}`, hint: splitHint(totals.today) },
+    { icon: CalendarDays, label: 'Last 7 Days', tone: 'indigo', value: `${formatNumber(totals.d7.total)} ${unit}`, hint: splitHint(totals.d7) },
+    {
+      icon: CalendarDays,
+      label: 'Last 30 Days',
+      tone: 'amber',
+      value: `${formatNumber(totals.d30.total)} ${unit}`,
+      hint: avgRate > 0 && totals.d30.total > 0
+        ? `≈ ${formatMoney(totals.d30.total * avgRate)} at ${formatMoney(avgRate)}/${unit}`
+        : splitHint(totals.d30)
+    }
+  ];
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC]">
-      {/* Top Navigation Bar */}
-      <nav className="sticky top-0 z-50 bg-white/80 backdrop-blur-xl border-b border-slate-200">
-        <div className="mx-auto max-w-[1600px] px-6 h-20 flex items-center justify-between">
-          <div className="flex items-center gap-6">
-            <Link
-              to="/reports"
-              className="group flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-50 text-slate-400 hover:bg-slate-900 hover:text-white transition-all duration-300 shadow-sm border border-slate-100"
-            >
-              <ArrowLeft className="h-5 w-5 transition-transform group-hover:-translate-x-1" />
-            </Link>
-            <div className="h-10 w-px bg-slate-200" />
-            <div className="flex items-center gap-4">
-              <div className="h-12 w-12 rounded-2xl bg-blue-600 flex items-center justify-center shadow-lg shadow-blue-500/30">
-                <Fuel className="h-6 w-6 text-white" />
-              </div>
-              <div>
-                <h1 className="text-xl font-[900] text-slate-900 tracking-tight flex items-center gap-2">
-                  Fuel Dynamics <span className="text-[10px] bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-black uppercase tracking-widest">Analytics</span>
-                </h1>
-                <p className="text-[11px] font-bold text-slate-400 uppercase tracking-[0.1em]">Vehicle Diesel Consumption Engine</p>
-              </div>
-            </div>
-          </div>
+    <div className="page-fade-in space-y-4 px-3 pb-8 pt-4 md:space-y-5 lg:px-6 lg:pt-5">
+      {showAddEntry && <MaterialUsed modalOnly onModalFinish={() => { setShowAddEntry(false); loadData(); }} />}
 
-          <div className="flex items-center gap-4">
-            <div className="hidden md:flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200">
-              {['1', '7', '30', '90', 'all'].map((range) => (
-                <button
-                  key={range}
-                  onClick={() => setDateRange(range)}
-                  className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${
-                    dateRange === range 
-                      ? 'bg-white text-blue-600 shadow-sm' 
-                      : 'text-slate-400 hover:text-slate-600'
-                  }`}
-                >
-                  {range === 'all' ? 'All' : `${range}D`}
-                </button>
-              ))}
-            </div>
-            <button className="h-12 w-12 flex items-center justify-center rounded-2xl bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 shadow-sm transition-all">
-              <Printer className="h-5 w-5" />
-            </button>
-          </div>
+      <div className="page-header">
+        <div className="min-w-0">
+          <h1 className="page-title">Diesel Report</h1>
+          <p className="page-subtitle">Diesel to the DG set and vehicles · day-wise, vehicle-wise, lifetime</p>
         </div>
-      </nav>
+        <div className="flex flex-wrap items-center gap-2">
+          <button type="button" className="icon-btn" title="Refresh" aria-label="Refresh" onClick={loadData}>
+            <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
+          </button>
+          <button type="button" className="btn-primary" onClick={() => setShowAddEntry(true)}>
+            <Plus size={18} /> Give Diesel
+          </button>
+        </div>
+      </div>
 
-      <main className="mx-auto max-w-[1600px] px-6 py-10">
-        {error && (
-          <div className="mb-8 flex items-center gap-4 rounded-[2rem] border border-rose-100 bg-rose-50/50 p-6 text-rose-700 animate-in fade-in slide-in-from-top-4 duration-500">
-            <div className="h-12 w-12 rounded-2xl bg-rose-100 flex items-center justify-center">
-              <AlertCircle className="h-6 w-6" />
-            </div>
-            <div>
-              <p className="text-sm font-black uppercase tracking-widest">System Error</p>
-              <p className="font-bold">{error}</p>
-            </div>
-          </div>
-        )}
+      {error && <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700">{error}</div>}
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
-          {/* Sidebar - Vehicle Performance Ranking */}
-          <div className="lg:col-span-4 space-y-8">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-xl font-black text-slate-900 tracking-tight">Fleet Ranking</h3>
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Sorting by high usage</p>
+      {loading && !data ? (
+        <div className="flex flex-col items-center gap-3 py-16">
+          <div className="h-9 w-9 animate-spin rounded-full border-4 border-primary-600 border-r-transparent" />
+          <p className="text-sm text-slate-400">Loading diesel report…</p>
+        </div>
+      ) : data && (
+        <div className={`space-y-4 transition-opacity md:space-y-5 ${loading ? 'pointer-events-none opacity-50' : ''}`}>
+          <section className="grid grid-cols-2 gap-2.5 lg:grid-cols-4 md:gap-4">
+            {stats.map((stat) => <StatCard key={stat.label} {...stat} />)}
+          </section>
+
+          <Segmented options={TABS} value={tab} onChange={changeTab} />
+
+          {tab === 'daily' ? (
+            <section className="panel">
+              <div className="panel-header flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                <div>
+                  <h2 className="text-sm font-bold text-slate-900">Day-wise Diesel</h2>
+                  <p className="text-xs text-slate-500">Given out and bought each day · newest first</p>
+                </div>
+                <Segmented options={PERIODS} value={periodKey} onChange={setPeriodKey} />
               </div>
-              <div className="relative group">
-                <input 
-                  type="text" 
-                  placeholder="ID Lookup..." 
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="bg-white border border-slate-200 text-xs font-bold py-2.5 pl-9 pr-4 rounded-xl w-40 focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all outline-none"
-                />
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 group-focus-within:text-blue-500 transition-colors" />
-              </div>
-            </div>
-
-            <div className="space-y-4 max-h-[700px] overflow-y-auto pr-2 custom-scrollbar">
-              {filteredSummary.length > 0 ? filteredSummary.map((v, idx) => (
-                <div key={v.vehicleId} className="group relative rounded-[2rem] border border-slate-100 bg-white p-6 shadow-sm hover:shadow-2xl hover:border-blue-100 transition-all duration-500">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-4">
-                      <div className={`flex h-12 w-12 items-center justify-center rounded-2xl font-[900] text-sm ${
-                        idx === 0 ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/30' : 
-                        idx === 1 ? 'bg-slate-800 text-white' : 
-                        'bg-slate-100 text-slate-500'
-                      }`}>
-                        #{idx + 1}
-                      </div>
-                      <div>
-                        <p className="font-black text-slate-900 text-lg tracking-tight">{v.vehicleNo}</p>
-                        <p className="text-[10px] font-black text-blue-500 uppercase tracking-widest">{v.entryCount} Refills</p>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-2xl font-[900] text-slate-900">{formatNumber(v.totalUsed)}</p>
-                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{data.unit}</p>
-                    </div>
-                  </div>
-                  
-                  <div className="relative h-2 w-full bg-slate-50 rounded-full overflow-hidden">
-                    <div 
-                      className={`absolute inset-y-0 left-0 rounded-full transition-all duration-1000 ease-out ${
-                        idx === 0 ? 'bg-blue-600 shadow-[0_0_12px_rgba(37,99,235,0.4)]' : 'bg-slate-400'
-                      }`}
-                      style={{ width: `${(v.totalUsed / data.totalDieselUsed) * 100}%` }}
-                    />
-                  </div>
-                  
-                  <div className="mt-4 flex items-center justify-between text-[10px] font-black text-slate-400 uppercase tracking-[0.15em]">
-                    <span className="flex items-center gap-1.5"><Activity className="h-3 w-3" /> Intensity Index</span>
-                    <span className="text-slate-900">{Math.round((v.totalUsed / data.totalDieselUsed) * 100)}%</span>
-                  </div>
-                </div>
-              )) : (
-                <div className="flex flex-col items-center justify-center py-20 bg-white rounded-[2rem] border border-dashed border-slate-200">
-                  <div className="h-16 w-16 rounded-3xl bg-slate-50 flex items-center justify-center text-slate-200 mb-4">
-                    <Truck className="h-8 w-8" />
-                  </div>
-                  <p className="text-xs font-black text-slate-400 uppercase tracking-widest">No matching units</p>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Main Content - Temporal Ledger */}
-          <div className="lg:col-span-8">
-            <div className="rounded-[3rem] bg-white shadow-sm border border-slate-100 overflow-hidden min-h-[700px] flex flex-col">
-                <div className="px-8 py-6 border-b border-slate-50 flex items-center justify-between bg-gradient-to-b from-white to-slate-50/30">
-                  <div className="flex items-center gap-3">
-                    <div className="h-10 w-10 rounded-xl bg-slate-900 flex items-center justify-center text-white shadow-lg shadow-slate-900/10">
-                      <Layers className="h-4 w-4" />
-                    </div>
-                    <div>
-                      <h3 className="text-lg font-[900] text-slate-900 tracking-tight">Movement Registry</h3>
-                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-0.5 italic">Inward & Outward Log</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <div className="text-right">
-                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Inward</p>
-                      <p className="text-sm font-black text-emerald-600">{formatNumber(data.totalDieselPurchased)} <span className="text-[9px] text-slate-400">{data.unit}</span></p>
-                    </div>
-                    <div className="h-6 w-px bg-slate-200" />
-                    <div className="text-right">
-                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Outward</p>
-                      <p className="text-sm font-black text-blue-600">{formatNumber(data.totalDieselUsed)} <span className="text-[9px] text-slate-400">{data.unit}</span></p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex-1 overflow-x-auto overflow-y-auto">
-                  <table className="w-full">
+              {days.length === 0 ? (
+                <EmptyState title="No diesel entries yet" hint='Use "Give Diesel" each time diesel goes to the DG set or a vehicle.' />
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[640px] text-left">
                     <thead>
-                      <tr className="bg-slate-50 border-b border-slate-100">
-                        <th className="px-8 py-3 text-left text-[9px] font-black uppercase tracking-[0.15em] text-slate-400">Timestamp</th>
-                        <th className="px-8 py-3 text-left text-[9px] font-black uppercase tracking-[0.15em] text-slate-400">Type</th>
-                        <th className="px-8 py-3 text-left text-[9px] font-black uppercase tracking-[0.15em] text-slate-400">Source/Party</th>
-                        <th className="px-8 py-3 text-right text-[9px] font-black uppercase tracking-[0.15em] text-slate-400">In</th>
-                        <th className="px-8 py-3 text-right text-[9px] font-black uppercase tracking-[0.15em] text-slate-400">Out</th>
+                      <tr>
+                        <th className="tbl-head">Date</th>
+                        <th className="tbl-head text-right">DG Set</th>
+                        <th className="tbl-head text-right">Vehicles</th>
+                        <th className="tbl-head text-right">Plant / Other</th>
+                        <th className="tbl-head text-right">Total Given</th>
+                        <th className="tbl-head text-right">Bought</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-50">
-                      {loading ? (
-                        [...Array(10)].map((_, i) => (
-                          <tr key={i} className="animate-pulse">
-                            <td colSpan="5" className="px-8 py-4">
-                              <div className="h-6 bg-slate-50 rounded-lg w-full" />
-                            </td>
-                          </tr>
-                        ))
-                      ) : data.ledger.length > 0 ? data.ledger.map((entry) => (
-                        <tr key={`${entry.type}-${entry._id}`} className="hover:bg-slate-50/50 transition-all group">
-                          <td className="px-8 py-4">
-                            <div className="flex items-center gap-3">
-                              <div className="h-8 w-8 rounded-xl bg-white border border-slate-100 flex items-center justify-center text-slate-300 group-hover:border-blue-200 group-hover:text-blue-500 transition-all duration-300">
-                                <Calendar className="h-3.5 w-3.5" />
-                              </div>
-                              <div>
-                                <p className="text-[11px] font-black text-slate-900 leading-tight">{formatDate(entry.date)}</p>
-                                <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">
-                                  {entry.type === 'in' ? 'Purchase' : 'Refill'}
-                                </p>
-                              </div>
-                            </div>
-                          </td>
-                          <td className="px-8 py-4">
-                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest ${
-                              entry.type === 'in' ? 'bg-emerald-50 text-emerald-600' : 'bg-blue-50 text-blue-600'
-                            }`}>
-                              {entry.type === 'in' ? 'IN' : 'OUT'}
-                            </span>
-                          </td>
-                          <td className="px-8 py-4">
-                            <div className="flex items-center gap-3">
-                              <div className={`h-8 w-8 rounded-lg flex items-center justify-center text-white shadow-md ${
-                                entry.type === 'in' ? 'bg-emerald-600 shadow-emerald-900/10' : 'bg-slate-900 shadow-slate-900/10'
-                              }`}>
-                                {entry.type === 'in' ? <Search className="h-3 w-3" /> : <Truck className="h-3 w-3" />}
-                              </div>
-                              <div>
-                                <span className="text-[11px] font-[900] text-slate-900 tracking-tight block">{entry.partyName}</span>
-                                <span className="text-[9px] font-bold text-slate-400 truncate max-w-[100px] block">Ref: {entry.refNo}</span>
-                              </div>
-                            </div>
-                          </td>
-                          <td className="px-8 py-4 text-right">
-                            {entry.type === 'in' && (
-                              <div className="inline-flex flex-col items-end">
-                                <span className="text-sm font-black text-emerald-600">+{formatNumber(entry.qty)}</span>
-                                <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{data.unit}</span>
-                              </div>
-                            )}
-                          </td>
-                          <td className="px-8 py-4 text-right">
-                            {entry.type === 'out' && (
-                              <div className="inline-flex flex-col items-end">
-                                <span className="text-sm font-black text-blue-600">{formatNumber(Math.abs(entry.qty))}</span>
-                                <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{data.unit}</span>
-                              </div>
-                            )}
-                          </td>
+                    <tbody>
+                      {days.map((day) => (
+                        <tr key={day.key} className={`tbl-row ${day.total === 0 && day.bought === 0 ? 'text-slate-400' : ''}`}>
+                          <td className="tbl-cell whitespace-nowrap">{formatDayKey(day.key)}</td>
+                          <td className="tbl-cell whitespace-nowrap text-right">{qtyCell(day.dg, unit)}</td>
+                          <td className="tbl-cell whitespace-nowrap text-right">{qtyCell(day.vehicle, unit)}</td>
+                          <td className="tbl-cell whitespace-nowrap text-right">{qtyCell(day.other, unit)}</td>
+                          <td className="tbl-cell whitespace-nowrap text-right font-bold text-slate-900">{qtyCell(day.total, unit)}</td>
+                          <td className="tbl-cell whitespace-nowrap text-right text-emerald-700">{qtyCell(day.bought, unit)}</td>
                         </tr>
-                      )) : (
-                      <tr>
-                        <td colSpan="4" className="px-10 py-32 text-center">
-                          <div className="flex flex-col items-center gap-6">
-                            <div className="h-24 w-24 rounded-[2rem] bg-slate-50 flex items-center justify-center text-slate-200 shadow-inner">
-                              <Droplets className="h-10 w-10" />
-                            </div>
-                            <div>
-                              <p className="text-lg font-black text-slate-900 mb-1">Zero Activity Found</p>
-                              <p className="text-xs font-bold text-slate-400 uppercase tracking-[0.2em]">Deployment range shows no consumption logs</p>
-                            </div>
-                            <button onClick={loadData} className="px-6 py-3 bg-slate-900 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-600 transition-colors shadow-xl shadow-slate-900/10 hover:shadow-blue-500/20">
-                              Re-Initialize Probe
-                            </button>
-                          </div>
-                        </td>
+                      ))}
+                    </tbody>
+                    <tfoot>
+                      <tr className="bg-slate-50 font-bold text-slate-900">
+                        <td className="tbl-cell">Total</td>
+                        <td className="tbl-cell whitespace-nowrap text-right">{qtyCell(dayTotals.dg, unit)}</td>
+                        <td className="tbl-cell whitespace-nowrap text-right">{qtyCell(dayTotals.vehicle, unit)}</td>
+                        <td className="tbl-cell whitespace-nowrap text-right">{qtyCell(dayTotals.other, unit)}</td>
+                        <td className="tbl-cell whitespace-nowrap text-right">{qtyCell(dayTotals.total, unit)}</td>
+                        <td className="tbl-cell whitespace-nowrap text-right text-emerald-700">{qtyCell(dayTotals.bought, unit)}</td>
                       </tr>
-                    )}
-                  </tbody>
-                </table>
+                    </tfoot>
+                  </table>
+                </div>
+              )}
+            </section>
+          ) : tab === 'dg' ? (
+            <TargetDetail target={DG_TARGET} usage={usage} unit={unit}>
+              <QuickTotals totals={dgTotals} unit={unit} />
+            </TargetDetail>
+          ) : tab === 'vehicle' ? (
+            selectedVehicle ? (
+              <TargetDetail target={selectedVehicle} usage={usage} unit={unit} onBack={() => setSelectedKey('')}>
+                <QuickTotals totals={selectedVehicle} unit={unit} />
+              </TargetDetail>
+            ) : (
+              <section className="panel">
+                <div className="panel-header flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                  <div>
+                    <h2 className="text-sm font-bold text-slate-900">Vehicle-wise Diesel</h2>
+                    <p className="text-xs text-slate-500">Most diesel in 30 days first · tap a vehicle for its date-wise report</p>
+                  </div>
+                  <div className="relative md:w-64">
+                    <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <input className="input pl-9" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search vehicle..." />
+                  </div>
+                </div>
+                {visibleVehicles.length === 0 ? (
+                  <EmptyState
+                    title={vehicleTargets.length === 0 ? 'No diesel given to vehicles yet' : 'No matching vehicle'}
+                    hint={vehicleTargets.length === 0 ? 'Use "Give Diesel", choose Vehicle and pick your loader, truck or JCB.' : 'Try another vehicle number.'}
+                  />
+                ) : (
+                  <VehicleSummary targets={visibleVehicles} unit={unit} onOpen={(target) => setSelectedKey(target.key)} />
+                )}
+              </section>
+            )
+          ) : (
+            <section className="panel">
+              <div className="panel-header flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                <div>
+                  <h2 className="text-sm font-bold text-slate-900">All Diesel Entries</h2>
+                  <p className="text-xs text-slate-500">Bought and given out · newest first</p>
+                </div>
+                <div className="flex flex-col gap-2 md:flex-row md:items-center">
+                  <div className="relative md:w-56">
+                    <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <input className="input pl-9" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search..." />
+                  </div>
+                  <Segmented options={PERIODS} value={periodKey} onChange={setPeriodKey} />
+                </div>
               </div>
-            </div>
-          </div>
+              {ledger.length === 0 ? (
+                <EmptyState title="No diesel entries found" hint="Try another period or search." />
+              ) : (
+                <>
+                  <ul className="divide-y divide-slate-100 md:hidden">
+                    {ledger.map((row) => (
+                      <li key={row.id} className="flex items-start justify-between gap-3 px-4 py-3">
+                        <div className="min-w-0">
+                          <p className="truncate font-semibold text-slate-800">{row.name}</p>
+                          <p className="text-xs text-slate-500">{formatDate(row.date)} · {row.kind}</p>
+                          {row.detail && <p className="mt-0.5 truncate text-xs text-slate-500">{row.detail}</p>}
+                        </div>
+                        <p className={`shrink-0 font-bold ${row.in ? 'text-emerald-700' : 'text-slate-900'}`}>
+                          {row.in ? `+${formatNumber(row.in)}` : `−${formatNumber(row.out)}`} <span className="text-xs font-medium text-slate-400">{unit}</span>
+                        </p>
+                      </li>
+                    ))}
+                  </ul>
+                  <div className="hidden overflow-x-auto md:block">
+                    <table className="w-full min-w-[720px] text-left">
+                      <thead>
+                        <tr>
+                          <th className="tbl-head">Date</th>
+                          <th className="tbl-head">Type</th>
+                          <th className="tbl-head">Given To / Bought From</th>
+                          <th className="tbl-head">Details</th>
+                          <th className="tbl-head text-right">Bought</th>
+                          <th className="tbl-head text-right">Given</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {ledger.map((row) => (
+                          <tr key={row.id} className="tbl-row">
+                            <td className="tbl-cell whitespace-nowrap">{formatDate(row.date)}</td>
+                            <td className="tbl-cell whitespace-nowrap"><span className={row.in ? 'badge-green' : 'badge-gray'}>{row.kind}</span></td>
+                            <td className="tbl-cell font-semibold text-slate-800">{row.name}</td>
+                            <td className="tbl-cell text-slate-500"><div className="max-w-[18rem] truncate" title={row.detail || undefined}>{row.detail || '-'}</div></td>
+                            <td className="tbl-cell whitespace-nowrap text-right font-bold text-emerald-700">{qtyCell(row.in, unit)}</td>
+                            <td className="tbl-cell whitespace-nowrap text-right font-bold text-slate-900">{qtyCell(row.out, unit)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
+              )}
+              <p className="border-t border-slate-100 px-4 py-2.5 text-xs text-slate-500 md:px-5">
+                Bought {formatNumber(ledger.reduce((sum, row) => sum + row.in, 0))} {unit} · Given {formatNumber(ledger.reduce((sum, row) => sum + row.out, 0))} {unit}
+              </p>
+            </section>
+          )}
         </div>
-      </main>
-
-      <style>{`
-        .custom-scrollbar::-webkit-scrollbar { width: 5px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
-        
-        @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
-        @keyframes slide-in-from-top-4 { from { transform: translateY(-1rem); } to { transform: translateY(0); } }
-        
-        body {
-          letter-spacing: -0.01em;
-          -webkit-font-smoothing: antialiased;
-        }
-      `}</style>
+      )}
     </div>
   );
 }

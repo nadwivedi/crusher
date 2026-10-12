@@ -16,7 +16,7 @@ const REPORT_ITEMS = [
   { name: 'Stock Adjustment Report', path: '/reports/stock-adjustment-report', Icon: Boxes },
   { name: 'Receipt Report', path: '/reports/receipt-report', Icon: ReceiptText },
   { name: 'Payment Report', path: '/reports/payment-report', Icon: Wallet },
-  { name: 'Diesel Consumption Report', path: '/reports/diesel-consumption', Icon: Fuel },
+  { name: 'Diesel Report', path: '/reports/diesel-consumption', Icon: Fuel },
   { name: 'Expense Report', path: '/reports/expense-report', Icon: ReceiptText },
   { name: 'Profit And Loss Report', path: '/reports/profit-loss-report', Icon: FileBarChart }
 ];

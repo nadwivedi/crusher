@@ -31,6 +31,48 @@ const populateMaterialUsed = (userId, id) => (
     .populate("materialType", "name unit")
 );
 
+class TargetError extends Error {
+  constructor(status, message) {
+    super(message);
+    this.status = status;
+  }
+}
+
+// Where the material went: a vehicle, the plant's DG set, or the plant / other.
+// usedFor is "vehicle" | "dg" | "other"; older screens send only an optional vehicle.
+const resolveTarget = async (req) => {
+  const usedFor = ["vehicle", "dg", "other"].includes(req.body.usedFor)
+    ? req.body.usedFor
+    : req.body.vehicle ? "vehicle" : "other";
+
+  if (usedFor === "vehicle") {
+    if (!req.body.vehicle || !mongoose.Types.ObjectId.isValid(req.body.vehicle)) {
+      throw new TargetError(400, "Select the vehicle");
+    }
+    const vehicle = await Vehicle.findOne({ _id: req.body.vehicle, userId: req.userId });
+    if (!vehicle) throw new TargetError(404, "Vehicle not found");
+    return { usedFor, vehicle };
+  }
+
+  return { usedFor, vehicle: null };
+};
+
+// KM / hour meter reading; null when left empty
+const readMeterReading = (value) => {
+  if (value === "" || value === null || value === undefined) return null;
+  const reading = Number(value);
+  if (!Number.isFinite(reading) || reading < 0) {
+    throw new TargetError(400, "Meter reading must be a number of 0 or more");
+  }
+  return reading;
+};
+
+const targetFields = ({ usedFor, vehicle }) => ({
+  usedFor,
+  vehicle: vehicle?._id || null,
+  vehicleNo: vehicle?.vehicleNo || "",
+});
+
 const createMaterialUsed = async (req, res) => {
   try {
     const usedQty = toNumber(req.body.usedQty);
@@ -47,24 +89,15 @@ const createMaterialUsed = async (req, res) => {
       return res.status(404).json({ message: "Material type not found" });
     }
 
-    let vehicle = null;
-    if (req.body.vehicle) {
-      if (!mongoose.Types.ObjectId.isValid(req.body.vehicle)) {
-        return res.status(400).json({ message: "Invalid vehicle id" });
-      }
-
-      vehicle = await Vehicle.findOne({ _id: req.body.vehicle, userId: req.userId });
-      if (!vehicle) {
-        return res.status(404).json({ message: "Vehicle not found" });
-      }
-    }
+    const target = await resolveTarget(req);
+    const meterReading = readMeterReading(req.body.meterReading);
 
     await adjustStock(req.userId, stock._id, -usedQty);
 
     const materialUsed = await MaterialUsed.create({
       userId: req.userId,
-      vehicle: vehicle?._id || null,
-      vehicleNo: vehicle?.vehicleNo || "",
+      ...targetFields(target),
+      meterReading,
       materialType: stock._id,
       materialTypeName: stock.name,
       unit: stock.unit || "",
@@ -76,6 +109,7 @@ const createMaterialUsed = async (req, res) => {
     const savedEntry = await populateMaterialUsed(req.userId, materialUsed._id);
     return res.status(201).json({ data: savedEntry });
   } catch (error) {
+    if (error instanceof TargetError) return res.status(error.status).json({ message: error.message });
     return res.status(400).json({
       message: "Failed to create material used entry",
       error: error.message,
@@ -137,17 +171,8 @@ const updateMaterialUsed = async (req, res) => {
       return res.status(404).json({ message: "Material type not found" });
     }
 
-    let vehicle = null;
-    if (req.body.vehicle) {
-      if (!mongoose.Types.ObjectId.isValid(req.body.vehicle)) {
-        return res.status(400).json({ message: "Invalid vehicle id" });
-      }
-
-      vehicle = await Vehicle.findOne({ _id: req.body.vehicle, userId: req.userId });
-      if (!vehicle) {
-        return res.status(404).json({ message: "Vehicle not found" });
-      }
-    }
+    const target = await resolveTarget(req);
+    const meterReading = readMeterReading(req.body.meterReading);
 
     await adjustStock(req.userId, entry.materialType, entry.usedQty);
     try {
@@ -157,8 +182,8 @@ const updateMaterialUsed = async (req, res) => {
       throw error;
     }
 
-    entry.vehicle = vehicle?._id || null;
-    entry.vehicleNo = vehicle?.vehicleNo || "";
+    Object.assign(entry, targetFields(target));
+    entry.meterReading = meterReading;
     entry.materialType = stock._id;
     entry.materialTypeName = stock.name;
     entry.unit = stock.unit || "";
@@ -171,6 +196,7 @@ const updateMaterialUsed = async (req, res) => {
     const savedEntry = await populateMaterialUsed(req.userId, entry._id);
     return res.json({ data: savedEntry });
   } catch (error) {
+    if (error instanceof TargetError) return res.status(error.status).json({ message: error.message });
     return res.status(400).json({
       message: "Failed to update material used entry",
       error: error.message,

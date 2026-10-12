@@ -5,6 +5,7 @@ import apiClient from '../utils/api';
 import StatCard from '../components/StatCard';
 import Segmented from '../components/Segmented';
 import MaterialUsed from './MaterialUsed';
+import { usedForName } from '../utils/diesel';
 
 // How many materials the usage panel shows before "Show all"
 const TOP_MATERIALS = 6;
@@ -136,7 +137,7 @@ export default function MaterialUsedLedger() {
       date: formatDate(usedOn),
       material,
       materialKey: String(entry.materialType?._id || entry.materialType || material),
-      vehicleNo: entry.vehicleNo || '',
+      givenTo: usedForName(entry),
       qty: Number(entry.usedQty || 0),
       unit: entry.unit || entry.materialType?.unit || '',
       notes: entry.notes || ''
@@ -147,7 +148,7 @@ export default function MaterialUsedLedger() {
     const normalizedSearch = String(searchTerm || '').trim().toLowerCase();
 
     return rows.filter((row) => {
-      const matchesSearch = !normalizedSearch || [row.vehicleNo, row.material, row.notes]
+      const matchesSearch = !normalizedSearch || [row.givenTo, row.material, row.notes]
         .some((value) => value.toLowerCase().includes(normalizedSearch));
       if (!matchesSearch) return false;
 
@@ -302,7 +303,7 @@ export default function MaterialUsedLedger() {
                     className="input pl-9"
                     value={searchTerm}
                     onChange={(event) => setSearchTerm(event.target.value)}
-                    placeholder="Search material, vehicle, notes..."
+                    placeholder="Search material, vehicle, DG set, notes..."
                   />
                 </div>
                 <button type="button" className="icon-btn" title="Refresh" aria-label="Refresh" onClick={loadEntries}>
@@ -330,7 +331,7 @@ export default function MaterialUsedLedger() {
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
                           <p className="truncate font-semibold text-slate-800">{row.material}</p>
-                          <p className="mt-0.5 text-xs text-slate-500">{row.date}{row.vehicleNo ? ` · ${row.vehicleNo}` : ''}</p>
+                          <p className="mt-0.5 text-xs text-slate-500">{row.date}{row.givenTo ? ` · ${row.givenTo}` : ''}</p>
                         </div>
                         <p className="shrink-0 whitespace-nowrap text-base font-bold text-slate-900">{qtyText(row)}</p>
                       </div>
@@ -345,7 +346,7 @@ export default function MaterialUsedLedger() {
                       <tr>
                         <th className="tbl-head">Date</th>
                         <th className="tbl-head">Material</th>
-                        <th className="tbl-head">Vehicle</th>
+                        <th className="tbl-head">Given To</th>
                         <th className="tbl-head">Notes</th>
                         <th className="tbl-head text-right">Used Qty</th>
                       </tr>
@@ -356,7 +357,7 @@ export default function MaterialUsedLedger() {
                           <td className="tbl-cell whitespace-nowrap">{row.date}</td>
                           <td className="tbl-cell font-semibold text-slate-800">{row.material}</td>
                           <td className="tbl-cell whitespace-nowrap">
-                            {row.vehicleNo ? <span className="badge-gray">{row.vehicleNo}</span> : '-'}
+                            {row.givenTo ? <span className="badge-gray">{row.givenTo}</span> : '-'}
                           </td>
                           <td className="tbl-cell text-slate-500">
                             <div className="max-w-[18rem] truncate" title={row.notes || undefined}>{row.notes || '-'}</div>

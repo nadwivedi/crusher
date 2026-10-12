@@ -42,6 +42,11 @@ const stockSchema = new mongoose.Schema(
       lowercase: true,
       trim: true,
     },
+    // The account's default Diesel item, created at signup. The diesel report follows this item.
+    isDiesel: {
+      type: Boolean,
+      default: false,
+    },
   },
   {
     timestamps: true,

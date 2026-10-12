@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Package, Search, Truck } from 'lucide-react';
 import apiClient from '../utils/api';
+import { usedForName } from '../utils/diesel';
 
 const formatNumber = (value) => Number(value || 0).toLocaleString('en-IN', {
   minimumFractionDigits: 0,
@@ -63,7 +64,7 @@ export default function HomeMaterialUsedLedger() {
     if (!term) return entries;
 
     return entries.filter((entry) => (
-      [entry.vehicleNo, entry.materialTypeName, entry.materialType?.name, entry.notes]
+      [usedForName(entry), entry.materialTypeName, entry.materialType?.name, entry.notes]
         .some((value) => String(value || '').toLowerCase().includes(term))
     ));
   }, [entries, searchTerm]);
@@ -113,7 +114,7 @@ export default function HomeMaterialUsedLedger() {
               {recentEntries.map((entry) => (
                 <div key={entry._id} className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_12px_30px_rgba(15,23,42,0.08)]">
                   <div className="bg-gradient-to-r from-sky-50 via-cyan-50 to-blue-50 p-3">
-                    <p className="text-sm font-bold text-slate-900">{entry.vehicleNo || '-'}</p>
+                    <p className="text-sm font-bold text-slate-900">{usedForName(entry) || '-'}</p>
                     <p className="text-xs text-slate-500">{formatDate(entry.usedDate || entry.createdAt)}</p>
                   </div>
                   <div className="grid grid-cols-2 gap-3 p-3">
@@ -133,7 +134,7 @@ export default function HomeMaterialUsedLedger() {
               <thead>
                 <tr className="bg-[linear-gradient(135deg,#0f766e_0%,#0d9488_38%,#0891b2_72%,#0284c7_100%)] text-white">
                   <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-[0.14em]">Date</th>
-                  <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-[0.14em]">Vehicle No</th>
+                  <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-[0.14em]">Given To</th>
                   <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-[0.14em]">Material</th>
                   <th className="px-4 py-3 text-right text-xs font-bold uppercase tracking-[0.14em]">Used Qty</th>
                   <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-[0.14em]">Unit</th>
@@ -144,7 +145,7 @@ export default function HomeMaterialUsedLedger() {
                 {recentEntries.map((entry) => (
                   <tr key={entry._id} className="hover:bg-slate-50">
                     <td className="px-4 py-3 text-sm font-semibold text-slate-700">{formatDate(entry.usedDate || entry.createdAt)}</td>
-                    <td className="px-4 py-3 text-sm font-semibold text-slate-800">{entry.vehicleNo || '-'}</td>
+                    <td className="px-4 py-3 text-sm font-semibold text-slate-800">{usedForName(entry) || '-'}</td>
                     <td className="px-4 py-3 text-sm text-slate-700">{entry.materialTypeName || entry.materialType?.name || '-'}</td>
                     <td className="px-4 py-3 text-right text-sm font-black text-rose-600">{formatNumber(entry.usedQty)}</td>
                     <td className="px-4 py-3 text-sm text-slate-700">{entry.unit || entry.materialType?.unit || '-'}</td>
