@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import {
-  LayoutDashboard, Activity, BookOpenText, ChartNoAxesCombined, Mountain, FileText, HandCoins, Send, Wallet,
+  LayoutDashboard, Activity, ChartNoAxesCombined, Mountain, FileText, HandCoins, Send, Wallet,
   PackageMinus, IdCard, ChartColumn, Users, Boxes, Truck, Landmark, Tags,
   Settings, X, ShoppingCart, Warehouse, Package, Gauge
 } from 'lucide-react';
@@ -14,7 +14,6 @@ const navGroups = [
     items: [
       { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
       { to: '/activity', icon: Activity, label: 'Activity Center' },
-      { to: '/day-book', icon: BookOpenText, label: 'Day Book' },
       { to: '/analytics', icon: ChartNoAxesCombined, label: 'Analytics' },
     ]
   },

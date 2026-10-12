@@ -35,7 +35,6 @@ import ActivityCenter from './pages/ActivityCenter';
 import MeterReadings from './pages/MeterReadings';
 import MeterReadingPopup from './components/MeterReadingPopup';
 import ProfitLossReport from './pages/Reports/ProfitLossReport';
-import DayBook from './pages/DayBook';
 import Analytics from './pages/Analytics';
 import Setting from './pages/Setting';
 import Payroll from './pages/Payroll/Payroll';
@@ -138,7 +137,8 @@ function App() {
           <Route path="/stock-adjustments" element={<Navigate to="/stock-adjustment" replace />} />
 
           {/* Overview + reports */}
-          <Route path="/day-book" element={<DayBook />} />
+          {/* The Activity Center replaced the Day Book */}
+          <Route path="/day-book" element={<Navigate to="/activity" replace />} />
           <Route path="/activity" element={<ActivityCenter />} />
           <Route path="/analytics" element={<Analytics />} />
           <Route path="/reports" element={<ReportsHub />} />
