@@ -6,6 +6,7 @@ import { toast } from 'react-toastify';
 const ICONS = {
   user: 'M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z',
   phone: 'M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z',
+  mail: 'M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z',
   building: 'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4',
   lock: 'M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z',
   login: 'M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1',
@@ -66,6 +67,7 @@ export default function Login() {
   const [formData, setFormData] = useState({
     companyName: '',
     phone: '',
+    email: '',
   });
 
   const { login, employeeLogin, register, loading } = useAuth();
@@ -97,14 +99,21 @@ export default function Login() {
   const handleRegisterSubmit = async (e) => {
     e.preventDefault();
 
-    if (!formData.companyName || !formData.phone || !password) {
-      toast.error('Please fill all required fields');
+    // Mobile number and email are both mandatory
+    if (!formData.companyName.trim() || !formData.phone.trim() || !formData.email.trim() || !password) {
+      toast.error('Please fill company name, mobile number, email and password');
       return;
     }
 
     const phoneRegex = /^\d{10}$/;
-    if (!phoneRegex.test(formData.phone)) {
-      toast.error('Please enter a valid 10-digit phone number');
+    if (!phoneRegex.test(formData.phone.trim())) {
+      toast.error('Please enter a valid 10-digit mobile number');
+      return;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(formData.email.trim())) {
+      toast.error('Please enter a valid email address');
       return;
     }
 
@@ -114,7 +123,9 @@ export default function Login() {
     }
 
     const result = await register({
-      ...formData,
+      companyName: formData.companyName.trim(),
+      phone: formData.phone.trim(),
+      email: formData.email.trim().toLowerCase(),
       password
     });
 
@@ -138,6 +149,7 @@ export default function Login() {
     setFormData({
       companyName: '',
       phone: '',
+      email: '',
     });
   };
 
@@ -253,6 +265,18 @@ export default function Login() {
                   onChange={handleInputChange}
                   placeholder="Mobile Number"
                   maxLength="10"
+                  inputMode="numeric"
+                  autoComplete="tel"
+                  required
+                />
+                <IconInput
+                  icon="mail"
+                  type="email"
+                  name="email"
+                  value={formData.email}
+                  onChange={handleInputChange}
+                  placeholder="Email Address"
+                  autoComplete="email"
                   required
                 />
                 <PasswordInput

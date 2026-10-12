@@ -88,11 +88,13 @@ const normalizeRateValue = (value) => {
 const signupUser = async (req, res) => {
   try {
     const { companyName, phone, password } = req.body;
-    const name = companyName;
-    const mobile = phone;
+    const name = typeof companyName === "string" ? companyName.trim() : "";
+    const mobile = typeof phone === "string" ? phone.trim() : "";
+    const email = typeof req.body.email === "string" ? req.body.email.trim().toLowerCase() : "";
 
-    if (!name || !mobile || !password) {
-      return res.status(400).json({ message: "Company name, mobile number, and password are required", field: "required" });
+    // Mobile number and email are both mandatory for a new account
+    if (!name || !mobile || !email || !password) {
+      return res.status(400).json({ message: "Company name, mobile number, email and password are required", field: "required" });
     }
 
     const phoneRegex = /^\d{10}$/;
@@ -100,20 +102,31 @@ const signupUser = async (req, res) => {
       return res.status(400).json({ message: "Mobile number must be exactly 10 digits", field: "phone" });
     }
 
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({ message: "Enter a valid email address", field: "email" });
+    }
+
     if (password && password.length < 6) {
       return res.status(400).json({ message: "Password must be at least 6 characters", field: "password" });
     }
 
-    const existingUser = await User.findOne({ mobile: mobile.trim() });
+    const existingUser = await User.findOne({ mobile });
     if (existingUser) {
       return res.status(409).json({ message: "User with this mobile number already exists", field: "phone" });
+    }
+
+    const existingEmail = await User.findOne({ email });
+    if (existingEmail) {
+      return res.status(409).json({ message: "User with this email already exists", field: "email" });
     }
 
     const hashedPassword = await hashPassword(password);
 
     const user = await User.create({
-      name: name.trim(),
-      mobile: mobile.trim(),
+      name,
+      mobile,
+      email,
       password: hashedPassword,
       lastLoginAt: new Date(),
     });
@@ -132,6 +145,9 @@ const signupUser = async (req, res) => {
       if (field === 'mobile') {
         return res.status(409).json({ message: "User with this mobile number already exists", field: "phone" });
       }
+      if (field === 'email') {
+        return res.status(409).json({ message: "User with this email already exists", field: "email" });
+      }
       return res.status(409).json({ message: "User already exists" });
     }
 
@@ -142,17 +158,19 @@ const signupUser = async (req, res) => {
 const loginUser = async (req, res) => {
   try {
     const { emailOrPhone, password } = req.body;
-    const mobile = emailOrPhone;
+    const login = typeof emailOrPhone === "string" ? emailOrPhone.trim() : "";
 
-    if (!mobile || !password) {
+    if (!login || !password) {
       return res
         .status(400)
-        .json({ message: "Mobile number and password are required" });
+        .json({ message: "Mobile number or email and password are required" });
     }
 
-    const user = await User.findOne({ mobile: mobile.trim() }).select("+password");
+    // Owners log in with their mobile number or their email
+    const query = login.includes("@") ? { email: login.toLowerCase() } : { mobile: login };
+    const user = await User.findOne(query).select("+password");
     if (!user || !(await verifyPassword(password, user.password))) {
-      return res.status(401).json({ message: "Invalid mobile number or password" });
+      return res.status(401).json({ message: "Invalid mobile number, email or password" });
     }
 
     user.lastLoginAt = new Date();
