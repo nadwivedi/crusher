@@ -1606,7 +1606,7 @@ const getDashboardSummary = async (req, res) => {
     const [boulders, sales, expenses, purchases, receipts, payments] = await Promise.all([
       Boulder.find(scopedFilter(req, between("boulderDate", trendFrom))).select("netWeight amount entryMode tripCount boulderDate").lean(),
       Sales.find(scopedFilter(req, between("saleDate", trendFrom))).select("netWeight totalAmount paidAmount saleDate stoneSize pricingMode cubicMeterQty").lean(),
-      Expense.find(scopedFilter(req, between("expenseDate", trendFrom))).select("amount paidAmount expenseDate").lean(),
+      Expense.find(scopedFilter(req, between("expenseDate", trendFrom))).select("amount paidAmount expenseDate expenseGroup").populate("expenseGroup", "name").lean(),
       Purchase.find(scopedFilter(req, between("purchaseDate", fromDate))).select("totalAmount paidAmount").lean(),
       Receipt.find(scopedFilter(req, between("receiptDate", fromDate))).select("amount").lean(),
       Payment.find(scopedFilter(req, between("paymentDate", fromDate))).select("amount").lean(),
@@ -1667,12 +1667,19 @@ const getDashboardSummary = async (req, res) => {
     }
 
     const expenseTotals = { amount: 0, paidAmount: 0, count: 0 };
+    const expenseTypeMap = new Map();
     for (const item of expenses) {
       const date = new Date(item.expenseDate);
       const amount = toNumber(item.amount);
       addToTrend(date, "expenses", amount);
       if (date < fromDate) continue;
       expenseTotals.amount += amount;
+      // Same grouping as Analytics' "Expenses by Type"
+      const typeName = String(item.expenseGroup?.name || "Uncategorized").trim() || "Uncategorized";
+      const typeRow = expenseTypeMap.get(typeName) || { name: typeName, amount: 0, count: 0 };
+      typeRow.amount += amount;
+      typeRow.count += 1;
+      expenseTypeMap.set(typeName, typeRow);
       // Older expenses have no paidAmount and were fully paid
       expenseTotals.paidAmount += item.paidAmount == null ? amount : toNumber(item.paidAmount);
       expenseTotals.count += 1;
@@ -1700,7 +1707,10 @@ const getDashboardSummary = async (req, res) => {
         ...salesTotals,
         byMaterial: Array.from(materialMap.values()).sort((a, b) => b.amount - a.amount),
       },
-      expenses: expenseTotals,
+      expenses: {
+        ...expenseTotals,
+        byType: Array.from(expenseTypeMap.values()).sort((a, b) => b.amount - a.amount),
+      },
       purchases: { amount: sumOf(purchases, "totalAmount"), paidAmount: moneyOut.purchases, count: purchases.length },
       receipts: { amount: moneyIn.receipts, count: receipts.length },
       payments: { amount: moneyOut.payments, count: payments.length },

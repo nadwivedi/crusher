@@ -89,6 +89,66 @@ const CHART_BLUE = '#2563eb';
 const CHART_GREEN = '#10b981';
 const CHART_AMBER = '#f59e0b';
 
+const EXPENSE_TYPES_SHOWN = 6;
+
+/** Expenses of the period grouped by expense type, largest first: the same list as Analytics' "Expenses by Type". */
+function ExpenseTypesPanel({ rows, total, periodText }) {
+  const [showAll, setShowAll] = useState(false);
+  const visibleRows = showAll ? rows : rows.slice(0, EXPENSE_TYPES_SHOWN);
+
+  return (
+    <section className="panel">
+      <div className="panel-header py-3 flex items-center justify-between gap-3 border-amber-100 bg-amber-50">
+        <div className="min-w-0">
+          <h3 className="text-sm font-bold text-amber-900">Expenses by Type</h3>
+          <p className="text-xs text-slate-600">Where the money went · {periodText}</p>
+        </div>
+        <p className="shrink-0 whitespace-nowrap text-base font-bold text-slate-900">{fmt(total)}</p>
+      </div>
+      {rows.length > 0 ? (
+        <>
+          <ul className="grid grid-cols-1 divide-y divide-slate-100 md:grid-cols-2 md:divide-y-0">
+            {visibleRows.map((row) => {
+              const share = total > 0 ? (row.amount / total) * 100 : 0;
+              return (
+                <li key={row.name} className="px-4 py-3 md:border-b md:border-slate-100 md:px-5 md:odd:border-r">
+                  <div className="flex items-baseline justify-between gap-3">
+                    <p className="truncate text-sm font-semibold text-slate-800">{row.name}</p>
+                    <p className="shrink-0 whitespace-nowrap text-sm font-semibold text-slate-900">{fmt(row.amount)}</p>
+                  </div>
+                  <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-slate-100">
+                    <div className="h-full rounded-full bg-amber-500" style={{ width: `${Math.min(100, share)}%` }} />
+                  </div>
+                  <p className="mt-1 text-[11px] text-slate-500">
+                    {fmtNum(Math.round(share))}% of expenses · {row.count} {row.count === 1 ? 'entry' : 'entries'}
+                  </p>
+                </li>
+              );
+            })}
+          </ul>
+          {rows.length > EXPENSE_TYPES_SHOWN && (
+            <button
+              type="button"
+              onClick={() => setShowAll(!showAll)}
+              className="w-full border-t border-slate-100 px-4 py-2.5 text-xs font-semibold text-primary-700 transition hover:bg-slate-50"
+            >
+              {showAll ? 'Show less' : `Show all ${rows.length}`}
+            </button>
+          )}
+        </>
+      ) : (
+        <div className="flex flex-col items-center gap-2 px-6 py-8 text-center">
+          <span className="flex h-11 w-11 items-center justify-center rounded-full bg-slate-100 text-slate-400">
+            <Wallet size={20} />
+          </span>
+          <p className="text-sm font-semibold text-slate-800">No expenses in this period</p>
+          <p className="text-xs text-slate-500">Expense types appear here once an expense is added.</p>
+        </div>
+      )}
+    </section>
+  );
+}
+
 /** Heading of a cash flow column: round icon, small label and the column's total. */
 function FlowHead({ icon: Icon, iconClass, label, value, valueClass = 'text-slate-900' }) {
   return (
@@ -502,6 +562,8 @@ export default function Dashboard() {
           </div>
         )}
       </section>
+
+      <ExpenseTypesPanel rows={data?.expenses?.byType || []} total={data?.expenses?.amount || 0} periodText={periodText} />
 
       {/* Charts */}
       <div className="grid grid-cols-1 gap-3.5 md:gap-4 lg:grid-cols-2">
