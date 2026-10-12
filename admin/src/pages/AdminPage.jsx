@@ -29,9 +29,9 @@ import {
 import Sidebar from '../components/Sidebar'
 import StatCard from '../components/StatCard'
 
-const API_BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:5000').replace(/\/$/, '')
-const ADMIN_AUTH_ENDPOINT = `${API_BASE_URL}/api/admin/auth`
-const USERS_ENDPOINT = `${API_BASE_URL}/api/admin/users`
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api').replace(/\/$/, '')
+const ADMIN_AUTH_ENDPOINT = `${API_BASE_URL}/admin/auth`
+const USERS_ENDPOINT = `${API_BASE_URL}/admin/users`
 
 const emptyForm = {
   name: '',
