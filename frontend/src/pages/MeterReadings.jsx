@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import { CalendarDays, Factory, Gauge, Inbox, Pencil, Plus, RefreshCw, Search, Trash2, Truck } from 'lucide-react';
+import { CalendarDays, Factory, Gauge, Inbox, Pencil, Plus, RefreshCw, Trash2, Truck } from 'lucide-react';
 import apiClient from '../utils/api';
 import FormPopup from '../components/FormPopup';
 import StatCard from '../components/StatCard';
 import Segmented from '../components/Segmented';
 import { describeVehicle, meterUnitFor, sortVehiclesForFuel } from '../utils/diesel';
+import { getVehicleCategoryLabel } from '../utils/transport';
 import { handlePopupFormKeyDown } from '../utils/popupFormKeyboard';
 
 const TOAST_OPTIONS = { position: 'top-right', autoClose: 2200 };
@@ -49,7 +50,6 @@ const MACHINE_OPTIONS = [
 
 const DG_KEY = 'dg';
 const machineKeyOf = (reading) => (reading.machine === 'dg' ? DG_KEY : String(reading.vehicle || reading.vehicleNo));
-const machineNameOf = (reading) => (reading.machine === 'dg' ? 'DG Set' : reading.vehicleNo || '-');
 
 const hasValue = (value) => value !== null && value !== undefined && value !== '';
 const runOf = (reading) => (hasValue(reading.closingReading) ? Number(reading.closingReading) - Number(reading.openingReading) : null);
@@ -60,16 +60,17 @@ const byOldest = (a, b) => a.dateKey.localeCompare(b.dateKey) || new Date(a.crea
 const unitText = (unit) => (unit === 'hr' ? 'hr' : 'km');
 const runLabel = (unit) => (unit === 'hr' ? 'Hours Run' : 'KM Run');
 
-const emptyForm = () => ({
-  machine: 'dg',
-  vehicle: '',
+// A new entry starts on the machine being viewed
+const emptyForm = (machineKey) => ({
+  machine: !machineKey || machineKey === DG_KEY ? 'dg' : 'vehicle',
+  vehicle: machineKey && machineKey !== DG_KEY ? machineKey : '',
   readingDate: toDateKey(new Date()),
   openingReading: '',
   closingReading: '',
   notes: ''
 });
 
-function MeterReadingPopup({ readings, vehicles, editing, onClose, onSaved }) {
+function MeterReadingPopup({ readings, vehicles, editing, presetMachine, onClose, onSaved }) {
   const [form, setForm] = useState(() => (editing
     ? {
         machine: editing.machine,
@@ -79,7 +80,7 @@ function MeterReadingPopup({ readings, vehicles, editing, onClose, onSaved }) {
         closingReading: hasValue(editing.closingReading) ? String(editing.closingReading) : '',
         notes: editing.notes || ''
       }
-    : emptyForm()));
+    : emptyForm(presetMachine)));
   // Opening is filled from the last closing until the user types their own
   const [openingTouched, setOpeningTouched] = useState(Boolean(editing));
   const [saving, setSaving] = useState(false);
@@ -296,15 +297,20 @@ function GapBadge({ gap, unit }) {
   );
 }
 
+// "AB11HG1234 (Loader)", or just the number when the vehicle has no type
+const vehicleLabel = (vehicleNo, category) => {
+  const type = getVehicleCategoryLabel(category);
+  return type ? `${vehicleNo} (${type})` : vehicleNo;
+};
+
 export default function MeterReadings() {
   const navigate = useNavigate();
   const [readings, setReadings] = useState([]);
   const [vehicles, setVehicles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [periodKey, setPeriodKey] = useState('last7');
-  const [machineFilter, setMachineFilter] = useState('');
-  const [search, setSearch] = useState('');
+  const [periodKey, setPeriodKey] = useState('last30');
+  const [machineKey, setMachineKey] = useState(DG_KEY);
   const [popup, setPopup] = useState(null);
 
   const loadData = async () => {
@@ -351,45 +357,61 @@ export default function MeterReadings() {
     return withKeys.map((reading) => ({ ...reading, gap: gaps.get(reading._id) || 0 }));
   }, [readings]);
 
-  // DG first, then every vehicle that has a reading
+  // DG set first, then my and hired vehicles, then any other vehicle that already has readings
   const machines = useMemo(() => {
-    const seen = new Map();
+    const list = [{ key: DG_KEY, name: 'DG Set', unit: 'hr' }];
+    const listed = new Set([DG_KEY]);
+    const withReadings = new Set(rows.map(machineKeyOf));
+    vehicles.forEach((vehicle) => {
+      const key = String(vehicle._id);
+      if (vehicle.ownership === 'party' && !withReadings.has(key)) return;
+      list.push({ key, name: vehicleLabel(vehicle.vehicleNo, vehicle.category), unit: meterUnitFor('vehicle', vehicle.category) });
+      listed.add(key);
+    });
+    // Readings of a vehicle that was deleted since
     rows.forEach((reading) => {
       const key = machineKeyOf(reading);
-      if (!seen.has(key)) seen.set(key, { key, name: machineNameOf(reading), unit: reading.meterUnit });
+      if (listed.has(key)) return;
+      list.push({ key, name: reading.vehicleNo || '-', unit: reading.meterUnit });
+      listed.add(key);
     });
-    return [...seen.values()].sort((a, b) => (a.key === DG_KEY ? -1 : b.key === DG_KEY ? 1 : a.name.localeCompare(b.name)));
-  }, [rows]);
+    return list.map((machine) => ({ ...machine, running: rows.some((reading) => machineKeyOf(reading) === machine.key && !hasValue(reading.closingReading)) }));
+  }, [rows, vehicles]);
+
+  const machine = machines.find((item) => item.key === machineKey) || machines[0];
+  const unit = machine.unit;
 
   const todayKey = toDateKey(new Date());
-  const fromKey = periodKey === 'all' ? '' : daysAgoKey(PERIOD_FROM[periodKey]);
-  const searchText = search.trim().toLowerCase();
-
-  const visible = rows
-    .filter((reading) => (!fromKey || reading.dateKey >= fromKey) && reading.dateKey <= todayKey)
-    .filter((reading) => !machineFilter || machineKeyOf(reading) === machineFilter)
-    .filter((reading) => !searchText || `${machineNameOf(reading)} ${reading.notes}`.toLowerCase().includes(searchText))
-    .sort((a, b) => byOldest(b, a));
+  const machineRows = useMemo(() => rows.filter((reading) => machineKeyOf(reading) === machine.key), [rows, machine.key]);
 
   const stats = useMemo(() => {
-    const dgRun = (from) => rows
-      .filter((reading) => reading.machine === 'dg' && reading.dateKey >= from && reading.dateKey <= todayKey)
+    const runFrom = (from) => machineRows
+      .filter((reading) => reading.dateKey >= from && reading.dateKey <= todayKey)
       .reduce((sum, reading) => sum + (reading.run || 0), 0);
-    const today = rows.filter((reading) => reading.dateKey === todayKey);
+    const last = [...machineRows].sort(byOldest).at(-1);
+    const yesterdayKey = daysAgoKey(1);
+    const yesterdayRows = machineRows.filter((reading) => reading.dateKey === yesterdayKey);
     return {
-      dgToday: dgRun(todayKey),
-      dg7: dgRun(daysAgoKey(6)),
-      machinesToday: new Set(today.map(machineKeyOf)).size,
-      open: rows.filter((reading) => !hasValue(reading.closingReading)).length
+      yesterday: yesterdayRows.reduce((sum, reading) => sum + (reading.run || 0), 0),
+      // Yesterday has an entry still waiting for its closing
+      yesterdayOpen: yesterdayRows.some((reading) => !hasValue(reading.closingReading)),
+      yesterdayCount: yesterdayRows.length,
+      today: runFrom(todayKey),
+      d7: runFrom(daysAgoKey(6)),
+      d30: runFrom(daysAgoKey(29)),
+      meterNow: last ? (hasValue(last.closingReading) ? last.closingReading : last.openingReading) : null,
+      lastDate: last?.dateKey || ''
     };
-  }, [rows, todayKey]);
+  }, [machineRows, todayKey]);
 
-  // Run of the filtered machine over the period, when one machine is picked
-  const filteredMachine = machines.find((machine) => machine.key === machineFilter);
-  const filteredRun = visible.reduce((sum, reading) => sum + (reading.run || 0), 0);
+  const fromKey = periodKey === 'all' ? '' : daysAgoKey(PERIOD_FROM[periodKey]);
+  const visible = machineRows
+    .filter((reading) => (!fromKey || reading.dateKey >= fromKey) && reading.dateKey <= todayKey)
+    .sort((a, b) => byOldest(b, a));
+  const periodRun = visible.reduce((sum, reading) => sum + (reading.run || 0), 0);
 
   const handleDelete = async (reading) => {
-    if (!window.confirm(`Delete the ${machineNameOf(reading)} reading of ${formatDayKey(reading.dateKey)}?`)) return;
+    if (!window.confirm(`Delete the ${machine.name} reading of ${formatDayKey(reading.dateKey)}?`)) return;
     try {
       await apiClient.delete(`/meter-readings/${reading._id}`);
       toast.success('Reading deleted', TOAST_OPTIONS);
@@ -421,6 +443,7 @@ export default function MeterReadings() {
           readings={rows}
           vehicles={vehicles}
           editing={popup.editing || null}
+          presetMachine={machine.key}
           onClose={() => setPopup(null)}
           onSaved={() => { setPopup(null); loadData(); }}
         />
@@ -443,33 +466,62 @@ export default function MeterReadings() {
 
       {error && <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700">{error}</div>}
 
-      <section className="grid grid-cols-2 gap-2.5 lg:grid-cols-4 md:gap-4">
-        <StatCard icon={Factory} tone="amber" label="DG Hours Today" value={`${formatNumber(stats.dgToday)} hr`} />
-        <StatCard icon={CalendarDays} tone="indigo" label="DG Hours · 7 Days" value={`${formatNumber(stats.dg7)} hr`} />
-        <StatCard icon={Gauge} tone="emerald" label="Machines Read Today" value={formatNumber(stats.machinesToday)} />
-        <StatCard icon={Truck} tone="blue" label="Still Running" value={formatNumber(stats.open)} hint="Entries with no closing yet" />
+      <section className="panel p-3 md:p-4">
+        <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Choose DG or vehicle</p>
+        <div className="flex flex-wrap gap-2">
+          {machines.map((item) => {
+            const active = item.key === machine.key;
+            const MachineIcon = item.key === DG_KEY ? Factory : Truck;
+            return (
+              <button
+                key={item.key}
+                type="button"
+                onClick={() => setMachineKey(item.key)}
+                aria-pressed={active}
+                className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm font-semibold transition ${
+                  active
+                    ? 'border-primary-600 bg-primary-600 text-white shadow-sm'
+                    : 'border-slate-200 bg-white text-slate-700 hover:border-primary-300 hover:bg-primary-50'
+                }`}
+              >
+                <MachineIcon size={15} />
+                {item.name}
+                {item.running && <span className={`h-2 w-2 rounded-full ${active ? 'bg-white' : 'bg-sky-500'}`} title="Has an entry with no closing yet" />}
+              </button>
+            );
+          })}
+        </div>
+        {machines.length === 1 && (
+          <p className="mt-2 text-xs text-slate-500">Add your own or hired vehicles in Vehicles to record their meters here.</p>
+        )}
+      </section>
+
+      <section className="grid grid-cols-2 gap-2.5 lg:grid-cols-5 md:gap-4">
+        <div className="col-span-2 lg:col-span-1">
+          <StatCard
+            icon={CalendarDays}
+            tone="rose"
+            label={`${runLabel(unit)} Yesterday`}
+            value={stats.yesterdayCount > 0 ? `${formatNumber(stats.yesterday)} ${unitText(unit)}` : '-'}
+            hint={stats.yesterdayCount === 0 ? 'No reading for yesterday' : stats.yesterdayOpen ? 'Closing not entered yet' : formatDayKey(daysAgoKey(1))}
+          />
+        </div>
+        <StatCard icon={CalendarDays} tone="amber" label={`${runLabel(unit)} Today`} value={`${formatNumber(stats.today)} ${unitText(unit)}`} hint="Closing at night" />
+        <StatCard icon={CalendarDays} tone="indigo" label="Last 7 Days" value={`${formatNumber(stats.d7)} ${unitText(unit)}`} />
+        <StatCard icon={CalendarDays} tone="blue" label="Last 30 Days" value={`${formatNumber(stats.d30)} ${unitText(unit)}`} />
+        <StatCard icon={Gauge} tone="emerald" label="Meter Now" value={stats.meterNow !== null ? `${formatNumber(stats.meterNow)} ${unitText(unit)}` : '-'} hint={stats.lastDate ? `Last entry ${formatDayKey(stats.lastDate)}` : 'No reading yet'} />
       </section>
 
       <section className="panel">
-        <div className="panel-header flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <div className="panel-header flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div>
+            <h2 className="text-sm font-bold text-slate-900">{machine.name}</h2>
+            <p className="text-xs text-slate-500">
+              {visible.length > 0 ? `${formatNumber(periodRun)} ${unitText(unit)} run in ${visible.length} ${visible.length === 1 ? 'entry' : 'entries'} · newest first` : 'Newest first'}
+            </p>
+          </div>
           <Segmented options={PERIODS} value={periodKey} onChange={setPeriodKey} />
-          <div className="flex flex-col gap-2 sm:flex-row">
-            <select className="input sm:w-48" value={machineFilter} onChange={(event) => setMachineFilter(event.target.value)}>
-              <option value="">All machines</option>
-              {machines.map((machine) => <option key={machine.key} value={machine.key}>{machine.name}</option>)}
-            </select>
-            <div className="relative">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-              <input className="input pl-9 sm:w-56" placeholder="Search vehicle or notes" value={search} onChange={(event) => setSearch(event.target.value)} />
-            </div>
-          </div>
         </div>
-
-        {filteredMachine && visible.length > 0 && (
-          <div className="border-b border-slate-100 bg-slate-50 px-4 py-2.5 text-sm text-slate-600 md:px-5">
-            {filteredMachine.name}: <span className="font-bold text-slate-900">{formatNumber(filteredRun)} {unitText(filteredMachine.unit)}</span> run in {visible.length} {visible.length === 1 ? 'entry' : 'entries'}
-          </div>
-        )}
 
         {loading && readings.length === 0 ? (
           <div className="flex flex-col items-center gap-3 py-16">
@@ -478,8 +530,8 @@ export default function MeterReadings() {
           </div>
         ) : visible.length === 0 ? (
           <EmptyState
-            title={readings.length === 0 ? 'No meter readings yet' : 'No readings in this period'}
-            hint={readings.length === 0 ? 'Add the opening reading when a machine starts and the closing reading at day end.' : 'Pick a longer period or another machine.'}
+            title={machineRows.length === 0 ? `No readings for ${machine.name} yet` : 'No readings in this period'}
+            hint={machineRows.length === 0 ? 'Use "Add Reading": the opening when it starts, the closing at day end.' : 'Pick a longer period.'}
           />
         ) : (
           <>
@@ -488,15 +540,14 @@ export default function MeterReadings() {
                 <li key={reading._id} className="px-4 py-3">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <p className="truncate font-semibold text-slate-800">{machineNameOf(reading)}</p>
-                      <p className="text-xs text-slate-500">{formatDayKey(reading.dateKey)}</p>
+                      <p className="font-semibold text-slate-800">{formatDayKey(reading.dateKey)}</p>
+                      <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-slate-600">
+                        <span>{formatNumber(reading.openingReading)} → {closeCell(reading)}</span>
+                        {reading.run !== null && <span className="font-bold text-slate-900">{formatNumber(reading.run)} {unitText(reading.meterUnit)}</span>}
+                        <GapBadge gap={reading.gap} unit={reading.meterUnit} />
+                      </div>
                     </div>
                     {actions(reading)}
-                  </div>
-                  <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-slate-600">
-                    <span>{formatNumber(reading.openingReading)} → {closeCell(reading)}</span>
-                    {reading.run !== null && <span className="font-bold text-slate-900">{formatNumber(reading.run)} {unitText(reading.meterUnit)}</span>}
-                    <GapBadge gap={reading.gap} unit={reading.meterUnit} />
                   </div>
                   {reading.notes && <p className="mt-1 text-xs text-slate-500">{reading.notes}</p>}
                 </li>
@@ -504,14 +555,13 @@ export default function MeterReadings() {
             </ul>
 
             <div className="hidden overflow-x-auto md:block">
-              <table className="w-full min-w-[760px] text-left">
+              <table className="w-full min-w-[640px] text-left">
                 <thead>
                   <tr>
                     <th className="tbl-head">Date</th>
-                    <th className="tbl-head">Machine</th>
                     <th className="tbl-head text-right">Opening</th>
                     <th className="tbl-head text-right">Closing</th>
-                    <th className="tbl-head text-right">Run</th>
+                    <th className="tbl-head text-right">{runLabel(unit)}</th>
                     <th className="tbl-head">Notes</th>
                     <th className="tbl-head text-right">Actions</th>
                   </tr>
@@ -520,10 +570,6 @@ export default function MeterReadings() {
                   {visible.map((reading) => (
                     <tr key={reading._id} className="tbl-row">
                       <td className="tbl-cell whitespace-nowrap">{formatDayKey(reading.dateKey)}</td>
-                      <td className="tbl-cell">
-                        <p className="font-semibold text-slate-800">{machineNameOf(reading)}</p>
-                        <p className="text-xs text-slate-500">{reading.meterUnit === 'hr' ? 'Hour meter' : 'KM meter'}</p>
-                      </td>
                       <td className="tbl-cell whitespace-nowrap text-right">
                         {formatNumber(reading.openingReading)}
                         <GapBadge gap={reading.gap} unit={reading.meterUnit} />
@@ -532,7 +578,7 @@ export default function MeterReadings() {
                       <td className="tbl-cell whitespace-nowrap text-right font-bold text-slate-900">
                         {reading.run !== null ? `${formatNumber(reading.run)} ${unitText(reading.meterUnit)}` : '-'}
                       </td>
-                      <td className="tbl-cell text-slate-500"><div className="max-w-[14rem] truncate" title={reading.notes || undefined}>{reading.notes || '-'}</div></td>
+                      <td className="tbl-cell text-slate-500"><div className="max-w-[16rem] truncate" title={reading.notes || undefined}>{reading.notes || '-'}</div></td>
                       <td className="tbl-cell">{actions(reading)}</td>
                     </tr>
                   ))}
