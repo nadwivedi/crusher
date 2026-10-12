@@ -63,9 +63,9 @@ export const landingPages = [
   {
     slug: 'stone-crusher-accounting-software',
     navLabel: 'Stone Crusher Accounting Software',
-    seoTitle: 'Stone Crusher Accounting Software – Ledger, Daybook, P&L',
+    seoTitle: 'Stone Crusher Accounting Software – Ledger, Cash Book, P&L',
     description:
-      'Stone crusher accounting software with party ledger, daybook, cash & bank book, receipts, payments and profit & loss. Built for crusher plants in India.',
+      'Stone crusher accounting software with party ledger, cash & bank book, receipts, payments, expenses by type and profit & loss. Built for crusher plants in India.',
     keywords: [
       'stone crusher accounting software',
       'crusher accounting software',
@@ -77,7 +77,7 @@ export const landingPages = [
     eyebrow: 'Crusher Accounting',
     h1: 'Stone Crusher Accounting Software Made for Crusher Businesses',
     intro:
-      'Generic accounting software does not understand boulders, dispatch slips, or material sizes. CrusherBook does. Your sales, purchases, receipts, payments, and expenses flow into party ledgers, the daybook, and your profit and loss report automatically — without a separate accountant re-entering everything.',
+      'Generic accounting software does not understand boulders, dispatch slips, or material sizes. CrusherBook does. Your sales, purchases, receipts, payments, and expenses flow into party ledgers, cash and bank accounts, and your profit and loss report automatically — without a separate accountant re-entering everything.',
     painTitle: 'Why crusher accounts get messy',
     painPoints: [
       {
@@ -96,10 +96,10 @@ export const landingPages = [
     featuresTitle: 'Accounting features built for crushers',
     features: [
       { icon: 'users', title: 'Party-wise ledger', text: 'Every customer and supplier gets a running ledger with opening balance, sales, purchases, receipts, payments, and returns.' },
-      { icon: 'book', title: 'Daybook', text: 'A complete day-wise record of every transaction — print it or share it with your CA in one click.' },
+      { icon: 'book', title: 'Day-wise record of every entry', text: 'The Activity Center lists every sale, purchase, receipt, payment and expense day by day, with the time it was entered.' },
       { icon: 'landmark', title: 'Cash & bank accounts', text: 'Record receipts and payments against cash or multiple bank accounts and always know your balance.' },
       { icon: 'receipt', title: 'Receipts & payments', text: 'Money received and paid is linked to parties so outstanding balances update instantly.' },
-      { icon: 'wallet', title: 'Expense groups', text: 'Organise diesel, repairs, salaries, electricity, and royalty under expense groups for clear cost reports.' },
+      { icon: 'wallet', title: 'Expenses by type', text: 'Organise diesel, repairs, salaries and electricity under your own expense types, paid in cash, bank or on credit.' },
       { icon: 'chart', title: 'Profit & loss report', text: 'See sales, material cost, and expenses together in a crusher-specific P&L for any date range.' },
     ],
     stepsTitle: 'From slip to balance sheet — automatically',
@@ -107,15 +107,16 @@ export const landingPages = [
       { title: 'Entry at the plant', text: 'Sales and boulder slips are entered once, at the source.' },
       { title: 'Ledger updates', text: 'Party ledgers and stock update from the same entry — no re-typing.' },
       { title: 'Money is recorded', text: 'Receipts and payments are tagged to cash or bank and to the party.' },
-      { title: 'Reports are ready', text: 'Daybook, outstanding list, and P&L are always up to date for you and your CA.' },
+      { title: 'Reports are ready', text: 'Party balances, expenses and P&L are always up to date for you and your CA, with Excel export on the Advanced plan.' },
     ],
     faq: [
-      { question: 'Is CrusherBook a replacement for Tally?', answer: 'CrusherBook handles the day-to-day crusher accounts — ledgers, daybook, receipts, payments, expenses, and P&L. Many plants use it for daily operations and share reports with their CA for final filing.' },
+      { question: 'Is CrusherBook a replacement for Tally?', answer: 'CrusherBook handles the day-to-day crusher accounts — ledgers, cash and bank, receipts, payments, expenses, and P&L. Many plants use it for daily operations and share reports with their CA for final filing.' },
       { question: 'Can I track outstanding payments from contractors?', answer: 'Yes. Every party ledger shows the pending balance, and you can send balance reminders to customers on WhatsApp.' },
       { question: 'Does it support multiple bank accounts?', answer: 'Yes. You can add multiple bank accounts along with cash, and record each receipt or payment against the right account.' },
       { question: 'Can I see profit month by month?', answer: 'Yes. The profit and loss report works for any date range, so you can compare months or seasons.' },
+      { question: 'What does it cost?', answer: 'Plans start at Rs 6,999 per year, with a free demo first.' },
     ],
-    related: ['stone-crusher-management-software', 'crusher-billing-software', 'quarry-management-software'],
+    related: ['crusher-plant-expense-tracking-software', 'crusher-billing-software', 'stone-crusher-management-software'],
   },
   {
     slug: 'crusher-billing-software',
@@ -1037,6 +1038,64 @@ export const landingPages = [
       { question: 'What does it cost?', answer: 'Payroll is part of CrusherBook. Plans start at Rs 6,999 per year, with a free demo first.' },
     ],
     related: ['crusher-plant-expense-tracking-software', 'stone-crusher-plant-management-software', 'stone-crusher-accounting-software'],
+  },
+  {
+    slug: 'stone-crusher-boulder-production-tracking-software',
+    navLabel: 'Boulder Tracking Software',
+    seoTitle: 'Stone Crusher Boulder Production Tracking Software',
+    description:
+      'Track every boulder truck at your stone crusher: tons and trips per day, supplier-wise and vehicle-wise, average per trip, boulder on the dump and fed to the hopper, and what you owe each supplier.',
+    keywords: [
+      'stone crusher boulder production tracking software',
+      'boulder tracking software',
+      'boulder entry software crusher',
+      'boulder trip register software',
+      'boulder supplier ledger',
+      'boulder per ton per trip calculation',
+    ],
+    eyebrow: 'Boulder In, Tons Crushed',
+    h1: 'Stone Crusher Boulder Production Tracking Software',
+    intro:
+      'Everything a stone crusher produces starts as boulder. How many trucks came today, how many tons they carried, which supplier sent them and what each one is owed decides both your production and your biggest bill. CrusherBook records every boulder truck from its weighbridge slip or as a bulk trip entry, and turns them into day-wise, supplier-wise and vehicle-wise boulder reports.',
+    painTitle: 'Where boulder tracking breaks down',
+    painPoints: [
+      {
+        title: 'Trips counted twice or missed',
+        text: 'Boulder trips are written in a register at the gate, and the supplier\'s count never matches yours at payment time.',
+      },
+      {
+        title: 'Per ton or per trip, worked out by hand',
+        text: 'Some suppliers are paid per ton and some per trip, and the truck\'s transport is paid separately. Each bill is calculated by hand.',
+      },
+      {
+        title: 'Boulder on the dump forgotten',
+        text: 'When the hopper is down, boulder is unloaded on the dump and fed in later, and it is easy to lose track of how much is lying there.',
+      },
+    ],
+    featuresTitle: 'How CrusherBook tracks boulder',
+    features: [
+      { icon: 'scale', title: 'Single slip or bulk trips', text: 'Enter each truck from its slip with gross, tare and net weight, or enter many trips at once with an average weight.' },
+      { icon: 'mountain', title: 'Tons, trips and per day', text: 'Boulder crushed, number of trips, average tons per trip, working days and tons per day for any period.' },
+      { icon: 'users', title: 'Supplier rates and ledger', text: 'Pay each supplier per ton or per trip; every load goes to the supplier\'s ledger with the amount owed.' },
+      { icon: 'truck', title: 'Vehicle-wise boulder', text: 'See how many trips and tons each boulder truck brought, and the transport owed to its owner, kept separate.' },
+      { icon: 'boxes', title: 'Dump stock', text: 'Boulder sent to the dump and dump fed to the hopper are recorded, so the boulder lying on the dump is known.' },
+      { icon: 'chart', title: 'Day-wise and month-wise', text: 'Boulder by day, by month or for a picked month, with a boulder crushed chart on the dashboard.' },
+    ],
+    stepsTitle: 'Boulder tracking in four steps',
+    steps: [
+      { title: 'Truck arrives', text: 'The boulder truck is weighed and entered with supplier and vehicle.' },
+      { title: 'Rate applied', text: 'The supplier\'s per ton or per trip rate and the transport rate work out the amounts.' },
+      { title: 'Hopper or dump', text: 'If the hopper is down, the load is recorded as going to the dump.' },
+      { title: 'Report', text: 'Tons, trips and amounts are ready day-wise, supplier-wise and vehicle-wise.' },
+    ],
+    faq: [
+      { question: 'What is stone crusher boulder production tracking software?', answer: 'It is software that records every boulder truck coming into a stone crusher, with weight, trips, supplier and vehicle, and shows how much boulder was crushed each day and what is owed to each supplier and truck owner.' },
+      { question: 'Can I pay suppliers per trip instead of per ton?', answer: 'Yes. Each supplier can be paid per ton or per trip, and the truck\'s transport can be paid per ton or per trip as well, to its own owner.' },
+      { question: 'What if I do not weigh every boulder truck?', answer: 'Use a bulk entry: enter the number of trips and the average weight per trip, and the total tons are worked out.' },
+      { question: 'Can I see boulder brought by one vehicle?', answer: 'Yes. The vehicle-wise view shows trips and tons for each boulder truck, and you can filter the list to one vehicle.' },
+      { question: 'What does it cost?', answer: 'Plans start at Rs 6,999 per year, with a free demo first.' },
+    ],
+    related: ['crusher-plant-production-tracking-software', 'crusher-plant-production-report-software', 'crusher-weighbridge-software'],
   },
   {
     slug: 'crusher-hisab-kitab-app',
