@@ -140,6 +140,8 @@ function AdminPage() {
   const [showLoginPassword, setShowLoginPassword] = useState(false)
   const [userToDelete, setUserToDelete] = useState(null)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [userToDeactivate, setUserToDeactivate] = useState(null)
+  const [statusChangingId, setStatusChangingId] = useState(null)
   const [loginForm, setLoginForm] = useState({
     email: '',
     password: '',
@@ -318,6 +320,46 @@ function AdminPage() {
     } finally {
       setIsDeleting(false)
     }
+  }
+
+  // Deactivated accounts are signed out and cannot sign in, staff included
+  const changeUserStatus = async (user, isActive) => {
+    try {
+      setStatusChangingId(user.id)
+      await axios.patch(`${USERS_ENDPOINT}/${user.id}/status`, { isActive }, { withCredentials: true })
+      toast.success(isActive ? `${user.name} can use the app again` : `${user.name} has been deactivated`)
+      setUserToDeactivate(null)
+      await loadUsers()
+    } catch (requestError) {
+      toast.error(requestError.response?.data?.message || 'Could not change this account')
+    } finally {
+      setStatusChangingId(null)
+    }
+  }
+
+  const handleStatusClick = (user) => {
+    if (user.isActive === false) {
+      changeUserStatus(user, true)
+    } else {
+      setUserToDeactivate(user)
+    }
+  }
+
+  const renderStatusButton = (user) => {
+    const inactive = user.isActive === false
+    const StatusIcon = inactive ? UserCheck : UserX
+    return (
+      <button
+        type="button"
+        onClick={() => handleStatusClick(user)}
+        disabled={statusChangingId === user.id}
+        className={`${ICON_BUTTON} ${inactive ? 'text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700' : 'hover:bg-amber-50 hover:text-amber-700'} disabled:opacity-50`}
+        title={inactive ? 'Activate' : 'Deactivate'}
+        aria-label={inactive ? `Activate ${user.name}` : `Deactivate ${user.name}`}
+      >
+        {statusChangingId === user.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <StatusIcon className="h-4 w-4" />}
+      </button>
+    )
   }
 
   const handleAdminLogin = async (event) => {
@@ -520,14 +562,14 @@ function AdminPage() {
           ) : filteredUsers.length ? (
             <>
               <div className="hidden overflow-x-auto lg:block">
-                <table className="w-full min-w-[1040px] text-left">
+                <table className="w-full min-w-[1080px] text-left">
                   <thead>
                     <tr className="bg-stone-100/70 text-xs font-semibold uppercase tracking-wide text-stone-500">
                       <th className="px-5 py-2.5">User</th>
-                      <th className="px-3 py-2.5">Mobile</th>
-                      <th className="px-3 py-2.5">Email</th>
+                      <th className="px-3 py-2.5">Mobile / Email</th>
                       <th className="px-3 py-2.5">Plan</th>
                       <th className="px-3 py-2.5">Location</th>
+                      <th className="px-3 py-2.5">Joined</th>
                       <th className="px-3 py-2.5">Last Sign In</th>
                       <th className="px-3 py-2.5">Last Activity</th>
                       <th className="px-5 py-2.5" />
@@ -535,23 +577,33 @@ function AdminPage() {
                   </thead>
                   <tbody>
                     {filteredUsers.map((user) => (
-                      <tr key={user.id} className="border-t border-stone-200 text-sm text-stone-700 transition hover:bg-white">
+                      <tr key={user.id} className={`border-t border-stone-200 text-sm text-stone-700 transition hover:bg-white ${user.isActive === false ? 'bg-rose-50/40' : ''}`}>
                         <td className="px-5 py-2.5">
                           <div className="flex items-center gap-3">
                             <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold ${getAvatarClass(user.name || user.id)}`}>
                               {getInitials(user.name)}
                             </span>
-                            <span className="font-semibold text-stone-900">{user.name}</span>
+                            <span className="min-w-0">
+                              <span className="block font-semibold text-stone-900">{user.name}</span>
+                              {user.isActive === false && (
+                                <span className="mt-0.5 inline-flex rounded-full bg-rose-50 px-2 py-0.5 text-[11px] font-semibold text-rose-700 ring-1 ring-inset ring-rose-200" title={user.deactivatedAt ? `Since ${formatDateTime(user.deactivatedAt)}` : undefined}>
+                                  Deactivated
+                                </span>
+                              )}
+                            </span>
                           </div>
                         </td>
-                        <td className="px-3 py-2.5 font-mono text-xs">{user.mobile}</td>
-                        <td className="px-3 py-2.5">{user.email || '—'}</td>
+                        <td className="px-3 py-2.5">
+                          <span className="block font-mono text-xs text-stone-800">{user.mobile}</span>
+                          <span className="block text-[11px] text-stone-400">{user.email || '—'}</span>
+                        </td>
                         <td className="px-3 py-2.5">
                           <span className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold ring-1 ring-inset ${user.planType === 'lifetime' ? 'bg-violet-50 text-violet-700 ring-violet-200' : 'bg-sky-50 text-sky-700 ring-sky-200'}`}>
                             {describePlan(user)}
                           </span>
                         </td>
                         <td className="px-3 py-2.5">{[user.district, user.state].filter(Boolean).join(', ') || '—'}</td>
+                        <td className="whitespace-nowrap px-3 py-2.5">{renderWhen(user.createdAt, 'Unknown')}</td>
                         <td className="whitespace-nowrap px-3 py-2.5">{renderWhen(user.lastLoginAt, 'Never')}</td>
                         <td className="whitespace-nowrap px-3 py-2.5">{renderWhen(user.lastActivityAt, 'No activity')}</td>
                         <td className="px-5 py-2.5">
@@ -565,6 +617,7 @@ function AdminPage() {
                               <LogIn className="h-3.5 w-3.5" />
                               Access
                             </button>
+                            {renderStatusButton(user)}
                             <button type="button" onClick={() => handleEdit(user)} className={`${ICON_BUTTON} hover:text-blue-700`} title="Edit" aria-label={`Edit ${user.name}`}>
                               <Pencil className="h-4 w-4" />
                             </button>
@@ -590,11 +643,11 @@ function AdminPage() {
                       <p className="truncate text-sm font-semibold text-stone-900">
                         {user.name}
                         <span className={`ml-2 text-[11px] font-semibold ${user.planType === 'lifetime' ? 'text-violet-700' : 'text-sky-700'}`}>{describePlan(user)}</span>
+                        {user.isActive === false && <span className="ml-2 text-[11px] font-semibold text-rose-700">Deactivated</span>}
                       </p>
-                      <p className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-stone-500">
-                        <span className="inline-flex items-center gap-1"><Phone className="h-3 w-3" />{user.mobile}</span>
-                        {user.email && <span className="inline-flex items-center gap-1 truncate"><Mail className="h-3 w-3" />{user.email}</span>}
-                      </p>
+                      <p className="mt-0.5 flex items-center gap-1 text-xs text-stone-500"><Phone className="h-3 w-3" />{user.mobile}</p>
+                      {user.email && <p className="mt-0.5 flex min-w-0 items-center gap-1 text-xs text-stone-500"><Mail className="h-3 w-3 shrink-0" /><span className="truncate">{user.email}</span></p>}
+                      {user.createdAt && <p className="mt-0.5 flex items-center gap-1 text-xs text-stone-500"><UserPlus className="h-3 w-3" />Joined {formatDateTime(user.createdAt)}</p>}
                       <p className="mt-0.5 flex flex-wrap items-center gap-x-3 text-xs text-stone-400">
                         <span className="inline-flex items-center gap-1" title={user.lastLoginAt ? formatDateTime(user.lastLoginAt) : undefined}>
                           <Clock className="h-3 w-3" />Signed in {user.lastLoginAt ? formatTimeAgo(user.lastLoginAt) : 'never'}
@@ -611,6 +664,7 @@ function AdminPage() {
                       <button type="button" onClick={() => handleAccess(user)} className={`${ICON_BUTTON} text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700`} aria-label={`Open the app as ${user.name}`}>
                         <LogIn className="h-4 w-4" />
                       </button>
+                      {renderStatusButton(user)}
                       <button type="button" onClick={() => handleEdit(user)} className={ICON_BUTTON} aria-label={`Edit ${user.name}`}>
                         <Pencil className="h-4 w-4" />
                       </button>
@@ -777,6 +831,39 @@ function AdminPage() {
                   </button>
                 </div>
               </form>
+            </div>
+          </div>
+        ) : null}
+
+        {userToDeactivate ? (
+          <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4" onClick={() => !statusChangingId && setUserToDeactivate(null)}>
+            <div
+              className="w-full max-w-sm rounded-2xl border border-stone-200 bg-[#fbfaf7] p-6 text-center shadow-2xl"
+              onClick={(event) => event.stopPropagation()}
+              role="alertdialog"
+              aria-modal="true"
+            >
+              <span className="mx-auto flex h-11 w-11 items-center justify-center rounded-full bg-amber-50">
+                <UserX className="h-5 w-5 text-amber-600" />
+              </span>
+              <h3 className="mt-3 text-base font-bold text-stone-900">Deactivate this account?</h3>
+              <p className="mt-1 text-sm text-stone-500">
+                <span className="font-semibold text-stone-800">{userToDeactivate.name}</span> and their staff will be signed out and cannot sign in. Their data is kept, and you can activate the account again any time.
+              </p>
+              <div className="mt-5 flex gap-2">
+                <button type="button" onClick={() => setUserToDeactivate(null)} disabled={Boolean(statusChangingId)} className={`${SECONDARY_BUTTON} flex-1`}>
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => changeUserStatus(userToDeactivate, false)}
+                  disabled={Boolean(statusChangingId)}
+                  className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-amber-600 py-2 text-sm font-semibold text-white transition hover:bg-amber-700 disabled:opacity-60"
+                >
+                  {statusChangingId ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                  {statusChangingId ? 'Deactivating…' : 'Deactivate'}
+                </button>
+              </div>
             </div>
           </div>
         ) : null}

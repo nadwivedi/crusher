@@ -2,6 +2,7 @@ const bcrypt = require("bcryptjs");
 const { ensureDieselStock } = require("../utils/diesel");
 const User = require("../models/User");
 const { createAccessLink } = require("../utils/adminAccess");
+const { forgetAccountStatus } = require("../utils/accountStatus");
 
 const saltRounds = 10;
 
@@ -18,6 +19,8 @@ const sanitizeAdminUser = (user) => ({
   lastActivityAt: user.lastActivityAt || null,
   planType: user.planType || "yearly",
   planPrice: Number(user.planPrice || 0),
+  isActive: user.isActive !== false,
+  deactivatedAt: user.deactivatedAt || null,
   createdAt: user.createdAt,
   updatedAt: user.updatedAt,
 });
@@ -39,7 +42,7 @@ const getUsers = async (_req, res) => {
   try {
     const users = await User.find({})
       .sort({ createdAt: -1 })
-      .select("name email mobile state district lastLoginAt lastActivityAt planType planPrice createdAt updatedAt");
+      .select("name email mobile state district lastLoginAt lastActivityAt planType planPrice isActive deactivatedAt createdAt updatedAt");
 
     return res.json({
       success: true,
@@ -190,6 +193,7 @@ const deleteUser = async (req, res) => {
   try {
     const { id } = req.params;
     const user = await User.findByIdAndDelete(id);
+    forgetAccountStatus(id);
 
     if (!user) {
       return res.status(404).json({ success: false, message: "User not found" });
@@ -199,6 +203,35 @@ const deleteUser = async (req, res) => {
   } catch (error) {
     console.error(error);
     return res.status(500).json({ success: false, message: "Failed to delete user" });
+  }
+};
+
+// Deactivate or turn back on an account. A deactivated owner and their staff are signed out and cannot sign in.
+const setUserStatus = async (req, res) => {
+  try {
+    if (typeof req.body?.isActive !== "boolean") {
+      return res.status(400).json({ success: false, message: "Say whether the account should be active" });
+    }
+
+    const { isActive } = req.body;
+    const user = await User.findByIdAndUpdate(
+      req.params.id,
+      { $set: { isActive, deactivatedAt: isActive ? null : new Date() } },
+      { new: true }
+    );
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+    forgetAccountStatus(user._id);
+
+    return res.json({
+      success: true,
+      message: isActive ? "Account activated" : "Account deactivated",
+      data: sanitizeAdminUser(user),
+    });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ success: false, message: "Failed to change account status" });
   }
 };
 
@@ -218,6 +251,7 @@ const getUserAccessLink = async (req, res) => {
 
 module.exports = {
   getUserAccessLink,
+  setUserStatus,
   getUsers,
   createUser,
   updateUser,

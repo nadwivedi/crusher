@@ -1,6 +1,7 @@
 const jwt = require("jsonwebtoken");
 const Employee = require("../models/Employee");
 const User = require("../models/User");
+const { isAccountActive, DEACTIVATED_MESSAGE } = require("../utils/accountStatus");
 
 // Last activity is written at most once every few minutes per account, so busy pages do not hit the database each time
 const ACTIVITY_WRITE_GAP_MS = 5 * 60 * 1000;
@@ -37,6 +38,15 @@ const auth = async (req, res, next) => {
     req.userId = decoded.id;
     // Opened by an admin from the admin panel
     req.adminAccess = Boolean(decoded.adminAccess);
+
+    // A deactivated account is signed out everywhere; the admin can still open it from the admin panel
+    if (!req.adminAccess && !(await isAccountActive(req.userId))) {
+      return res.status(401).json({
+        success: false,
+        code: "ACCOUNT_DEACTIVATED",
+        message: DEACTIVATED_MESSAGE,
+      });
+    }
     
     // Attach employee context if it's a staff login
     if (decoded.role === 'employee' && decoded.employeeId) {

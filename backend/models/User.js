@@ -43,6 +43,15 @@ const userSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+    // Turned off by the admin: the owner and their staff cannot sign in or use the app
+    isActive: {
+      type: Boolean,
+      default: true,
+    },
+    deactivatedAt: {
+      type: Date,
+      default: null,
+    },
     // Subscription: yearly (price per year) or lifetime (one-time price). Set by the admin.
     planType: {
       type: String,

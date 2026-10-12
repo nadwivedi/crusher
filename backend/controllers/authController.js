@@ -56,6 +56,7 @@ const generateToken = (id) => (
 );
 
 const { redeemAccessToken, createAdminSessionToken } = require("../utils/adminAccess");
+const { isAccountActive, DEACTIVATED_MESSAGE } = require("../utils/accountStatus");
 
 const getCookieOptions = () => {
   const isProduction = process.env.NODE_ENV === "production";
@@ -177,6 +178,10 @@ const loginUser = async (req, res) => {
       return res.status(401).json({ message: "Invalid mobile number, email or password" });
     }
 
+    if (user.isActive === false) {
+      return res.status(403).json({ message: DEACTIVATED_MESSAGE, code: "ACCOUNT_DEACTIVATED" });
+    }
+
     user.lastLoginAt = new Date();
     await user.save();
 
@@ -208,6 +213,11 @@ const employeeLogin = async (req, res) => {
 
     if (!emp.isActive) {
       return res.status(403).json({ message: "Your access has been revoked by the owner" });
+    }
+
+    // Staff of a deactivated account cannot sign in either
+    if (!(await isAccountActive(emp.ownerId))) {
+      return res.status(403).json({ message: DEACTIVATED_MESSAGE, code: "ACCOUNT_DEACTIVATED" });
     }
 
     const token = jwt.sign(

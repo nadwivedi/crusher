@@ -5,9 +5,8 @@ const SECRET = process.env.JWT_SECRET || "your_jwt_secret";
 const LINK_LIFETIME = "2m";
 const SESSION_LIFETIME = "8h";
 
-// Where the crusher app lives; the link opens there
-const getAppUrl = () => (process.env.APP_URL
-  || (process.env.NODE_ENV === "production" ? "https://app.crusherbook.com" : "http://localhost:5173")).replace(/\/$/, "");
+// The access link always opens the live crusher app
+const APP_URL = "https://app.crusherbook.com";
 
 // Each link works once: its id is remembered until it would have expired anyway
 const usedLinkIds = new Map();
@@ -25,7 +24,7 @@ const createAccessLink = (userId, adminId) => {
     SECRET,
     { expiresIn: LINK_LIFETIME }
   );
-  return `${getAppUrl()}/admin-access?token=${encodeURIComponent(token)}`;
+  return `${APP_URL}/admin-access?token=${encodeURIComponent(token)}`;
 };
 
 /** Checks a link's token and uses it up. Returns { userId, adminId } or throws. */
