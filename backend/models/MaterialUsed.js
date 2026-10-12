@@ -24,12 +24,6 @@ const materialUsedSchema = new mongoose.Schema(
       type: String,
       enum: ["vehicle", "dg", "other"],
     },
-    // KM or hour meter of the vehicle / DG at the time of filling; null when not noted
-    meterReading: {
-      type: Number,
-      default: null,
-      min: 0,
-    },
     materialType: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Stock",

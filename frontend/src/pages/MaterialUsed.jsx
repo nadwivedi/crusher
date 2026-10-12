@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'react-toastify';
 import { Package, Truck, X } from 'lucide-react';
 import apiClient from '../utils/api';
-import { USED_FOR_OPTIONS, describeVehicle, meterLabel, meterUnitFor, sortVehiclesForFuel, usedForName, usedForOf } from '../utils/diesel';
+import { USED_FOR_OPTIONS, describeVehicle, sortVehiclesForFuel, usedForName, usedForOf } from '../utils/diesel';
 import { handlePopupFormKeyDown } from '../utils/popupFormKeyboard';
 import { useFloatingDropdownPosition } from '../utils/useFloatingDropdownPosition';
 
@@ -14,7 +14,6 @@ const TOAST_OPTIONS = {
 const initialFormData = {
   usedFor: 'vehicle',
   vehicle: '',
-  meterReading: '',
   materialType: '',
   usedQty: '',
   usedDate: new Date().toISOString().slice(0, 10),
@@ -30,7 +29,6 @@ const INACTIVE_OPTION_CLASS = 'border-slate-200 bg-white text-slate-600 hover:bo
 function MaterialUsedForm({
   formData,
   setFormData,
-  vehicles,
   materials,
   loading,
   editingId,
@@ -63,8 +61,7 @@ function MaterialUsedForm({
   getMaterialStockText,
   selectVehicle,
   selectMaterial,
-  onUsedForChange,
-  lastReading
+  onUsedForChange
 }) {
   const vehicleDropdownStyle = useFloatingDropdownPosition(vehicleSectionRef, isVehicleSectionActive, [filteredVehicles.length, vehicleListIndex]);
   const materialDropdownStyle = useFloatingDropdownPosition(materialSectionRef, isMaterialSectionActive, [filteredMaterials.length, materialListIndex]);
@@ -77,12 +74,6 @@ function MaterialUsedForm({
   const usedQty = Number(formData.usedQty) || 0;
   const stockAfter = Math.round((inStock - usedQty) * 100) / 100;
   const exceedsStock = Boolean(selectedMaterial) && stockAfter < 0;
-
-  const selectedVehicle = vehicles.find((vehicle) => vehicle._id === formData.vehicle);
-  const hasTarget = formData.usedFor === 'dg' || (formData.usedFor === 'vehicle' && Boolean(selectedVehicle));
-  const meterUnit = meterUnitFor(formData.usedFor, selectedVehicle?.category);
-  const reading = formData.meterReading === '' ? null : Number(formData.meterReading);
-  const readingBelowLast = Boolean(lastReading) && reading !== null && reading < lastReading.reading;
 
   return (
     <div className="flex max-h-[95vh] w-full max-w-lg flex-col overflow-hidden rounded-xl bg-white shadow-2xl md:rounded-2xl">
@@ -310,37 +301,6 @@ function MaterialUsedForm({
           </div>
         </div>
 
-        {hasTarget && (
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="label">{meterLabel(meterUnit)} <span className="font-normal text-slate-400">(optional)</span></label>
-              <div className="relative">
-                <input
-                  type="number"
-                  min="0"
-                  step="any"
-                  value={formData.meterReading}
-                  onChange={(event) => setFormData((prev) => ({ ...prev, meterReading: event.target.value }))}
-                  placeholder="Meter now"
-                  className="input pr-10"
-                />
-                <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-xs font-semibold text-slate-400">{meterUnit}</span>
-              </div>
-            </div>
-            <div className="self-end pb-1 text-xs text-slate-500">
-              {lastReading ? (
-                <>
-                  <p>
-                    Last: <span className="font-semibold text-slate-700">{formatQty(lastReading.reading)} {meterUnit}</span>
-                    {' '}on {new Date(lastReading.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}
-                  </p>
-                  {readingBelowLast && <p className="mt-0.5 font-medium text-amber-700">Lower than the last reading</p>}
-                </>
-              ) : 'Helps work out the average (km/ltr or ltr/hr)'}
-            </div>
-          </div>
-        )}
-
         <div>
           <label className="label">Notes</label>
           <textarea
@@ -407,18 +367,6 @@ export default function MaterialUsed({ modalOnly = false, onModalFinish = null }
     if (!searchValue) return vehicles;
     return vehicles.filter((vehicle) => getVehicleDisplayName(vehicle).toLowerCase().includes(searchValue));
   }, [vehicles, vehicleQuery]);
-
-  // The meter reading noted at the last filling of the picked vehicle / the DG set
-  const lastReading = useMemo(() => {
-    const { usedFor, vehicle } = formData;
-    if (usedFor === 'other' || (usedFor === 'vehicle' && !vehicle)) return null;
-    const isSameTarget = (entry) => usedForOf(entry) === usedFor
-      && (usedFor === 'dg' || String(entry.vehicle?._id || entry.vehicle || '') === vehicle);
-    const last = entries
-      .filter((entry) => entry._id !== editingId && isSameTarget(entry) && entry.meterReading !== null && entry.meterReading !== undefined)
-      .sort((a, b) => new Date(b.usedDate || b.createdAt) - new Date(a.usedDate || a.createdAt) || new Date(b.createdAt) - new Date(a.createdAt))[0];
-    return last ? { reading: Number(last.meterReading), date: last.usedDate || last.createdAt } : null;
-  }, [entries, editingId, formData]);
 
   const filteredMaterials = useMemo(() => {
     const searchValue = String(materialQuery || '').trim().toLowerCase();
@@ -514,7 +462,6 @@ export default function MaterialUsed({ modalOnly = false, onModalFinish = null }
     const payload = {
       usedFor: formData.usedFor,
       vehicle: formData.usedFor === 'vehicle' ? formData.vehicle : null,
-      meterReading: formData.usedFor === 'other' ? '' : formData.meterReading,
       materialType: formData.materialType,
       usedQty: Number(formData.usedQty),
       usedDate: formData.usedDate || undefined,
@@ -548,7 +495,6 @@ export default function MaterialUsed({ modalOnly = false, onModalFinish = null }
     setFormData({
       usedFor: usedForOf(entry),
       vehicle: entry.vehicle?._id || '',
-      meterReading: entry.meterReading ?? '',
       materialType: entry.materialType?._id || '',
       usedQty: entry.usedQty || '',
       usedDate: entry.usedDate ? new Date(entry.usedDate).toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10),
@@ -565,7 +511,7 @@ export default function MaterialUsed({ modalOnly = false, onModalFinish = null }
   };
 
   const handleUsedForChange = (usedFor) => {
-    setFormData((prev) => (prev.usedFor === usedFor ? prev : { ...prev, usedFor, meterReading: '' }));
+    setFormData((prev) => (prev.usedFor === usedFor ? prev : { ...prev, usedFor }));
   };
 
 
@@ -697,7 +643,6 @@ export default function MaterialUsed({ modalOnly = false, onModalFinish = null }
       <MaterialUsedForm
         formData={formData}
         setFormData={setFormData}
-        vehicles={vehicles}
         materials={materials}
         loading={loading}
         editingId={editingId}
@@ -731,7 +676,6 @@ export default function MaterialUsed({ modalOnly = false, onModalFinish = null }
         selectVehicle={selectVehicle}
         selectMaterial={selectMaterial}
         onUsedForChange={handleUsedForChange}
-        lastReading={lastReading}
       />
 
       <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-[0_24px_60px_rgba(15,23,42,0.08)]">
@@ -822,7 +766,6 @@ export default function MaterialUsed({ modalOnly = false, onModalFinish = null }
             <MaterialUsedForm
               formData={formData}
               setFormData={setFormData}
-              vehicles={vehicles}
               materials={materials}
               loading={loading}
               editingId={editingId}
@@ -856,7 +799,6 @@ export default function MaterialUsed({ modalOnly = false, onModalFinish = null }
               selectVehicle={selectVehicle}
               selectMaterial={selectMaterial}
               onUsedForChange={handleUsedForChange}
-              lastReading={lastReading}
             />
           </form>
         </div>

@@ -57,16 +57,6 @@ const resolveTarget = async (req) => {
   return { usedFor, vehicle: null };
 };
 
-// KM / hour meter reading; null when left empty
-const readMeterReading = (value) => {
-  if (value === "" || value === null || value === undefined) return null;
-  const reading = Number(value);
-  if (!Number.isFinite(reading) || reading < 0) {
-    throw new TargetError(400, "Meter reading must be a number of 0 or more");
-  }
-  return reading;
-};
-
 const targetFields = ({ usedFor, vehicle }) => ({
   usedFor,
   vehicle: vehicle?._id || null,
@@ -90,14 +80,12 @@ const createMaterialUsed = async (req, res) => {
     }
 
     const target = await resolveTarget(req);
-    const meterReading = readMeterReading(req.body.meterReading);
 
     await adjustStock(req.userId, stock._id, -usedQty);
 
     const materialUsed = await MaterialUsed.create({
       userId: req.userId,
       ...targetFields(target),
-      meterReading,
       materialType: stock._id,
       materialTypeName: stock.name,
       unit: stock.unit || "",
@@ -172,7 +160,6 @@ const updateMaterialUsed = async (req, res) => {
     }
 
     const target = await resolveTarget(req);
-    const meterReading = readMeterReading(req.body.meterReading);
 
     await adjustStock(req.userId, entry.materialType, entry.usedQty);
     try {
@@ -183,7 +170,6 @@ const updateMaterialUsed = async (req, res) => {
     }
 
     Object.assign(entry, targetFields(target));
-    entry.meterReading = meterReading;
     entry.materialType = stock._id;
     entry.materialTypeName = stock.name;
     entry.unit = stock.unit || "";

@@ -5,7 +5,7 @@ import apiClient from '../../utils/api';
 import StatCard from '../../components/StatCard';
 import Segmented from '../../components/Segmented';
 import MaterialUsed from '../MaterialUsed';
-import { describeVehicle, meterUnitFor } from '../../utils/diesel';
+import { describeVehicle } from '../../utils/diesel';
 
 const formatNumber = (value) => Number(value || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 });
 const formatMoney = (value) => `₹${Number(value || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}`;
@@ -79,7 +79,7 @@ const TABS = [
 const USED_FOR_TEXT = { dg: 'DG Set', vehicle: 'Vehicle', other: 'Plant / Other' };
 
 // A plant has one DG set: its report needs no picking
-const DG_TARGET = { kind: 'dg', key: 'dg', name: 'DG Set', subtitle: 'Plant generator', meterUnit: 'hr' };
+const DG_TARGET = { kind: 'dg', key: 'dg', name: 'DG Set', subtitle: 'Plant generator' };
 
 const sumQty = (rows) => rows.reduce((sum, row) => sum + row.qty, 0);
 
@@ -87,50 +87,6 @@ const sumQty = (rows) => rows.reduce((sum, row) => sum + row.qty, 0);
 const byOldest = (a, b) => new Date(a.date) - new Date(b.date) || new Date(a.createdAt) - new Date(b.createdAt);
 
 const isTargetRow = (row, target) => row.usedFor === target.kind && (target.kind === 'dg' || (row.vehicleId || row.vehicleNo) === target.key);
-
-/**
- * Averages from meter readings, fill to fill: the diesel filled at one reading is burnt by the next reading.
- * rows: one target's fills, oldest first. Each row gets `run` (km / hours since the last reading) and `average`.
- * The total is from the first reading to the last; diesel filled at the last reading is not burnt yet, so it is left out.
- */
-const meterAverages = (rows, unit) => {
-  const average = (run, fuel) => {
-    if (!(run > 0) || !(fuel > 0)) return null;
-    return unit === 'hr' ? fuel / run : run / fuel;
-  };
-
-  let previous = null;
-  let fuelSince = 0;
-  let firstReading = null;
-  let lastReading = null;
-  let totalFuel = 0;
-  const perRow = new Map();
-
-  rows.forEach((row) => {
-    if (row.meterReading !== null && row.meterReading !== undefined) {
-      const reading = Number(row.meterReading);
-      if (previous !== null && reading > previous) {
-        perRow.set(row._id, { run: reading - previous, average: average(reading - previous, fuelSince) });
-        totalFuel += fuelSince;
-        lastReading = reading;
-      }
-      if (firstReading === null) firstReading = reading;
-      if (previous === null || reading > previous) {
-        previous = reading;
-        fuelSince = 0;
-      }
-    }
-    if (previous !== null) fuelSince += row.qty;
-  });
-
-  const run = firstReading !== null && lastReading !== null ? lastReading - firstReading : 0;
-  return { perRow, run, average: average(run, totalFuel) };
-};
-
-const averageText = (value, unit) => {
-  if (value === null || value === undefined) return '-';
-  return unit === 'hr' ? `${formatNumber(value)} ltr/hr` : `${formatNumber(value)} km/ltr`;
-};
 
 const qtyCell = (qty, unit) => (qty > 0 ? <>{formatNumber(qty)}<span className="ml-1 text-xs font-medium text-slate-400">{unit}</span></> : <span className="text-slate-300">-</span>);
 
@@ -161,15 +117,12 @@ const buildVehicleTargets = (usage, vehicles, keys) => {
   return [...rowsByKey.entries()]
     .map(([key, rows]) => {
       const vehicle = vehiclesById.get(rows[0].vehicleId);
-      const meterUnit = meterUnitFor('vehicle', vehicle?.category);
       return {
         key,
         kind: 'vehicle',
         name: rows[0].vehicleNo || vehicle?.vehicleNo || '-',
         subtitle: vehicle ? describeVehicle(vehicle) : '',
-        meterUnit,
-        ...periodTotals(rows, keys),
-        average: meterAverages([...rows].sort(byOldest), meterUnit).average
+        ...periodTotals(rows, keys)
       };
     })
     .sort((a, b) => b.d30 - a.d30 || b.life - a.life || a.name.localeCompare(b.name));
@@ -206,7 +159,7 @@ function QuickTotals({ totals, unit }) {
   );
 }
 
-// The DG set's or one vehicle's fills with meter readings and averages
+// The DG set's or one vehicle's fills, date-wise
 function TargetDetail({ target, usage, unit, onBack, children }) {
   const [periodKey, setPeriodKey] = useState('last30');
   const range = useMemo(() => periodRange(periodKey), [periodKey]);
@@ -215,10 +168,9 @@ function TargetDetail({ target, usage, unit, onBack, children }) {
     const inPeriod = usage
       .filter((row) => isTargetRow(row, target) && inRange(row.dateKey, range))
       .sort(byOldest);
-    const meter = meterAverages(inPeriod, target.meterUnit);
     return {
-      rows: inPeriod.map((row) => ({ ...row, ...meter.perRow.get(row._id) })).reverse(),
-      stats: { total: sumQty(inPeriod), fills: inPeriod.length, run: meter.run, average: meter.average }
+      rows: inPeriod.reverse(),
+      stats: { total: sumQty(inPeriod), fills: inPeriod.length }
     };
   }, [usage, target, range]);
 
@@ -243,12 +195,10 @@ function TargetDetail({ target, usage, unit, onBack, children }) {
         <Segmented options={PERIODS} value={periodKey} onChange={setPeriodKey} />
       </div>
 
-      <dl className="grid grid-cols-2 gap-px border-b border-slate-100 bg-slate-100 md:grid-cols-4">
+      <dl className="grid grid-cols-2 gap-px border-b border-slate-100 bg-slate-100">
         {[
           { label: 'Diesel Given', value: `${formatNumber(stats.total)} ${unit}` },
-          { label: 'Fills', value: formatNumber(stats.fills) },
-          { label: target.meterUnit === 'hr' ? 'Hours Run' : 'KM Run', value: stats.run > 0 ? `${formatNumber(stats.run)} ${target.meterUnit}` : '-' },
-          { label: 'Average', value: averageText(stats.average, target.meterUnit) }
+          { label: 'Fills', value: formatNumber(stats.fills) }
         ].map((item) => (
           <div key={item.label} className="bg-white px-4 py-3">
             <dt className="text-xs font-medium text-slate-500">{item.label}</dt>
@@ -266,9 +216,6 @@ function TargetDetail({ target, usage, unit, onBack, children }) {
               <tr>
                 <th className="tbl-head">Date</th>
                 <th className="tbl-head text-right">Diesel</th>
-                <th className="tbl-head text-right">Meter</th>
-                <th className="tbl-head text-right">Run Since Last</th>
-                <th className="tbl-head text-right">Average</th>
                 <th className="tbl-head">Notes</th>
               </tr>
             </thead>
@@ -277,9 +224,6 @@ function TargetDetail({ target, usage, unit, onBack, children }) {
                 <tr key={row._id} className="tbl-row">
                   <td className="tbl-cell whitespace-nowrap">{formatDate(row.date)}</td>
                   <td className="tbl-cell whitespace-nowrap text-right font-bold text-slate-900">{qtyCell(row.qty, unit)}</td>
-                  <td className="tbl-cell whitespace-nowrap text-right">{row.meterReading !== null ? `${formatNumber(row.meterReading)} ${target.meterUnit}` : '-'}</td>
-                  <td className="tbl-cell whitespace-nowrap text-right">{row.run ? `${formatNumber(row.run)} ${target.meterUnit}` : '-'}</td>
-                  <td className="tbl-cell whitespace-nowrap text-right">{averageText(row.average, target.meterUnit)}</td>
                   <td className="tbl-cell text-slate-500"><div className="max-w-[16rem] truncate" title={row.notes || undefined}>{row.notes || '-'}</div></td>
                 </tr>
               ))}
@@ -287,9 +231,6 @@ function TargetDetail({ target, usage, unit, onBack, children }) {
           </table>
         </div>
       )}
-      <p className="border-t border-slate-100 px-4 py-2.5 text-xs text-slate-500 md:px-5">
-        Average needs the {target.meterUnit === 'hr' ? 'hour meter' : 'KM'} reading at each fill: it divides the {target.meterUnit === 'hr' ? 'hours' : 'KM'} run between two fills by the diesel filled at the first one.
-      </p>
     </section>
   );
 }
@@ -330,7 +271,6 @@ function VehicleSummary({ targets, unit, onOpen }) {
               <th className="tbl-head text-right">Last 30 Days</th>
               <th className="tbl-head text-right">Lifetime</th>
               <th className="tbl-head text-right">Fills</th>
-              <th className="tbl-head text-right">Average</th>
               <th className="tbl-head">Last Filled</th>
             </tr>
           </thead>
@@ -346,7 +286,6 @@ function VehicleSummary({ targets, unit, onOpen }) {
                 <td className="tbl-cell whitespace-nowrap text-right font-bold text-slate-900">{qtyCell(target.d30, unit)}</td>
                 <td className="tbl-cell whitespace-nowrap text-right">{qtyCell(target.life, unit)}</td>
                 <td className="tbl-cell whitespace-nowrap text-right">{formatNumber(target.fills)}</td>
-                <td className="tbl-cell whitespace-nowrap text-right">{averageText(target.average, target.meterUnit)}</td>
                 <td className="tbl-cell whitespace-nowrap">{target.lastDate ? formatDate(target.lastDate) : '-'}</td>
               </tr>
             ))}
@@ -473,7 +412,7 @@ export default function DieselConsumptionReport() {
         name: row.usedFor === 'vehicle' ? row.vehicleNo || '-' : USED_FOR_TEXT[row.usedFor],
         out: row.qty,
         in: 0,
-        detail: [row.meterReading !== null ? `Meter ${formatNumber(row.meterReading)}` : '', row.notes].filter(Boolean).join(' · ')
+        detail: row.notes || ''
       })),
       ...purchases.map((row, index) => ({
         id: `in-${row._id}-${index}`,

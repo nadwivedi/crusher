@@ -12,7 +12,7 @@ const SaleReturn = require("../models/SaleReturn");
 const Stock = require("../models/Stock");
 const Transport = require("../models/Transport");
 const Vehicle = require("../models/Vehicle");
-const { ensureDieselStock, meterUnitFor, usedForOf } = require("../utils/diesel");
+const { ensureDieselStock, usedForOf } = require("../utils/diesel");
 const { scopedFilter, scopedIdFilter } = require("../utils/ownership");
 const { isBilledInSale } = require("../utils/transport");
 const { describeTransportBasis } = require("../utils/transportBasis");
@@ -1723,7 +1723,7 @@ const getDieselConsumptionReport = async (req, res) => {
     const diesel = await ensureDieselStock(userId);
     const [usedEntries, purchases, vehicles] = await Promise.all([
       MaterialUsed.find({ userId, materialType: diesel._id })
-        .select("usedDate createdAt usedQty usedFor vehicle vehicleNo meterReading notes")
+        .select("usedDate createdAt usedQty usedFor vehicle vehicleNo notes")
         .sort({ usedDate: -1, createdAt: -1 })
         .lean(),
       Purchase.find({ userId, "items.product": diesel._id })
@@ -1744,7 +1744,6 @@ const getDieselConsumptionReport = async (req, res) => {
         usedFor,
         vehicleId: usedFor === "vehicle" ? String(entry.vehicle || "") : "",
         vehicleNo: usedFor === "vehicle" ? entry.vehicleNo : "",
-        meterReading: entry.meterReading ?? null,
         notes: entry.notes || "",
       };
     });
@@ -1780,7 +1779,6 @@ const getDieselConsumptionReport = async (req, res) => {
         vehicleNo: vehicle.vehicleNo,
         category: vehicle.category || "",
         ownership: vehicle.ownership || "party",
-        meterUnit: meterUnitFor("vehicle", vehicle.category),
       })),
     });
   } catch (error) {

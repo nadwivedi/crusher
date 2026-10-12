@@ -30,6 +30,7 @@ import BoulderLedger from './pages/BoulderLedger';
 import DumpBoulder from './pages/DumpBoulder';
 import MaterialUsedLedger from './pages/MaterialUsedLedger';
 import DieselConsumptionReport from './pages/Reports/DieselConsumptionReport';
+import MeterReadings from './pages/MeterReadings';
 import ProfitLossReport from './pages/Reports/ProfitLossReport';
 import DayBook from './pages/DayBook';
 import Analytics from './pages/Analytics';
@@ -143,6 +144,7 @@ function App() {
           <Route path="/dump-boulder" element={<DumpBoulder />} />
           <Route path="/reports/material-used-ledger" element={<MaterialUsedLedger />} />
           <Route path="/reports/diesel-consumption" element={<DieselConsumptionReport />} />
+          <Route path="/meter-readings" element={<MeterReadings />} />
           <Route path="/reports/sales-report" element={<Sales />} />
           <Route path="/reports/purchase-report" element={<Purchases />} />
           <Route

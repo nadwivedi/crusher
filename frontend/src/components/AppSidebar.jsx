@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import {
   LayoutDashboard, BookOpenText, ChartNoAxesCombined, Mountain, FileText, HandCoins, Send, Wallet,
   PackageMinus, IdCard, ChartColumn, Users, Boxes, Truck, Landmark, Tags,
-  Settings, X, ShoppingCart, Warehouse, Fuel
+  Settings, X, ShoppingCart, Warehouse, Fuel, Gauge
 } from 'lucide-react';
 import Logo from './Logo';
 
@@ -29,6 +29,7 @@ const navGroups = [
       { to: '/reports/expense-report', icon: Wallet, label: 'Expenses' },
       { to: '/reports/material-used-ledger', icon: PackageMinus, label: 'Material Used' },
       { to: '/reports/diesel-consumption', icon: Fuel, label: 'Diesel' },
+      { to: '/meter-readings', icon: Gauge, label: 'Meter Reading' },
       { to: '/payroll', icon: IdCard, label: 'Payroll' },
     ]
   },
