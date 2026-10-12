@@ -749,6 +749,122 @@ export const landingPages = [
     related: ['crusher-plant-production-tracking-software', 'crusher-plant-vehicle-mileage-tracking-software', 'crusher-plant-production-report-software'],
   },
   {
+    slug: 'crusher-plant-expense-tracking-software',
+    navLabel: 'Expense Tracking Software',
+    seoTitle: 'Crusher Plant Expense Tracking Software | Every Rupee',
+    description:
+      'Track every expense of your crusher plant by type: diesel, spares, repairs, electricity, salary, truck rent and more, paid in cash, bank or on credit. Made for Indian stone crushers.',
+    keywords: [
+      'crusher plant expense tracking software',
+      'stone crusher expense management',
+      'crusher expense app',
+      'crusher plant cost tracking',
+      'crusher daily expense register',
+      'quarry expense tracking software',
+    ],
+    eyebrow: 'Every Rupee, Every Type',
+    h1: 'Crusher Plant Expense Tracking Software',
+    intro:
+      'A crusher plant spends money all day: diesel for the DG and loaders, jaw plates and belts, welding and repairs, electricity, staff salary, truck rent and small cash bills at the site. CrusherBook records each expense under its own type, from cash, bank or on credit to a party, so the owner can see where the money went today, this month or this year, and what is still to be paid.',
+    painTitle: 'Where crusher expenses leak',
+    painPoints: [
+      {
+        title: 'Small cash bills nobody writes',
+        text: 'Tea, welding, a hose pipe, a puncture: small amounts paid in cash every day add up to lakhs in a year and are never totalled.',
+      },
+      {
+        title: 'Credit expenses forgotten',
+        text: 'Spares and repairs taken on credit from a shop are remembered only when the shop asks for payment.',
+      },
+      {
+        title: 'No idea which cost is growing',
+        text: 'Without expenses grouped by type, nobody notices that repairs or diesel doubled this month.',
+      },
+    ],
+    featuresTitle: 'How CrusherBook tracks expenses',
+    features: [
+      { icon: 'wallet', title: 'Expenses by type', text: 'Make your own expense types such as diesel, spares, repairs, electricity, salary and site expenses, and record each bill under one.' },
+      { icon: 'landmark', title: 'Cash, bank or credit', text: 'Pay from cash or a bank account, or put the expense on credit to the shop or party; part payments are allowed.' },
+      { icon: 'users', title: 'Party-wise dues', text: 'Credit expenses go to the party\'s ledger, so what you owe each shop or mechanic is always clear.' },
+      { icon: 'chart', title: 'Expenses by type on the dashboard', text: 'See the total and each type\'s share for today, yesterday, 7 days, 30 days or any dates you pick.' },
+      { icon: 'fuel', title: 'Diesel and spares stock', text: 'Diesel and spares bought through Purchase are tracked as stock, with how much each vehicle and the DG used.' },
+      { icon: 'receipt', title: 'Expense report and profit', text: 'A full expense report and profit and loss, with Excel export on the Advanced plan.' },
+    ],
+    stepsTitle: 'Tracking expenses in four steps',
+    steps: [
+      { title: 'Set types', text: 'Create the expense types your plant uses, once.' },
+      { title: 'Enter bills', text: 'Each expense is entered with its type, amount and how it was paid, from the phone.' },
+      { title: 'Watch dues', text: 'Credit expenses show in each party\'s ledger until they are paid.' },
+      { title: 'Review', text: 'Check expenses by type on the dashboard and compare them with sales.' },
+    ],
+    faq: [
+      { question: 'What is crusher plant expense tracking software?', answer: 'It is software that records every expense of a crusher plant under its type, with how it was paid, so the owner can see total costs, the biggest costs and the dues to shops and parties at any time.' },
+      { question: 'Can I make my own expense types?', answer: 'Yes. Create any types you need, such as diesel, spares, repairs, electricity, salary, rent or site expenses, and record every bill under one of them.' },
+      { question: 'Can I record an expense taken on credit?', answer: 'Yes. Put the expense on credit to the party, fully or partly paid. The unpaid part stays in that party\'s ledger until you pay it.' },
+      { question: 'Can I compare expenses with sales?', answer: 'Yes. The dashboard shows sales and expenses for the same period, and the profit and loss report puts them together.' },
+      { question: 'What does it cost?', answer: 'Plans start at Rs 6,999 per year, with a free demo first.' },
+    ],
+    related: ['stone-crusher-accounting-software', 'crusher-plant-vehicle-mileage-tracking-software', 'crusher-plant-production-report-software'],
+  },
+  {
+    slug: 'crusher-plant-diesel-consumption-tracking-software',
+    navLabel: 'Diesel Consumption Tracking',
+    seoTitle: 'Crusher Plant Diesel Consumption Tracking Software',
+    description:
+      'Track diesel at your crusher plant: diesel bought, diesel given to the DG set and each vehicle, diesel left in stock and its cost, day by day. Made for Indian stone crushers.',
+    keywords: [
+      'crusher plant diesel consumption tracking software',
+      'diesel consumption tracking software',
+      'crusher diesel management',
+      'DG set diesel consumption',
+      'diesel stock register software',
+      'vehicle diesel tracking crusher',
+    ],
+    eyebrow: 'Diesel In, Diesel Out',
+    h1: 'Crusher Plant Diesel Consumption Tracking Software',
+    intro:
+      'Diesel is one of the biggest bills at a crusher plant. It comes in by tanker or barrel and goes out to the DG set, loaders, JCBs, dumpers and tractors, often from one drum with one register. CrusherBook keeps every litre bought and every litre given in one place, so you always know how much diesel is left, where it went today and what the plant is spending on it.',
+    painTitle: 'Where diesel goes missing',
+    painPoints: [
+      {
+        title: 'One register for many machines',
+        text: 'Litres are written in a notebook at the drum, and adding them up machine by machine at month end never happens.',
+      },
+      {
+        title: 'Stock that does not match',
+        text: 'Diesel bought minus diesel given should equal what is in the drum. Without a running stock, the difference is never noticed.',
+      },
+      {
+        title: 'DG diesel nobody checks',
+        text: 'The DG set burns the most diesel on power-cut days, but its fills are mixed in with the vehicles and never totalled on their own.',
+      },
+    ],
+    featuresTitle: 'How CrusherBook tracks diesel',
+    features: [
+      { icon: 'fuel', title: 'Diesel stock, always current', text: 'Diesel bought through Purchase adds to stock and every litre given takes it out, so the diesel in hand is always shown.' },
+      { icon: 'factory', title: 'DG set diesel', text: 'Diesel to the DG set is recorded on its own, with today, 7 days, 30 days and lifetime totals.' },
+      { icon: 'truck', title: 'Vehicle-wise diesel', text: 'Every loader, JCB, dumper and tractor has its own diesel total and fill history, the most used first.' },
+      { icon: 'chart', title: 'Day-wise report', text: 'Each day shows diesel to the DG set, vehicles and the plant, and diesel bought, including days with no entry.' },
+      { icon: 'wallet', title: 'Diesel cost', text: 'The average rate from your purchases shows roughly what the diesel used in 30 days cost.' },
+      { icon: 'gauge', title: 'Meter readings alongside', text: 'Opening and closing KM or hour meter of every machine are kept too, so diesel and running hours can be seen together.' },
+    ],
+    stepsTitle: 'Diesel tracking in four steps',
+    steps: [
+      { title: 'Buy', text: 'Each diesel tanker or barrel is entered as a purchase, with litres and rate.' },
+      { title: 'Give', text: 'Every time diesel is given, the litres are entered against the DG set, a vehicle or the plant.' },
+      { title: 'Check stock', text: 'Diesel left in stock is compared with the drum or tank whenever you want.' },
+      { title: 'Review', text: 'The diesel report shows usage day-wise, for the DG set and vehicle-wise.' },
+    ],
+    faq: [
+      { question: 'What is crusher plant diesel consumption tracking software?', answer: 'It is software that records every litre of diesel bought and given out at a crusher plant, against the DG set, each vehicle or the plant, so the owner knows the diesel in stock, who used it and what it cost.' },
+      { question: 'Can I see diesel used by each vehicle?', answer: 'Yes. The diesel report lists every vehicle with its diesel today, in 7 days, 30 days and lifetime, and each vehicle opens to its date-wise fills.' },
+      { question: 'Does it track the DG set separately?', answer: 'Yes. Diesel to the DG set is recorded on its own and has its own date-wise report.' },
+      { question: 'Does it work out mileage like km per litre?', answer: 'The software keeps both the diesel given to each machine and its KM or hour meter readings. An automatic km per litre or litres per hour figure is not shown yet.' },
+      { question: 'What does it cost?', answer: 'Plans start at Rs 6,999 per year, with a free demo first.' },
+    ],
+    related: ['crusher-plant-vehicle-mileage-tracking-software', 'crusher-plant-expense-tracking-software', 'crusher-machine-production-tracking-software'],
+  },
+  {
     slug: 'crusher-hisab-kitab-app',
     navLabel: 'Crusher Hisab Kitab App',
     seoTitle: 'Crusher Hisab Kitab App – गिट्टी क्रशर का हिसाब',
