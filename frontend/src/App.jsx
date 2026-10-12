@@ -29,7 +29,9 @@ import PartyLedger from './pages/PartyLedger';
 import BoulderLedger from './pages/BoulderLedger';
 import DumpBoulder from './pages/DumpBoulder';
 import MaterialUsedLedger from './pages/MaterialUsedLedger';
-import DieselConsumptionReport from './pages/Reports/DieselConsumptionReport';
+import ItemUsageReport from './pages/Reports/ItemUsageReport';
+import Inventory from './pages/Inventory';
+import ActivityCenter from './pages/ActivityCenter';
 import MeterReadings from './pages/MeterReadings';
 import MeterReadingPopup from './components/MeterReadingPopup';
 import ProfitLossReport from './pages/Reports/ProfitLossReport';
@@ -137,6 +139,7 @@ function App() {
 
           {/* Overview + reports */}
           <Route path="/day-book" element={<DayBook />} />
+          <Route path="/activity" element={<ActivityCenter />} />
           <Route path="/analytics" element={<Analytics />} />
           <Route path="/reports" element={<ReportsHub />} />
           <Route path="/reports-hub" element={<Navigate to="/reports" replace />} />
@@ -145,7 +148,9 @@ function App() {
           <Route path="/reports/boulder-ledger" element={<BoulderLedger />} />
           <Route path="/dump-boulder" element={<DumpBoulder />} />
           <Route path="/reports/material-used-ledger" element={<MaterialUsedLedger />} />
-          <Route path="/reports/diesel-consumption" element={<DieselConsumptionReport />} />
+          <Route path="/reports/diesel-consumption" element={<ItemUsageReport />} />
+          <Route path="/inventory" element={<Inventory />} />
+          <Route path="/inventory/:id" element={<ItemUsageReport />} />
           <Route path="/meter-readings" element={<MeterReadings />} />
           <Route path="/reports/sales-report" element={<Sales />} />
           <Route path="/reports/purchase-report" element={<Purchases />} />

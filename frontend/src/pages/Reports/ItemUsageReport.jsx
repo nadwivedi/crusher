@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, CalendarDays, Factory, Fuel, Inbox, Plus, RefreshCw, Search, Truck } from 'lucide-react';
 import apiClient from '../../utils/api';
 import StatCard from '../../components/StatCard';
@@ -105,7 +105,7 @@ const periodTotals = (rows, keys) => {
   return totals;
 };
 
-// One line per vehicle that ever got diesel, the most used in 30 days first
+// One line per vehicle that ever got the item, the most used in 30 days first
 const buildVehicleTargets = (usage, vehicles, keys) => {
   const vehiclesById = new Map((vehicles || []).map((vehicle) => [String(vehicle._id), vehicle]));
   const rowsByKey = new Map();
@@ -160,7 +160,7 @@ function QuickTotals({ totals, unit }) {
 }
 
 // The DG set's or one vehicle's fills, date-wise
-function TargetDetail({ target, usage, unit, onBack, children }) {
+function TargetDetail({ target, usage, unit, itemName, addLabel, onBack, children }) {
   const [periodKey, setPeriodKey] = useState('last30');
   const range = useMemo(() => periodRange(periodKey), [periodKey]);
 
@@ -184,7 +184,7 @@ function TargetDetail({ target, usage, unit, onBack, children }) {
         )}
         <div className="min-w-0">
           <h2 className="truncate text-sm font-bold text-slate-900">{target.name}</h2>
-          <p className="text-xs text-slate-500">{target.subtitle || USED_FOR_TEXT[target.kind]} · diesel given</p>
+          <p className="text-xs text-slate-500">{target.subtitle || USED_FOR_TEXT[target.kind]} · {itemName} used</p>
         </div>
       </div>
 
@@ -197,7 +197,7 @@ function TargetDetail({ target, usage, unit, onBack, children }) {
 
       <dl className="grid grid-cols-2 gap-px border-b border-slate-100 bg-slate-100">
         {[
-          { label: 'Diesel Given', value: `${formatNumber(stats.total)} ${unit}` },
+          { label: 'Used', value: `${formatNumber(stats.total)} ${unit}` },
           { label: 'Fills', value: formatNumber(stats.fills) }
         ].map((item) => (
           <div key={item.label} className="bg-white px-4 py-3">
@@ -208,14 +208,14 @@ function TargetDetail({ target, usage, unit, onBack, children }) {
       </dl>
 
       {rows.length === 0 ? (
-        <EmptyState title="No diesel in this period" hint={target.kind === 'dg' ? 'Use "Give Diesel" and choose DG Set each time the DG is filled.' : 'Pick a longer period to see older fills.'} />
+        <EmptyState title="Nothing used in this period" hint={target.kind === 'dg' ? `Use "${addLabel}" and choose DG Set each time it goes to the DG.` : 'Pick a longer period to see older entries.'} />
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full min-w-[640px] text-left">
             <thead>
               <tr>
                 <th className="tbl-head">Date</th>
-                <th className="tbl-head text-right">Diesel</th>
+                <th className="tbl-head text-right">Qty</th>
                 <th className="tbl-head">Notes</th>
               </tr>
             </thead>
@@ -296,7 +296,12 @@ function VehicleSummary({ targets, unit, onOpen }) {
   );
 }
 
-export default function DieselConsumptionReport() {
+/**
+ * Report of one stock item: where it went (DG set, vehicles, plant) day by day, and what was bought.
+ * /inventory/:id shows any item; /reports/diesel-consumption (no id) shows the account's Diesel item.
+ */
+export default function ItemUsageReport() {
+  const { id } = useParams();
   const navigate = useNavigate();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -311,9 +316,9 @@ export default function DieselConsumptionReport() {
     setLoading(true);
     setError('');
     try {
-      setData(await apiClient.get('/reports/diesel-consumption'));
+      setData(await apiClient.get(id ? `/reports/item-consumption/${id}` : '/reports/diesel-consumption'));
     } catch (err) {
-      setError(err.message || 'Failed to load the diesel report');
+      setError(err.message || 'Failed to load the report');
     } finally {
       setLoading(false);
     }
@@ -321,20 +326,23 @@ export default function DieselConsumptionReport() {
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [id]);
 
   useEffect(() => {
     const handleKeyDown = (event) => {
       // The entry popup handles Esc itself
       if (event.defaultPrevented || event.key !== 'Escape' || showAddEntry) return;
       if (selectedKey) setSelectedKey('');
-      else navigate('/reports');
+      else navigate('/inventory');
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [navigate, showAddEntry, selectedKey]);
 
-  const unit = data?.diesel?.unit || 'ltr';
+  const unit = data?.item?.unit || '';
+  const itemName = data?.item?.name || (id ? 'Item' : 'Diesel');
+  const isDiesel = !id || Boolean(data?.item?.isDiesel);
+  const addLabel = isDiesel ? 'Give Diesel' : 'Record Use';
 
   const usage = useMemo(() => (data?.usage || []).map((row) => ({ ...row, dateKey: toDateKey(row.date) })), [data]);
   const purchases = useMemo(() => (data?.purchases || []).map((row) => ({ ...row, dateKey: toDateKey(row.date) })), [data]);
@@ -439,16 +447,16 @@ export default function DieselConsumptionReport() {
 
   const splitHint = (split) => (split.total > 0
     ? `DG ${formatNumber(split.dg)} · Vehicles ${formatNumber(split.vehicle)}${split.other ? ` · Other ${formatNumber(split.other)}` : ''}`
-    : 'No diesel given');
+    : 'Nothing used');
 
   const avgRate = Number(data?.avgRate || 0);
   const stats = [
     {
       icon: Fuel,
-      label: 'Diesel in Stock',
+      label: 'In Stock',
       tone: 'emerald',
-      value: `${formatNumber(data?.diesel?.currentStock)} ${unit}`,
-      hint: totals.bought30 > 0 ? `Bought ${formatNumber(totals.bought30)} ${unit} in 30 days` : 'Add diesel through Purchase'
+      value: `${formatNumber(data?.item?.currentStock)} ${unit}`,
+      hint: totals.bought30 > 0 ? `Bought ${formatNumber(totals.bought30)} ${unit} in 30 days` : 'Add stock through Purchase'
     },
     { icon: CalendarDays, label: 'Given Today', tone: 'blue', value: `${formatNumber(totals.today.total)} ${unit}`, hint: splitHint(totals.today) },
     { icon: CalendarDays, label: 'Last 7 Days', tone: 'indigo', value: `${formatNumber(totals.d7.total)} ${unit}`, hint: splitHint(totals.d7) },
@@ -465,19 +473,19 @@ export default function DieselConsumptionReport() {
 
   return (
     <div className="page-fade-in space-y-4 px-3 pb-8 pt-4 md:space-y-5 lg:px-6 lg:pt-5">
-      {showAddEntry && <MaterialUsed modalOnly onModalFinish={() => { setShowAddEntry(false); loadData(); }} />}
+      {showAddEntry && <MaterialUsed modalOnly presetMaterialId={data?.item?._id} onModalFinish={() => { setShowAddEntry(false); loadData(); }} />}
 
       <div className="page-header">
         <div className="min-w-0">
-          <h1 className="page-title">Diesel Report</h1>
-          <p className="page-subtitle">Diesel to the DG set and vehicles · day-wise, vehicle-wise, lifetime</p>
+          <h1 className="page-title">{itemName}</h1>
+          <p className="page-subtitle">Used by the DG set, vehicles and plant · day-wise, vehicle-wise, lifetime</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <button type="button" className="icon-btn" title="Refresh" aria-label="Refresh" onClick={loadData}>
             <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
           </button>
           <button type="button" className="btn-primary" onClick={() => setShowAddEntry(true)}>
-            <Plus size={18} /> Give Diesel
+            <Plus size={18} /> {addLabel}
           </button>
         </div>
       </div>
@@ -487,7 +495,7 @@ export default function DieselConsumptionReport() {
       {loading && !data ? (
         <div className="flex flex-col items-center gap-3 py-16">
           <div className="h-9 w-9 animate-spin rounded-full border-4 border-primary-600 border-r-transparent" />
-          <p className="text-sm text-slate-400">Loading diesel report…</p>
+          <p className="text-sm text-slate-400">Loading report…</p>
         </div>
       ) : data && (
         <div className={`space-y-4 transition-opacity md:space-y-5 ${loading ? 'pointer-events-none opacity-50' : ''}`}>
@@ -501,13 +509,13 @@ export default function DieselConsumptionReport() {
             <section className="panel">
               <div className="panel-header flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                 <div>
-                  <h2 className="text-sm font-bold text-slate-900">Day-wise Diesel</h2>
+                  <h2 className="text-sm font-bold text-slate-900">Day-wise</h2>
                   <p className="text-xs text-slate-500">Given out and bought each day · newest first</p>
                 </div>
                 <Segmented options={PERIODS} value={periodKey} onChange={setPeriodKey} />
               </div>
               {days.length === 0 ? (
-                <EmptyState title="No diesel entries yet" hint='Use "Give Diesel" each time diesel goes to the DG set or a vehicle.' />
+                <EmptyState title="No entries yet" hint={`Use "${addLabel}" each time ${itemName} goes to the DG set, a vehicle or the plant.`} />
               ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full min-w-[640px] text-left">
@@ -548,20 +556,20 @@ export default function DieselConsumptionReport() {
               )}
             </section>
           ) : tab === 'dg' ? (
-            <TargetDetail target={DG_TARGET} usage={usage} unit={unit}>
+            <TargetDetail target={DG_TARGET} usage={usage} unit={unit} itemName={itemName} addLabel={addLabel}>
               <QuickTotals totals={dgTotals} unit={unit} />
             </TargetDetail>
           ) : tab === 'vehicle' ? (
             selectedVehicle ? (
-              <TargetDetail target={selectedVehicle} usage={usage} unit={unit} onBack={() => setSelectedKey('')}>
+              <TargetDetail target={selectedVehicle} usage={usage} unit={unit} itemName={itemName} addLabel={addLabel} onBack={() => setSelectedKey('')}>
                 <QuickTotals totals={selectedVehicle} unit={unit} />
               </TargetDetail>
             ) : (
               <section className="panel">
                 <div className="panel-header flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                   <div>
-                    <h2 className="text-sm font-bold text-slate-900">Vehicle-wise Diesel</h2>
-                    <p className="text-xs text-slate-500">Most diesel in 30 days first · tap a vehicle for its date-wise report</p>
+                    <h2 className="text-sm font-bold text-slate-900">Vehicle-wise</h2>
+                    <p className="text-xs text-slate-500">Most used in 30 days first · tap a vehicle for its date-wise report</p>
                   </div>
                   <div className="relative md:w-64">
                     <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -570,8 +578,8 @@ export default function DieselConsumptionReport() {
                 </div>
                 {visibleVehicles.length === 0 ? (
                   <EmptyState
-                    title={vehicleTargets.length === 0 ? 'No diesel given to vehicles yet' : 'No matching vehicle'}
-                    hint={vehicleTargets.length === 0 ? 'Use "Give Diesel", choose Vehicle and pick your loader, truck or JCB.' : 'Try another vehicle number.'}
+                    title={vehicleTargets.length === 0 ? 'Not used by any vehicle yet' : 'No matching vehicle'}
+                    hint={vehicleTargets.length === 0 ? `Use "${addLabel}", choose Vehicle and pick your loader, truck or JCB.` : 'Try another vehicle number.'}
                   />
                 ) : (
                   <VehicleSummary targets={visibleVehicles} unit={unit} onOpen={(target) => setSelectedKey(target.key)} />
@@ -582,7 +590,7 @@ export default function DieselConsumptionReport() {
             <section className="panel">
               <div className="panel-header flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                 <div>
-                  <h2 className="text-sm font-bold text-slate-900">All Diesel Entries</h2>
+                  <h2 className="text-sm font-bold text-slate-900">All Entries</h2>
                   <p className="text-xs text-slate-500">Bought and given out · newest first</p>
                 </div>
                 <div className="flex flex-col gap-2 md:flex-row md:items-center">
@@ -594,7 +602,7 @@ export default function DieselConsumptionReport() {
                 </div>
               </div>
               {ledger.length === 0 ? (
-                <EmptyState title="No diesel entries found" hint="Try another period or search." />
+                <EmptyState title="No entries found" hint="Try another period or search." />
               ) : (
                 <>
                   <ul className="divide-y divide-slate-100 md:hidden">

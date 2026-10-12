@@ -2,9 +2,9 @@ import { useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import {
-  LayoutDashboard, BookOpenText, ChartNoAxesCombined, Mountain, FileText, HandCoins, Send, Wallet,
+  LayoutDashboard, Activity, BookOpenText, ChartNoAxesCombined, Mountain, FileText, HandCoins, Send, Wallet,
   PackageMinus, IdCard, ChartColumn, Users, Boxes, Truck, Landmark, Tags,
-  Settings, X, ShoppingCart, Warehouse, Fuel, Gauge
+  Settings, X, ShoppingCart, Warehouse, Package, Gauge
 } from 'lucide-react';
 import Logo from './Logo';
 
@@ -13,6 +13,7 @@ const navGroups = [
     label: 'Overview',
     items: [
       { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
+      { to: '/activity', icon: Activity, label: 'Activity Center' },
       { to: '/day-book', icon: BookOpenText, label: 'Day Book' },
       { to: '/analytics', icon: ChartNoAxesCombined, label: 'Analytics' },
     ]
@@ -28,7 +29,7 @@ const navGroups = [
       { to: '/reports/payment-report', icon: Send, label: 'Money Paid' },
       { to: '/reports/expense-report', icon: Wallet, label: 'Expenses' },
       { to: '/reports/material-used-ledger', icon: PackageMinus, label: 'Material Used' },
-      { to: '/reports/diesel-consumption', icon: Fuel, label: 'Diesel' },
+      { to: '/inventory', icon: Package, label: 'Inventory' },
       { to: '/meter-readings', icon: Gauge, label: 'Meter Reading' },
       { to: '/payroll', icon: IdCard, label: 'Payroll' },
     ]

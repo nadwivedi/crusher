@@ -323,7 +323,7 @@ function MaterialUsedForm({
   );
 }
 
-export default function MaterialUsed({ modalOnly = false, onModalFinish = null }) {
+export default function MaterialUsed({ modalOnly = false, onModalFinish = null, presetMaterialId = '' }) {
   const [entries, setEntries] = useState([]);
   const [vehicles, setVehicles] = useState([]);
   const [materials, setMaterials] = useState([]);
@@ -398,12 +398,13 @@ export default function MaterialUsed({ modalOnly = false, onModalFinish = null }
     }
   };
 
-  // A new entry starts with Diesel picked: it is what is given out most
+  // A new entry starts with the item it was opened from (an item's report), otherwise Diesel: it is what is given out most
   const prefillDiesel = (materialList) => {
-    const diesel = materialList.find((material) => material.isDiesel);
-    if (!diesel) return;
-    setFormData((prev) => (prev.materialType ? prev : { ...prev, materialType: diesel._id }));
-    setMaterialQuery((prev) => prev || getMaterialDisplayName(diesel));
+    const preset = (presetMaterialId && materialList.find((material) => String(material._id) === String(presetMaterialId)))
+      || materialList.find((material) => material.isDiesel);
+    if (!preset) return;
+    setFormData((prev) => (prev.materialType ? prev : { ...prev, materialType: preset._id }));
+    setMaterialQuery((prev) => prev || getMaterialDisplayName(preset));
   };
 
   const fetchOptions = async ({ prefill = false } = {}) => {

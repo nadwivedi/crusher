@@ -1715,74 +1715,177 @@ const getDashboardSummary = async (req, res) => {
   }
 };
 
-// Everything the diesel report needs, lifetime: the report itself groups by DG, vehicle and day for each period.
+// Everything one stock item's report needs, lifetime: the report itself groups by DG, vehicle and day for each period.
+const buildItemReport = async (userId, item) => {
+  const [usedEntries, purchases, vehicles] = await Promise.all([
+    MaterialUsed.find({ userId, materialType: item._id })
+      .select("usedDate createdAt usedQty usedFor vehicle vehicleNo notes")
+      .sort({ usedDate: -1, createdAt: -1 })
+      .lean(),
+    Purchase.find({ userId, "items.product": item._id })
+      .select("purchaseNumber purchaseDate createdAt party supplierInvoice items")
+      .populate("party", "name")
+      .sort({ purchaseDate: -1, createdAt: -1 })
+      .lean(),
+    Vehicle.find({ userId }).select("vehicleNo category ownership").sort({ vehicleNo: 1 }).lean(),
+  ]);
+
+  const usage = usedEntries.map((entry) => {
+    const usedFor = usedForOf(entry);
+    return {
+      _id: entry._id,
+      date: entry.usedDate || entry.createdAt,
+      createdAt: entry.createdAt,
+      qty: toNumber(entry.usedQty),
+      usedFor,
+      vehicleId: usedFor === "vehicle" ? String(entry.vehicle || "") : "",
+      vehicleNo: usedFor === "vehicle" ? entry.vehicleNo : "",
+      notes: entry.notes || "",
+    };
+  });
+
+  const inward = purchases.flatMap((purchase) => (purchase.items || [])
+    .filter((line) => String(line.product) === String(item._id))
+    .map((line) => ({
+      _id: purchase._id,
+      date: purchase.purchaseDate || purchase.createdAt,
+      qty: toNumber(line.quantity),
+      rate: toNumber(line.unitPrice),
+      amount: toNumber(line.total),
+      refNo: formatPurchaseNumber(purchase.purchaseNumber),
+      partyName: purchase.party?.name || "",
+    })));
+
+  // Average price paid per unit over every purchase; 0 when the item was never bought through Purchase
+  const boughtQty = inward.reduce((sum, line) => sum + line.qty, 0);
+  const boughtAmount = inward.reduce((sum, line) => sum + line.amount, 0);
+
+  return {
+    item: {
+      _id: item._id,
+      name: item.name,
+      unit: item.unit || (item.isDiesel ? "ltr" : ""),
+      currentStock: toNumber(item.currentStock),
+      isDiesel: Boolean(item.isDiesel),
+    },
+    avgRate: boughtQty > 0 ? boughtAmount / boughtQty : 0,
+    usage,
+    purchases: inward,
+    vehicles: vehicles.map((vehicle) => ({
+      _id: vehicle._id,
+      vehicleNo: vehicle.vehicleNo,
+      category: vehicle.category || "",
+      ownership: vehicle.ownership || "party",
+    })),
+  };
+};
+
 const getDieselConsumptionReport = async (req, res) => {
-  const { userId } = req;
-
   try {
-    const diesel = await ensureDieselStock(userId);
-    const [usedEntries, purchases, vehicles] = await Promise.all([
-      MaterialUsed.find({ userId, materialType: diesel._id })
-        .select("usedDate createdAt usedQty usedFor vehicle vehicleNo notes")
-        .sort({ usedDate: -1, createdAt: -1 })
-        .lean(),
-      Purchase.find({ userId, "items.product": diesel._id })
-        .select("purchaseNumber purchaseDate createdAt party supplierInvoice items")
-        .populate("party", "name")
-        .sort({ purchaseDate: -1, createdAt: -1 })
-        .lean(),
-      Vehicle.find({ userId }).select("vehicleNo category ownership").sort({ vehicleNo: 1 }).lean(),
-    ]);
-
-    const usage = usedEntries.map((entry) => {
-      const usedFor = usedForOf(entry);
-      return {
-        _id: entry._id,
-        date: entry.usedDate || entry.createdAt,
-        createdAt: entry.createdAt,
-        qty: toNumber(entry.usedQty),
-        usedFor,
-        vehicleId: usedFor === "vehicle" ? String(entry.vehicle || "") : "",
-        vehicleNo: usedFor === "vehicle" ? entry.vehicleNo : "",
-        notes: entry.notes || "",
-      };
-    });
-
-    const inward = purchases.flatMap((purchase) => (purchase.items || [])
-      .filter((item) => String(item.product) === String(diesel._id))
-      .map((item) => ({
-        _id: purchase._id,
-        date: purchase.purchaseDate || purchase.createdAt,
-        qty: toNumber(item.quantity),
-        rate: toNumber(item.unitPrice),
-        amount: toNumber(item.total),
-        refNo: formatPurchaseNumber(purchase.purchaseNumber),
-        partyName: purchase.party?.name || "",
-      })));
-
-    // Average price paid per litre over every purchase; 0 when diesel was never bought through Purchase
-    const boughtQty = inward.reduce((sum, item) => sum + item.qty, 0);
-    const boughtAmount = inward.reduce((sum, item) => sum + item.amount, 0);
-
-    return res.json({
-      diesel: {
-        _id: diesel._id,
-        name: diesel.name,
-        unit: diesel.unit || "ltr",
-        currentStock: toNumber(diesel.currentStock),
-      },
-      avgRate: boughtQty > 0 ? boughtAmount / boughtQty : 0,
-      usage,
-      purchases: inward,
-      vehicles: vehicles.map((vehicle) => ({
-        _id: vehicle._id,
-        vehicleNo: vehicle.vehicleNo,
-        category: vehicle.category || "",
-        ownership: vehicle.ownership || "party",
-      })),
-    });
+    const diesel = await ensureDieselStock(req.userId);
+    return res.json(await buildItemReport(req.userId, diesel));
   } catch (error) {
     return res.status(500).json({ message: "Failed to fetch diesel consumption report", error: error.message });
+  }
+};
+
+// Same report for any stock item
+const getItemConsumptionReport = async (req, res) => {
+  const { id } = req.params;
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    return res.status(400).json({ message: "Invalid stock item id" });
+  }
+
+  try {
+    const item = await Stock.findOne({ _id: id, userId: req.userId }).lean();
+    if (!item) return res.status(404).json({ message: "Stock item not found" });
+    return res.json(await buildItemReport(req.userId, item));
+  } catch (error) {
+    return res.status(500).json({ message: "Failed to fetch the item report", error: error.message });
+  }
+};
+
+// Inventory list: every stock item with its stock, and how much was used and bought.
+// Lifetime totals plus day-wise totals for the last 32 days (India time), so the page can show today, 7 and 30 days.
+const INVENTORY_TIMEZONE = "Asia/Kolkata";
+const getInventorySummary = async (req, res) => {
+  try {
+    await ensureDieselStock(req.userId).catch(() => {});
+    const userId = new mongoose.Types.ObjectId(String(req.userId));
+    const since = new Date(Date.now() - 32 * 24 * 60 * 60 * 1000);
+    const dayOf = (field) => ({ $dateToString: { format: "%Y-%m-%d", date: field, timezone: INVENTORY_TIMEZONE } });
+
+    const [items, usedTotals, usedDays, boughtTotals, boughtDays] = await Promise.all([
+      Stock.find({ userId }).select("name unit currentStock isDiesel").sort({ name: 1 }).lean(),
+      MaterialUsed.aggregate([
+        { $match: { userId } },
+        {
+          $group: {
+            _id: "$materialType",
+            qty: { $sum: "$usedQty" },
+            entries: { $sum: 1 },
+            lastDate: { $max: { $ifNull: ["$usedDate", "$createdAt"] } },
+          },
+        },
+      ]),
+      MaterialUsed.aggregate([
+        { $match: { userId, usedDate: { $gte: since } } },
+        { $group: { _id: { item: "$materialType", day: dayOf("$usedDate") }, qty: { $sum: "$usedQty" } } },
+      ]),
+      Purchase.aggregate([
+        { $match: { userId } },
+        { $unwind: "$items" },
+        {
+          $group: {
+            _id: "$items.product",
+            qty: { $sum: "$items.quantity" },
+            amount: { $sum: "$items.total" },
+            lastDate: { $max: { $ifNull: ["$purchaseDate", "$createdAt"] } },
+          },
+        },
+      ]),
+      Purchase.aggregate([
+        { $match: { userId, purchaseDate: { $gte: since } } },
+        { $unwind: "$items" },
+        { $group: { _id: { item: "$items.product", day: dayOf("$purchaseDate") }, qty: { $sum: "$items.quantity" } } },
+      ]),
+    ]);
+
+    const byItem = (rows) => new Map(rows.map((row) => [String(row._id), row]));
+    const daysByItem = (rows) => rows.reduce((map, row) => {
+      const key = String(row._id.item);
+      map.set(key, { ...(map.get(key) || {}), [row._id.day]: toNumber(row.qty) });
+      return map;
+    }, new Map());
+    const used = byItem(usedTotals);
+    const bought = byItem(boughtTotals);
+    const usedByDay = daysByItem(usedDays);
+    const boughtByDay = daysByItem(boughtDays);
+
+    return res.json({
+      items: items.map((item) => {
+        const key = String(item._id);
+        const usedRow = used.get(key);
+        const boughtRow = bought.get(key);
+        return {
+          _id: item._id,
+          name: item.name,
+          unit: item.unit || "",
+          isDiesel: Boolean(item.isDiesel),
+          currentStock: toNumber(item.currentStock),
+          usedQty: toNumber(usedRow?.qty),
+          usedEntries: usedRow?.entries || 0,
+          lastUsed: usedRow?.lastDate || null,
+          boughtQty: toNumber(boughtRow?.qty),
+          boughtAmount: toNumber(boughtRow?.amount),
+          lastBought: boughtRow?.lastDate || null,
+          usedByDay: usedByDay.get(key) || {},
+          boughtByDay: boughtByDay.get(key) || {},
+        };
+      }),
+    });
+  } catch (error) {
+    return res.status(500).json({ message: "Failed to fetch inventory", error: error.message });
   }
 };
 
@@ -1982,5 +2085,7 @@ module.exports = {
   getDashboardAnalytics,
   getDashboardSummary,
   getDieselConsumptionReport,
+  getItemConsumptionReport,
+  getInventorySummary,
   getPaymentReport,
 };
