@@ -31,6 +31,7 @@ import DumpBoulder from './pages/DumpBoulder';
 import MaterialUsedLedger from './pages/MaterialUsedLedger';
 import DieselConsumptionReport from './pages/Reports/DieselConsumptionReport';
 import MeterReadings from './pages/MeterReadings';
+import MeterReadingPopup from './components/MeterReadingPopup';
 import ProfitLossReport from './pages/Reports/ProfitLossReport';
 import DayBook from './pages/DayBook';
 import Analytics from './pages/Analytics';
@@ -71,6 +72,7 @@ function App() {
       homeQuickStockAdjustment,
       homeQuickDumpIn,
       homeQuickDumpOut,
+      homeQuickMeterReading,
       backgroundLocation,
       ...restState
     } = currentState;
@@ -215,6 +217,12 @@ function App() {
       {location.pathname === '/' && location.state?.homeQuickMaterialUsed && (
         <ProtectedRoute>
           <MaterialUsed modalOnly onModalFinish={clearHomeQuickShortcutState} />
+        </ProtectedRoute>
+      )}
+
+      {location.pathname === '/' && location.state?.homeQuickMeterReading && (
+        <ProtectedRoute>
+          <MeterReadingPopup onClose={clearHomeQuickShortcutState} onSaved={clearHomeQuickShortcutState} />
         </ProtectedRoute>
       )}
 

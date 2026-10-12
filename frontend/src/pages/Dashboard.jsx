@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import {
   Mountain, FileText, Wallet, HandCoins, Send, ShoppingCart, PackageMinus, Layers,
   ArrowDownLeft, ArrowUpRight, ArrowUpFromLine, ArrowDownToLine, Undo2, RotateCcw, SlidersHorizontal,
-  LayoutGrid
+  LayoutGrid, Gauge
 } from 'lucide-react';
 import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid,
@@ -70,11 +70,12 @@ const MORE_ENTRIES = [
   { label: 'Purchase Return', hint: 'Goods sent back to a supplier', stateKey: 'homeQuickPurchaseReturn', icon: Undo2, tone: 'from-rose-400 to-pink-600' },
   { label: 'Sale Return', hint: 'Material a customer sent back', stateKey: 'homeQuickSaleReturn', icon: RotateCcw, tone: 'from-emerald-400 to-teal-600' },
   { label: 'Stock Adjustment', hint: 'Correct stock after counting', stateKey: 'homeQuickStockAdjustment', icon: SlidersHorizontal, tone: 'from-violet-400 to-fuchsia-600' },
+  { label: 'Meter Reading', hint: 'Opening / closing of DG or a vehicle', stateKey: 'homeQuickMeterReading', icon: Gauge, tone: 'from-slate-500 to-slate-700' },
 ];
 const QUICK_STATE_KEYS = [
   'homeQuickBoulder', 'homeQuickSale', 'homeQuickPurchase', 'homeQuickPayment',
   'homeQuickReceipt', 'homeQuickMaterialUsed', 'homeQuickPurchaseReturn', 'homeQuickExpense',
-  'homeQuickSaleReturn', 'homeQuickStockAdjustment', 'homeQuickDumpIn', 'homeQuickDumpOut'
+  'homeQuickSaleReturn', 'homeQuickStockAdjustment', 'homeQuickDumpIn', 'homeQuickDumpOut', 'homeQuickMeterReading'
 ];
 const quickEntryState = (currentState, stateKey) => ({
   ...(currentState || {}),
