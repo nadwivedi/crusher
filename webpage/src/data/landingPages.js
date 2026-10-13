@@ -1328,6 +1328,64 @@ export const landingPages = [
     ],
     related: ['stone-crusher-management-software', 'stone-crusher-accounting-software', 'crusher-billing-software'],
   },
+  {
+    slug: 'crusher-plant-ke-liye-software',
+    navLabel: 'Crusher Plant ke liye Software',
+    seoTitle: 'Crusher Plant ke liye Software – क्रशर प्लांट का पूरा हिसाब',
+    description:
+      'Crusher plant ke liye software: बोल्डर, बिक्री, कांटा पर्ची, पार्टी उधारी, डीजल, गाड़ी भाड़ा और खर्चा – sab ek app mein, mobile par. Free demo ke saath.',
+    keywords: [
+      'crusher plant ke liye software',
+      'crusher plant software hindi',
+      'क्रशर प्लांट सॉफ्टवेयर',
+      'crusher ke liye app',
+      'gitti plant software',
+      'crusher ka hisab kaise rakhe',
+    ],
+    eyebrow: 'Crusher Plant ka Software',
+    h1: 'Crusher Plant ke liye Software – बोल्डर से बिक्री तक पूरा हिसाब',
+    intro:
+      'क्रशर प्लांट चलाना आसान नहीं है। Roz boulder ki gaadiyan aati hain, gitti bikti hai, party ki udhari chalti hai, diesel lagta hai aur kiraye ki gaadiyon ka bhada dena padta hai. CrusherBook ek aisa software hai jo khaas crusher plant ke liye bana hai – munshi plant par entry kare, aur malik mobile par kahin se bhi pura hisab dekhe.',
+    painTitle: 'रजिस्टर से क्रशर चलाने में दिक्कतें',
+    painPoints: [
+      {
+        title: 'हिसाब कभी नहीं मिलता',
+        text: 'Kanta parchi alag, register alag, party ka hisab alag. Mahine ke end mein tons aur paisa dono match nahi hote.',
+      },
+      {
+        title: 'उधारी और भाड़ा याद रखना',
+        text: 'Kis party se kitna lena hai aur kis gaadi wale ko kitna bhada dena hai – sab yaad se chalta hai, aur jhagda hota hai.',
+      },
+      {
+        title: 'डीजल का पता नहीं',
+        text: 'Diesel DG aur gaadiyon mein jata hai, par kis gaadi ne kitna liya aur kitna bacha hai, kisi ko pata nahi.',
+      },
+    ],
+    featuresTitle: 'Software में क्या-क्या मिलेगा',
+    features: [
+      { icon: 'scale', title: 'कांटा पर्ची (Weighbridge slip)', text: 'Gross, tare aur net wajan ke saath boulder aur bikri ki entry. Advanced plan mein parchi ki photo se AI khud bhar deta hai.' },
+      { icon: 'mountain', title: 'बोल्डर का हिसाब', text: 'Har supplier se kitna boulder aaya, kitne trip, per ton ya per trip rate – aur dump par kitna pada hai.' },
+      { icon: 'users', title: 'पार्टी खाता (उधारी)', text: 'Har party ka ledger – kitna maal gaya, kitna paisa aaya, kitna baki hai.' },
+      { icon: 'truck', title: 'गाड़ी और भाड़ा', text: 'Apni aur kiraye ki gaadi – per trip, per ton, per KM ya monthly rent. Bhada apne aap gaadi wale ke khate mein judta hai.' },
+      { icon: 'fuel', title: 'डीजल और स्टोर', text: 'Diesel, oil aur spare parts ki kharid aur kharch – DG aur har gaadi ka alag hisab, stock kitna bacha hai.' },
+      { icon: 'wallet', title: 'खर्चा और मुनाफा', text: 'Mazdoori, bijli, repair jaise kharche type-wise, cash aur bank, aur profit & loss report.' },
+    ],
+    stepsTitle: 'कैसे शुरू करें',
+    steps: [
+      { title: 'Demo देखें', text: 'WhatsApp par message karein, hum Hindi mein demo dikhayenge.' },
+      { title: 'Setup', text: 'Aapki parties, gaadiyan aur purani baki hum set karwa dete hain.' },
+      { title: 'Munshi को login', text: 'Munshi aur kanta operator ko alag login – woh sirf wahi dekhein jo aap allow karein.' },
+      { title: 'Mobile पर हिसाब', text: 'Roz ki bikri, boulder, udhari aur diesel – sab mobile par dekhein.' },
+    ],
+    faq: [
+      { question: 'Crusher plant ke liye kaunsa software sabse accha hai?', answer: 'Aisa software lein jo khaas crusher ke liye bana ho – boulder, kanta parchi, party udhari, gaadi bhada aur diesel sab ek jagah ho. CrusherBook isi kaam ke liye bana hai aur mobile par chalta hai.' },
+      { question: 'क्या यह सॉफ्टवेयर मोबाइल पर चलता है?', answer: 'Haan. CrusherBook Android mobile, tablet aur laptop – sab par chalta hai. Munshi plant par entry karta hai aur malik kahin se bhi dekh sakta hai.' },
+      { question: 'क्या मुझे कंप्यूटर चलाना आना चाहिए?', answer: 'Nahi. Software simple hai, aur hamari team Hindi mein phone ya WhatsApp par setup aur training karwati hai.' },
+      { question: 'क्या मुंशी को रेट और मुनाफा दिखेगा?', answer: 'Nahi, agar aap na chahein. Har staff login ko aap batate hain ki woh kaunsi screen dekh sakta hai.' },
+      { question: 'इसकी कीमत कितनी है?', answer: 'Plan Rs 6,999 saal se shuru hote hain. Pehle free demo dekhein, phir decide karein.' },
+    ],
+    related: ['crusher-hisab-kitab-app', 'stone-crusher-management-software', 'stone-crusher-plant-management-software'],
+  },
 ];
 
 export const landingPageBySlug = Object.fromEntries(landingPages.map((page) => [page.slug, page]));
