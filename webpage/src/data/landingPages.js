@@ -1386,6 +1386,64 @@ export const landingPages = [
     ],
     related: ['crusher-hisab-kitab-app', 'stone-crusher-management-software', 'stone-crusher-plant-management-software'],
   },
+  {
+    slug: 'crusher-plant-cloud-software',
+    navLabel: 'Crusher Plant Cloud Software',
+    seoTitle: 'Crusher Plant Cloud Software – Access Your Plant from Anywhere',
+    description:
+      'Cloud software for crusher plants: sales slips, boulder, stock, party ledger and diesel synced live to the cloud. Check your plant from any phone or laptop. Free demo.',
+    keywords: [
+      'crusher plant cloud software',
+      'cloud based crusher software',
+      'stone crusher cloud software',
+      'online crusher management software',
+      'crusher software with cloud backup',
+      'crusher plant software online',
+    ],
+    eyebrow: 'Cloud-Based Crusher Software',
+    h1: 'Crusher Plant Cloud Software – Your Whole Plant, Live on Any Device',
+    intro:
+      'Most crusher plants still keep their records on one office computer or in registers that stay at the site. CrusherBook puts your crusher data in the cloud instead. The munshi makes an entry at the plant, and it shows up straight away on the owner\'s phone, the accountant\'s laptop and every other plant you run. You don\'t install anything on a server, and you don\'t lose data when a computer breaks.',
+    painTitle: 'Why office-computer software lets crusher owners down',
+    painPoints: [
+      {
+        title: 'Data stuck on one PC',
+        text: 'Old desktop software only runs on the plant office computer. If you are travelling or at home, you cannot see today\'s dispatch or cash.',
+      },
+      {
+        title: 'One crash wipes years of records',
+        text: 'A hard disk failure, virus or stolen laptop can take party balances and slip history with it — and most plants never take backups.',
+      },
+      {
+        title: 'Sites and staff work separately',
+        text: 'Weighbridge, office and owner each keep their own copy. Figures never match, and nobody knows which one is correct.',
+      },
+    ],
+    featuresTitle: 'What the cloud gives your crusher plant',
+    features: [
+      { icon: 'gauge', title: 'Live sync across devices', text: 'Every sales slip, boulder entry and payment saved at the plant shows up instantly on the owner\'s mobile and office computer.' },
+      { icon: 'building', title: 'Automatic cloud backup', text: 'Your data is stored securely in the cloud and backed up automatically. A broken phone or computer does not mean lost records.' },
+      { icon: 'userCog', title: 'Staff logins with limits', text: 'Munshi, weighbridge operator and accountant each get their own login and see only the screens you allow — rates and profit stay private.' },
+      { icon: 'factory', title: 'Multiple plants, one account', text: 'Run more than one crusher? The Enterprise plan shows stock and profit for every plant together, from one login.' },
+      { icon: 'camera', title: 'Slip photo to entry', text: 'Snap a weighbridge slip on the phone and the Advanced plan\'s AI fills the entry, which is saved to the cloud straight away.' },
+      { icon: 'chart', title: 'Reports from anywhere', text: 'Daybook, party ledger, stock, diesel and profit reports are always up to date, whether you open them at the plant or a thousand kilometres away.' },
+    ],
+    stepsTitle: 'Moving your crusher to the cloud',
+    steps: [
+      { title: 'Book a demo', text: 'Message us on WhatsApp and we will show you CrusherBook running on your own phone.' },
+      { title: 'We set up your account', text: 'Our team adds your products, parties, vehicles and opening balances — no server or installation needed.' },
+      { title: 'Give staff their logins', text: 'Plant staff start making entries on mobile or computer from day one.' },
+      { title: 'Watch it live', text: 'Open the app anywhere to see today\'s sales, stock, dues and expenses as they happen.' },
+    ],
+    faq: [
+      { question: 'What is crusher plant cloud software?', answer: 'It is crusher management software that stores your plant data on secure online servers instead of a single office computer. You can open it from any phone, tablet or laptop with internet, and every user sees the same live figures.' },
+      { question: 'Is my crusher data safe in the cloud?', answer: 'Yes. Data is kept in secure cloud storage with automatic backups, and each staff member only sees what you allow. It is far safer than a single computer that can crash, get a virus or be stolen.' },
+      { question: 'What if the internet is slow at my plant?', answer: 'CrusherBook works on normal mobile data. For sites with very poor connectivity, we also offer an offline variant — ask us during the demo which one suits your plant.' },
+      { question: 'Do I need to buy a server or install anything?', answer: 'No. Everything runs in the cloud. You only need a phone or computer with a browser, and we handle hosting, updates and backups.' },
+      { question: 'How much does it cost?', answer: 'Plans start at Rs 6,999 per year, and multi-plant management is on the Enterprise plan at Rs 10,999 per year. Take a free demo first.' },
+    ],
+    related: ['stone-crusher-management-software', 'stone-crusher-management-app', 'crusher-plant-ke-liye-software'],
+  },
 ];
 
 export const landingPageBySlug = Object.fromEntries(landingPages.map((page) => [page.slug, page]));
