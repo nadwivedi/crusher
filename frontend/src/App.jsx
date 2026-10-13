@@ -25,6 +25,7 @@ import SaleReturn from './pages/SaleReturn/SaleReturn';
 import PurchaseReturn from './pages/PurchaseReturn/PurchaseReturn';
 import ReportsHub from './pages/ReportsHub';
 import StockLedger from './pages/StockLedger';
+import WhatsApp from './pages/WhatsApp';
 import PartyLedger from './pages/PartyLedger';
 import BoulderLedger from './pages/BoulderLedger';
 import DumpBoulder from './pages/DumpBoulder';
@@ -172,6 +173,7 @@ function App() {
           <Route path="/payroll" element={<Payroll />} />
 
           <Route path="/settings" element={<Setting />} />
+          <Route path="/whatsapp" element={<WhatsApp />} />
         </Route>
 
         <Route path="*" element={<Navigate to="/" />} />

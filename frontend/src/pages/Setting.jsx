@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { toast } from 'react-toastify';
 import { useNavigate } from 'react-router-dom';
-import { CloudSun, LogOut, Moon, Sun } from 'lucide-react';
+import { ChevronRight, CloudSun, LogOut, MessageCircle, Moon, Sun } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import EmployeeManagement from '../components/EmployeeManagement';
 import { getStoredTheme, setStoredTheme } from '../utils/theme';
@@ -150,6 +150,20 @@ export default function Setting() {
           ))}
         </dl>
       </section>
+
+      {/* WhatsApp: its own page, opened only from here */}
+      {user?.role !== 'employee' && (
+        <button type="button" className="card flex w-full items-center gap-3 text-left transition hover:bg-slate-50" onClick={() => navigate('/whatsapp')}>
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
+            <MessageCircle size={20} />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-sm font-bold text-slate-900">WhatsApp</span>
+            <span className="block text-xs text-slate-500">Connect WhatsApp to your account</span>
+          </span>
+          <ChevronRight size={18} className="shrink-0 text-slate-400" />
+        </button>
+      )}
 
       {/* Material rates */}
       {/* Appearance: kept on this device */}
