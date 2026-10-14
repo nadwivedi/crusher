@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
+import { Download, Smartphone, X } from 'lucide-react';
+import usePwaInstall from '../hooks/usePwaInstall';
 
 const ICONS = {
   user: 'M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z',
@@ -64,6 +66,8 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [loginType, setLoginType] = useState('owner'); // 'owner' or 'staff'
   const [showPassword, setShowPassword] = useState(false);
+  const { installable, install } = usePwaInstall();
+  const [installDismissed, setInstallDismissed] = useState(false);
 
   const { login, employeeLogin, loading } = useAuth();
   const navigate = useNavigate();
@@ -181,6 +185,37 @@ export default function Login() {
                 )}
               </button>
             </form>
+
+          {/* Install as an app, when the browser offers it */}
+          {installable && !installDismissed && (
+            <div className="mt-6 rounded-2xl border border-orange-400/30 bg-gradient-to-r from-orange-500 to-amber-600 p-4 shadow-xl shadow-orange-500/20">
+              <div className="flex items-center gap-3">
+                <div className="shrink-0 rounded-xl bg-white/20 p-2.5">
+                  <Smartphone className="h-5 w-5 text-white" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-bold leading-tight text-white">Install CrusherBook</p>
+                  <p className="mt-0.5 text-[11px] leading-tight text-orange-50">Get quick access from your home screen</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={install}
+                  className="flex shrink-0 items-center gap-1.5 rounded-xl bg-white px-4 py-2 text-xs font-bold text-orange-600 shadow-lg transition-all hover:bg-orange-50 active:scale-95"
+                >
+                  <Download className="h-3.5 w-3.5" />
+                  Install
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setInstallDismissed(true)}
+                  className="shrink-0 p-1 text-white/60 transition-colors hover:text-white"
+                  aria-label="Dismiss install prompt"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+          )}
 
           <p className="mt-10 text-center text-sm text-slate-500">
             Don&apos;t have an account?{' '}

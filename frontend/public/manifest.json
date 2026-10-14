@@ -1,0 +1,17 @@
+{
+  "short_name": "CrusherBook",
+  "name": "CrusherBook - Stone Crusher Management",
+  "description": "Boulder, sales, parties, vehicles, diesel and accounts for your stone crusher",
+  "icons": [
+    { "src": "/icon-192.png", "type": "image/png", "sizes": "192x192", "purpose": "any" },
+    { "src": "/icon-512.png", "type": "image/png", "sizes": "512x512", "purpose": "any" },
+    { "src": "/icon-maskable-512.png", "type": "image/png", "sizes": "512x512", "purpose": "maskable" }
+  ],
+  "id": "/",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "theme_color": "#1d4ed8",
+  "background_color": "#ffffff",
+  "orientation": "portrait"
+}
