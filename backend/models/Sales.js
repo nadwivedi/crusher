@@ -30,6 +30,13 @@ const salesSchema = new mongoose.Schema(
       trim: true,
       uppercase: true,
     },
+    // Weighbridge RST (receipt) number, optional
+    rstNo: {
+      type: String,
+      trim: true,
+      uppercase: true,
+      default: "",
+    },
     saleDate: {
       type: Date,
       default: Date.now,

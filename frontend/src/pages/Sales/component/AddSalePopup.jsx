@@ -248,7 +248,7 @@ export default function AddSalePopup({
         {error && <p className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-medium text-rose-700">{error}</p>}
 
         <FormSection number={1} title="Sale Details" tone="blue">
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             <div>
               <label className="label" htmlFor="sale-date-input">Invoice Date</label>
               <input id="sale-date-input" className="input" type="date" name="saleDate" value={formData.saleDate} onChange={handleInputChange} onKeyDown={handleSelectEnterMoveNext} autoFocus />
@@ -270,6 +270,24 @@ export default function AddSalePopup({
               />
             </div>
 
+            <div>
+              <label className="label" htmlFor="sale-rst-input">RST No</label>
+              <input
+                id="sale-rst-input"
+                className="input uppercase placeholder:normal-case"
+                type="text"
+                name="rstNo"
+                value={formData.rstNo || ''}
+                onChange={handleInputChange}
+                onKeyDown={handleSelectEnterMoveNext}
+                maxLength={40}
+                autoComplete="off"
+                placeholder="Optional"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             <div>
               <div className="mb-1 flex items-center justify-between">
                 <label className="label mb-0" htmlFor="sale-vehicle-input">Vehicle No <span className="text-rose-500">*</span></label>
@@ -324,25 +342,25 @@ export default function AddSalePopup({
                 )}
               </div>
             </div>
-          </div>
 
-          <div>
-            <label className="label" htmlFor="sale-dispatch-input">Dispatch Location</label>
-            <input
-              id="sale-dispatch-input"
-              className="input"
-              type="text"
-              name="dispatchLocation"
-              list="sale-dispatch-options"
-              value={formData.dispatchLocation || ''}
-              onChange={handleInputChange}
-              onKeyDown={handleSelectEnterMoveNext}
-              placeholder="Where the material is going, e.g. Raipur site"
-              autoComplete="off"
-            />
-            <datalist id="sale-dispatch-options">
-              {dispatchSuggestions.map((place) => <option key={place} value={place} />)}
-            </datalist>
+            <div>
+              <label className="label" htmlFor="sale-dispatch-input">Dispatch Location</label>
+              <input
+                id="sale-dispatch-input"
+                className="input"
+                type="text"
+                name="dispatchLocation"
+                list="sale-dispatch-options"
+                value={formData.dispatchLocation || ''}
+                onChange={handleInputChange}
+                onKeyDown={handleSelectEnterMoveNext}
+                placeholder="e.g. Raipur site"
+                autoComplete="off"
+              />
+              <datalist id="sale-dispatch-options">
+                {dispatchSuggestions.map((place) => <option key={place} value={place} />)}
+              </datalist>
+            </div>
           </div>
 
           {/* Weighbridge times come with a scanned slip */}

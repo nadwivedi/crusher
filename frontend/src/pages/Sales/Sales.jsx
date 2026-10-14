@@ -151,6 +151,7 @@ const getVehicleTransportDefaults = (vehicle, currentCharge = '') => {
 const getInitialFormData = () => ({
   saleDate: formatDateForInput(),
   invoiceNumber: '',
+  rstNo: '',
   entryTime: '',
   exitTime: '',
   party: '',
@@ -2267,6 +2268,7 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
         vehicleId: ensuredVehicleId || formData.vehicleId || undefined,
         vehicleNo: String(formData.vehicleNo || '').trim().toUpperCase(),
         invoiceNumber: String(formData.invoiceNumber || '').trim().toUpperCase(),
+        rstNo: String(formData.rstNo || '').trim().toUpperCase(),
         stoneSize: formData.materialType,
         entryTime: String(formData.entryTime || '').trim(),
         exitTime: String(formData.exitTime || '').trim(),
