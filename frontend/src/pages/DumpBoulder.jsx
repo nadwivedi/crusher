@@ -446,12 +446,14 @@ export default function DumpBoulder() {
           <button type="button" className="icon-btn shrink-0" title="Refresh" aria-label="Refresh" onClick={loadLedger}>
             <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
           </button>
-          <button type="button" className="btn-secondary" onClick={() => setPopup({ type: 'to_dump' })}>
-            <ArrowUpFromLine size={17} className="text-emerald-600" /> Stock In
-          </button>
-          <button type="button" className="btn-primary" onClick={() => setPopup({ type: 'to_hopper' })}>
-            <ArrowDownToLine size={17} /> Stock Out to Hopper
-          </button>
+          <div className="flex flex-nowrap items-center gap-2">
+            <button type="button" className="btn-secondary whitespace-nowrap" onClick={() => setPopup({ type: 'to_dump' })}>
+              <ArrowUpFromLine size={17} className="text-emerald-600" /> Stock In
+            </button>
+            <button type="button" className="btn-primary whitespace-nowrap" onClick={() => setPopup({ type: 'to_hopper' })}>
+              <ArrowDownToLine size={17} /> Stock Out<span className="hidden sm:inline"> to Hopper</span>
+            </button>
+          </div>
         </div>
       </div>
 
