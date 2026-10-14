@@ -1444,6 +1444,122 @@ export const landingPages = [
     ],
     related: ['stone-crusher-management-software', 'stone-crusher-management-app', 'crusher-plant-ke-liye-software'],
   },
+  {
+    slug: 'crusher-plant-payment-reminder-software',
+    navLabel: 'Crusher Payment Reminder Software',
+    seoTitle: 'Crusher Plant Payment Reminder Software – Collect Dues on WhatsApp',
+    description:
+      'Payment reminder software for crusher plants: see every party\'s pending balance and send the ledger summary on WhatsApp in one tap. Recover udhari faster. Free demo.',
+    keywords: [
+      'crusher plant payment reminder software',
+      'payment reminder software for crusher',
+      'stone crusher payment collection software',
+      'crusher udhari reminder app',
+      'whatsapp payment reminder for crusher',
+      'crusher outstanding payment tracking',
+    ],
+    eyebrow: 'Payment Reminders for Crusher Plants',
+    h1: 'Crusher Plant Payment Reminder Software – Know Who Owes You and Remind Them in One Tap',
+    intro:
+      'Most crusher plants sell on credit. Contractors, builders and truck owners take material today and pay later, and the money gets stuck. CrusherBook keeps a live ledger for every party, so you always know who owes how much and since when. When it is time to collect, open the party and send them their balance on WhatsApp, along with their recent slips and payments. No register to search, and no argument over the figures.',
+    painTitle: 'Why crusher payments get stuck',
+    painPoints: [
+      {
+        title: 'Dues are hidden in registers',
+        text: 'Credit sales are written in different diaries and slip books. Nobody can say quickly how much a contractor owes in total.',
+      },
+      {
+        title: 'Reminders are awkward and forgotten',
+        text: 'Calling a customer to ask for money is uncomfortable, so follow-ups get postponed until the balance becomes too big to recover.',
+      },
+      {
+        title: 'Customers dispute the amount',
+        text: 'Without a clear statement of slips and payments, parties argue over the figure and payment gets delayed even more.',
+      },
+    ],
+    featuresTitle: 'How CrusherBook helps you collect payments',
+    features: [
+      { icon: 'users', title: 'Party-wise pending balance', text: 'Every customer and supplier has a Dr / Cr ledger that updates with each sales slip and payment, so the pending amount is always correct.' },
+      { icon: 'message', title: 'One-tap WhatsApp reminder', text: 'Open a party and send their ledger summary on WhatsApp, with the pending receivable and recent entries already filled in.' },
+      { icon: 'book', title: 'Clear statement, fewer disputes', text: 'The reminder lists date-wise slips, payments and running balance, so the customer can check every entry themselves.' },
+      { icon: 'wallet', title: 'Record payments instantly', text: 'Cash, UPI or bank receipts are entered against the party, and the balance drops the moment the payment is saved.' },
+      { icon: 'chart', title: 'See total outstanding', text: 'Know at a glance how much money is stuck in the market and which parties need follow-up first.' },
+      { icon: 'userCog', title: 'Staff can follow up', text: 'Give your munshi or accountant a login to share reminders, while rates and profit stay private to the owner.' },
+    ],
+    stepsTitle: 'Start sending payment reminders',
+    steps: [
+      { title: 'Book a demo', text: 'Message us on WhatsApp and we will show you party ledgers and reminders on your own phone.' },
+      { title: 'Add parties and opening dues', text: 'Our team helps you enter your customers, their mobile numbers and current pending balances.' },
+      { title: 'Keep making entries', text: 'Sales slips and payments update each party\'s balance automatically, every day.' },
+      { title: 'Remind and collect', text: 'Open any party with dues and send the balance on WhatsApp in one tap.' },
+    ],
+    faq: [
+      { question: 'What is crusher plant payment reminder software?', answer: 'It is software that tracks how much each customer owes your crusher plant and lets you send them a payment reminder. In CrusherBook, every party has a live ledger, and you can share the pending balance and statement on WhatsApp in one tap.' },
+      { question: 'How are the reminders sent?', answer: 'From the party\'s ledger screen, tap the WhatsApp button. WhatsApp opens with a ready-made message showing the pending receivable and recent slips and payments, and you send it to the party\'s mobile number.' },
+      { question: 'Does the balance update when a customer pays?', answer: 'Yes. When you record a cash, UPI or bank payment against the party, the ledger and pending balance update immediately, so the next reminder always shows the correct amount.' },
+      { question: 'Can I track payable amounts to suppliers too?', answer: 'Yes. The same ledger shows whether you will receive or pay, so boulder suppliers and truck owners you owe are tracked alongside customers who owe you.' },
+      { question: 'How much does it cost?', answer: 'Plans start at Rs 6,999 per year and include party ledgers and WhatsApp sharing. Take a free demo first.' },
+    ],
+    related: ['crusher-billing-software', 'stone-crusher-accounting-software', 'crusher-hisab-kitab-app'],
+  },
+  {
+    slug: 'crusher-udhari-payment-reminder-app',
+    navLabel: 'Crusher Udhari Reminder App',
+    seoTitle: 'Crusher Udhari Payment Reminder App – पार्टी की बाकी WhatsApp पर याद दिलाएं',
+    description:
+      'Crusher plant ke liye udhari reminder app: har party ka baki paisa ek jagah, aur WhatsApp par ek tap mein hisab bhejein. उधारी जल्दी वसूल करें। Free demo.',
+    keywords: [
+      'crusher udhari reminder app',
+      'crusher payment reminder hindi',
+      'उधारी रिमाइंडर ऐप',
+      'party ka baki paisa kaise yaad dilaye',
+      'crusher plant udhari hisab',
+      'gitti plant payment reminder',
+    ],
+    eyebrow: 'Crusher ki Udhari Vasooli',
+    h1: 'Crusher Udhari Payment Reminder App – किसका कितना बाकी है, एक टैप में याद दिलाएं',
+    intro:
+      'क्रशर पर ज़्यादातर माल उधारी में जाता है। Contractor, builder aur gaadi wale aaj maal le jaate hain aur paisa baad mein dete hain – aur dheere-dheere lakhon rupaye bazaar mein phas jaate hain. CrusherBook mein har party ka khata apne aap banta hai, to aapko hamesha pata rehta hai ki kis par kitna baki hai. Vasooli ka time aaye to party kholiye aur WhatsApp par uska poora hisab ek tap mein bhej dijiye.',
+    painTitle: 'उधारी वसूलने में दिक्कतें',
+    painPoints: [
+      {
+        title: 'बाकी का पता नहीं',
+        text: 'Udhari alag-alag diary aur parchi book mein likhi hoti hai. Ek party par total kitna baki hai, turant koi nahi bata pata.',
+      },
+      {
+        title: 'याद दिलाना भूल जाते हैं',
+        text: 'Paisa maangne ka phone karna accha nahi lagta, isliye baat taalti rehti hai aur baki badhta jaata hai.',
+      },
+      {
+        title: 'हिसाब पर झगड़ा',
+        text: 'Saaf hisab na ho to party kehti hai "itna nahi banta" – aur payment aur late ho jaata hai.',
+      },
+    ],
+    featuresTitle: 'CrusherBook से उधारी कैसे वसूलें',
+    features: [
+      { icon: 'users', title: 'पार्टी-वार बाकी', text: 'Har customer aur supplier ka Dr / Cr khata – har bikri aur payment ke saath baki apne aap update hota hai.' },
+      { icon: 'message', title: 'WhatsApp पर एक टैप', text: 'Party kholiye aur WhatsApp button dabaiye – baki rakam aur haal ki entries ke saath message taiyar milta hai.' },
+      { icon: 'book', title: 'साफ हिसाब, कम झगड़ा', text: 'Message mein tareekh-wise parchi, payment aur running balance hota hai, party khud har entry check kar sakti hai.' },
+      { icon: 'wallet', title: 'पेमेंट तुरंत दर्ज', text: 'Cash, UPI ya bank se paisa aaya to party ke khate mein daliye – baki usi waqt kam ho jaata hai.' },
+      { icon: 'chart', title: 'कुल कितना फंसा है', text: 'Ek nazar mein dekhein ki bazaar mein kitna paisa baki hai aur pehle kis party se baat karni hai.' },
+      { icon: 'userCog', title: 'मुंशी भी भेज सके', text: 'Munshi ya accountant ko login dein taaki woh reminder bhej sake – rate aur munafa sirf malik dekhe.' },
+    ],
+    stepsTitle: 'कैसे शुरू करें',
+    steps: [
+      { title: 'Demo देखें', text: 'WhatsApp par message karein, hum Hindi mein party khata aur reminder dikhayenge.' },
+      { title: 'पुरानी बाकी डालें', text: 'Aapki parties, unke mobile number aur purani baki hum set karwa dete hain.' },
+      { title: 'रोज़ की एंट्री', text: 'Bikri parchi aur payment daalte rahiye – har party ka baki apne aap banta rahega.' },
+      { title: 'याद दिलाएं, वसूलें', text: 'Jis party par baki ho, use WhatsApp par ek tap mein hisab bhejiye.' },
+    ],
+    faq: [
+      { question: 'Crusher ki udhari kaise yaad dilayein?', answer: 'CrusherBook mein party ka khata kholiye aur WhatsApp button dabaiye. Baki rakam aur haal ki parchi-payment ke saath message ready ho jaata hai, jo aap party ke mobile par bhej dete hain.' },
+      { question: 'क्या पेमेंट आने पर बाकी अपने आप कम होगा?', answer: 'Haan. Cash, UPI ya bank payment party ke khate mein daalte hi baki update ho jaata hai, isliye agla reminder hamesha sahi rakam dikhata hai.' },
+      { question: 'क्या जिनको हमें पैसा देना है, उनका भी हिसाब रहेगा?', answer: 'Haan. Usi khate mein dikhta hai ki lena hai ya dena hai – boulder supplier aur gaadi walon ka bhi hisab saath mein rehta hai.' },
+      { question: 'क्या यह मोबाइल पर चलता है?', answer: 'Haan. CrusherBook Android mobile, tablet aur laptop sab par chalta hai, aur WhatsApp seedha phone se khulta hai.' },
+      { question: 'इसकी कीमत कितनी है?', answer: 'Plan Rs 6,999 saal se shuru hote hain, jismein party khata aur WhatsApp sharing shamil hai. Pehle free demo dekhein.' },
+    ],
+    related: ['crusher-plant-payment-reminder-software', 'crusher-hisab-kitab-app', 'crusher-plant-ke-liye-software'],
+  },
 ];
 
 export const landingPageBySlug = Object.fromEntries(landingPages.map((page) => [page.slug, page]));
