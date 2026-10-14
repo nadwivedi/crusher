@@ -1272,6 +1272,122 @@ export const landingPages = [
     related: ['stone-crusher-boulder-production-tracking-software', 'crusher-weighbridge-software', 'stone-crusher-inventory-management-software'],
   },
   {
+    slug: 'boulder-crusher-plant-software',
+    navLabel: 'Boulder Crusher Plant Software',
+    seoTitle: 'Boulder Crusher Plant Software | Boulder In to Gitti Sold',
+    description:
+      'Software for boulder crusher plants: boulder trucks in from suppliers, dump and hopper, gitti sales by weighbridge slip, party dues, vehicle hire, diesel and profit, all in one app on your phone.',
+    keywords: [
+      'boulder crusher plant software',
+      'boulder crusher software',
+      'boulder crusher management app',
+      'boulder to gitti crusher software',
+      'boulder crusher accounting',
+      'boulder crusher plant app',
+    ],
+    eyebrow: 'Boulder In, Gitti Out',
+    h1: 'Boulder Crusher Plant Software',
+    intro:
+      'A boulder crusher plant buys boulder and sells gitti. Between the two sit the trucks, the dump, the hopper, the diesel, the staff and a long list of parties who owe you or whom you owe. CrusherBook follows the plant end to end: every boulder truck that comes in, every sale truck that goes out, what each supplier, customer and vehicle owner is owed, and what the plant earned at the end of the month.',
+    painTitle: 'Where a boulder crusher plant loses track',
+    painPoints: [
+      {
+        title: 'Boulder bought, gitti sold, no link',
+        text: 'Boulder entries are in one register and sales in another, so you never see the month\'s full picture in one place.',
+      },
+      {
+        title: 'Three people to pay for one truck',
+        text: 'The boulder supplier, the truck owner and the loader all need paying, each at a different rate.',
+      },
+      {
+        title: 'Profit only at year end',
+        text: 'With diesel, hire, salaries and party dues scattered, the real profit shows up only when the accountant closes the books.',
+      },
+    ],
+    featuresTitle: 'The whole boulder crusher plant in one app',
+    features: [
+      { icon: 'mountain', title: 'Boulder in', text: 'Every boulder truck by weighbridge slip or bulk trips, supplier-wise and vehicle-wise, paid per ton or per trip.' },
+      { icon: 'boxes', title: 'Dump and hopper', text: 'Boulder tipped on the dump when the hopper is down, and dump fed back to the hopper, so boulder in stock is known.' },
+      { icon: 'scale', title: 'Gitti sales by slip', text: 'Sales with gross, tare and net weight and your rate for each size; on the Advanced plan AI reads the slip photo.' },
+      { icon: 'users', title: 'Party ledgers', text: 'Each customer and supplier has a ledger with every load, receipt and payment, and the balance due.' },
+      { icon: 'truck', title: 'Vehicles and hire', text: 'Own and hired trucks, dumpers, loaders and JCBs, with hire per trip, per ton, per KM or monthly rent.' },
+      { icon: 'chart', title: 'Diesel, expenses and profit', text: 'Diesel and spares per vehicle and DG set, expenses by type, cash and bank, and a profit and loss report.' },
+    ],
+    stepsTitle: 'How the plant runs in CrusherBook',
+    steps: [
+      { title: 'Boulder arrives', text: 'The boulder truck is entered with supplier, vehicle and weight.' },
+      { title: 'Crushing', text: 'Boulder goes to the hopper or the dump; diesel and meter readings are added.' },
+      { title: 'Gitti sold', text: 'Each sale truck is billed from its weighbridge slip.' },
+      { title: 'Month end', text: 'Party balances, vehicle dues and profit are ready.' },
+    ],
+    faq: [
+      { question: 'What is boulder crusher plant software?', answer: 'It is software for a crusher plant that buys boulder and sells crushed stone. It records boulder coming in and sales going out, keeps ledgers for suppliers, customers and vehicle owners, and tracks diesel, expenses and profit.' },
+      { question: 'Can it handle boulder from many suppliers?', answer: 'Yes. Each supplier has their own rate, per ton or per trip, and their own ledger. Transport is paid separately to the vehicle owner.' },
+      { question: 'Does it track gitti stock by size, like 10 mm and 20 mm?', answer: 'Sales are recorded by size with their own rates, but stock of each crushed size is not tracked yet. Boulder stock on the dump is tracked.' },
+      { question: 'Can my munshi make the entries?', answer: 'Yes. Give the munshi and the weighbridge operator their own logins, showing only the screens you allow.' },
+      { question: 'What does it cost?', answer: 'Plans start at Rs 6,999 per year, with a free demo first.' },
+    ],
+    related: ['stone-crusher-boulder-production-tracking-software', 'stone-crusher-raw-material-tracking-software', 'stone-crusher-management-software'],
+  },
+  {
+    slug: 'gitti-plant-software',
+    navLabel: 'Gitti Plant Software',
+    seoTitle: 'Gitti Plant Software – गिट्टी प्लांट का हिसाब मोबाइल पर',
+    description:
+      'Gitti plant software: गिट्टी की बिक्री, कांटा पर्ची, बोल्डर, पार्टी की उधारी, हाइवा-डंपर का भाड़ा और डीजल – sab ek app mein. Free demo ke saath.',
+    keywords: [
+      'gitti plant software',
+      'gitti plant app',
+      'गिट्टी प्लांट सॉफ्टवेयर',
+      'gitti crusher software',
+      'gitti plant ka hisab',
+      'gitti bikri software',
+    ],
+    eyebrow: 'Gitti Plant ka Software',
+    h1: 'Gitti Plant Software – गिट्टी की बिक्री से मुनाफे तक',
+    intro:
+      'गिट्टी प्लांट पर रोज़ दर्जनों गाड़ियाँ गिट्टी लेकर जाती हैं। Har gaadi ki kanta parchi, har party ka rate, kaun nagad le gaya aur kaun udhari par – yeh sab register mein likhna aur mahine ke end mein milana bahut mushkil hai. CrusherBook gitti plant ke liye bana software hai: munshi kanta parchi se entry kare, aur malik mobile par dekhe ki aaj kitni gitti biki, kitna paisa aaya aur kiska baki hai.',
+    painTitle: 'गिट्टी प्लांट की रोज़ की परेशानी',
+    painPoints: [
+      {
+        title: 'पर्ची और रजिस्टर अलग-अलग',
+        text: 'Kanta parchi gaadi wale ke paas chali jati hai, register mein galat wajan likh diya jata hai, aur bill match nahi hota.',
+      },
+      {
+        title: 'हर पार्टी का अलग रेट',
+        text: '10mm, 20mm, 40mm aur dust – har size ka rate alag, aur kuch party ka rate alag. Hisab haath se lagana padta hai.',
+      },
+      {
+        title: 'उधारी बढ़ती जाती है',
+        text: 'Kaunsi party kitne din se paisa nahi de rahi, yeh tab pata chalta hai jab baki bahut badh chuka hota hai.',
+      },
+    ],
+    featuresTitle: 'Gitti plant के लिए क्या-क्या मिलेगा',
+    features: [
+      { icon: 'scale', title: 'कांटा पर्ची से बिक्री', text: 'Gross, tare aur net wajan daalo, bill ban jata hai. Advanced plan mein parchi ki photo se AI khud wajan aur gaadi number bhar deta hai.' },
+      { icon: 'receipt', title: 'हर साइज़ का रेट', text: '10mm, 20mm, 40mm, 60mm aur dust ka rate per ton ya per m³ – ek baar daalo, bikri mein apne aap aa jata hai.' },
+      { icon: 'users', title: 'पार्टी खाता (उधारी)', text: 'Har party ka ledger – kitni gitti gayi, kitna paisa aaya, kitna baki hai.' },
+      { icon: 'truck', title: 'हाइवा-डंपर का भाड़ा', text: 'Kiraye ki gaadi ka bhada per trip, per ton, per KM ya monthly – apne aap gaadi wale ke khate mein.' },
+      { icon: 'mountain', title: 'बोल्डर और डंप', text: 'Kitna boulder aaya, kis supplier se, aur dump par kitna pada hai.' },
+      { icon: 'wallet', title: 'डीजल, खर्चा और मुनाफा', text: 'Diesel, mazdoori, bijli aur repair ka kharcha, cash-bank aur profit & loss report.' },
+    ],
+    stepsTitle: 'कैसे शुरू करें',
+    steps: [
+      { title: 'Demo देखें', text: 'WhatsApp par message karein, hum Hindi mein demo dikhayenge.' },
+      { title: 'Rate और party', text: 'Apne gitti ke rate, parties aur purani baki hum set karwa dete hain.' },
+      { title: 'Munshi entry', text: 'Munshi aur kanta operator har gaadi ki entry karein.' },
+      { title: 'Mobile पर हिसाब', text: 'Aaj ki bikri, aamad aur baki – sab mobile par.' },
+    ],
+    faq: [
+      { question: 'Gitti plant software kya hai?', answer: 'Yeh gitti plant (stone crusher) ke liye bana software hai jisme gitti ki bikri kanta parchi se hoti hai, har party ka udhari khata rehta hai, aur boulder, gaadi bhada, diesel aur kharche ka pura hisab mobile par milta hai.' },
+      { question: 'क्या हर साइज़ की गिट्टी का स्टॉक दिखता है?', answer: 'Bikri har size ke rate ke saath hoti hai, lekin 10mm, 20mm jaise har size ka stock abhi track nahi hota. Dump par pada boulder ka stock dikhta hai.' },
+      { question: 'क्या यह ब्रास या घन फीट में भी चलता है?', answer: 'Rate per ton aur per m³ (ghan meter) mein rakh sakte hain. Bikri kanta parchi ke wajan se hoti hai.' },
+      { question: 'क्या मुंशी को मुनाफा दिखेगा?', answer: 'Nahi, agar aap na chahein. Har staff login ko aap batate hain ki woh kaunsi screen dekhe.' },
+      { question: 'इसकी कीमत कितनी है?', answer: 'Plan Rs 6,999 saal se shuru hote hain. Pehle free demo dekhein, phir decide karein.' },
+    ],
+    related: ['crusher-plant-ke-liye-software', 'crusher-hisab-kitab-app', 'boulder-crusher-plant-software'],
+  },
+  {
     slug: 'crusher-hisab-kitab-app',
     navLabel: 'Crusher Hisab Kitab App',
     seoTitle: 'Crusher Hisab Kitab App – गिट्टी क्रशर का हिसाब',
