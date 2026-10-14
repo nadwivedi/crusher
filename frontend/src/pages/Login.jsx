@@ -30,6 +30,7 @@ const Spinner = () => (
 
 const inputClasses = "w-full rounded-lg border border-slate-300 bg-white py-3 pl-11 pr-4 text-[15px] font-medium text-slate-800 outline-none transition placeholder:font-normal placeholder:text-slate-400 focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10";
 const buttonClasses = "flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg bg-orange-600 px-4 py-3.5 text-[15px] font-bold text-white shadow-md shadow-orange-600/20 transition hover:bg-orange-700 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60";
+const ADMIN_WHATSAPP = '916264682508';
 const linkClasses = "cursor-pointer text-sm font-semibold text-orange-600 hover:text-orange-800 hover:underline";
 
 const IconInput = ({ icon, ...props }) => (
@@ -61,16 +62,10 @@ const PasswordInput = ({ show, setShow, ...props }) => (
 export default function Login() {
   const [emailOrPhone, setEmailOrPhone] = useState('');
   const [password, setPassword] = useState('');
-  const [isLogin, setIsLogin] = useState(true);
   const [loginType, setLoginType] = useState('owner'); // 'owner' or 'staff'
   const [showPassword, setShowPassword] = useState(false);
-  const [formData, setFormData] = useState({
-    companyName: '',
-    phone: '',
-    email: '',
-  });
 
-  const { login, employeeLogin, register, loading } = useAuth();
+  const { login, employeeLogin, loading } = useAuth();
   const navigate = useNavigate();
 
   const handleLoginSubmit = async (e) => {
@@ -96,67 +91,8 @@ export default function Login() {
     }
   };
 
-  const handleRegisterSubmit = async (e) => {
-    e.preventDefault();
-
-    // Mobile number and email are both mandatory
-    if (!formData.companyName.trim() || !formData.phone.trim() || !formData.email.trim() || !password) {
-      toast.error('Please fill company name, mobile number, email and password');
-      return;
-    }
-
-    const phoneRegex = /^\d{10}$/;
-    if (!phoneRegex.test(formData.phone.trim())) {
-      toast.error('Please enter a valid 10-digit mobile number');
-      return;
-    }
-
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(formData.email.trim())) {
-      toast.error('Please enter a valid email address');
-      return;
-    }
-
-    if (password.length < 6) {
-      toast.error('Password must be at least 6 characters');
-      return;
-    }
-
-    const result = await register({
-      companyName: formData.companyName.trim(),
-      phone: formData.phone.trim(),
-      email: formData.email.trim().toLowerCase(),
-      password
-    });
-
-    if (result.success) {
-      toast.success('Registration successful! Welcome aboard.');
-      navigate('/');
-    } else {
-      toast.error(result.message);
-    }
-  };
-
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData({ ...formData, [name]: value });
-  };
-
-  const switchMode = () => {
-    setIsLogin(!isLogin);
-    setEmailOrPhone('');
-    setPassword('');
-    setFormData({
-      companyName: '',
-      phone: '',
-      email: '',
-    });
-  };
-
-  const title = isLogin ? 'Login to CrusherBook' : 'Create your account';
-  const subtitle = isLogin
-    ? 'Welcome back 👋 Sign in to manage your sales, stock and billing.'
-    : 'Register your company to start managing your crusher with CrusherBook.';
+  const title = 'Login to CrusherBook';
+  const subtitle = 'Welcome back 👋 Sign in to manage your sales, stock and billing.';
 
   return (
     <div className="flex min-h-[100dvh] items-center justify-center bg-slate-100 p-4 sm:p-6" style={{ fontFamily: "'Poppins', sans-serif" }}>
@@ -197,7 +133,6 @@ export default function Login() {
             <p className="mt-1 text-sm text-slate-500">{subtitle}</p>
           </div>
 
-          {isLogin ? (
             <form onSubmit={handleLoginSubmit}>
               <div className="mb-5 flex rounded-lg bg-slate-100 p-1">
                 {[['owner', 'Owner Login'], ['staff', 'Staff Login']].map(([type, label]) => (
@@ -246,67 +181,12 @@ export default function Login() {
                 )}
               </button>
             </form>
-          ) : (
-            <form onSubmit={handleRegisterSubmit}>
-              <div className="space-y-4">
-                <IconInput
-                  icon="building"
-                  name="companyName"
-                  value={formData.companyName}
-                  onChange={handleInputChange}
-                  placeholder="Company Name"
-                  required
-                />
-                <IconInput
-                  icon="phone"
-                  type="tel"
-                  name="phone"
-                  value={formData.phone}
-                  onChange={handleInputChange}
-                  placeholder="Mobile Number"
-                  maxLength="10"
-                  inputMode="numeric"
-                  autoComplete="tel"
-                  required
-                />
-                <IconInput
-                  icon="mail"
-                  type="email"
-                  name="email"
-                  value={formData.email}
-                  onChange={handleInputChange}
-                  placeholder="Email Address"
-                  autoComplete="email"
-                  required
-                />
-                <PasswordInput
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  show={showPassword}
-                  setShow={setShowPassword}
-                  placeholder="Password (min. 6 characters)"
-                  required
-                />
-              </div>
-
-              <button type="submit" disabled={loading} className={`${buttonClasses} mt-6`}>
-                {loading ? (
-                  <>
-                    <Spinner />
-                    <span>Creating...</span>
-                  </>
-                ) : (
-                  <span>Create Account</span>
-                )}
-              </button>
-            </form>
-          )}
 
           <p className="mt-10 text-center text-sm text-slate-500">
-            {isLogin ? "Don't have an account? " : 'Already have an account? '}
-            <button type="button" onClick={switchMode} className={linkClasses}>
-              {isLogin ? 'Register Now' : 'Login'}
-            </button>
+            Don&apos;t have an account?{' '}
+            <a href={`https://wa.me/${ADMIN_WHATSAPP}?text=${encodeURIComponent('Hi, I want a CrusherBook account.')}`} target="_blank" rel="noopener noreferrer" className={linkClasses}>
+              Contact us on WhatsApp
+            </a>
           </p>
 
           <p className="mt-6 border-t border-slate-100 pt-5 text-center text-xs text-slate-400">
