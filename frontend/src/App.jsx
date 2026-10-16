@@ -38,6 +38,7 @@ import MeterReadingPopup from './components/MeterReadingPopup';
 import ProfitLossReport from './pages/Reports/ProfitLossReport';
 import Analytics from './pages/Analytics';
 import Setting from './pages/Setting';
+import WeighbridgeTest from './pages/WeighbridgeTest';
 import Payroll from './pages/Payroll/Payroll';
 import Accounts from './pages/Accounts/Accounts';
 import AccountLedger from './pages/Accounts/AccountLedger';
@@ -180,6 +181,7 @@ function App() {
 
           <Route path="/settings" element={<Setting />} />
           <Route path="/whatsapp" element={<WhatsApp />} />
+          <Route path="/settings/weighbridge" element={<StaffRoute ownerOnly><WeighbridgeTest /></StaffRoute>} />
         </Route>
 
         <Route path="*" element={<Navigate to="/" />} />

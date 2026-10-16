@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { toast } from 'react-toastify';
 import { useNavigate } from 'react-router-dom';
-import { CalendarCheck, CalendarClock, ChevronRight, CloudSun, Crown, Languages, LogOut, MessageCircle, Moon, Sun } from 'lucide-react';
+import { CalendarCheck, CalendarClock, ChevronRight, CloudSun, Crown, Languages, LogOut, MessageCircle, Moon, Scale, Sun } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import EmployeeManagement from '../components/EmployeeManagement';
 import { getStoredTheme, setStoredTheme } from '../utils/theme';
@@ -392,6 +392,15 @@ export default function Setting() {
       </section>
 
       {user?.role !== 'employee' && <EmployeeManagement />}
+
+      {/* Weighbridge test page: kept low-key here until it goes into the sales flow */}
+      {user?.role !== 'employee' && (
+        <div className="flex justify-center pt-2">
+          <button type="button" className="inline-flex items-center gap-1.5 text-xs text-slate-400 transition hover:text-slate-600" onClick={() => navigate('/settings/weighbridge')}>
+            <Scale size={13} /> Weighbridge integration (test)
+          </button>
+        </div>
+      )}
     </div>
   );
 }
