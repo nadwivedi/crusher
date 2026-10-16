@@ -61,4 +61,7 @@ const materialUsedSchema = new mongoose.Schema(
 
 materialUsedSchema.index({ userId: 1, usedDate: -1, createdAt: -1 });
 
+// Who added and last changed each entry
+materialUsedSchema.plugin(require("./plugins/audit"));
+
 module.exports = mongoose.models.MaterialUsed || mongoose.model("MaterialUsed", materialUsedSchema);

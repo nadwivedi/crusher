@@ -3,6 +3,8 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { Banknote, CreditCard, Eye, Inbox, IndianRupee, Pencil, Plus, RefreshCw, Search, ShoppingCart, Trash2 } from 'lucide-react';
 import { toast } from 'react-toastify';
 import apiClient from '../../utils/api';
+import { useAuth } from '../../context/AuthContext';
+import { canDeleteEntries, canEditEntry } from '../../utils/staffAccess';
 import useAccounts from '../../utils/useAccounts';
 import AddPartyPopup from '../Party/component/AddPartyPopup';
 import AddProductPopup from '../Products/component/AddProductPopup';
@@ -54,6 +56,7 @@ const purchaseCount = (count) => `${count.toLocaleString('en-IN')} purchase${cou
 const CASH_PARTY = { name: 'Cash' };
 
 export default function Purchases({ modalOnly = false, onModalFinish = null }) {
+  const { user } = useAuth();
   const toastOptions = { autoClose: 1200 };
   const location = useLocation();
   const navigate = useNavigate();
@@ -1218,12 +1221,17 @@ export default function Purchases({ modalOnly = false, onModalFinish = null }) {
           <Eye size={16} />
         </a>
       )}
-      <button type="button" title="Edit" aria-label="Edit" className="icon-btn p-1.5 hover:bg-blue-50 hover:text-blue-600" onClick={() => handleEdit(purchase)}>
-        <Pencil size={16} />
-      </button>
-      <button type="button" title="Delete" aria-label="Delete" className="icon-btn p-1.5 hover:bg-rose-50 hover:text-rose-600" onClick={() => handleDelete(purchase._id)}>
-        <Trash2 size={16} />
-      </button>
+      {/* Staff edit only the purchases they added; deleting is for the owner */}
+      {canEditEntry(user, purchase) && (
+        <button type="button" title="Edit" aria-label="Edit" className="icon-btn p-1.5 hover:bg-blue-50 hover:text-blue-600" onClick={() => handleEdit(purchase)}>
+          <Pencil size={16} />
+        </button>
+      )}
+      {canDeleteEntries(user) && (
+        <button type="button" title="Delete" aria-label="Delete" className="icon-btn p-1.5 hover:bg-rose-50 hover:text-rose-600" onClick={() => handleDelete(purchase._id)}>
+          <Trash2 size={16} />
+        </button>
+      )}
     </div>
   );
 

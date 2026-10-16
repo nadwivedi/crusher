@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const { applyVisibility } = require("../middleware/staffAccess");
 const Expense = require("../models/Expense");
 const ExpenseType = require("../models/ExpenseType");
 const Party = require("../models/Party");
@@ -303,6 +304,8 @@ const getAllExpenses = async (req, res) => {
       }
     }
 
+    // Staff see only their allowed days
+    applyVisibility(req, filter, "expenseDate");
     let expenses = await Expense.find(filter)
       .populate("expenseGroup", "name")
       .populate("items.expenseGroup", "name unit")

@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const { applyVisibility } = require("../middleware/staffAccess");
 const Payment = require("../models/Payment");
 const Purchase = require("../models/Purchase");
 const Counter = require("../models/Counter");
@@ -126,6 +127,8 @@ const getAllPayments = async (req, res) => {
       }
     }
 
+    // Staff see only their allowed days
+    applyVisibility(req, filter, "paymentDate");
     let query = Payment.find(filter).populate("party", "name");
 
     if (normalizedSearch) {

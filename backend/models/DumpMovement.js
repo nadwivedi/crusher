@@ -82,5 +82,8 @@ const dumpMovementSchema = new mongoose.Schema(
 
 dumpMovementSchema.index({ userId: 1, movementDate: -1, createdAt: -1 });
 
+// Who added and last changed each entry
+dumpMovementSchema.plugin(require("./plugins/audit"));
+
 module.exports = mongoose.models.DumpMovement || mongoose.model("DumpMovement", dumpMovementSchema);
 module.exports.DUMP_MOVEMENT_TYPES = DUMP_MOVEMENT_TYPES;

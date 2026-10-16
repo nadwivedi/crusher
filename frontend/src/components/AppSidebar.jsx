@@ -7,47 +7,48 @@ import {
   Settings, X, ShoppingCart, Warehouse, Package, Gauge
 } from 'lucide-react';
 import Logo from './Logo';
+import { canUseSection, isStaff } from '../utils/staffAccess';
 
 const navGroups = [
   {
     label: 'Overview',
     items: [
       { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
-      { to: '/activity', icon: Activity, label: 'Activity Center' },
-      { to: '/analytics', icon: ChartNoAxesCombined, label: 'Analytics' },
+      { to: '/activity', icon: Activity, label: 'Activity Center', ownerOnly: true },
+      { to: '/analytics', icon: ChartNoAxesCombined, label: 'Analytics', ownerOnly: true },
     ]
   },
   {
     label: 'Operations',
     items: [
-      { to: '/reports/boulder-ledger', icon: Mountain, label: 'Boulder' },
-      { to: '/dump-boulder', icon: Warehouse, label: 'Dump Boulder' },
-      { to: '/reports/sales-report', icon: FileText, label: 'Sales' },
-      { to: '/reports/purchase-report', icon: ShoppingCart, label: 'Purchases' },
-      { to: '/reports/receipt-report', icon: HandCoins, label: 'Money Received' },
-      { to: '/reports/payment-report', icon: Send, label: 'Money Paid' },
-      { to: '/reports/expense-report', icon: Wallet, label: 'Expenses' },
-      { to: '/reports/material-used-ledger', icon: PackageMinus, label: 'Material Used' },
-      { to: '/inventory', icon: Package, label: 'Inventory' },
-      { to: '/meter-readings', icon: Gauge, label: 'Meter Reading' },
-      { to: '/payroll', icon: IdCard, label: 'Payroll' },
+      { to: '/reports/boulder-ledger', icon: Mountain, label: 'Boulder', section: 'boulder' },
+      { to: '/dump-boulder', icon: Warehouse, label: 'Dump Boulder', section: 'boulder' },
+      { to: '/reports/sales-report', icon: FileText, label: 'Sales', section: 'sales' },
+      { to: '/reports/purchase-report', icon: ShoppingCart, label: 'Purchases', section: 'purchases' },
+      { to: '/reports/receipt-report', icon: HandCoins, label: 'Money Received', section: 'receipts' },
+      { to: '/reports/payment-report', icon: Send, label: 'Money Paid', section: 'payments' },
+      { to: '/reports/expense-report', icon: Wallet, label: 'Expenses', section: 'expenses' },
+      { to: '/reports/material-used-ledger', icon: PackageMinus, label: 'Material Used', section: 'materialUsed' },
+      { to: '/inventory', icon: Package, label: 'Inventory', section: 'materialUsed' },
+      { to: '/meter-readings', icon: Gauge, label: 'Meter Reading', section: 'meterReadings' },
+      { to: '/payroll', icon: IdCard, label: 'Payroll', ownerOnly: true },
     ]
   },
   {
     label: 'Reports',
     // Every ledger and report is listed on the Reports page; any /reports/... page keeps this item active
     items: [
-      { to: '/reports', icon: ChartColumn, label: 'Reports' },
+      { to: '/reports', icon: ChartColumn, label: 'Reports', ownerOnly: true },
     ]
   },
   {
     label: 'Masters',
     items: [
-      { to: '/party', icon: Users, label: 'Party' },
-      { to: '/stock', icon: Boxes, label: 'Stock Items' },
-      { to: '/vehicle', icon: Truck, label: 'Vehicles' },
-      { to: '/accounts', icon: Landmark, label: 'Cash & Bank' },
-      { to: '/expense-types', icon: Tags, label: 'Expense Types' },
+      { to: '/party', icon: Users, label: 'Party', section: 'masters' },
+      { to: '/stock', icon: Boxes, label: 'Stock Items', section: 'masters' },
+      { to: '/vehicle', icon: Truck, label: 'Vehicles', section: 'masters' },
+      { to: '/accounts', icon: Landmark, label: 'Cash & Bank', ownerOnly: true },
+      { to: '/expense-types', icon: Tags, label: 'Expense Types', section: 'masters' },
     ]
   }
 ];
@@ -90,6 +91,13 @@ export default function AppSidebar({ mobileOpen = false, onClose }) {
   const { user } = useAuth();
   const location = useLocation();
   const activePath = getActivePath(location.pathname);
+  // Staff see only the parts given to their login
+  const visibleGroups = navGroups
+    .map((group) => ({
+      ...group,
+      items: group.items.filter((item) => !isStaff(user) || (!item.ownerOnly && (!item.section || canUseSection(user, item.section)))),
+    }))
+    .filter((group) => group.items.length > 0);
 
   // Close the mobile drawer after navigating
   useEffect(() => {
@@ -138,12 +146,12 @@ export default function AppSidebar({ mobileOpen = false, onClose }) {
 
       {/* Nav */}
       <div className="scrollbar-hide flex-1 space-y-6 overflow-y-auto px-3 py-5">
-        {navGroups.map((group) => (
+        {visibleGroups.map((group) => (
           <div key={group.label}>
             <p className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-400">{group.label}</p>
             <nav className="space-y-1">
               {group.items.map((item) => (
-                <NavItem key={item.to} {...item} isActive={item.to === activePath} />
+                <NavItem key={item.to} to={item.to} icon={item.icon} label={item.label} isActive={item.to === activePath} />
               ))}
             </nav>
           </div>

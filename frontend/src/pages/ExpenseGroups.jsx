@@ -3,6 +3,8 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Layers3, Plus, Pencil, Search, Trash2, ArrowLeft } from 'lucide-react';
 import { toast } from 'react-toastify';
 import apiClient from '../utils/api';
+import { canDeleteEntries, canEditEntry } from '../utils/staffAccess';
+import { useAuth } from '../context/AuthContext';
 import { handlePopupFormKeyDown } from '../utils/popupFormKeyboard';
 
 const TOAST_OPTIONS = { autoClose: 1200 };
@@ -13,6 +15,7 @@ const getInitialForm = () => ({
 });
 
 export default function ExpenseTypes() {
+  const { user } = useAuth();
   const navigate = useNavigate();
   const [expenseGroups, setExpenseGroups] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -390,22 +393,26 @@ export default function ExpenseTypes() {
                         <p className="mt-1 text-xs text-emerald-100">Expense type details</p>
                       </div>
                       <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => handleEdit(expenseGroup)}
-                          className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-blue-200 bg-white text-blue-700 shadow-sm transition hover:border-blue-300 hover:bg-blue-50"
-                          aria-label={`Edit ${expenseGroup.name}`}
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleDelete(expenseGroup._id)}
-                          className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-red-200 bg-white text-red-700 shadow-sm transition hover:border-red-300 hover:bg-red-50"
-                          aria-label={`Delete ${expenseGroup.name}`}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
+                        {canEditEntry(user, expenseGroup) && (
+                          <button
+                            type="button"
+                            onClick={() => handleEdit(expenseGroup)}
+                            className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-blue-200 bg-white text-blue-700 shadow-sm transition hover:border-blue-300 hover:bg-blue-50"
+                            aria-label={`Edit ${expenseGroup.name}`}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </button>
+                        )}
+                        {canDeleteEntries(user) && (
+                          <button
+                            type="button"
+                            onClick={() => handleDelete(expenseGroup._id)}
+                            className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-red-200 bg-white text-red-700 shadow-sm transition hover:border-red-300 hover:bg-red-50"
+                            aria-label={`Delete ${expenseGroup.name}`}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        )}
                       </div>
                     </div>
 
@@ -445,22 +452,26 @@ export default function ExpenseTypes() {
                         </td>
                         <td className="px-6 py-4 text-right">
                           <div className="flex items-center justify-end gap-1">
-                            <button
-                              type="button"
-                              onClick={() => handleEdit(expenseGroup)}
-                              className="rounded-lg p-2 text-slate-400 transition-all hover:bg-indigo-50 hover:text-indigo-600"
-                              title="Edit"
-                            >
-                              <Pencil className="h-4 w-4" />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleDelete(expenseGroup._id)}
-                              className="rounded-lg p-2 text-slate-400 transition-all hover:bg-red-50 hover:text-red-600"
-                              title="Delete"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </button>
+                            {canEditEntry(user, expenseGroup) && (
+                              <button
+                                type="button"
+                                onClick={() => handleEdit(expenseGroup)}
+                                className="rounded-lg p-2 text-slate-400 transition-all hover:bg-indigo-50 hover:text-indigo-600"
+                                title="Edit"
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </button>
+                            )}
+                            {canDeleteEntries(user) && (
+                              <button
+                                type="button"
+                                onClick={() => handleDelete(expenseGroup._id)}
+                                className="rounded-lg p-2 text-slate-400 transition-all hover:bg-red-50 hover:text-red-600"
+                                title="Delete"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            )}
                           </div>
                         </td>
                       </tr>

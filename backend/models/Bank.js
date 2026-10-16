@@ -40,4 +40,7 @@ const bankSchema = new mongoose.Schema(
 
 bankSchema.index({ userId: 1, name: 1 }, { unique: true });
 
+// Who added and last changed each entry
+bankSchema.plugin(require("./plugins/audit"));
+
 module.exports = mongoose.models.Bank || mongoose.model("Bank", bankSchema);

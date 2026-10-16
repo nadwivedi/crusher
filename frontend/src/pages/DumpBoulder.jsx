@@ -7,6 +7,7 @@ import {
 import { toast } from 'react-toastify';
 import apiClient from '../utils/api';
 import { useAuth } from '../context/AuthContext';
+import { canDeleteEntries, canEditEntry } from '../utils/staffAccess';
 import { handlePopupFormKeyDown } from '../utils/popupFormKeyboard';
 import StatCard from '../components/StatCard';
 import Segmented from '../components/Segmented';
@@ -246,7 +247,8 @@ function FilterChip({ label, onClear }) {
 export default function DumpBoulder() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const canEdit = user?.role !== 'employee' && (user?.role === 'owner' || user?.permissions?.edit);
+  // Staff edit only the entries they added; deleting is for the owner
+  const canDelete = canDeleteEntries(user);
   const [allRows, setAllRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -392,14 +394,18 @@ export default function DumpBoulder() {
     { icon: CalendarClock, label: 'Last Used', tone: 'indigo', value: lastOut ? formatDate(lastOut.date) : '—', hint: lastOut ? `${ton(lastOut.weight)} to hopper` : 'Not used yet' }
   ];
 
-  const renderActions = (row) => (canEdit ? (
+  const renderActions = (row) => (canEditEntry(user, row) || canDelete ? (
     <div className="flex items-center justify-end">
-      <button type="button" title="Edit" aria-label="Edit" className="icon-btn p-1.5 hover:bg-blue-50 hover:text-blue-600" onClick={() => setPopup({ type: row.type, entry: row })}>
-        <Pencil size={15} />
-      </button>
-      <button type="button" title="Delete" aria-label="Delete" className="icon-btn p-1.5 hover:bg-rose-50 hover:text-rose-600" onClick={() => handleDelete(row)}>
-        <Trash2 size={15} />
-      </button>
+      {canEditEntry(user, row) && (
+        <button type="button" title="Edit" aria-label="Edit" className="icon-btn p-1.5 hover:bg-blue-50 hover:text-blue-600" onClick={() => setPopup({ type: row.type, entry: row })}>
+          <Pencil size={15} />
+        </button>
+      )}
+      {canDelete && (
+        <button type="button" title="Delete" aria-label="Delete" className="icon-btn p-1.5 hover:bg-rose-50 hover:text-rose-600" onClick={() => handleDelete(row)}>
+          <Trash2 size={15} />
+        </button>
+      )}
     </div>
   ) : null);
 

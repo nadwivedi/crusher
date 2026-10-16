@@ -93,4 +93,7 @@ const saleReturnSchema = new mongoose.Schema(
 saleReturnSchema.index({ userId: 1, voucherDate: -1, createdAt: -1 });
 saleReturnSchema.index({ userId: 1, sale: 1 });
 
+// Who added and last changed each entry
+saleReturnSchema.plugin(require("./plugins/audit"));
+
 module.exports = mongoose.models.SaleReturn || mongoose.model("SaleReturn", saleReturnSchema);

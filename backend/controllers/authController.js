@@ -57,6 +57,7 @@ const generateToken = (id) => (
 
 const { redeemAccessToken, createAdminSessionToken } = require("../utils/adminAccess");
 const { isAccountActive, DEACTIVATED_MESSAGE } = require("../utils/accountStatus");
+const { readSections } = require("../utils/staffSections");
 
 const getCookieOptions = () => {
   const isProduction = process.env.NODE_ENV === "production";
@@ -238,6 +239,7 @@ const employeeLogin = async (req, res) => {
          mobile: emp.mobile,
          role: 'employee',
          permissions: emp.permissions,
+         sections: readSections(emp.sections),
          historyLimitDays: emp.historyLimitDays
       },
     });
@@ -297,6 +299,7 @@ module.exports = {
              },
              materialRates: sanitizeUser(owner).materialRates,
              permissions: req.employee.permissions,
+             sections: readSections(req.employee.sections),
              historyLimitDays: req.employee.historyLimitDays
           }
         });

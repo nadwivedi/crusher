@@ -55,4 +55,7 @@ const stockSchema = new mongoose.Schema(
 
 stockSchema.index({ userId: 1, name: 1 });
 
+// Who added and last changed each entry
+stockSchema.plugin(require("./plugins/audit"));
+
 module.exports = mongoose.models.Stock || mongoose.model("Stock", stockSchema);

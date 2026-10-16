@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { CalendarDays, Factory, Gauge, Inbox, Pencil, Plus, RefreshCw, Trash2, Truck } from 'lucide-react';
 import apiClient from '../utils/api';
+import { useAuth } from '../context/AuthContext';
+import { canDeleteEntries, canEditEntry } from '../utils/staffAccess';
 import MeterReadingPopup from '../components/MeterReadingPopup';
 import StatCard from '../components/StatCard';
 import Segmented from '../components/Segmented';
@@ -55,6 +57,7 @@ const vehicleLabel = (vehicleNo, category) => {
 };
 
 export default function MeterReadings() {
+  const { user } = useAuth();
   const navigate = useNavigate();
   const [readings, setReadings] = useState([]);
   const [vehicles, setVehicles] = useState([]);
@@ -179,12 +182,17 @@ export default function MeterReadings() {
 
   const actions = (reading) => (
     <div className="flex justify-end gap-1">
-      <button type="button" className="icon-btn" title="Edit" aria-label="Edit" onClick={() => setPopup({ editing: reading })}>
-        <Pencil size={15} />
-      </button>
-      <button type="button" className="icon-btn text-rose-600" title="Delete" aria-label="Delete" onClick={() => handleDelete(reading)}>
-        <Trash2 size={15} />
-      </button>
+      {/* Staff edit only the readings they added; deleting is for the owner */}
+      {canEditEntry(user, reading) && (
+        <button type="button" className="icon-btn" title="Edit" aria-label="Edit" onClick={() => setPopup({ editing: reading })}>
+          <Pencil size={15} />
+        </button>
+      )}
+      {canDeleteEntries(user) && (
+        <button type="button" className="icon-btn text-rose-600" title="Delete" aria-label="Delete" onClick={() => handleDelete(reading)}>
+          <Trash2 size={15} />
+        </button>
+      )}
     </div>
   );
 

@@ -2,12 +2,14 @@ import React, { useState, useEffect } from 'react';
 import apiClient from '../utils/api';
 import { toast } from 'react-toastify';
 import { Plus, Edit2, Trash2 } from 'lucide-react';
+import { STAFF_SECTIONS, allSectionsOn } from '../utils/staffAccess';
 
 const MAX_STAFF = 5;
 
 const HISTORY_LIMITS = [
+  { value: 1, label: 'Today and yesterday' },
   { value: 7, label: 'Last 7 days' },
-  { value: 28, label: 'Last 28 days' },
+  { value: 30, label: 'Last 1 month' },
   { value: 90, label: 'Last 3 months' },
   { value: 365, label: 'Last 1 year' },
   { value: 'all', label: 'All data' }
@@ -24,8 +26,9 @@ export default function EmployeeManagement() {
     name: '',
     mobile: '',
     password: '',
-    historyLimitDays: 7,
-    permissions: { view: true, add: false, edit: false },
+    historyLimitDays: 30,
+    permissions: { view: true, add: true, edit: true },
+    sections: allSectionsOn(),
     isActive: true
   });
 
@@ -50,8 +53,9 @@ export default function EmployeeManagement() {
       name: '',
       mobile: '',
       password: '',
-      historyLimitDays: 7,
-      permissions: { view: true, add: false, edit: false },
+      historyLimitDays: 30,
+      permissions: { view: true, add: true, edit: true },
+      sections: allSectionsOn(),
       isActive: true
     });
     setEditingId(null);
@@ -65,6 +69,7 @@ export default function EmployeeManagement() {
       password: '', // blank password when editing
       historyLimitDays: emp.historyLimitDays,
       permissions: emp.permissions,
+      sections: { ...allSectionsOn(), ...(emp.sections || {}) },
       isActive: emp.isActive
     });
     setEditingId(emp._id);
@@ -109,13 +114,15 @@ export default function EmployeeManagement() {
   };
 
   const setPermission = (key) => (e) => setFormData({ ...formData, permissions: { ...formData.permissions, [key]: e.target.checked } });
+  const setSection = (key) => (e) => setFormData({ ...formData, sections: { ...formData.sections, [key]: e.target.checked } });
+  const sectionsOf = (emp) => STAFF_SECTIONS.filter((section) => emp.sections?.[section.key] !== false);
 
   return (
     <section className="panel">
       <div className="panel-header flex items-center justify-between gap-3">
         <div className="min-w-0">
           <h2 className="text-sm font-bold text-slate-900">Staff Logins</h2>
-          <p className="text-xs text-slate-500">Up to {MAX_STAFF} logins for your staff. Choose what each one can see and do.</p>
+          <p className="text-xs text-slate-500">Up to {MAX_STAFF} logins for your staff. Staff never see the dashboard numbers, reports or cash & bank, and can edit only the entries they added.</p>
         </div>
         {!isAdding && employees.length < MAX_STAFF && (
           <button type="button" onClick={() => setIsAdding(true)} className="btn-primary btn-sm shrink-0">
@@ -157,8 +164,30 @@ export default function EmployeeManagement() {
                 <input type="checkbox" checked={formData.permissions.add} onChange={setPermission('add')} className="accent-primary-600" /> Add entries
               </label>
               <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700">
-                <input type="checkbox" checked={formData.permissions.edit} onChange={setPermission('edit')} className="accent-primary-600" /> Edit entries
+                <input type="checkbox" checked={formData.permissions.edit} onChange={setPermission('edit')} className="accent-primary-600" /> Edit own entries
               </label>
+            </div>
+          </div>
+
+          {/* The parts of the app this login can use */}
+          <div>
+            <div className="mb-1.5 flex items-center justify-between gap-2">
+              <label className="label mb-0">Can work on</label>
+              <div className="flex gap-3 text-xs font-semibold">
+                <button type="button" className="text-primary-700 hover:underline" onClick={() => setFormData({ ...formData, sections: allSectionsOn() })}>Tick all</button>
+                <button type="button" className="text-slate-500 hover:underline" onClick={() => setFormData({ ...formData, sections: Object.fromEntries(STAFF_SECTIONS.map((section) => [section.key, false])) })}>Clear</button>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+              {STAFF_SECTIONS.map((section) => (
+                <label key={section.key} className="flex cursor-pointer items-start gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 has-[:checked]:border-primary-300 has-[:checked]:bg-primary-50/50">
+                  <input type="checkbox" checked={formData.sections?.[section.key] !== false} onChange={setSection(section.key)} className="mt-0.5 accent-primary-600" />
+                  <span className="min-w-0">
+                    <span className="block font-semibold">{section.label}</span>
+                    <span className="block text-[11px] text-slate-500">{section.hint}</span>
+                  </span>
+                </label>
+              ))}
             </div>
           </div>
 
@@ -188,8 +217,15 @@ export default function EmployeeManagement() {
                 <div className="mt-1.5 flex flex-wrap gap-1.5">
                   <span className="badge-gray">View</span>
                   {emp.permissions.add && <span className="badge-green">Add</span>}
-                  {emp.permissions.edit && <span className="badge-green">Edit</span>}
+                  {emp.permissions.edit && <span className="badge-green">Edit own</span>}
                 </div>
+                <p className="mt-1 text-[11px] text-slate-500">
+                  {sectionsOf(emp).length === STAFF_SECTIONS.length
+                    ? 'Works on: everything'
+                    : sectionsOf(emp).length === 0
+                      ? 'Works on: nothing yet'
+                      : `Works on: ${sectionsOf(emp).map((section) => section.label).join(', ')}`}
+                </p>
               </div>
 
               <div className="flex shrink-0 items-center gap-1">

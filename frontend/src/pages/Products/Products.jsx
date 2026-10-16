@@ -4,8 +4,11 @@ import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import AddProductPopup from './component/AddProductPopup';
 import apiClient from '../../utils/api';
+import { canDeleteEntries, canEditEntry } from '../../utils/staffAccess';
+import { useAuth } from '../../context/AuthContext';
 
 export default function Products() {
+  const { user } = useAuth();
   const toastOptions = { autoClose: 1200 };
   const navigate = useNavigate();
   const [products, setProducts] = useState([]);
@@ -216,26 +219,30 @@ export default function Products() {
                         <td className="border border-slate-200 px-4 py-3 text-center">{Number(product.taxRate || 0)}%</td>
                         <td className="border border-slate-200 px-4 py-3" onClick={(e) => e.stopPropagation()}>
                           <div className="flex items-center justify-center gap-2">
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleEdit(product);
-                              }}
-                              className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-blue-200 bg-white text-blue-700 shadow-sm transition hover:border-blue-300 hover:bg-blue-50"
-                              aria-label={`Edit ${product.name}`}
-                            >
-                              <Pencil className="h-4 w-4" />
-                            </button>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleDelete(product._id);
-                              }}
-                              className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-slate-300/70 bg-white/70 text-slate-500 transition hover:bg-red-50/90 hover:text-red-600"
-                              aria-label={`Delete ${product.name}`}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </button>
+                            {canEditEntry(user, product) && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleEdit(product);
+                                }}
+                                className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-blue-200 bg-white text-blue-700 shadow-sm transition hover:border-blue-300 hover:bg-blue-50"
+                                aria-label={`Edit ${product.name}`}
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </button>
+                            )}
+                            {canDeleteEntries(user) && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDelete(product._id);
+                                }}
+                                className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-slate-300/70 bg-white/70 text-slate-500 transition hover:bg-red-50/90 hover:text-red-600"
+                                aria-label={`Delete ${product.name}`}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            )}
                           </div>
                         </td>
                       </tr>

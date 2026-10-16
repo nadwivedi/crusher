@@ -5,6 +5,7 @@ import MoneyVoucherList from '../../components/MoneyVoucherList';
 import { toast } from 'react-toastify';
 import apiClient from '../../utils/api';
 import { useAuth } from '../../context/AuthContext';
+import { canDeleteEntries } from '../../utils/staffAccess';
 import { getBankDisplayName } from '../../utils/bankAccounts';
 import AddReceiptPopup from './component/AddReceiptPopup';
 
@@ -88,7 +89,7 @@ export default function Receipts({ modalOnly = false, onModalFinish = null }) {
   const location = useLocation();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const canDeleteReceipts = user?.role !== 'employee' && (user?.role === 'owner' || user?.permissions?.edit);
+  const canDeleteReceipts = canDeleteEntries(user);
   const [receipts, setReceipts] = useState([]);
   const [parties, setParties] = useState([]);
   const [sales, setSales] = useState([]);

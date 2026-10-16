@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const { applyVisibility } = require("../middleware/staffAccess");
 const Receipt = require("../models/Receipt");
 const Sales = require("../models/Sales");
 const Party = require("../models/Party");
@@ -111,6 +112,8 @@ const getAllReceipts = async (req, res) => {
       }
     }
 
+    // Staff see only their allowed days
+    applyVisibility(req, filter, "receiptDate");
     let query = Receipt.find(filter).populate("party", "name");
 
     if (normalizedSearch) {

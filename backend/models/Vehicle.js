@@ -72,4 +72,7 @@ const vehicleSchema = new mongoose.Schema(
 vehicleSchema.index({ userId: 1, vehicleNo: 1 }, { unique: true });
 vehicleSchema.index({ userId: 1, vehicleType: 1, createdAt: -1 });
 
+// Who added and last changed each entry
+vehicleSchema.plugin(require("./plugins/audit"));
+
 module.exports = mongoose.models.Vehicle || mongoose.model("Vehicle", vehicleSchema);

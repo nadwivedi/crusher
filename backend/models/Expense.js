@@ -99,4 +99,7 @@ const expenseSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+// Who added and last changed each entry
+expenseSchema.plugin(require("./plugins/audit"));
+
 module.exports = mongoose.models.Expense || mongoose.model("Expense", expenseSchema);

@@ -75,4 +75,7 @@ const paymentSchema = new mongoose.Schema(
 paymentSchema.index({ userId: 1, paymentNumber: 1 }, { unique: true });
 paymentSchema.index({ userId: 1, paymentDate: -1, createdAt: -1 });
 
+// Who added and last changed each entry
+paymentSchema.plugin(require("./plugins/audit"));
+
 module.exports = mongoose.models.Payment || mongoose.model("Payment", paymentSchema);

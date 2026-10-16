@@ -32,6 +32,18 @@ const employeeSchema = new mongoose.Schema(
       add: { type: Boolean, default: false },
       edit: { type: Boolean, default: false },
     },
+    // Parts of the app this login can use; a missing key means allowed (staff made before this existed)
+    sections: {
+      boulder: { type: Boolean, default: true },
+      sales: { type: Boolean, default: true },
+      purchases: { type: Boolean, default: true },
+      receipts: { type: Boolean, default: true },
+      payments: { type: Boolean, default: true },
+      expenses: { type: Boolean, default: true },
+      materialUsed: { type: Boolean, default: true },
+      meterReadings: { type: Boolean, default: true },
+      masters: { type: Boolean, default: true },
+    },
     historyLimitDays: {
       type: mongoose.Mixed, // Can be a Number (7, 28, 90, 365) or "all"
       default: 7, 

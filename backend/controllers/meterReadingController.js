@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const { applyVisibility } = require("../middleware/staffAccess");
 const MeterReading = require("../models/MeterReading");
 const Vehicle = require("../models/Vehicle");
 const { meterUnitFor } = require("../utils/diesel");
@@ -66,7 +67,8 @@ const sendError = (res, error, message) => {
 
 const getMeterReadings = async (req, res) => {
   try {
-    const readings = await MeterReading.find(scopedFilter(req))
+    // Staff see only their allowed days
+    const readings = await MeterReading.find(applyVisibility(req, scopedFilter(req), "readingDate"))
       .sort({ readingDate: -1, createdAt: -1 })
       .lean();
     return res.json({ data: readings });

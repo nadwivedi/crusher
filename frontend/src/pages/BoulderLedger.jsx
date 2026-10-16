@@ -6,6 +6,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import apiClient from '../utils/api';
 import { useAuth } from '../context/AuthContext';
+import { canDeleteEntries, canEditEntry } from '../utils/staffAccess';
 import StatCard from '../components/StatCard';
 import Segmented from '../components/Segmented';
 import BoulderEntry from './BoulderEntry/BoulderEntry';
@@ -164,7 +165,7 @@ function FilterChip({ label, onClear }) {
 export default function BoulderLedger() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const canDeleteBoulders = user?.role !== 'employee' && (user?.role === 'owner' || user?.permissions?.edit);
+  const canDeleteBoulders = canDeleteEntries(user);
   const [boulders, setBoulders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -420,9 +421,12 @@ export default function BoulderLedger() {
           <Eye size={16} />
         </a>
       )}
-      <button type="button" title="Edit" aria-label="Edit" className="icon-btn p-1.5 hover:bg-blue-50 hover:text-blue-600" onClick={() => setEditingEntry(entry)}>
-        <Pencil size={16} />
-      </button>
+      {/* Staff edit only the entries they added */}
+      {canEditEntry(user, entry) && (
+        <button type="button" title="Edit" aria-label="Edit" className="icon-btn p-1.5 hover:bg-blue-50 hover:text-blue-600" onClick={() => setEditingEntry(entry)}>
+          <Pencil size={16} />
+        </button>
+      )}
       {canDeleteBoulders && (
         <button type="button" title="Delete" aria-label="Delete" className="icon-btn p-1.5 hover:bg-rose-50 hover:text-rose-600" onClick={() => handleDelete(entry._id)}>
           <Trash2 size={16} />

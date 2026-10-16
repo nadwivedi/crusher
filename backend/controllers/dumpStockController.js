@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const { applyVisibility } = require("../middleware/staffAccess");
 const Boulder = require("../models/Boulder");
 const Counter = require("../models/Counter");
 const DumpMovement = require("../models/DumpMovement");
@@ -174,7 +175,11 @@ const parseDay = (value, endOfDay) => {
  */
 const getDumpLedger = async (req, res) => {
   try {
-    const from = parseDay(req.query.from, false);
+    const requestedFrom = parseDay(req.query.from, false);
+    // Staff see only their allowed days; earlier entries still make the opening balance
+    const from = req.visibilityBoundary && (!requestedFrom || requestedFrom < req.visibilityBoundary)
+      ? req.visibilityBoundary
+      : requestedFrom;
     const to = parseDay(req.query.to, true);
     const inPeriod = (date) => (!from || date >= from) && (!to || date <= to);
 

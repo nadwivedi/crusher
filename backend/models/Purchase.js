@@ -108,4 +108,7 @@ const purchaseSchema = new mongoose.Schema(
 purchaseSchema.index({ userId: 1, purchaseNumber: 1 }, { unique: true });
 purchaseSchema.index({ userId: 1, purchaseDate: -1, createdAt: -1 });
 
+// Who added and last changed each entry
+purchaseSchema.plugin(require("./plugins/audit"));
+
 module.exports = mongoose.models.Purchase || mongoose.model("Purchase", purchaseSchema);

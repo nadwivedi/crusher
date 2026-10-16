@@ -98,4 +98,7 @@ const monthlyHireSchema = new mongoose.Schema(
 
 monthlyHireSchema.index({ userId: 1, startDate: -1 });
 
+// Who added and last changed each entry
+monthlyHireSchema.plugin(require("./plugins/audit"));
+
 module.exports = mongoose.models.MonthlyHire || mongoose.model("MonthlyHire", monthlyHireSchema);

@@ -5,6 +5,7 @@ import {
   PackageMinus, RefreshCw, RotateCcw, Search, Send, ShoppingCart, SlidersHorizontal, Truck, Undo2, Wallet
 } from 'lucide-react';
 import apiClient from '../utils/api';
+import { describePerson } from '../utils/staffAccess';
 import StatCard from '../components/StatCard';
 import Segmented from '../components/Segmented';
 
@@ -90,10 +91,12 @@ export default function ActivityCenter() {
   const [typeFilter, setTypeFilter] = useState('');
   const [search, setSearch] = useState('');
   const [reloadKey, setReloadKey] = useState(0);
+  // "" = everyone, "owner", or "staff:<id>"
+  const [person, setPerson] = useState('');
 
   useEffect(() => {
     let live = true;
-    apiClient.get('/reports/activity', { params: range })
+    apiClient.get('/reports/activity', { params: { ...range, by: person || undefined } })
       .then((response) => {
         if (!live) return;
         setData(response);
@@ -102,7 +105,7 @@ export default function ActivityCenter() {
       .catch((err) => live && setError(err.message || 'Failed to load activity'))
       .finally(() => live && setLoading(false));
     return () => { live = false; };
-  }, [range, reloadKey]);
+  }, [range, reloadKey, person]);
 
   useEffect(() => {
     const handleKeyDown = (event) => {
@@ -138,6 +141,11 @@ export default function ActivityCenter() {
   };
 
   const items = data?.items || [];
+  const people = data?.people || [];
+  const choosePerson = (value) => {
+    setLoading(true);
+    setPerson(value);
+  };
   const q = search.trim().toLowerCase();
   const searched = items.filter((item) => !q || `${item.title} ${item.detail} ${TYPES[item.type]?.label}`.toLowerCase().includes(q));
   const visible = searched.filter((item) => !typeFilter || item.type === typeFilter);
@@ -164,9 +172,18 @@ export default function ActivityCenter() {
       <div className="page-header">
         <div className="min-w-0">
           <h1 className="page-title">Activity Center</h1>
-          <p className="page-subtitle">Every entry of the crusher in one place · {periodText}</p>
+          <p className="page-subtitle">Every entry of the crusher in one place, and who made it · {periodText}</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          {/* Whose entries: everyone, the owner, or one staff login */}
+          {people.length > 1 && (
+            <select className="input w-auto py-1.5 text-sm" value={person} onChange={(event) => choosePerson(event.target.value)} aria-label="Entries made by">
+              <option value="">Everyone</option>
+              {people.map((entry) => (
+                <option key={entry.key} value={entry.key}>{entry.kind === 'staff' ? `${entry.name} (Staff)` : entry.name}</option>
+              ))}
+            </select>
+          )}
           <Segmented options={RANGES} value={rangeKey} onChange={selectRange} />
           <button type="button" className="icon-btn" title="Refresh" aria-label="Refresh" onClick={reload}>
             <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
@@ -264,6 +281,20 @@ export default function ActivityCenter() {
                             <span className="ml-2 text-xs font-medium text-slate-400">{type.label}</span>
                           </p>
                           <p className="truncate text-xs text-slate-500" title={item.detail}>{item.detail || '—'}</p>
+                          {(item.by || item.editedBy) && (
+                            <p className="mt-0.5 flex flex-wrap items-center gap-x-2 text-[11px]">
+                              {item.by && (
+                                <span className={`font-semibold ${item.by.kind === 'staff' ? 'text-indigo-600' : 'text-slate-500'}`}>
+                                  Added by {describePerson(item.by)}
+                                </span>
+                              )}
+                              {item.editedBy && (
+                                <span className="text-amber-700" title={item.editedAt ? new Date(item.editedAt).toLocaleString('en-IN') : undefined}>
+                                  Edited by {describePerson(item.editedBy)}{item.editedAt ? ` · ${formatTime(item.editedAt)}` : ''}
+                                </span>
+                              )}
+                            </p>
+                          )}
                         </div>
                         <div className="shrink-0 text-right">
                           <p className={`whitespace-nowrap text-sm font-bold ${type.value}`}>{valueText(item)}</p>

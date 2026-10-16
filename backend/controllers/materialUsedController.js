@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const { applyVisibility } = require("../middleware/staffAccess");
 const MaterialUsed = require("../models/MaterialUsed");
 const Stock = require("../models/Stock");
 const Vehicle = require("../models/Vehicle");
@@ -118,6 +119,8 @@ const getAllMaterialUsed = async (req, res) => {
       ];
     }
 
+    // Staff see only their allowed days
+    applyVisibility(req, filter, "usedDate");
     const entries = await MaterialUsed.find(filter)
       .populate("vehicle", "vehicleNo")
       .populate("materialType", "name unit")

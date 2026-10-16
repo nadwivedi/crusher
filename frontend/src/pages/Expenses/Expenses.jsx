@@ -4,6 +4,7 @@ import { CalendarDays, ChevronDown, Inbox, Pencil, Plus, Receipt, Search, Trash2
 import { toast } from 'react-toastify';
 import apiClient from '../../utils/api';
 import { useAuth } from '../../context/AuthContext';
+import { canDeleteEntries, canEditEntry } from '../../utils/staffAccess';
 import { useFloatingDropdownPosition } from '../../utils/useFloatingDropdownPosition';
 import useAccounts from '../../utils/useAccounts';
 import CustomRangePopup, { CustomRangeButton } from '../../components/CustomRangePopup';
@@ -193,7 +194,8 @@ export default function Expenses({ modalOnly = false, onModalFinish = null }) {
   // Current balance of each cash / bank account, loaded when the form opens
   const [accountBalances, setAccountBalances] = useState({});
   const defaultAccountLabel = accountOptions.find((option) => option.value === String(defaultAccountId))?.label || 'Cash Account';
-  const canManageExpenses = user?.role !== 'employee' && (user?.role === 'owner' || user?.permissions?.edit);
+  // The actions column shows for anyone who may edit an entry; staff edit only their own and never delete
+  const canManageExpenses = canDeleteEntries(user) || Boolean(user?.permissions?.edit);
   const [editingId, setEditingId] = useState(null);
   const [tableRange, setTableRange] = useState('lifetime');
   const [customFrom, setCustomFrom] = useState('');
@@ -1074,17 +1076,20 @@ export default function Expenses({ modalOnly = false, onModalFinish = null }) {
   const renderExpenseActions = (expense, className = '') => {
     if (!canManageExpenses) return null;
     const isGoods = Array.isArray(expense.items) && expense.items.length > 0;
+    const canEdit = canEditEntry(user, expense);
 
     return (
       <div className={`flex items-center justify-end ${className}`}>
-        {!isGoods && (
+        {!isGoods && canEdit && (
           <button type="button" title="Edit" aria-label="Edit" className="icon-btn p-1.5 hover:bg-blue-50 hover:text-blue-600" onClick={() => handleEdit(expense)}>
             <Pencil size={16} />
           </button>
         )}
-        <button type="button" title="Delete" aria-label="Delete" className="icon-btn p-1.5 hover:bg-rose-50 hover:text-rose-600" onClick={() => handleDelete(expense)}>
-          <Trash2 size={16} />
-        </button>
+        {canDeleteEntries(user) && (
+          <button type="button" title="Delete" aria-label="Delete" className="icon-btn p-1.5 hover:bg-rose-50 hover:text-rose-600" onClick={() => handleDelete(expense)}>
+            <Trash2 size={16} />
+          </button>
+        )}
       </div>
     );
   };

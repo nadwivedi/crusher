@@ -178,4 +178,7 @@ const salesSchema = new mongoose.Schema(
 salesSchema.index({ userId: 1, invoiceNumber: 1 }, { unique: true, sparse: true });
 salesSchema.index({ userId: 1, saleDate: -1, createdAt: -1 });
 
+// Who added and last changed each entry
+salesSchema.plugin(require("./plugins/audit"));
+
 module.exports = mongoose.models.Sales || mongoose.model("Sales", salesSchema);

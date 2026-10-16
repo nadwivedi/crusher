@@ -1,4 +1,8 @@
 const mongoose = require("mongoose");
+// Staff see only their allowed days: an earlier (or missing) start date moves up to their limit
+const staffFrom = (req, fromDate) => (
+  req.visibilityBoundary && (!fromDate || fromDate < req.visibilityBoundary) ? req.visibilityBoundary : fromDate
+);
 const Boulder = require("../models/Boulder");
 const Expense = require("../models/Expense");
 const MaterialUsed = require("../models/MaterialUsed");
@@ -708,7 +712,7 @@ const getOutstanding = async (_req, res) => {
 const getPartyLedger = async (req, res) => {
   try {
     const partyId = toObjectId(req.query.partyId);
-    const fromDate = toDateBoundary(req.query.fromDate);
+    const fromDate = staffFrom(req, toDateBoundary(req.query.fromDate));
     const toDate = toDateBoundary(req.query.toDate, true);
 
     const { ledgerRows } = await getPartyLedgerData({ userId: req.userId, partyId, fromDate, toDate });
@@ -724,7 +728,7 @@ const getPartyLedger = async (req, res) => {
 const getStockLedger = async (req, res) => {
   try {
     const productId = toObjectId(req.query.productId);
-    const fromDate = toDateBoundary(req.query.fromDate);
+    const fromDate = staffFrom(req, toDateBoundary(req.query.fromDate));
     const toDate = toDateBoundary(req.query.toDate, true);
 
     const stockLedger = await getStockLedgerData({ userId: req.userId, productId, fromDate, toDate });

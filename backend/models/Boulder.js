@@ -152,4 +152,7 @@ const boulderSchema = new mongoose.Schema(
 boulderSchema.index({ userId: 1, boulderNumber: 1 }, { unique: true, sparse: true });
 boulderSchema.index({ userId: 1, boulderDate: -1, createdAt: -1 });
 
+// Who added and last changed each entry
+boulderSchema.plugin(require("./plugins/audit"));
+
 module.exports = mongoose.models.Boulder || mongoose.model("Boulder", boulderSchema);

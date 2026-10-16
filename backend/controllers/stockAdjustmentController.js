@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const { applyVisibility } = require("../middleware/staffAccess");
 const Counter = require("../models/Counter");
 const Stock = require("../models/Stock");
 const StockAdjustment = require("../models/StockAdjustment");
@@ -108,6 +109,8 @@ const getAllStockAdjustments = async (req, res) => {
       ];
     }
 
+    // Staff see only their allowed days
+    applyVisibility(req, filter, "voucherDate");
     const adjustments = await StockAdjustment.find(filter).sort({ voucherDate: -1, createdAt: -1 });
 
     return res.json({ data: adjustments });

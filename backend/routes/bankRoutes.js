@@ -10,6 +10,7 @@ const {
   deleteTransfer,
 } = require("../controllers/bankController");
 const auth = require("../middleware/auth");
+const { ownerOnly } = require("../middleware/staffAccess");
 const checkPermission = require("../middleware/role");
 
 const router = express.Router();
@@ -17,12 +18,12 @@ const router = express.Router();
 router.use(auth);
 
 router.get("/", getAllBanks);
-router.get("/summary", getAccountsSummary);
-router.post("/transfers", checkPermission("add"), createTransfer);
-router.delete("/transfers/:id", checkPermission("edit"), deleteTransfer);
-router.get("/:id/ledger", getAccountLedger);
-router.post("/", checkPermission("add"), createBank);
-router.put("/:id", checkPermission("edit"), updateBank);
-router.delete("/:id", checkPermission("edit"), deleteBank);
+router.get("/summary", ownerOnly, getAccountsSummary);
+router.post("/transfers", ownerOnly, createTransfer);
+router.delete("/transfers/:id", ownerOnly, deleteTransfer);
+router.get("/:id/ledger", ownerOnly, getAccountLedger);
+router.post("/", ownerOnly, createBank);
+router.put("/:id", ownerOnly, updateBank);
+router.delete("/:id", ownerOnly, deleteBank);
 
 module.exports = router;

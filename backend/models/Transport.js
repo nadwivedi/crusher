@@ -112,4 +112,7 @@ transportSchema.index({ userId: 1, entryDate: -1, createdAt: -1 });
 transportSchema.index({ userId: 1, saleId: 1 });
 transportSchema.index({ userId: 1, hireId: 1 });
 
+// Who added and last changed each entry
+transportSchema.plugin(require("./plugins/audit"));
+
 module.exports = mongoose.models.Transport || mongoose.model("Transport", transportSchema);

@@ -40,4 +40,7 @@ const accountTransferSchema = new mongoose.Schema(
 
 accountTransferSchema.index({ userId: 1, transferDate: -1 });
 
+// Who added and last changed each entry
+accountTransferSchema.plugin(require("./plugins/audit"));
+
 module.exports = mongoose.models.AccountTransfer || mongoose.model("AccountTransfer", accountTransferSchema);

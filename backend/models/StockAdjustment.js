@@ -59,4 +59,7 @@ const stockAdjustmentSchema = new mongoose.Schema(
 
 stockAdjustmentSchema.index({ userId: 1, voucherDate: -1, createdAt: -1 });
 
+// Who added and last changed each entry
+stockAdjustmentSchema.plugin(require("./plugins/audit"));
+
 module.exports = mongoose.models.StockAdjustment || mongoose.model("StockAdjustment", stockAdjustmentSchema);

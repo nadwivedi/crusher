@@ -1,5 +1,6 @@
 const Employee = require("../models/Employee");
 const bcrypt = require("bcryptjs");
+const { readSections } = require("../utils/staffSections");
 
 const saltRounds = 10;
 
@@ -21,7 +22,7 @@ const getEmployees = async (req, res) => {
 // Add a new employee
 const addEmployee = async (req, res) => {
   try {
-    const { name, mobile, password, isActive, permissions, historyLimitDays } = req.body;
+    const { name, mobile, password, isActive, permissions, historyLimitDays, sections } = req.body;
 
     // Check limit
     const employeeCount = await Employee.countDocuments({ ownerId: req.userId });
@@ -53,6 +54,7 @@ const addEmployee = async (req, res) => {
       isActive: isActive !== undefined ? isActive : true,
       permissions: permissions || { view: true, add: false, edit: false },
       historyLimitDays: historyLimitDays || 7,
+      sections: readSections(sections),
     });
 
     res.status(201).json({ success: true, message: "Employee added successfully", data: Object.assign({}, newEmployee.toObject(), { password: null }) });
@@ -66,7 +68,7 @@ const addEmployee = async (req, res) => {
 const updateEmployee = async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, mobile, isActive, permissions, historyLimitDays } = req.body;
+    const { name, mobile, isActive, permissions, historyLimitDays, sections, password } = req.body;
 
     const employee = await Employee.findOne({ _id: id, ownerId: req.userId });
     if (!employee) {
@@ -87,10 +89,20 @@ const updateEmployee = async (req, res) => {
     if (isActive !== undefined) employee.isActive = isActive;
     if (permissions) employee.permissions = permissions;
     if (historyLimitDays !== undefined) employee.historyLimitDays = historyLimitDays;
+    if (sections !== undefined) employee.sections = readSections(sections);
+    // A new password typed in the edit form
+    if (password) {
+      if (String(password).length < 6) {
+        return res.status(400).json({ success: false, message: "Password must be at least 6 characters" });
+      }
+      employee.password = await hashPassword(password);
+    }
 
     await employee.save();
 
-    res.json({ success: true, message: "Employee updated successfully", data: employee });
+    const saved = employee.toObject();
+    delete saved.password;
+    res.json({ success: true, message: "Employee updated successfully", data: saved });
   } catch (error) {
     console.error(error);
     res.status(500).json({ success: false, message: "Failed to update employee" });

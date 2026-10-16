@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { Ban, CalendarClock, ChevronRight, Eye, Inbox, MoreVertical, Pencil, Plus, RefreshCw, RotateCcw, Search, SlidersHorizontal, Trash2, Truck, Users, Wallet } from 'lucide-react';
 import { toast } from 'react-toastify';
 import apiClient from '../utils/api';
+import { canDeleteEntries, canEditEntry } from '../utils/staffAccess';
+import { useAuth } from '../context/AuthContext';
 import AddVehiclePopup from './Vehicle/component/AddVehiclePopup';
 import MonthlyHireDetail from './MonthlyHire/component/MonthlyHireDetail';
 import AdjustmentPopup from './MonthlyHire/component/AdjustmentPopup';
@@ -28,6 +30,7 @@ const getTypeLabel = (vehicle) => {
 };
 
 export default function Vehicle() {
+  const { user } = useAuth();
   const navigate = useNavigate();
   const [vehicles, setVehicles] = useState([]);
   const [parties, setParties] = useState([]);
@@ -99,7 +102,8 @@ export default function Vehicle() {
       const [response, entryResponse, outstandingResponse] = await Promise.all([
         apiClient.get('/vehicles', { params: { search } }),
         apiClient.get('/transport'),
-        apiClient.get('/reports/outstanding')
+        // Owner-only balances; staff see the vehicles without them
+        apiClient.get('/reports/outstanding').catch(() => ({}))
       ]);
       setVehicles(Array.isArray(response) ? response : []);
       setHireSummary({
@@ -248,12 +252,16 @@ export default function Vehicle() {
       <button type="button" title="View ledger" aria-label="View ledger" className="icon-btn p-1.5 hover:bg-emerald-50 hover:text-emerald-600" onClick={() => navigate(`/vehicle/${vehicle._id}`)}>
         <Eye size={16} />
       </button>
-      <button type="button" title="Edit" aria-label="Edit" className="icon-btn p-1.5 hover:bg-blue-50 hover:text-blue-600" onClick={() => handleOpenForm(vehicle)}>
-        <Pencil size={16} />
-      </button>
-      <button type="button" title="Delete" aria-label="Delete" className="icon-btn p-1.5 hover:bg-rose-50 hover:text-rose-600" onClick={() => handleDelete(vehicle._id)}>
-        <Trash2 size={16} />
-      </button>
+      {canEditEntry(user, vehicle) && (
+        <button type="button" title="Edit" aria-label="Edit" className="icon-btn p-1.5 hover:bg-blue-50 hover:text-blue-600" onClick={() => handleOpenForm(vehicle)}>
+          <Pencil size={16} />
+        </button>
+      )}
+      {canDeleteEntries(user) && (
+        <button type="button" title="Delete" aria-label="Delete" className="icon-btn p-1.5 hover:bg-rose-50 hover:text-rose-600" onClick={() => handleDelete(vehicle._id)}>
+          <Trash2 size={16} />
+        </button>
+      )}
       {getMenuItems(vehicle).length > 0 && (
         <button type="button" title="Monthly rent" aria-label="Monthly rent options" aria-haspopup="menu" className="icon-btn p-1.5 hover:bg-slate-100" onClick={(event) => openMenu(event, vehicle)}>
           <MoreVertical size={16} />

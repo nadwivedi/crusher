@@ -177,4 +177,7 @@ partySchema.pre("validate", function syncLegacyFields() {
   }
 });
 
+// Who added and last changed each entry
+partySchema.plugin(require("./plugins/audit"));
+
 module.exports = mongoose.models.Party || mongoose.model("Party", partySchema);

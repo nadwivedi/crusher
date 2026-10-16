@@ -4,6 +4,7 @@ import { Banknote, ClipboardList, CreditCard, Eye, Inbox, IndianRupee, Layers, P
 import { toast } from 'react-toastify';
 import apiClient from '../../utils/api';
 import { useAuth } from '../../context/AuthContext';
+import { canDeleteEntries, canEditEntry } from '../../utils/staffAccess';
 import { getSmartVehicleMatch, normalizeVehicleValue } from '../../utils/vehicleMatching';
 import useAccounts from '../../utils/useAccounts';
 import { PERIOD_BASES, getBasisUnit, getOwnershipLabel, getSaleTransport, getSaleTransportCharge, getTripRate, getSupplierRatesPayload, getVehicleHireRates, getVehicleOwnerIds } from '../../utils/transport';
@@ -419,7 +420,8 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { accounts, defaultAccountId } = useAccounts();
-  const canManageSales = user?.role !== 'employee' && (user?.role === 'owner' || user?.permissions?.edit);
+  // Staff edit only the sales they added; deleting is for the owner
+  const canDeleteSales = canDeleteEntries(user);
   const canCreateSales = user?.role === 'owner' || user?.permissions?.add;
   const initialFormData = getInitialFormData();
   const initialCurrentItem = {
@@ -2686,15 +2688,15 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
           <Eye size={16} />
         </a>
       )}
-      {canManageSales && (
-        <>
-          <button type="button" title="Edit" aria-label="Edit" className="icon-btn p-1.5 hover:bg-blue-50 hover:text-blue-600" onClick={() => handleEdit(sale)}>
-            <Pencil size={16} />
-          </button>
-          <button type="button" title="Delete" aria-label="Delete" className="icon-btn p-1.5 hover:bg-rose-50 hover:text-rose-600" onClick={() => handleDelete(sale._id)}>
-            <Trash2 size={16} />
-          </button>
-        </>
+      {canEditEntry(user, sale) && (
+        <button type="button" title="Edit" aria-label="Edit" className="icon-btn p-1.5 hover:bg-blue-50 hover:text-blue-600" onClick={() => handleEdit(sale)}>
+          <Pencil size={16} />
+        </button>
+      )}
+      {canDeleteSales && (
+        <button type="button" title="Delete" aria-label="Delete" className="icon-btn p-1.5 hover:bg-rose-50 hover:text-rose-600" onClick={() => handleDelete(sale._id)}>
+          <Trash2 size={16} />
+        </button>
       )}
     </div>
   );

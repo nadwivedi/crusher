@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const { applyVisibility } = require("../middleware/staffAccess");
 const Counter = require("../models/Counter");
 const Purchase = require("../models/Purchase");
 const PurchaseReturn = require("../models/PurchaseReturn");
@@ -164,6 +165,8 @@ const getAllPurchaseReturns = async (req, res) => {
       ];
     }
 
+    // Staff see only their allowed days
+    applyVisibility(req, filter, "voucherDate");
     const returns = await populateReturn(PurchaseReturn.find(filter).sort({ voucherDate: -1, createdAt: -1 }));
 
     return res.json({ data: returns });

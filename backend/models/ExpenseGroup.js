@@ -23,4 +23,7 @@ const expenseGroupSchema = new mongoose.Schema(
 
 expenseGroupSchema.index({ userId: 1, name: 1 }, { unique: true });
 
+// Who added and last changed each entry
+expenseGroupSchema.plugin(require("./plugins/audit"));
+
 module.exports = mongoose.models.ExpenseGroup || mongoose.model("ExpenseGroup", expenseGroupSchema);

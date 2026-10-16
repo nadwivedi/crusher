@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { Pencil, Search, Wallet, ChevronRight, Users } from 'lucide-react';
 import { toast } from 'react-toastify';
 import apiClient from '../../utils/api';
+import { canEditEntry } from '../../utils/staffAccess';
+import { useAuth } from '../../context/AuthContext';
 import AddPartyPopup from './component/AddPartyPopup';
 import { getSupplierRatesPayload } from '../../utils/transport';
 
@@ -70,6 +72,7 @@ const resolveOpeningBalanceType = (party) => {
 };
 
 export default function Party() {
+  const { user } = useAuth();
   const navigate = useNavigate();
   const [parties, setParties] = useState([]);
   const [formData, setFormData] = useState(getInitialForm());
@@ -342,16 +345,18 @@ export default function Party() {
                             </p>
                           </div>
                         </div>
-                        <button
-                          type="button"
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            handleEdit(item);
-                          }}
-                          className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 shadow-sm transition-all hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-600"
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </button>
+                        {canEditEntry(user, item) && (
+                          <button
+                            type="button"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              handleEdit(item);
+                            }}
+                            className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 shadow-sm transition-all hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-600"
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </button>
+                        )}
                       </div>
 
                       <div className="mt-6 flex flex-col gap-3">
@@ -395,16 +400,18 @@ export default function Party() {
                           <td className="px-6 py-4 font-bold text-slate-600">{item.mobile || '-'}</td>
                           <td className="px-6 py-4">
                             <div className="flex items-center justify-center">
-                              <button
-                                type="button"
-                                onClick={(event) => {
-                                  event.stopPropagation();
-                                  handleEdit(item);
-                                }}
-                                className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 shadow-sm transition-all hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-600"
-                              >
-                                <Pencil className="h-4 w-4" />
-                              </button>
+                              {canEditEntry(user, item) && (
+                                <button
+                                  type="button"
+                                  onClick={(event) => {
+                                    event.stopPropagation();
+                                    handleEdit(item);
+                                  }}
+                                  className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 shadow-sm transition-all hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-600"
+                                >
+                                  <Pencil className="h-4 w-4" />
+                                </button>
+                              )}
                             </div>
                           </td>
                         </tr>

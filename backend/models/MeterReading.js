@@ -60,4 +60,7 @@ const meterReadingSchema = new mongoose.Schema(
 meterReadingSchema.index({ userId: 1, readingDate: -1, createdAt: -1 });
 meterReadingSchema.index({ userId: 1, machine: 1, vehicle: 1, readingDate: -1 });
 
+// Who added and last changed each entry
+meterReadingSchema.plugin(require("./plugins/audit"));
+
 module.exports = mongoose.models.MeterReading || mongoose.model("MeterReading", meterReadingSchema);

@@ -1,5 +1,6 @@
 const AccountTransfer = require("../models/AccountTransfer");
 const Boulder = require("../models/Boulder");
+const Employee = require("../models/Employee");
 const DumpMovement = require("../models/DumpMovement");
 const Expense = require("../models/Expense");
 const MaterialUsed = require("../models/MaterialUsed");
@@ -57,7 +58,7 @@ const getActivity = async (req, res) => {
   const within = (field) => ({ userId, [field]: { $gte: from, $lte: to } });
 
   try {
-    const [
+    let [
       sales, boulders, purchases, receipts, payments, expenses, materialUsed, meterReadings,
       dumpMoves, saleReturns, purchaseReturns, adjustments, transfers, transports,
     ] = await Promise.all([
@@ -77,7 +78,32 @@ const getActivity = async (req, res) => {
       Transport.find({ ...within("entryDate"), source: "manual" }).populate("partyId", "name").lean(),
     ]);
 
-    const base = (type, doc, date) => ({ id: doc._id, type, date: date || doc.createdAt, createdAt: doc.createdAt });
+    // Who did it: "owner", "admin", or "staff:<id>". Entries saved before this was recorded have no person.
+    const personKey = (doc) => {
+      const by = doc.createdBy;
+      if (!by?.kind) return "";
+      return by.kind === "staff" ? `staff:${by.id}` : by.kind;
+    };
+    const byFilter = String(req.query.by || "").trim();
+    const keep = (list) => (byFilter ? list.filter((doc) => personKey(doc) === byFilter) : list);
+    [
+      sales, boulders, purchases, receipts, payments, expenses, materialUsed, meterReadings,
+      dumpMoves, saleReturns, purchaseReturns, adjustments, transfers, transports,
+    ] = [
+      sales, boulders, purchases, receipts, payments, expenses, materialUsed, meterReadings,
+      dumpMoves, saleReturns, purchaseReturns, adjustments, transfers, transports,
+    ].map(keep);
+
+    const person = (actor) => (actor?.kind ? { kind: actor.kind, id: actor.id, name: actor.name } : null);
+    const base = (type, doc, date) => ({
+      id: doc._id,
+      type,
+      date: date || doc.createdAt,
+      createdAt: doc.createdAt,
+      by: person(doc.createdBy),
+      editedBy: person(doc.updatedBy),
+      editedAt: doc.updatedByAt || null,
+    });
 
     const items = [
       ...sales.map((sale) => ({
@@ -209,9 +235,16 @@ const getActivity = async (req, res) => {
     ].sort((a, b) => (new Date(b.date) - new Date(a.date)) || (new Date(b.createdAt) - new Date(a.createdAt)));
 
     const sum = (list, pick) => list.reduce((total, item) => total + toNumber(pick(item)), 0);
+    // Everyone who can make entries in this account, for the "by person" filter
+    const staff = await Employee.find({ ownerId: userId }).select("name isActive").sort({ name: 1 }).lean();
+    const people = [
+      { key: "owner", name: "Owner", kind: "owner" },
+      ...staff.map((emp) => ({ key: `staff:${emp._id}`, name: emp.name, kind: "staff", isActive: emp.isActive !== false })),
+    ];
     return res.json({
       from,
       to,
+      people,
       totals: {
         sales: sum(sales, (sale) => sale.totalAmount),
         salesKg: sum(sales, (sale) => (sale.pricingMode === "per_cubic_meter" ? 0 : sale.netWeight)),

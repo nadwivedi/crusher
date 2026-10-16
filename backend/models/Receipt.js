@@ -75,4 +75,7 @@ const receiptSchema = new mongoose.Schema(
 receiptSchema.index({ userId: 1, receiptNumber: 1 }, { unique: true });
 receiptSchema.index({ userId: 1, receiptDate: -1, createdAt: -1 });
 
+// Who added and last changed each entry
+receiptSchema.plugin(require("./plugins/audit"));
+
 module.exports = mongoose.models.Receipt || mongoose.model("Receipt", receiptSchema);

@@ -91,4 +91,7 @@ const purchaseReturnSchema = new mongoose.Schema(
 purchaseReturnSchema.index({ userId: 1, voucherDate: -1, createdAt: -1 });
 purchaseReturnSchema.index({ userId: 1, purchase: 1 });
 
+// Who added and last changed each entry
+purchaseReturnSchema.plugin(require("./plugins/audit"));
+
 module.exports = mongoose.models.PurchaseReturn || mongoose.model("PurchaseReturn", purchaseReturnSchema);
