@@ -74,6 +74,9 @@ function MaterialUsedForm({
   const usedQty = Number(formData.usedQty) || 0;
   const stockAfter = Math.round((inStock - usedQty) * 100) / 100;
   const exceedsStock = Boolean(selectedMaterial) && stockAfter < 0;
+  // An item not used in vehicles (a motor, a belt) is issued at the plant: no vehicle to pick
+  const pickedMaterial = materials.find((material) => material._id === formData.materialType);
+  const plantOnly = pickedMaterial?.usedInVehicle === false;
 
   return (
     <div className="flex max-h-[95vh] w-full max-w-lg flex-col overflow-hidden rounded-xl bg-white shadow-2xl md:rounded-2xl">
@@ -93,98 +96,6 @@ function MaterialUsedForm({
 
       <div className="flex-1 space-y-3 overflow-y-auto p-3 md:space-y-4 md:p-6">
         <div>
-          <label className="label">Given To</label>
-          <div className="grid grid-cols-3 gap-2">
-            {USED_FOR_OPTIONS.map((option) => (
-              <button
-                key={option.key}
-                type="button"
-                onClick={() => onUsedForChange(option.key)}
-                aria-pressed={formData.usedFor === option.key}
-                className={`${OPTION_CLASS} ${formData.usedFor === option.key ? ACTIVE_OPTION_CLASS : INACTIVE_OPTION_CLASS}`}
-              >
-                {option.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {formData.usedFor === 'vehicle' && (
-        <div>
-          <label className="label">Vehicle *</label>
-          <div
-            ref={vehicleSectionRef}
-            className="relative"
-            onFocusCapture={handleVehicleFocus}
-            onBlurCapture={(event) => {
-              const nextFocused = event.relatedTarget;
-              if (vehicleSectionRef.current && nextFocused instanceof Node && vehicleSectionRef.current.contains(nextFocused)) return;
-              setIsVehicleSectionActive(false);
-            }}
-          >
-            <div className="relative">
-              <Truck className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-              <input
-                ref={vehicleInputRef}
-                type="text"
-                value={vehicleQuery}
-                onChange={handleVehicleInputChange}
-                onKeyDown={handleVehicleInputKeyDown}
-                className="input pl-9"
-                placeholder="Pick or type vehicle number"
-                autoComplete="off"
-                autoFocus
-              />
-            </div>
-
-            {isVehicleSectionActive && vehicleDropdownStyle && (
-              <div
-                className="fixed z-[80] overflow-hidden rounded-xl border border-amber-200 bg-white shadow-[0_18px_40px_rgba(15,23,42,0.18)]"
-                style={vehicleDropdownStyle}
-                onClick={(event) => event.stopPropagation()}
-              >
-                <div className="flex items-center justify-between border-b border-amber-100 bg-gradient-to-r from-amber-50 to-yellow-50 px-3 py-2">
-                  <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-amber-700">Vehicle List</span>
-                  <span className="rounded-full bg-white px-2 py-0.5 text-[10px] font-semibold text-amber-700 shadow-sm">
-                    {filteredVehicles.length}
-                  </span>
-                </div>
-                <div className="overflow-y-auto py-1" style={{ maxHeight: vehicleDropdownStyle.maxHeight }}>
-                  {filteredVehicles.length === 0 ? (
-                    <div className="px-3 py-3 text-center text-[13px] text-slate-500">No matching vehicles found.</div>
-                  ) : (
-                    filteredVehicles.map((vehicle, index) => {
-                      const isActive = index === vehicleListIndex;
-                      const isSelected = String(formData.vehicle || '') === String(vehicle._id);
-                      return (
-                        <button
-                          key={vehicle._id}
-                          type="button"
-                          onMouseDown={(event) => event.preventDefault()}
-                          onMouseEnter={() => setVehicleListIndex(index)}
-                          onClick={() => selectVehicle(vehicle)}
-                          className={`flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-[13px] transition ${
-                            isActive
-                              ? 'bg-yellow-200 text-amber-950'
-                              : isSelected
-                              ? 'bg-yellow-50 text-amber-800'
-                              : 'text-slate-700 hover:bg-amber-50'
-                          }`}
-                        >
-                          <span className="truncate font-medium">{getVehicleDisplayName(vehicle)}</span>
-                          <span className="shrink-0 text-[11px] text-slate-500">{describeVehicle(vehicle)}</span>
-                        </button>
-                      );
-                    })
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-        )}
-
-        <div>
           <label className="label">Material *</label>
           <div
             ref={materialSectionRef}
@@ -200,6 +111,7 @@ function MaterialUsedForm({
               <Package className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
               <input
                 ref={materialInputRef}
+                autoFocus
                 type="text"
                 value={materialQuery}
                 onChange={handleMaterialInputChange}
@@ -273,6 +185,104 @@ function MaterialUsedForm({
           </dl>
         )}
 
+        {plantOnly ? (
+          <p className="rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-600 ring-1 ring-slate-200">
+            <span className="font-semibold text-slate-800">{pickedMaterial.name}</span> is used at the plant, so no vehicle is needed.
+            {' '}To give it to vehicles, tick &quot;Used in vehicles&quot; on the item in Stock.
+          </p>
+        ) : (
+        <div>
+          <label className="label">Given To</label>
+          <div className="grid grid-cols-3 gap-2">
+            {USED_FOR_OPTIONS.map((option) => (
+              <button
+                key={option.key}
+                type="button"
+                onClick={() => onUsedForChange(option.key)}
+                aria-pressed={formData.usedFor === option.key}
+                className={`${OPTION_CLASS} ${formData.usedFor === option.key ? ACTIVE_OPTION_CLASS : INACTIVE_OPTION_CLASS}`}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+        </div>
+        )}
+
+        {!plantOnly && formData.usedFor === 'vehicle' && (
+        <div>
+          <label className="label">Vehicle *</label>
+          <div
+            ref={vehicleSectionRef}
+            className="relative"
+            onFocusCapture={handleVehicleFocus}
+            onBlurCapture={(event) => {
+              const nextFocused = event.relatedTarget;
+              if (vehicleSectionRef.current && nextFocused instanceof Node && vehicleSectionRef.current.contains(nextFocused)) return;
+              setIsVehicleSectionActive(false);
+            }}
+          >
+            <div className="relative">
+              <Truck className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <input
+                ref={vehicleInputRef}
+                type="text"
+                value={vehicleQuery}
+                onChange={handleVehicleInputChange}
+                onKeyDown={handleVehicleInputKeyDown}
+                className="input pl-9"
+                placeholder="Pick or type vehicle number"
+                autoComplete="off"
+              />
+            </div>
+
+            {isVehicleSectionActive && vehicleDropdownStyle && (
+              <div
+                className="fixed z-[80] overflow-hidden rounded-xl border border-amber-200 bg-white shadow-[0_18px_40px_rgba(15,23,42,0.18)]"
+                style={vehicleDropdownStyle}
+                onClick={(event) => event.stopPropagation()}
+              >
+                <div className="flex items-center justify-between border-b border-amber-100 bg-gradient-to-r from-amber-50 to-yellow-50 px-3 py-2">
+                  <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-amber-700">Vehicle List</span>
+                  <span className="rounded-full bg-white px-2 py-0.5 text-[10px] font-semibold text-amber-700 shadow-sm">
+                    {filteredVehicles.length}
+                  </span>
+                </div>
+                <div className="overflow-y-auto py-1" style={{ maxHeight: vehicleDropdownStyle.maxHeight }}>
+                  {filteredVehicles.length === 0 ? (
+                    <div className="px-3 py-3 text-center text-[13px] text-slate-500">No matching vehicles found.</div>
+                  ) : (
+                    filteredVehicles.map((vehicle, index) => {
+                      const isActive = index === vehicleListIndex;
+                      const isSelected = String(formData.vehicle || '') === String(vehicle._id);
+                      return (
+                        <button
+                          key={vehicle._id}
+                          type="button"
+                          onMouseDown={(event) => event.preventDefault()}
+                          onMouseEnter={() => setVehicleListIndex(index)}
+                          onClick={() => selectVehicle(vehicle)}
+                          className={`flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-[13px] transition ${
+                            isActive
+                              ? 'bg-yellow-200 text-amber-950'
+                              : isSelected
+                              ? 'bg-yellow-50 text-amber-800'
+                              : 'text-slate-700 hover:bg-amber-50'
+                          }`}
+                        >
+                          <span className="truncate font-medium">{getVehicleDisplayName(vehicle)}</span>
+                          <span className="shrink-0 text-[11px] text-slate-500">{describeVehicle(vehicle)}</span>
+                        </button>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+        )}
+
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="label">Used Qty *</label>
@@ -283,6 +293,7 @@ function MaterialUsedForm({
                 step="0.01"
                 value={formData.usedQty}
                 onChange={(event) => setFormData((prev) => ({ ...prev, usedQty: event.target.value }))}
+                data-used-qty
                 placeholder="0"
                 className={`input ${unit ? 'pr-14' : ''}`}
               />
@@ -440,7 +451,8 @@ export default function MaterialUsed({ modalOnly = false, onModalFinish = null, 
   }, [search]);
 
   const handleSave = async () => {
-    if (formData.usedFor === 'vehicle' && !formData.vehicle) {
+    const usedFor = selectedMaterial?.usedInVehicle === false ? 'other' : formData.usedFor;
+    if (usedFor === 'vehicle' && !formData.vehicle) {
       toast.error('Select the vehicle from the list', TOAST_OPTIONS);
       return;
     }
@@ -461,8 +473,8 @@ export default function MaterialUsed({ modalOnly = false, onModalFinish = null, 
     }
 
     const payload = {
-      usedFor: formData.usedFor,
-      vehicle: formData.usedFor === 'vehicle' ? formData.vehicle : null,
+      usedFor,
+      vehicle: usedFor === 'vehicle' ? formData.vehicle : null,
       materialType: formData.materialType,
       usedQty: Number(formData.usedQty),
       usedDate: formData.usedDate || undefined,
@@ -538,7 +550,11 @@ export default function MaterialUsed({ modalOnly = false, onModalFinish = null, 
   };
 
   const selectMaterial = (material) => {
-    setFormData((prev) => ({ ...prev, materialType: material?._id || '' }));
+    setFormData((prev) => {
+      const previous = materials.find((item) => item._id === prev.materialType);
+      const backToVehicle = previous?.usedInVehicle === false && material?.usedInVehicle !== false;
+      return { ...prev, materialType: material?._id || '', usedFor: backToVehicle ? 'vehicle' : prev.usedFor };
+    });
     setMaterialQuery(material ? getMaterialDisplayName(material) : '');
     setIsMaterialSectionActive(false);
   };
@@ -586,7 +602,7 @@ export default function MaterialUsed({ modalOnly = false, onModalFinish = null, 
       if (isVehicleSectionActive && filteredVehicles.length > 0 && vehicleListIndex !== -1) {
         selectVehicle(filteredVehicles[vehicleListIndex]);
       }
-      materialInputRef.current?.focus();
+      focusQuantity();
     }
   };
 
@@ -605,8 +621,20 @@ export default function MaterialUsed({ modalOnly = false, onModalFinish = null, 
     }
     if (event.key === 'Enter' && isMaterialSectionActive && filteredMaterials.length > 0) {
       event.preventDefault();
-      selectMaterial(filteredMaterials[materialListIndex] || filteredMaterials[0]);
+      const material = filteredMaterials[materialListIndex] || filteredMaterials[0];
+      selectMaterial(material);
+      // Next: the vehicle when this item goes to vehicles and Vehicle is chosen, otherwise the quantity
+      requestAnimationFrame(() => {
+        if (vehicleInputRef.current && material?.usedInVehicle !== false) vehicleInputRef.current.focus();
+        else focusQuantity();
+      });
     }
+  };
+
+  const focusQuantity = () => {
+    requestAnimationFrame(() => {
+      materialInputRef.current?.closest('form')?.querySelector('input[data-used-qty]')?.focus();
+    });
   };
 
   const handleDelete = async (id) => {

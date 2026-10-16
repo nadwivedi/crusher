@@ -1,6 +1,8 @@
 const mongoose = require("mongoose");
 const { applyVisibility } = require("../middleware/staffAccess");
 const MaterialUsed = require("../models/MaterialUsed");
+// Loaded for populate("purchase"): a pump fill's issue points at its purchase
+require("../models/Purchase");
 const Stock = require("../models/Stock");
 const Vehicle = require("../models/Vehicle");
 const { scopedFilter, scopedIdFilter } = require("../utils/ownership");
@@ -89,6 +91,9 @@ const createMaterialUsed = async (req, res) => {
     }
 
     const target = await resolveTarget(req);
+    if (target.usedFor !== "other" && stock.usedInVehicle === false) {
+      return res.status(400).json({ message: `${stock.name} is not used in vehicles. Choose Plant / Other, or tick "Used in vehicles" on the item.` });
+    }
 
     await adjustStock(req.userId, stock._id, -usedQty);
 
@@ -175,6 +180,9 @@ const updateMaterialUsed = async (req, res) => {
     }
 
     const target = await resolveTarget(req);
+    if (target.usedFor !== "other" && stock.usedInVehicle === false) {
+      return res.status(400).json({ message: `${stock.name} is not used in vehicles. Choose Plant / Other, or tick "Used in vehicles" on the item.` });
+    }
 
     await adjustStock(req.userId, entry.materialType, entry.usedQty);
     try {

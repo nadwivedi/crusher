@@ -29,11 +29,12 @@ const ensureDieselStock = async (userId) => {
     || candidates.find((stock) => !NOT_FUEL_PATTERN.test(stock.name));
   if (existing) {
     existing.isDiesel = true;
+    existing.usedInVehicle = true;
     await existing.save();
     return existing;
   }
 
-  return Stock.create({ userId, name: DIESEL_NAME, unit: DIESEL_UNIT, isDiesel: true });
+  return Stock.create({ userId, name: DIESEL_NAME, unit: DIESEL_UNIT, isDiesel: true, usedInVehicle: true });
 };
 
 // Gives every account made before signup created Diesel its Diesel item. Runs at server start.
@@ -46,9 +47,27 @@ const backfillDieselStock = async () => {
   return users.length;
 };
 
+// Items saved before "used in vehicle" existed get it once: Diesel and anything ever given to a vehicle
+// or the DG set keep showing the vehicle picker; the rest are plant items. Runs at server start.
+const backfillUsedInVehicle = async () => {
+  const MaterialUsed = require("../models/MaterialUsed");
+  const unset = await Stock.find({ usedInVehicle: { $exists: false } }).select("_id isDiesel").lean();
+  if (!unset.length) return 0;
+  const usedOnMachines = new Set((await MaterialUsed.distinct("materialType", {
+    materialType: { $in: unset.map((item) => item._id) },
+    $or: [{ usedFor: { $in: ["vehicle", "dg"] } }, { usedFor: { $exists: false }, vehicle: { $ne: null } }],
+  })).map(String));
+  const yes = unset.filter((item) => item.isDiesel || usedOnMachines.has(String(item._id))).map((item) => item._id);
+  const no = unset.filter((item) => !yes.some((id) => String(id) === String(item._id))).map((item) => item._id);
+  if (yes.length) await Stock.updateMany({ _id: { $in: yes } }, { $set: { usedInVehicle: true } });
+  if (no.length) await Stock.updateMany({ _id: { $in: no } }, { $set: { usedInVehicle: false } });
+  return unset.length;
+};
+
 module.exports = {
   ensureDieselStock,
   backfillDieselStock,
+  backfillUsedInVehicle,
   meterUnitFor,
   usedForOf,
 };

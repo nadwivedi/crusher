@@ -47,6 +47,12 @@ const stockSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    // Given to vehicles and the DG set (diesel, engine oil, filters). Off for plant items like a motor or a
+    // conveyor belt: Material Used then records them at the plant without asking for a vehicle.
+    usedInVehicle: {
+      type: Boolean,
+      default: false,
+    },
   },
   {
     timestamps: true,

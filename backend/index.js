@@ -5,7 +5,7 @@ const dotenv = require("dotenv");
 const path = require("path");
 const connectDB = require("./config/mongodb");
 const syncOwnershipIndexes = require("./config/syncIndexes");
-const { backfillDieselStock } = require("./utils/diesel");
+const { backfillDieselStock, backfillUsedInVehicle } = require("./utils/diesel");
 const authRoutes = require("./routes/authRoutes");
 const adminAuthRoutes = require("./routes/adminAuthRoutes");
 const adminUserRoutes = require("./routes/adminUserRoutes");
@@ -93,6 +93,7 @@ const startServer = async () => {
     await syncOwnershipIndexes();
     // Accounts made before signup created a Diesel item get one now
     await backfillDieselStock().catch((error) => console.error("Diesel backfill failed:", error.message));
+    await backfillUsedInVehicle().catch((error) => console.error("Used-in-vehicle backfill failed:", error.message));
     app.listen(PORT, () => {
       console.log(`Server running on port ${PORT}`);
     });

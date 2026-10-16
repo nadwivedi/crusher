@@ -21,6 +21,7 @@ const createStock = async (req, res) => {
     const { isDiesel, ...body } = req.body;
     const stock = await Stock.create({
       ...body,
+      usedInVehicle: Boolean(body.usedInVehicle),
       userId: req.userId,
     });
     return res.status(201).json({ data: stock });
@@ -76,6 +77,10 @@ const editStock = async (req, res) => {
 
   try {
     const { isDiesel, userId, ...body } = req.body;
+    if (body.usedInVehicle !== undefined) body.usedInVehicle = Boolean(body.usedInVehicle);
+    // Diesel always goes to vehicles and the DG set
+    const current = await Stock.findOne(scopedIdFilter(req, id)).select("isDiesel");
+    if (current?.isDiesel) body.usedInVehicle = true;
     const stock = await Stock.findOneAndUpdate(scopedIdFilter(req, id), body, {
       new: true,
       runValidators: true,

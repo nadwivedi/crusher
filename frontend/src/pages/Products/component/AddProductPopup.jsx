@@ -34,7 +34,9 @@ const getPopupInitialState = (initialName = '', product = null) => {
       unit: resolvedUnit,
       currentStock: product?.currentStock ?? '',
       typeOfSupply: resolvedTypeOfSupply,
-      taxRate: product?.taxRate ?? 0
+      taxRate: product?.taxRate ?? 0,
+      // Diesel always goes to vehicles; a new item starts as a plant item until ticked
+      usedInVehicle: Boolean(product?.isDiesel || product?.usedInVehicle)
     },
     unitQuery: resolvedUnit,
     typeOfSupplyQuery,
@@ -467,7 +469,8 @@ export default function AddProductPopup({
         unit: String(matchedUnit || '').trim(),
         currentStock: Number(formData.currentStock || 0),
         typeOfSupply: getNormalizedTypeOfSupply(formData.typeOfSupply),
-        taxRate: Number(formData.taxRate || 0)
+        taxRate: Number(formData.taxRate || 0),
+        usedInVehicle: Boolean(product?.isDiesel || formData.usedInVehicle)
       };
 
       const response = isEditMode
@@ -775,6 +778,25 @@ export default function AddProductPopup({
                         )}
                       </div>
                     </div>
+
+                    {/* Decides whether Material Used asks for a vehicle / DG set for this item */}
+                    <label className={`flex items-start gap-2.5 rounded-lg border px-3 py-2 ${product?.isDiesel ? 'cursor-not-allowed border-emerald-200 bg-emerald-50/60' : 'cursor-pointer border-slate-200 bg-white hover:bg-slate-50'}`}>
+                      <input
+                        type="checkbox"
+                        className="mt-0.5 h-4 w-4 shrink-0 accent-emerald-600"
+                        checked={Boolean(formData.usedInVehicle)}
+                        disabled={Boolean(product?.isDiesel)}
+                        onChange={(event) => setFormData((prev) => ({ ...prev, usedInVehicle: event.target.checked }))}
+                      />
+                      <span className="min-w-0">
+                        <span className="block text-xs font-semibold text-gray-800 md:text-sm">Used in vehicles</span>
+                        <span className="block text-[11px] text-gray-500">
+                          {product?.isDiesel
+                            ? 'Diesel always goes to vehicles and the DG set'
+                            : 'Tick for diesel, engine oil, filters… Leave off for plant items like a motor or belt: they are issued without a vehicle.'}
+                        </span>
+                      </span>
+                    </label>
                   </div>
                 </div>
               </div>
