@@ -66,7 +66,7 @@ function RateInput({ name, value, onChange }) {
 }
 
 export default function Setting() {
-  const { user, updateUserSettings, logout } = useAuth();
+  const { user, updateUserSettings, logout, refreshUser } = useAuth();
   const navigate = useNavigate();
   const [materialRates, setMaterialRates] = useState(() => readUserMaterialRates(user));
   const [saving, setSaving] = useState(false);
@@ -80,6 +80,11 @@ export default function Setting() {
   useEffect(() => {
     setMaterialRates(readUserMaterialRates(user));
   }, [user]);
+
+  // Fresh account details each time Settings opens, so a plan set by the admin shows without signing in again
+  useEffect(() => {
+    refreshUser();
+  }, [refreshUser]);
 
   useEffect(() => {
     const isTypingTarget = (target) => {

@@ -107,8 +107,19 @@ export const AuthProvider = ({ children }) => {
     return response;
   };
 
+  // Read the account again (plan and settings may have changed since the app opened); keeps the user on failure
+  const refreshUser = useCallback(async () => {
+    try {
+      const response = await apiClient.get('/users/current');
+      if (response?.data) setUser(response.data);
+    } catch {
+      // Keep the details already loaded
+    }
+  }, []);
+
   const value = {
     user,
+    refreshUser,
     loading,
     login,
     employeeLogin,

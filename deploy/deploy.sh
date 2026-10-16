@@ -18,6 +18,9 @@ PM2_NAME="${DEPLOY_PM2_NAME:-crusher}"
 BRANCH="${DEPLOY_BRANCH:-main}"
 STATE_DIR="$REPO_DIR/.deploy"
 STATE_FILE="$STATE_DIR/state.json"
+# The commit the running backend was started from: a site-only deploy still restarts the backend
+# when backend code changed since then, so the server never keeps running old code that was pulled.
+BACKEND_COMMIT_FILE="$STATE_DIR/backend-commit"
 HISTORY_FILE="$STATE_DIR/history.jsonl"
 DEPLOY_ID="${DEPLOY_ID:-$(date +%s)}"
 STARTED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
@@ -124,7 +127,25 @@ if [ "$BUILT" = "1" ]; then
   fi
 fi
 
+RESTART_BACKEND=0
+BACKEND_INSTALL="$INSTALL"
 if [ "$TARGET" = "all" ] || [ "$TARGET" = "backend" ]; then
+  RESTART_BACKEND=1
+else
+  RUNNING_BACKEND="$(cat "$BACKEND_COMMIT_FILE" 2>/dev/null || true)"
+  if [ -z "$RUNNING_BACKEND" ] || ! git cat-file -e "$RUNNING_BACKEND^{commit}" 2>/dev/null; then
+    echo; echo "The running backend's version is not known — restarting it so it runs the latest code."
+    RESTART_BACKEND=1
+  elif ! git diff --quiet "$RUNNING_BACKEND" HEAD -- backend; then
+    echo; echo "Backend code changed since the backend was last restarted ($RUNNING_BACKEND) — restarting it too."
+    RESTART_BACKEND=1
+    git diff --quiet "$RUNNING_BACKEND" HEAD -- backend/package.json backend/package-lock.json || BACKEND_INSTALL=1
+  fi
+fi
+
+if [ "$RESTART_BACKEND" = "1" ]; then
+  # The sites are done: npm ci for the backend follows the button, or a change in its packages
+  INSTALL="$BACKEND_INSTALL"
   if install_deps backend; then
     step "pm2 restart $PM2_NAME"
     # Write the result first: the restart ends the backend that is watching this deploy
@@ -132,11 +153,12 @@ if [ "$TARGET" = "all" ] || [ "$TARGET" = "backend" ]; then
       write_state success "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
       cat "$STATE_FILE" >> "$HISTORY_FILE"
       echo "✅ Code updated, restarting the backend…"
-      pm2 restart "$PM2_NAME" --update-env || { echo "pm2 restart failed"; sed -i '$ d' "$HISTORY_FILE"; finish failed; }
+      git rev-parse HEAD > "$BACKEND_COMMIT_FILE"
+      pm2 restart "$PM2_NAME" --update-env || { echo "pm2 restart failed"; rm -f "$BACKEND_COMMIT_FILE"; sed -i '$ d' "$HISTORY_FILE"; finish failed; }
       echo "Backend restarted"
       exit 0
     fi
-    pm2 restart "$PM2_NAME" --update-env || echo "pm2 restart failed"
+    if pm2 restart "$PM2_NAME" --update-env; then git rev-parse HEAD > "$BACKEND_COMMIT_FILE"; else echo "pm2 restart failed"; fi
   else
     echo "npm ci in backend failed — the backend was not restarted."
     FAILED=1
