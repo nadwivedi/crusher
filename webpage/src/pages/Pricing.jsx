@@ -6,11 +6,11 @@ import Seo from '../components/Seo';
 const plans = [
   {
     name: 'Basic',
-    price: 'Rs 6,999',
+    price: 'Rs 9,999',
     period: '/ year',
     badge: 'Starter',
     popular: false,
-    description: 'For entry, records, and ledger.',
+    description: 'For entry, records, and ledger. No automated WhatsApp.',
     features: [
       'Crusher entry',
       'Manage records',
@@ -23,17 +23,15 @@ const plans = [
   },
   {
     name: 'Advanced',
-    price: 'Rs 8,999',
+    price: 'Rs 11,999',
     period: '/ year',
     badge: 'Most Popular',
     popular: true,
-    description: 'For AI auto entry and weightbridge entry.',
+    description: 'For automated WhatsApp alerts and AI auto entry.',
     features: [
       'Everything in Basic',
-      'AI auto entry (slip photo upload)',
       'Automated WhatsApp alerts',
-      'Weightbridge entry',
-      'Faster weight capture',
+      'AI auto entry (slip photo upload)',
       'Dispatch flow',
       'Excel export of reports',
       '3 employee logins',
@@ -41,14 +39,16 @@ const plans = [
   },
   {
     name: 'Enterprise',
-    price: 'Rs 10,999',
+    price: 'Rs 13,999',
     period: '/ year',
     badge: 'Best Value',
     popular: false,
-    description: 'For multi-plant control and priority support.',
+    description: 'For multi-crusher management and weightbridge integration.',
     features: [
       'Everything in Advanced',
-      'Multi-plant management',
+      'Multi-crusher management',
+      'Weightbridge integration',
+      'Faster weight capture',
       'Advanced profit & analytics',
       'Custom user roles',
       'Priority support',
@@ -82,7 +82,7 @@ export default function Pricing() {
     <div className="w-full bg-white">
       <Seo
         title="CrusherBook Pricing - Affordable Stone Crusher ERP Plans"
-        description="CrusherBook ERP pricing: Basic Rs 6,999, Advanced Rs 8,999 with AI entry & alerts, Enterprise Rs 10,999. All include 14-day free trial. Start today!"
+        description="CrusherBook ERP pricing: Basic Rs 9,999, Advanced Rs 11,999 with automated WhatsApp, Enterprise Rs 13,999 with multi-crusher & weightbridge. All include 14-day free trial. Start today!"
         path="/pricing"
         keywords={[
           'crusher software pricing',
@@ -98,21 +98,21 @@ export default function Pricing() {
             '@context': 'https://schema.org',
             '@type': 'PriceSpecification',
             priceCurrency: 'INR',
-            price: '6999',
+            price: '9999',
             pricingCategory: 'Basic Plan',
           },
           {
             '@context': 'https://schema.org',
             '@type': 'PriceSpecification',
             priceCurrency: 'INR',
-            price: '8999',
+            price: '11999',
             pricingCategory: 'Advanced Plan',
           },
           {
             '@context': 'https://schema.org',
             '@type': 'PriceSpecification',
             priceCurrency: 'INR',
-            price: '10999',
+            price: '13999',
             pricingCategory: 'Enterprise Plan',
           },
         ]}
@@ -150,7 +150,7 @@ export default function Pricing() {
             transition={{ duration: 0.4, delay: 0.15 }}
             className="text-xs text-white/70 sm:text-sm"
           >
-            Basic for records. Advanced for automation. Enterprise for full control.
+            Basic for records. Advanced for automated WhatsApp. Enterprise for multi-crusher and weightbridge.
           </motion.p>
         </div>
       </section>
@@ -217,7 +217,7 @@ export default function Pricing() {
               <div>
                 <h2 className="text-base sm:text-lg font-bold">Need Help Choosing?</h2>
                 <p className="mt-1 text-xs sm:text-sm text-white/75">
-                  Basic for records, Advanced for AI auto entry, WhatsApp alerts & weightbridge, Enterprise for multi-plant control.
+                  Basic for records with 1 employee login, Advanced for automated WhatsApp alerts & AI auto entry, Enterprise for multi-crusher management & weightbridge integration.
                 </p>
               </div>
               <ContactActions align="left" compact primaryLabel="Get Pricing on WhatsApp" secondaryLabel="Call for Demo" />

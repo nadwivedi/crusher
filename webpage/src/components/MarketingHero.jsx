@@ -75,7 +75,7 @@ export default function MarketingHero() {
               {[
                 { label: 'Weighbridge ready workflow' },
                 { label: 'Slip to entry in minutes' },
-                { label: 'Plans starting Rs 6,999 per year' },
+                { label: 'Plans starting Rs 9,999 per year' },
               ].map((item) => (
                 <div
                   key={item.label}

@@ -239,7 +239,7 @@ const FAQ = [
   },
   {
     question: 'How much does crusher ERP software cost?',
-    answer: 'Prices vary a lot, and many vendors only share them after a demo. CrusherBook plans start from Rs 6,999 per year, with the price written on the pricing page.',
+    answer: 'Prices vary a lot, and many vendors only share them after a demo. CrusherBook plans start from Rs 9,999 per year, with the price written on the pricing page.',
   },
   {
     question: 'How long does it take to start?',
@@ -524,7 +524,7 @@ export default function CrusherErpBuyingGuide() {
             <p className="mx-auto mb-6 max-w-2xl text-base leading-relaxed text-brand-slate">
               Weighbridge entries, boulder and dump records, stock in tons and cubic feet, material and store tracking,
               vehicle maintenance, diesel, meter and average, expenses, staff, party ledger, automatic WhatsApp balance
-              alerts, quotations and profit, in English and Hindi, on your phone. Made to make the owner’s work easy. Plans start from Rs 6,999 per year.
+              alerts, quotations and profit, in English and Hindi, on your phone. Made to make the owner’s work easy. Plans start from Rs 9,999 per year.
             </p>
             <ContactActions primaryLabel="Get Free Demo on WhatsApp" secondaryLabel="Call Now" />
             <p className="mt-4 text-sm text-brand-slate">
