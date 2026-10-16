@@ -7,11 +7,15 @@ import './index.css'
 import App from './App.jsx'
 import { AuthProvider } from './context/AuthContext'
 import { applyTheme } from './utils/theme'
+import { startLanguage } from './i18n/language'
 import { startInstallListener } from './utils/pwaInstall'
 import PWAPrompt from './components/PWAPrompt'
 
 // Set light or dark before the first paint, so the page never flashes the wrong colours
 applyTheme()
+
+// Hindi or English as last used on this device, until the account's own choice loads
+startLanguage()
 
 // Catch the browser's install offer early, before any screen is ready to show it
 startInstallListener()

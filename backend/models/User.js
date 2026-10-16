@@ -38,6 +38,12 @@ const userSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+    // Language the app shows for this login: "en" (default) or "hi"; kept here so it follows them to any device
+    language: {
+      type: String,
+      enum: ["en", "hi"],
+      default: "en",
+    },
     // When the starter expense types (Electricity, Food, ...) were added; unset means not yet
     defaultExpenseTypesAddedAt: {
       type: Date,

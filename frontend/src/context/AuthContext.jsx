@@ -1,5 +1,6 @@
 import { createContext, useCallback, useState, useContext, useEffect } from 'react';
 import apiClient from '../utils/api';
+import { setLanguage } from '../i18n/language';
 
 const AuthContext = createContext();
 
@@ -21,6 +22,11 @@ export const AuthProvider = ({ children }) => {
 
     bootstrapAuth();
   }, []);
+
+  // The signed-in person's saved language wins over what this device used last
+  useEffect(() => {
+    if (user?.language) setLanguage(user.language);
+  }, [user?.language]);
 
   const login = async (emailOrPhone, password) => {
     setLoading(true);
@@ -107,6 +113,20 @@ export const AuthProvider = ({ children }) => {
     return response;
   };
 
+  // Saved on the login itself (the owner, or the staff member), so it follows them to any device
+  const changeLanguage = async (language) => {
+    const previous = user?.language || 'en';
+    setLanguage(language);
+    setUser((current) => (current ? { ...current, language } : current));
+    try {
+      await apiClient.patch('/users/current/language', { language });
+    } catch (error) {
+      setLanguage(previous);
+      setUser((current) => (current ? { ...current, language: previous } : current));
+      throw error;
+    }
+  };
+
   // Read the account again (plan and settings may have changed since the app opened); keeps the user on failure
   const refreshUser = useCallback(async () => {
     try {
@@ -127,6 +147,7 @@ export const AuthProvider = ({ children }) => {
     register,
     logout,
     updateUserSettings,
+    changeLanguage,
     isAuthenticated: !!user
   };
 

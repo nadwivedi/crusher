@@ -393,3 +393,8 @@ html.soft .text-white\/85 { color: rgb(255 255 255 / 0.85); }
 
 html.soft .bg-\[\#F8FAFC\],
 html.soft .bg-\[\#f8f6f1\] { background-color: #e9ecef; }
+
+/* Hindi letters join up; spacing them out like the English labels breaks the words apart */
+:lang(hi) [class*="tracking-"] {
+  letter-spacing: 0;
+}

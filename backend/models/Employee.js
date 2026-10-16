@@ -44,6 +44,12 @@ const employeeSchema = new mongoose.Schema(
       meterReadings: { type: Boolean, default: true },
       masters: { type: Boolean, default: true },
     },
+    // Language the app shows for this login: "en" (default) or "hi"; kept here so it follows them to any device
+    language: {
+      type: String,
+      enum: ["en", "hi"],
+      default: "en",
+    },
     historyLimitDays: {
       type: mongoose.Mixed, // Can be a Number (7, 28, 90, 365) or "all"
       default: 7, 

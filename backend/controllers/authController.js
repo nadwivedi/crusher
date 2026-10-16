@@ -24,6 +24,7 @@ const sanitizeUser = (user) => ({
   state: user.state,
   district: user.district,
   lastLoginAt: user.lastLoginAt,
+  language: user.language || "en",
   // The owner's subscription, shown on the Settings page
   plan: {
     type: user.planType || "yearly",
@@ -88,6 +89,8 @@ const clearAuthCookie = (res) => {
     maxAge: undefined,
   });
 };
+
+const LANGUAGES = ["en", "hi"];
 
 const normalizeRateValue = (value) => {
   const numericValue = Number(value || 0);
@@ -249,7 +252,8 @@ const employeeLogin = async (req, res) => {
          role: 'employee',
          permissions: emp.permissions,
          sections: readSections(emp.sections),
-         historyLimitDays: emp.historyLimitDays
+         historyLimitDays: emp.historyLimitDays,
+         language: emp.language || "en",
       },
     });
   } catch (error) {
@@ -309,7 +313,8 @@ module.exports = {
              materialRates: sanitizeUser(owner).materialRates,
              permissions: req.employee.permissions,
              sections: readSections(req.employee.sections),
-             historyLimitDays: req.employee.historyLimitDays
+             historyLimitDays: req.employee.historyLimitDays,
+             language: req.employee.language || "en",
           }
         });
       }
@@ -342,6 +347,29 @@ module.exports = {
       return res.json({ message: "Logout successful" });
     } catch (error) {
       return res.status(500).json({ message: "Failed to logout" });
+    }
+  },
+  // The app language of whoever is signed in: the staff login itself, or the owner
+  updateCurrentUserLanguage: async (req, res) => {
+    try {
+      const language = req.body?.language;
+      if (!LANGUAGES.includes(language)) {
+        return res.status(400).json({ success: false, message: "Choose English or Hindi" });
+      }
+
+      // An admin looking inside the account does not change the owner's own choice
+      if (req.adminAccess) return res.json({ success: true, language });
+
+      if (req.employee) {
+        await Employee.updateOne({ _id: req.employee._id }, { $set: { language } });
+      } else {
+        const updated = await User.updateOne({ _id: req.userId }, { $set: { language } });
+        if (!updated.matchedCount) return res.status(404).json({ success: false, message: "User not found" });
+      }
+
+      return res.json({ success: true, language });
+    } catch (error) {
+      return res.status(500).json({ success: false, message: "Failed to save the language" });
     }
   },
   updateCurrentUserSettings: async (req, res) => {

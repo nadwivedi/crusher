@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
 import { toast } from 'react-toastify';
 import { useNavigate } from 'react-router-dom';
-import { CalendarCheck, CalendarClock, ChevronRight, CloudSun, Crown, LogOut, MessageCircle, Moon, Sun } from 'lucide-react';
+import { CalendarCheck, CalendarClock, ChevronRight, CloudSun, Crown, Languages, LogOut, MessageCircle, Moon, Sun } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import EmployeeManagement from '../components/EmployeeManagement';
 import { getStoredTheme, setStoredTheme } from '../utils/theme';
+import { LANGUAGES } from '../i18n/language';
 
 const THEME_OPTIONS = [
   { value: 'light', label: 'Light', hint: 'Bright white pages', Icon: Sun },
@@ -66,11 +67,22 @@ function RateInput({ name, value, onChange }) {
 }
 
 export default function Setting() {
-  const { user, updateUserSettings, logout, refreshUser } = useAuth();
+  const { user, updateUserSettings, logout, refreshUser, changeLanguage } = useAuth();
   const navigate = useNavigate();
   const [materialRates, setMaterialRates] = useState(() => readUserMaterialRates(user));
   const [saving, setSaving] = useState(false);
   const [theme, setTheme] = useState(getStoredTheme);
+
+  const language = user?.language || 'en';
+  const chooseLanguage = async (value) => {
+    if (value === language) return;
+    try {
+      await changeLanguage(value);
+      toast.success('Language saved');
+    } catch (error) {
+      toast.error(error?.message || 'Could not save the language');
+    }
+  };
 
   const chooseTheme = (value) => {
     setTheme(value);
@@ -219,7 +231,30 @@ export default function Setting() {
         </button>
       )}
 
-      {/* Material rates */}
+      {/* Language: saved on this login, so it is the same on every device */}
+      <section className="card">
+        <h2 className="flex items-center gap-2 text-sm font-bold text-slate-900"><Languages size={16} /> Language</h2>
+        <p className="mt-0.5 text-xs text-slate-500">Choose the language for your login. It stays the same on every phone or computer you sign in on.</p>
+        <div className="mt-3 grid grid-cols-2 gap-2">
+          {LANGUAGES.map((option) => {
+            const active = language === option.value;
+            return (
+              <button
+                key={option.value}
+                type="button"
+                translate="no"
+                onClick={() => chooseLanguage(option.value)}
+                aria-pressed={active}
+                className={`rounded-xl border px-3 py-2.5 text-left transition ${active ? 'border-primary-600 bg-primary-600 text-white' : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-100'}`}
+              >
+                <span className="block text-sm font-semibold">{option.label}</span>
+                <span className={`mt-0.5 block text-[11px] ${active ? 'text-white/80' : 'text-slate-400'}`}>{option.hint}</span>
+              </button>
+            );
+          })}
+        </div>
+      </section>
+
       {/* Appearance: kept on this device */}
       <section className="card">
         <h2 className="text-sm font-bold text-slate-900">Appearance</h2>
