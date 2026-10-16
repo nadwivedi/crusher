@@ -3,16 +3,10 @@ const User = require("../models/User");
 
 // What a crusher spends on most, so a new account can enter expenses straight away
 const DEFAULT_EXPENSE_TYPES = [
-  "Electricity",
-  "Food",
-  "Tea & Snacks",
-  "Labour",
-  "Repair & Maintenance",
-  "Rent",
-  "Travel",
-  "Mobile & Internet",
   "Office Expense",
-  "Other",
+  "Food",
+  "Electricity",
+  "Repair & Maintenance",
 ];
 
 const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
