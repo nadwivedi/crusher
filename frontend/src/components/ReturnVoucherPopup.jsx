@@ -227,7 +227,7 @@ export default function ReturnVoucherPopup({
                       </td>
                       <td className={`${TD} text-right`}>
                         {formatQty(item.originalQty)}
-                        {item.unit && <span className="ml-1 text-xs text-slate-400">{item.unit}</span>}
+                        {item.unit && <span className="ml-1 text-xs text-slate-400">{item.unit === 'm3' ? 'cft' : item.unit}</span>}
                       </td>
                       <td className={`${TD} text-right font-semibold`}>
                         {fullyReturned

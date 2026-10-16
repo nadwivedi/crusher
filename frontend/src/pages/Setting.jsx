@@ -291,7 +291,7 @@ export default function Setting() {
               <tr>
                 <th className="tbl-head w-28 md:w-40">Material</th>
                 <th className="tbl-head text-right">Rate per Ton (₹)</th>
-                <th className="tbl-head text-right">Rate per m³ (₹)</th>
+                <th className="tbl-head text-right">Rate per Cft (₹)</th>
               </tr>
             </thead>
             <tbody>

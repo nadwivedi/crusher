@@ -54,7 +54,7 @@ const formatSaleTypeLabel = (value) => {
 
 const getSaleQtyLabel = (sale) => {
   if (sale?.pricingMode === 'per_cubic_meter') {
-    return `${formatNumber(sale?.cubicMeterQty || 0)} m³`;
+    return `${formatNumber(sale?.cubicMeterQty || 0)} cft`;
   }
 
   const netWeight = Number(sale?.netWeight || sale?.materialWeight || 0);

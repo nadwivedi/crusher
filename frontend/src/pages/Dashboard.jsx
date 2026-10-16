@@ -502,7 +502,7 @@ export default function Dashboard() {
                   <th className="tbl-head">Material</th>
                   <th className="tbl-head hidden text-right sm:table-cell">Sales</th>
                   <th className="tbl-head text-right">Quantity</th>
-                  {hasCubicSales && <th className="tbl-head text-right">Cubic Meter</th>}
+                  {hasCubicSales && <th className="tbl-head text-right">Cubic Feet</th>}
                   <th className="tbl-head text-right">Amount</th>
                   <th className="tbl-head hidden md:table-cell">Share of Sales</th>
                 </tr>
@@ -523,7 +523,7 @@ export default function Dashboard() {
                       <td className="tbl-cell hidden text-right sm:table-cell">{fmtNum(row.count)}</td>
                       <td className="tbl-cell whitespace-nowrap text-right font-semibold text-slate-800">{fmtNum(toTons(row.netWeight))} tons</td>
                       {hasCubicSales && (
-                        <td className="tbl-cell whitespace-nowrap text-right">{row.cubicMeterQty > 0 ? `${fmtNum(row.cubicMeterQty)} m³` : '-'}</td>
+                        <td className="tbl-cell whitespace-nowrap text-right">{row.cubicMeterQty > 0 ? `${fmtNum(row.cubicMeterQty)} cft` : '-'}</td>
                       )}
                       <td className="tbl-cell whitespace-nowrap text-right font-semibold text-emerald-700">{fmt(row.amount)}</td>
                       <td className="tbl-cell hidden md:table-cell">
@@ -544,7 +544,7 @@ export default function Dashboard() {
                   <td className="tbl-cell hidden text-right font-bold text-slate-900 sm:table-cell">{fmtNum(materialTotals.count)}</td>
                   <td className="tbl-cell whitespace-nowrap text-right font-bold text-slate-900">{fmtNum(toTons(materialTotals.netWeight))} tons</td>
                   {hasCubicSales && (
-                    <td className="tbl-cell whitespace-nowrap text-right font-bold text-slate-900">{fmtNum(materialTotals.cubicMeterQty)} m³</td>
+                    <td className="tbl-cell whitespace-nowrap text-right font-bold text-slate-900">{fmtNum(materialTotals.cubicMeterQty)} cft</td>
                   )}
                   <td className="tbl-cell whitespace-nowrap text-right font-bold text-emerald-700">{fmt(data.sales.amount)}</td>
                   <td className="tbl-cell hidden md:table-cell" />

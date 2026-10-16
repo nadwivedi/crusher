@@ -70,7 +70,7 @@ const createSaleReturn = async (req, res) => {
       return res.status(400).json({ message: "Enter the quantity being returned" });
     }
 
-    const unit = sale.pricingMode === "per_cubic_meter" ? "m3" : "ton";
+    const unit = sale.pricingMode === "per_cubic_meter" ? "cft" : "ton";
     const previousReturns = await SaleReturn.find({ userId: req.userId, sale: sale._id }).select("items").lean();
     const alreadyReturned = previousReturns
       .flatMap((entry) => entry.items || [])

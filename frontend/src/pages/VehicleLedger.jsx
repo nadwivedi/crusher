@@ -93,7 +93,7 @@ const buildTimeline = (data) => {
         sale.invoiceNumber,
         sale.partyName,
         sale.material,
-        sale.pricingMode === 'per_cubic_meter' ? `${Number(sale.cubicMeterQty || 0)} m³` : formatTon(sale.netWeight)
+        sale.pricingMode === 'per_cubic_meter' ? `${Number(sale.cubicMeterQty || 0)} cft` : formatTon(sale.netWeight)
       ].filter(Boolean).join(' · '),
       tone: 'badge-blue'
     });

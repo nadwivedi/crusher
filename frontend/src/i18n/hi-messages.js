@@ -178,7 +178,7 @@ const MESSAGES = {
   'Please select a valid purchase date': 'कृपया सही खरीद तारीख चुनें',
   'Enter payment date in DD/MM/YYYY format': 'भुगतान तारीख दिन/महीना/साल में लिखें',
   'Enter receipt date in DD/MM/YYYY format': 'रसीद तारीख दिन/महीना/साल में लिखें',
-  'Please enter cubic meter quantity for per m³ sale': 'प्रति m³ बिक्री के लिए घन मीटर मात्रा लिखें',
+  'Please enter cubic feet quantity for per cft sale': 'प्रति cft बिक्री के लिए घन फ़ुट मात्रा लिखें',
   'Please fill vehicle no, average weight and no. of trips': 'गाड़ी नं., औसत वज़न और ट्रिप की संख्या भरें',
   'Please select the transporter for the hired vehicle': 'किराये की गाड़ी के लिए ट्रांसपोर्टर चुनें',
   'Please select the owner you hire it from': 'जिससे किराये पर ली उस मालिक को चुनें',

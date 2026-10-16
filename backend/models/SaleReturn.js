@@ -14,7 +14,7 @@ const saleReturnItemSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
-    // "ton" or "m3", following the sale's pricing mode
+    // "ton" or "cft" (older returns say "m3"), following the sale's pricing mode
     unit: {
       type: String,
       default: "ton",

@@ -33,7 +33,7 @@ const MATERIAL_TYPE_OPTIONS = [
 
 const SALE_BASIS_OPTIONS = [
   { value: 'per_ton', label: 'Per Ton' },
-  { value: 'per_cubic_meter', label: 'Per Cubic Meter' }
+  { value: 'per_cubic_meter', label: 'Per Cubic Feet' }
 ];
 
 const formatDateForInput = (value = new Date()) => {
@@ -304,13 +304,13 @@ const formatDate = (value) => {
 const entryCount = (count) => `${formatQty(count)} entr${count === 1 ? 'y' : 'ies'}`;
 
 const getSaleRateLabel = (sale) => (
-  `₹${formatQty(sale?.rate)}/${sale?.pricingMode === 'per_cubic_meter' ? 'm³' : 'T'}`
+  `₹${formatQty(sale?.rate)}/${sale?.pricingMode === 'per_cubic_meter' ? 'cft' : 'T'}`
 );
 
-// Tons sold of a material, plus the cubic meters of its sales made by volume
+// Tons sold of a material, plus the cubic feet of its sales made by volume
 const getMaterialQtyLabel = (row) => {
   const tons = `${formatQty(row.totalWeight / 1000)} T`;
-  return row.totalCubicMeter > 0 ? `${tons} + ${formatQty(row.totalCubicMeter)} m³` : tons;
+  return row.totalCubicMeter > 0 ? `${tons} + ${formatQty(row.totalCubicMeter)} cft` : tons;
 };
 
 const SALE_TYPE_BADGE = { cash: 'badge-green', partial: 'badge-orange', credit: 'badge-red' };
@@ -2240,7 +2240,7 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
       return;
     }
     if (formData.pricingMode === 'per_cubic_meter' && Number(formData.cubicMeterQty || 0) <= 0) {
-      setError('Please enter cubic meter quantity for per m³ sale');
+      setError('Please enter cubic feet quantity for per cft sale');
       return;
     }
     if (Number(formData.paidAmount || 0) < 0) {
@@ -2632,7 +2632,7 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
     {
       icon: Scale, label: 'Material Sold', tone: 'indigo',
       value: `${formatQty(summary.totalWeight / 1000)} tons`,
-      hint: summaryCubicMeter > 0 ? `+ ${formatQty(summaryCubicMeter)} m³ by volume` : `${formatQty(summary.totalWeight)} kg`
+      hint: summaryCubicMeter > 0 ? `+ ${formatQty(summaryCubicMeter)} cft by volume` : `${formatQty(summary.totalWeight)} kg`
     }
   ];
 
@@ -2950,7 +2950,7 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
                               <span className="shrink-0 text-xs text-slate-500">{formatDate(sale.saleDate)}</span>
                             </div>
                             <p className="shrink-0 text-sm font-bold text-emerald-700">
-                              {view.isCubic ? `${formatQty(sale.cubicMeterQty)} m³` : `${formatQty(view.netWeight / 1000)} T`}
+                              {view.isCubic ? `${formatQty(sale.cubicMeterQty)} cft` : `${formatQty(view.netWeight / 1000)} T`}
                             </p>
                           </div>
                           {view.transportMode !== 'party' && (
@@ -3036,7 +3036,7 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
                                 // A sale by volume has no weighbridge weights: its quantity goes in the net column
                                 <>
                                   <td className={`${TD} text-right text-xs text-slate-400`} colSpan={2}>Sold by volume</td>
-                                  <td className={`${TD} whitespace-nowrap text-right font-bold text-emerald-700`}>{formatQty(sale.cubicMeterQty)} m³</td>
+                                  <td className={`${TD} whitespace-nowrap text-right font-bold text-emerald-700`}>{formatQty(sale.cubicMeterQty)} cft</td>
                                 </>
                               ) : (
                                 <>

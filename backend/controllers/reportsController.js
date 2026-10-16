@@ -58,7 +58,7 @@ const formatReceiptNumber = (value) => {
 
 // "40MM 2 ton, 20MM 1 ton"
 const buildReturnSummary = (entry) => (entry.items || [])
-  .map((item) => `${item.productName || "Item"} ${toNumber(item.quantity)}${item.unit ? ` ${item.unit}` : ""}`)
+  .map((item) => `${item.productName || "Item"} ${toNumber(item.quantity)}${item.unit ? ` ${item.unit === "m3" ? "cft" : item.unit}` : ""}`)
   .join(", ");
 
 const sumReturnQty = (entry) => (entry.items || []).reduce((sum, item) => sum + toNumber(item.quantity), 0);
@@ -199,7 +199,7 @@ const buildSaleMaterialSummary = (sale) => {
   
   const quantityLabel = quantity > 0
     ? (sale?.pricingMode === "per_cubic_meter"
-        ? `${quantity} m³`
+        ? `${quantity} cft`
         : `${quantity} kg (${(quantity / 1000).toFixed(2)} ton)`)
     : "";
 
@@ -778,7 +778,7 @@ const getPartyLedgerEntryDetail = async (req, res) => {
           { label: "Vehicle No", value: sale.vehicleNo || "-" },
           ...(sale.pricingMode === "per_cubic_meter"
             ? [
-                { label: "Cubic Meter Qty", value: toNumber(sale.cubicMeterQty) || "-" },
+                { label: "Cubic Feet Qty", value: toNumber(sale.cubicMeterQty) || "-" },
                 { label: "Rate Per M3", value: toNumber(sale.rate) || "-" },
               ]
             : [
@@ -1134,7 +1134,7 @@ const getDayBook = async (req, res) => {
               getSaleTypeLabel(item.totalAmount, item.paidAmount),
               item.vehicleNo ? `Vehicle ${item.vehicleNo}` : "",
               item.pricingMode === "per_cubic_meter"
-                ? `Qty ${toNumber(item.cubicMeterQty)} m³`
+                ? `Qty ${toNumber(item.cubicMeterQty)} cft`
                 : `Qty ${toNumber(item.netWeight || item.materialWeight)} kg (${toNumber(item.netWeight || item.materialWeight) / 1000} ton)`,
             ].filter(Boolean).join(" | ") || "-",
             totalAmount: saleAmounts.totalAmount,

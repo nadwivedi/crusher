@@ -20,7 +20,7 @@ import {
 
 const SALE_BASIS_OPTIONS = [
   { value: 'per_ton', label: 'Per Ton' },
-  { value: 'per_cubic_meter', label: 'Per Cubic Meter' }
+  { value: 'per_cubic_meter', label: 'Per Cubic Feet' }
 ];
 
 const HEADER_BUTTON_CLASS = 'flex items-center gap-1.5 rounded-lg bg-white/15 px-2 py-1.5 text-[11px] font-semibold text-white transition hover:bg-white/25 disabled:opacity-60 md:px-3 md:text-xs';
@@ -465,10 +465,10 @@ export default function AddSalePopup({
             </div>
           ) : (
             <div>
-              <label className="label" htmlFor="sale-cubic-input">Cubic Meter Qty</label>
+              <label className="label" htmlFor="sale-cubic-input">Cubic Feet Qty</label>
               <div className="relative sm:max-w-xs">
                 <input id="sale-cubic-input" className="input pr-10" type="number" name="cubicMeterQty" value={formData.cubicMeterQty || ''} onChange={handleInputChange} onKeyDown={handleSelectEnterMoveNext} placeholder="0" step="0.01" />
-                <span className={SUFFIX_CLASS}>m³</span>
+                <span className={SUFFIX_CLASS}>cft</span>
               </div>
             </div>
           )}
@@ -603,7 +603,7 @@ export default function AddSalePopup({
         <FormSection number={4} title="Pricing" tone="indigo">
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div>
-              <label className="label" htmlFor="sale-rate-input">{formData.pricingMode === 'per_ton' ? 'Rate Per Ton' : 'Rate Per M³'}</label>
+              <label className="label" htmlFor="sale-rate-input">{formData.pricingMode === 'per_ton' ? 'Rate Per Ton' : 'Rate Per Cft'}</label>
               <div className="relative">
                 <span className={PREFIX_CLASS}>₹</span>
                 <input id="sale-rate-input" className="input pl-7 font-semibold" type="number" name="rate" value={formData.rate || ''} onChange={handleInputChange} onKeyDown={handleSelectEnterMoveNext} placeholder="0" step="0.01" />

@@ -70,7 +70,7 @@ const getSaleQtyLabel = (sale) => {
     return `${Number(qtyValue || 0).toLocaleString('en-IN', {
       minimumFractionDigits: 0,
       maximumFractionDigits: 3
-    })} m³`;
+    })} cft`;
   }
 
   const netWeight = Number(sale?.netWeight || sale?.materialWeight || 0);
@@ -620,7 +620,7 @@ export default function ReportsDashboard({ initialReport = 'partyLedger', showPi
             <SummaryCard label="Invoices" value={formatNumber(salesSummary.count)} hint="Total sales entries" tone="amber" />
             <SummaryCard label="Sale Value" value={formatCurrency(salesSummary.totalAmount)} hint="Combined invoice amount" tone="emerald" />
             <SummaryCard label="Ton Qty" value={`${formatNumber(salesSummary.totalTonQty)} ton`} hint="Per ton sales quantity" tone="sky" />
-            <SummaryCard label="M³ Qty" value={`${formatNumber(salesSummary.totalCubicMeterQty)} m³`} hint="Per cubic meter sales quantity" tone="violet" />
+            <SummaryCard label="Cubic Feet Qty" value={`${formatNumber(salesSummary.totalCubicMeterQty)} cft`} hint="Per cubic feet sales quantity" tone="violet" />
             <SummaryCard label="Average Invoice" value={formatCurrency(salesSummary.averageValue)} hint="Average sale value" tone="slate" />
           </div>
 

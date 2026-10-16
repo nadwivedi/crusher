@@ -112,7 +112,7 @@ const getActivity = async (req, res) => {
         detail: join([
           sale.invoiceNumber,
           String(sale.stoneSize || "").toUpperCase(),
-          sale.pricingMode === "per_cubic_meter" ? `${qty(sale.cubicMeterQty)} m³` : tons(sale.netWeight),
+          sale.pricingMode === "per_cubic_meter" ? `${qty(sale.cubicMeterQty)} cft` : tons(sale.netWeight),
           sale.vehicleNo,
           sale.dispatchLocation,
           dueText(sale.totalAmount, sale.paidAmount),

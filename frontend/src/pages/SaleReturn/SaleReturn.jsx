@@ -40,7 +40,7 @@ const getSaleRate = (sale) => {
 };
 
 const formatReturnedItems = (entry) => (entry.items || [])
-  .map((item) => `${item.productName} (${Number(item.quantity || 0)}${item.unit ? ` ${item.unit}` : ''})`)
+  .map((item) => `${item.productName} (${Number(item.quantity || 0)}${item.unit ? ` ${item.unit === 'm3' ? 'cft' : item.unit}` : ''})`)
   .join(', ');
 
 const getSaleHint = (sale) => `${formatDate(sale?.saleDate)} · ${getSalePartyLabel(sale)} · ₹${Number(sale?.totalAmount || 0).toLocaleString('en-IN')}`;
@@ -129,7 +129,7 @@ export default function SaleReturn({ modalOnly = false, onModalFinish = null }) 
     return [{
       saleItemId,
       productName: String(selectedSale.stoneSize || selectedSale.materialType || 'Material').toUpperCase(),
-      unit: isPerCubicMeter(selectedSale) ? 'm3' : 'ton',
+      unit: isPerCubicMeter(selectedSale) ? 'cft' : 'ton',
       soldQty,
       returnedQty,
       remainingQty: Math.max(0, Math.round((soldQty - returnedQty) * 1000) / 1000),

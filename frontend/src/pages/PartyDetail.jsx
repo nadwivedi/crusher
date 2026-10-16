@@ -62,7 +62,7 @@ const formatLedgerQuantity = (row) => {
   if (!Number.isFinite(quantity) || quantity <= 0) return '-';
 
   if (row?.type === 'sale' || row?.type === 'saleReturn') {
-    return isPerCubicMeter(row?.pricingMode) ? `${formatQuantity(quantity)} m3` : formatWeightWithTon(quantity);
+    return isPerCubicMeter(row?.pricingMode) ? `${formatQuantity(quantity)} cft` : formatWeightWithTon(quantity);
   }
 
   if (row?.type === 'boulder') {
