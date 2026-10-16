@@ -7,10 +7,10 @@ const POLL_MS = 2000
 
 // What each button updates and how
 const TARGET_CARDS = [
-  { key: 'all', icon: Rocket, title: 'Everything', hint: 'Pull, build app + admin + website, restart backend' },
-  { key: 'frontend', icon: Smartphone, title: 'App (frontend)', hint: 'Pull and build app.crusherbook.com' },
-  { key: 'admin', icon: LayoutDashboard, title: 'Admin panel', hint: 'Pull and build this admin panel' },
-  { key: 'webpage', icon: Globe, title: 'Website', hint: 'Pull and build crusherbook.com' },
+  { key: 'all', icon: Rocket, title: 'Everything', hint: 'Pull, build app + admin + website, restart nginx and backend' },
+  { key: 'frontend', icon: Smartphone, title: 'App (frontend)', hint: 'Pull, build app.crusherbook.com, restart nginx' },
+  { key: 'admin', icon: LayoutDashboard, title: 'Admin panel', hint: 'Pull, build this admin panel, restart nginx' },
+  { key: 'webpage', icon: Globe, title: 'Website', hint: 'Pull, build crusherbook.com, restart nginx' },
   { key: 'backend', icon: Server, title: 'Backend', hint: 'Pull and pm2 restart the API' },
 ]
 
@@ -282,7 +282,7 @@ function DeployView({ endpoint, onSessionEnd }) {
             <p className="mt-1 text-sm text-stone-500">
               The server pulls the latest code from <span className="font-semibold text-stone-800">{data?.config?.branch}</span>
               {confirm.install ? ', runs npm install' : ''}
-              {confirm.target !== 'backend' ? ' and builds' : ''}
+              {confirm.target !== 'backend' ? ', builds and restarts nginx' : ''}
               {['all', 'backend'].includes(confirm.target) ? ', then restarts the backend (a few seconds offline)' : ''}.
             </p>
             <div className="mt-5 flex gap-2">

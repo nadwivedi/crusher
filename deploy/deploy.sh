@@ -6,8 +6,8 @@
 #     install: 1 = run "npm ci" before building (after package.json changes), 0 = skip it
 #
 # The sites are built into dist-next and only swapped in when the build works, so a failed build
-# leaves the live site as it was. nginx serves the dist folders directly, so a new build is live
-# without restarting nginx. The backend is restarted last, because restarting it ends this request.
+# leaves the live site as it was. After a new build nginx is restarted (once its config passes nginx -t).
+# The backend is restarted last, because restarting it ends this request.
 
 set -uo pipefail
 
@@ -101,11 +101,28 @@ build_site() {
 }
 
 FAILED=0
+BUILT=0
 for site in frontend admin webpage; do
   if [ "$TARGET" = "all" ] || [ "$TARGET" = "$site" ]; then
-    build_site "$site" || { echo "Build of $site failed — the live $site was not changed."; FAILED=1; }
+    if build_site "$site"; then BUILT=1; else echo "Build of $site failed — the live $site was not changed."; FAILED=1; fi
   fi
 done
+
+# Restart nginx after a new build. The config is checked first: restarting with a broken config would take every site down.
+if [ "$BUILT" = "1" ]; then
+  SUDO=""
+  [ "$(id -u)" != "0" ] && SUDO="sudo -n"
+  step "systemctl restart nginx"
+  if ! $SUDO nginx -t; then
+    echo "nginx config has an error — nginx was not restarted. The sites keep running on the old config."
+    FAILED=1
+  elif $SUDO systemctl restart nginx; then
+    echo "nginx restarted"
+  else
+    echo "nginx restart failed"
+    FAILED=1
+  fi
+fi
 
 if [ "$TARGET" = "all" ] || [ "$TARGET" = "backend" ]; then
   if install_deps backend; then
