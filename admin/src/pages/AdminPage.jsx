@@ -17,7 +17,6 @@ import {
   User,
   Phone,
   MapPin,
-  Clock,
   Loader2,
   AlertTriangle,
   Users2,
@@ -28,6 +27,9 @@ import {
 } from 'lucide-react'
 import Sidebar from '../components/Sidebar'
 import StatCard from '../components/StatCard'
+import RowMenu from '../components/RowMenu'
+import SearchSelect from '../components/SearchSelect'
+import { INDIAN_STATES } from '../utils/indianStates'
 import DashboardView from './DashboardView'
 import ActivityCenter from './ActivityCenter'
 import DeployView from './DeployView'
@@ -76,13 +78,9 @@ const formatDay = (value) => {
   return new Date(value).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata', day: 'numeric', month: 'short', year: 'numeric' })
 }
 
-// Where the plan stands today: { label, tone } for the badge under the plan
-const PLAN_TONES = {
-  expired: 'bg-rose-50 text-rose-700 ring-rose-200',
-  soon: 'bg-amber-50 text-amber-700 ring-amber-200',
-  ok: 'bg-emerald-50 text-emerald-700 ring-emerald-200',
-  none: 'bg-stone-100 text-stone-500 ring-stone-200',
-}
+// Where the plan stands today: { label, tone }, shown as a coloured dot and text under the plan
+const PLAN_TEXT = { expired: 'text-rose-700', soon: 'text-amber-700', ok: 'text-stone-500', none: 'text-stone-400' }
+const PLAN_DOT = { expired: 'bg-rose-500', soon: 'bg-amber-400', ok: 'bg-emerald-500', none: 'bg-stone-300' }
 const planStatus = (user) => {
   if (user?.planType === 'lifetime') return { label: 'Never expires', tone: 'ok' }
   if (!user?.planEndAt) return { label: 'End date not set', tone: 'none' }
@@ -100,13 +98,6 @@ const PLAN_OPTIONS = [
 
 const formatRupees = (value) => `₹${Number(value || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 })}`
 
-// "Yearly · ₹12,000/yr" or "Lifetime · ₹50,000"
-const describePlan = (user) => {
-  const price = Number(user?.planPrice || 0)
-  if (user?.planType === 'lifetime') return `Lifetime${price > 0 ? ` · ${formatRupees(price)}` : ''}`
-  return `Yearly${price > 0 ? ` · ${formatRupees(price)}/yr` : ''}`
-}
-
 const formatDateTime = (value) => {
   if (!value) return 'Never'
 
@@ -117,6 +108,23 @@ const formatDateTime = (value) => {
     dateStyle: 'medium',
     timeStyle: 'short',
   }).format(date)
+}
+
+// "16 Oct, 2:35 pm" in India time; the year is added when it is not this year
+const formatExactTime = (value) => {
+  if (!value) return ''
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return ''
+  const sameYear = date.getFullYear() === new Date().getFullYear()
+  return date.toLocaleString('en-IN', {
+    timeZone: 'Asia/Kolkata',
+    day: 'numeric',
+    month: 'short',
+    ...(sameYear ? {} : { year: 'numeric' }),
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  })
 }
 
 // "5 min ago", "3 hours ago", "2 days ago"; older than a month shows the date
@@ -134,16 +142,6 @@ const formatTimeAgo = (value) => {
   if (days < 30) return `${days} day${days === 1 ? '' : 's'} ago`
   return formatDateTime(value)
 }
-
-// Sign-in and activity cell: how long ago on top, the exact time under it
-const renderWhen = (value, emptyLabel) => (value
-  ? (
-    <>
-      <span className="block font-medium text-stone-800">{formatTimeAgo(value)}</span>
-      <span className="block text-[11px] text-stone-400">{formatDateTime(value)}</span>
-    </>
-  )
-  : <span className="inline-flex rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-700 ring-1 ring-inset ring-amber-200">{emptyLabel}</span>)
 
 const getInitials = (name) => {
   if (!name) return '?'
@@ -169,6 +167,18 @@ const PRIMARY_BUTTON = 'flex items-center justify-center gap-1.5 rounded-lg bg-s
 const SECONDARY_BUTTON = 'flex items-center justify-center gap-1.5 rounded-lg border border-stone-300 bg-white px-4 py-2 text-sm font-semibold text-stone-700 transition hover:bg-stone-100 disabled:opacity-60'
 const ICON_BUTTON = 'flex h-8 w-8 items-center justify-center rounded-lg text-stone-500 transition hover:bg-stone-100 hover:text-stone-800'
 
+// Users are grouped by state without caring about case or spaces
+const NO_STATE = '__none__'
+const stateKey = (state) => (state?.trim() ? state.trim().toLowerCase() : NO_STATE)
+
+// Every Indian state for the form, plus a state already saved on the user that is spelled differently
+const formStateOptions = (current) => {
+  const list = INDIAN_STATES.map((name) => ({ value: name, label: name }))
+  const saved = current?.trim()
+  if (saved && !INDIAN_STATES.some((name) => name.toLowerCase() === saved.toLowerCase())) list.unshift({ value: saved, label: saved })
+  return list
+}
+
 const getAvatarClass = (seed) => {
   const code = (seed || '').split('').reduce((total, char) => total + char.charCodeAt(0), 0)
   return AVATAR_PALETTE[code % AVATAR_PALETTE.length]
@@ -188,6 +198,8 @@ function AdminPage() {
   const [isCheckingAuth, setIsCheckingAuth] = useState(true)
   const [isLoggingIn, setIsLoggingIn] = useState(false)
   const [search, setSearch] = useState('')
+  // '' = all states, NO_STATE = users without a state, otherwise the state name in lower case
+  const [stateFilter, setStateFilter] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [showLoginPassword, setShowLoginPassword] = useState(false)
   const [userToDelete, setUserToDelete] = useState(null)
@@ -201,14 +213,26 @@ function AdminPage() {
 
   const filteredUsers = useMemo(() => {
     const query = search.trim().toLowerCase()
-    if (!query) return users
-
     return users.filter((user) =>
-      [user.name, user.email, user.mobile, user.state, user.district]
+      (!stateFilter || stateKey(user.state) === stateFilter)
+      && (!query || [user.name, user.email, user.mobile, user.state, user.district]
         .filter(Boolean)
-        .some((value) => value.toLowerCase().includes(query))
+        .some((value) => value.toLowerCase().includes(query)))
     )
-  }, [search, users])
+  }, [search, stateFilter, users])
+
+  // States the users are from, with how many users each: the state filter's list
+  const stateOptions = useMemo(() => {
+    const groups = new Map()
+    users.forEach((user) => {
+      const key = stateKey(user.state)
+      const group = groups.get(key) || { value: key, label: key === NO_STATE ? 'State not set' : user.state.trim(), count: 0 }
+      group.count += 1
+      groups.set(key, group)
+    })
+    const list = [...groups.values()].sort((a, b) => (a.value === NO_STATE) - (b.value === NO_STATE) || b.count - a.count || a.label.localeCompare(b.label))
+    return [{ value: '', label: 'All states', count: users.length }, ...list]
+  }, [users])
 
   const loadUsers = async () => {
     try {
@@ -452,23 +476,6 @@ function AdminPage() {
     }
   }
 
-  const renderStatusButton = (user) => {
-    const inactive = user.isActive === false
-    const StatusIcon = inactive ? UserCheck : UserX
-    return (
-      <button
-        type="button"
-        onClick={() => handleStatusClick(user)}
-        disabled={statusChangingId === user.id}
-        className={`${ICON_BUTTON} ${inactive ? 'text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700' : 'hover:bg-amber-50 hover:text-amber-700'} disabled:opacity-50`}
-        title={inactive ? 'Activate' : 'Deactivate'}
-        aria-label={inactive ? `Activate ${user.name}` : `Deactivate ${user.name}`}
-      >
-        {statusChangingId === user.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <StatusIcon className="h-4 w-4" />}
-      </button>
-    )
-  }
-
   const handleAdminLogin = async (event) => {
     event.preventDefault()
 
@@ -613,23 +620,96 @@ function AdminPage() {
   const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).getTime()
   const newThisMonth = users.filter((user) => user.createdAt && new Date(user.createdAt).getTime() >= monthStart).length
 
-  // Plan period and where it stands: "16 Oct 2026 → 16 Oct 2027" and "Expires in 12 days"
-  const renderPlanDates = (user) => {
-    if (user.planType === 'lifetime') {
-      return (
-        <span className="mt-1 block text-[11px] text-stone-500">
-          {user.planStartAt ? `Started ${formatDay(user.planStartAt)} · ` : ''}
-          <span className="font-semibold text-emerald-700">Lifetime plan (never expires)</span>
+  // Row pieces of the users list
+  const renderAvatar = (user) => (
+    <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-bold ${getAvatarClass(user.name || user.id)}`}>
+      {getInitials(user.name)}
+    </span>
+  )
+
+  const renderName = (user) => (
+    <p className="flex min-w-0 items-center gap-2">
+      <span className="truncate font-semibold text-stone-900">{user.name}</span>
+      {user.isActive === false && (
+        <span className="shrink-0 rounded bg-rose-100 px-1.5 py-px text-[10px] font-semibold uppercase tracking-wide text-rose-700" title={user.deactivatedAt ? `Since ${formatDateTime(user.deactivatedAt)}` : undefined}>
+          Deactivated
         </span>
+      )}
+    </p>
+  )
+
+  // "9876543210 · Raipur, Chhattisgarh"
+  const renderContactLine = (user) => [user.mobile, [user.district, user.state].filter(Boolean).join(', ')].filter(Boolean).join(' · ')
+
+  // "Yearly · ₹12,000/yr" over a coloured status: "Till 16 Oct 2027", "Expires in 12 days", "Lifetime · never expires"
+  // Amount, start and end in one place: "₹12,000 / year" over "16 Oct 2026 → 16 Oct 2027",
+  // and a warning line only when the plan is ending soon or has ended
+  const renderPlan = (user) => {
+    const status = planStatus(user)
+    const lifetime = user.planType === 'lifetime'
+    const price = Number(user.planPrice || 0)
+    const amount = price > 0 ? `${formatRupees(price)}${lifetime ? '' : ' / year'}` : 'No amount'
+    const end = lifetime ? 'Never expires' : user.planEndAt ? formatDay(user.planEndAt) : 'no end date'
+    return (
+      <div className="min-w-0">
+        <p className="text-sm text-stone-800">
+          <span className="font-semibold tabular-nums">{amount}</span>
+          <span className={`ml-1.5 text-[11px] font-semibold ${lifetime ? 'text-violet-700' : 'text-sky-700'}`}>{lifetime ? 'Lifetime' : 'Yearly'}</span>
+        </p>
+        <p className="flex items-center gap-1.5 whitespace-nowrap text-xs text-stone-500">
+          <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${PLAN_DOT[status.tone]}`} />
+          {user.planStartAt ? <>{formatDay(user.planStartAt)} → {end}</> : 'Dates not set'}
+        </p>
+        {(status.tone === 'soon' || status.tone === 'expired') && (
+          <p className={`pl-3 text-xs font-semibold ${PLAN_TEXT[status.tone]}`}>{status.label}</p>
+        )}
+      </div>
+    )
+  }
+
+  // Last activity and last sign-in together: "Active 5 min ago" over "Signed in 2 days ago"
+  const renderLastSeen = (user) => {
+    const latest = user.lastActivityAt || user.lastLoginAt
+    if (!latest) {
+      return (
+        <p className="flex items-center gap-1.5 text-sm text-stone-400">
+          <span className="h-1.5 w-1.5 rounded-full bg-stone-300" />
+          Never signed in
+        </p>
       )
     }
-    const status = planStatus(user)
+    const age = Date.now() - new Date(latest).getTime()
+    const dot = age <= DAY_MS ? 'bg-emerald-500' : age <= 7 * DAY_MS ? 'bg-amber-400' : 'bg-stone-300'
+    // "5 min ago" with the exact time after it in brackets; older than a month already shows the date
+    const renderWhenExact = (value) => {
+      const ago = formatTimeAgo(value)
+      const exact = formatExactTime(value)
+      if (ago === formatDateTime(value)) return exact
+      return <>{ago} <span className="text-stone-400">({exact})</span></>
+    }
     return (
-      <span className="mt-1 block text-[11px] text-stone-500">
-        {user.planStartAt ? `${formatDay(user.planStartAt)} → ${user.planType === 'lifetime' ? 'Lifetime' : formatDay(user.planEndAt) || '?'}` : 'Plan dates not set'}
-        <span className={`ml-1.5 inline-flex rounded-full px-1.5 py-px text-[10px] font-semibold ring-1 ring-inset ${PLAN_TONES[status.tone]}`}>{status.label}</span>
-      </span>
+      <div className="min-w-0 whitespace-nowrap">
+        <p className="flex items-center gap-1.5 text-sm text-stone-800">
+          <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${dot}`} />
+          <span>{user.lastActivityAt ? <>Active {renderWhenExact(user.lastActivityAt)}</> : 'No activity yet'}</span>
+        </p>
+        <p className="pl-3 text-xs text-stone-500">Signed in {user.lastLoginAt ? renderWhenExact(user.lastLoginAt) : 'never'}</p>
+      </div>
     )
+  }
+
+  // The ⋯ menu; on phones it also holds "Open app"
+  const rowActions = (user, withOpen) => {
+    const inactive = user.isActive === false
+    const busy = statusChangingId === user.id
+    return [
+      ...(withOpen ? [{ label: 'Open app', icon: LogIn, onClick: () => handleAccess(user) }] : []),
+      { label: 'Edit', icon: Pencil, onClick: () => handleEdit(user) },
+      inactive
+        ? { label: 'Activate', icon: UserCheck, tone: 'success', onClick: () => handleStatusClick(user), disabled: busy }
+        : { label: 'Deactivate', icon: UserX, onClick: () => handleStatusClick(user), disabled: busy },
+      { label: 'Delete', icon: Trash2, tone: 'danger', onClick: () => setUserToDelete(user) },
+    ]
   }
 
   const renderFieldLabel = (text) => <span className="text-sm font-medium text-stone-700">{text}</span>
@@ -685,15 +765,29 @@ function AdminPage() {
               All Users
               <span className="ml-2 text-xs font-normal text-stone-500">{filteredUsers.length} shown</span>
             </h2>
-            <div className="relative sm:w-64">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-400" />
-              <input
-                type="search"
-                placeholder="Search name, mobile, email, place"
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
-                className={INPUT_CLASS}
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <SearchSelect
+                value={stateFilter}
+                onChange={setStateFilter}
+                options={stateOptions}
+                placeholder="All states"
+                searchPlaceholder="Search state…"
+                emptyText="No state found"
+                icon={MapPin}
+                clearable
+                ariaLabel="Filter by state"
+                className="sm:w-56"
               />
+              <div className="relative sm:w-64">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-400" />
+                <input
+                  type="search"
+                  placeholder="Search name, mobile, email, place"
+                  value={search}
+                  onChange={(event) => setSearch(event.target.value)}
+                  className={INPUT_CLASS}
+                />
+              </div>
             </div>
           </div>
 
@@ -705,69 +799,48 @@ function AdminPage() {
           ) : filteredUsers.length ? (
             <>
               <div className="hidden overflow-x-auto lg:block">
-                <table className="w-full min-w-[1080px] text-left">
+                <table className="w-full min-w-[980px] text-left">
                   <thead>
-                    <tr className="bg-stone-100/70 text-xs font-semibold uppercase tracking-wide text-stone-500">
+                    <tr className="border-b border-stone-200 text-[11px] font-semibold uppercase tracking-wide text-stone-400">
                       <th className="px-5 py-2.5">User</th>
-                      <th className="px-3 py-2.5">Mobile / Email</th>
+                      <th className="px-3 py-2.5">State</th>
                       <th className="px-3 py-2.5">Plan</th>
-                      <th className="px-3 py-2.5">Location</th>
+                      <th className="px-3 py-2.5">Last Seen</th>
                       <th className="px-3 py-2.5">Joined</th>
-                      <th className="px-3 py-2.5">Last Sign In</th>
-                      <th className="px-3 py-2.5">Last Activity</th>
                       <th className="px-5 py-2.5" />
                     </tr>
                   </thead>
-                  <tbody>
+                  <tbody className="divide-y divide-stone-200/70">
                     {filteredUsers.map((user) => (
-                      <tr key={user.id} className={`border-t border-stone-200 text-sm text-stone-700 transition hover:bg-white ${user.isActive === false ? 'bg-rose-50/40' : ''}`}>
-                        <td className="px-5 py-2.5">
+                      <tr key={user.id} className={`text-sm transition hover:bg-white ${user.isActive === false ? 'opacity-60' : ''}`}>
+                        <td className="px-5 py-3">
                           <div className="flex items-center gap-3">
-                            <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold ${getAvatarClass(user.name || user.id)}`}>
-                              {getInitials(user.name)}
-                            </span>
-                            <span className="min-w-0">
-                              <span className="block font-semibold text-stone-900">{user.name}</span>
-                              {user.isActive === false && (
-                                <span className="mt-0.5 inline-flex rounded-full bg-rose-50 px-2 py-0.5 text-[11px] font-semibold text-rose-700 ring-1 ring-inset ring-rose-200" title={user.deactivatedAt ? `Since ${formatDateTime(user.deactivatedAt)}` : undefined}>
-                                  Deactivated
-                                </span>
-                              )}
-                            </span>
+                            {renderAvatar(user)}
+                            <div className="min-w-0">
+                              {renderName(user)}
+                              <p className="truncate text-xs text-stone-500" title={user.email || undefined}>{user.mobile}</p>
+                            </div>
                           </div>
                         </td>
-                        <td className="px-3 py-2.5">
-                          <span className="block font-mono text-xs text-stone-800">{user.mobile}</span>
-                          <span className="block text-[11px] text-stone-400">{user.email || '—'}</span>
+                        <td className="px-3 py-3">
+                          <p className="text-sm text-stone-800">{user.state || <span className="text-stone-400">—</span>}</p>
+                          {user.district && <p className="text-xs text-stone-500">{user.district}</p>}
                         </td>
-                        <td className="px-3 py-2.5">
-                          <span className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold ring-1 ring-inset ${user.planType === 'lifetime' ? 'bg-violet-50 text-violet-700 ring-violet-200' : 'bg-sky-50 text-sky-700 ring-sky-200'}`}>
-                            {describePlan(user)}
-                          </span>
-                          {renderPlanDates(user)}
-                        </td>
-                        <td className="px-3 py-2.5">{[user.district, user.state].filter(Boolean).join(', ') || '—'}</td>
-                        <td className="whitespace-nowrap px-3 py-2.5">{renderWhen(user.createdAt, 'Unknown')}</td>
-                        <td className="whitespace-nowrap px-3 py-2.5">{renderWhen(user.lastLoginAt, 'Never')}</td>
-                        <td className="whitespace-nowrap px-3 py-2.5">{renderWhen(user.lastActivityAt, 'No activity')}</td>
-                        <td className="px-5 py-2.5">
+                        <td className="px-3 py-3">{renderPlan(user)}</td>
+                        <td className="px-3 py-3">{renderLastSeen(user)}</td>
+                        <td className="whitespace-nowrap px-3 py-3 text-xs text-stone-500" title={formatDateTime(user.createdAt)}>{user.createdAt ? formatDay(user.createdAt) : '—'}</td>
+                        <td className="px-5 py-3">
                           <div className="flex items-center justify-end gap-1">
                             <button
                               type="button"
                               onClick={() => handleAccess(user)}
-                              className="mr-1 inline-flex items-center gap-1 rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-100"
+                              className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-stone-600 transition hover:bg-stone-100 hover:text-stone-900"
                               title={`Open the app as ${user.name}`}
                             >
                               <LogIn className="h-3.5 w-3.5" />
-                              Access
+                              Open app
                             </button>
-                            {renderStatusButton(user)}
-                            <button type="button" onClick={() => handleEdit(user)} className={`${ICON_BUTTON} hover:text-blue-700`} title="Edit" aria-label={`Edit ${user.name}`}>
-                              <Pencil className="h-4 w-4" />
-                            </button>
-                            <button type="button" onClick={() => setUserToDelete(user)} className={`${ICON_BUTTON} hover:bg-rose-50 hover:text-rose-700`} title="Delete" aria-label={`Delete ${user.name}`}>
-                              <Trash2 className="h-4 w-4" />
-                            </button>
+                            <RowMenu items={rowActions(user, false)} label={`More actions for ${user.name}`} />
                           </div>
                         </td>
                       </tr>
@@ -776,47 +849,20 @@ function AdminPage() {
                 </table>
               </div>
 
-              {/* Phone and tablet: short rows */}
-              <ul className="divide-y divide-stone-200 lg:hidden">
+              {/* Phone and tablet: one short card per user */}
+              <ul className="divide-y divide-stone-200/70 lg:hidden">
                 {filteredUsers.map((user) => (
-                  <li key={user.id} className="flex items-start gap-3 px-4 py-3">
-                    <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-bold ${getAvatarClass(user.name || user.id)}`}>
-                      {getInitials(user.name)}
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-semibold text-stone-900">
-                        {user.name}
-                        <span className={`ml-2 text-[11px] font-semibold ${user.planType === 'lifetime' ? 'text-violet-700' : 'text-sky-700'}`}>{describePlan(user)}</span>
-                        {user.isActive === false && <span className="ml-2 text-[11px] font-semibold text-rose-700">Deactivated</span>}
-                      </p>
-                      <p className="mt-0.5 flex items-center gap-1 text-xs text-stone-500"><Phone className="h-3 w-3" />{user.mobile}</p>
-                      {user.email && <p className="mt-0.5 flex min-w-0 items-center gap-1 text-xs text-stone-500"><Mail className="h-3 w-3 shrink-0" /><span className="truncate">{user.email}</span></p>}
-                      {user.createdAt && <p className="mt-0.5 flex items-center gap-1 text-xs text-stone-500"><UserPlus className="h-3 w-3" />Joined {formatDateTime(user.createdAt)}</p>}
-                      {renderPlanDates(user)}
-                      <p className="mt-0.5 flex flex-wrap items-center gap-x-3 text-xs text-stone-400">
-                        <span className="inline-flex items-center gap-1" title={user.lastLoginAt ? formatDateTime(user.lastLoginAt) : undefined}>
-                          <Clock className="h-3 w-3" />Signed in {user.lastLoginAt ? formatTimeAgo(user.lastLoginAt) : 'never'}
-                        </span>
-                        <span className="inline-flex items-center gap-1" title={user.lastActivityAt ? formatDateTime(user.lastActivityAt) : undefined}>
-                          Active {user.lastActivityAt ? formatTimeAgo(user.lastActivityAt) : 'never'}
-                        </span>
-                        {[user.district, user.state].filter(Boolean).length > 0 && (
-                          <span className="inline-flex items-center gap-1"><MapPin className="h-3 w-3" />{[user.district, user.state].filter(Boolean).join(', ')}</span>
-                        )}
-                      </p>
+                  <li key={user.id} className={`flex items-start gap-3 px-4 py-3 ${user.isActive === false ? 'opacity-60' : ''}`}>
+                    {renderAvatar(user)}
+                    <div className="min-w-0 flex-1 space-y-1">
+                      {renderName(user)}
+                      <p className="truncate text-xs text-stone-500">{renderContactLine(user)}</p>
+                      <div className="flex flex-wrap gap-x-4 gap-y-1">
+                        {renderPlan(user)}
+                        {renderLastSeen(user)}
+                      </div>
                     </div>
-                    <div className="flex shrink-0 items-center">
-                      <button type="button" onClick={() => handleAccess(user)} className={`${ICON_BUTTON} text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700`} aria-label={`Open the app as ${user.name}`}>
-                        <LogIn className="h-4 w-4" />
-                      </button>
-                      {renderStatusButton(user)}
-                      <button type="button" onClick={() => handleEdit(user)} className={ICON_BUTTON} aria-label={`Edit ${user.name}`}>
-                        <Pencil className="h-4 w-4" />
-                      </button>
-                      <button type="button" onClick={() => setUserToDelete(user)} className={`${ICON_BUTTON} hover:bg-rose-50 hover:text-rose-700`} aria-label={`Delete ${user.name}`}>
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    </div>
+                    <RowMenu items={rowActions(user, true)} label={`Actions for ${user.name}`} />
                   </li>
                 ))}
               </ul>
@@ -914,13 +960,20 @@ function AdminPage() {
                 </label>
 
                 <div className="grid grid-cols-2 gap-4">
-                  <label className="grid gap-1.5">
+                  <div className="grid gap-1.5">
                     {renderFieldLabel('State')}
-                    <div className="relative">
-                      <MapPin className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-400" />
-                      <input name="state" value={form.state} onChange={handleChange} placeholder="State" className={INPUT_CLASS} />
-                    </div>
-                  </label>
+                    <SearchSelect
+                      value={form.state}
+                      onChange={(state) => setForm((current) => ({ ...current, state }))}
+                      options={formStateOptions(form.state)}
+                      placeholder="Select state"
+                      searchPlaceholder="Search state…"
+                      emptyText="No state found"
+                      icon={MapPin}
+                      allowCustom
+                      ariaLabel="State"
+                    />
+                  </div>
                   <label className="grid gap-1.5">
                     {renderFieldLabel('District')}
                     <input name="district" value={form.district} onChange={handleChange} placeholder="District" className={`${INPUT_CLASS} pl-3`} />
