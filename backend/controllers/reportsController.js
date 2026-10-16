@@ -14,6 +14,7 @@ const Receipt = require("../models/Receipt");
 const Sales = require("../models/Sales");
 const SaleReturn = require("../models/SaleReturn");
 const Stock = require("../models/Stock");
+const StockAdjustment = require("../models/StockAdjustment");
 const Transport = require("../models/Transport");
 const Vehicle = require("../models/Vehicle");
 const { ensureDieselStock, usedForOf } = require("../utils/diesel");
@@ -1737,7 +1738,7 @@ const getDashboardSummary = async (req, res) => {
 
 // Everything one stock item's report needs, lifetime: the report itself groups by DG, vehicle and day for each period.
 const buildItemReport = async (userId, item) => {
-  const [usedEntries, purchases, vehicles] = await Promise.all([
+  const [usedEntries, purchases, vehicles, purchaseReturns, adjustments] = await Promise.all([
     MaterialUsed.find({ userId, materialType: item._id })
       .select("usedDate createdAt usedQty usedFor vehicle vehicleNo notes purchase")
       .sort({ usedDate: -1, createdAt: -1 })
@@ -1748,6 +1749,13 @@ const buildItemReport = async (userId, item) => {
       .sort({ purchaseDate: -1, createdAt: -1 })
       .lean(),
     Vehicle.find({ userId }).select("vehicleNo category ownership").sort({ vehicleNo: 1 }).lean(),
+    PurchaseReturn.find({ userId, "items.product": item._id })
+      .select("voucherNumber voucherDate createdAt party items")
+      .populate("party", "name")
+      .lean(),
+    StockAdjustment.find({ userId, stockItem: item._id })
+      .select("voucherNumber voucherDate createdAt adjustmentType quantity reason")
+      .lean(),
   ]);
 
   // Pump fills: where each one was bought and at what rate, shown on its issue
@@ -1800,7 +1808,88 @@ const buildItemReport = async (userId, item) => {
   const boughtQty = inward.reduce((sum, line) => sum + line.qty, 0);
   const boughtAmount = inward.reduce((sum, line) => sum + line.amount, 0);
 
+  // Stock ledger: every movement of the item with the stock after it, like a party ledger.
+  // A pump fill comes in and goes straight out, so it is one line that leaves the stock as it was.
+  const pumpByPurchase = new Map(usedEntries.filter((entry) => entry.purchase).map((entry) => [String(entry.purchase), entry]));
+  const purchaseLines = purchases.flatMap((purchase) => (purchase.items || [])
+    .filter((line) => String(line.product) === String(item._id))
+    .map((line) => ({ purchase, line })));
+  const movements = [
+    ...purchaseLines.map(({ purchase, line }) => {
+      const qty = toNumber(line.quantity);
+      const pump = purchase.fillVehicle ? pumpByPurchase.get(String(purchase._id)) : null;
+      return {
+        id: `purchase-${purchase._id}-${String(line.product)}`,
+        kind: purchase.fillVehicle ? "pump" : "purchase",
+        date: purchase.purchaseDate || purchase.createdAt,
+        createdAt: purchase.createdAt,
+        refNo: formatPurchaseNumber(purchase.purchaseNumber),
+        particulars: purchase.fillVehicle ? purchase.fillVehicleNo || pump?.vehicleNo || "-" : purchase.party?.name || "-",
+        detail: purchase.fillVehicle
+          ? [purchase.party?.name, line.unitPrice ? `₹${toNumber(line.unitPrice)}/${line.unit || item.unit || ""}` : ""].filter(Boolean).join(" · ")
+          : line.unitPrice ? `₹${toNumber(line.unitPrice)}/${line.unit || item.unit || ""}` : "",
+        vehicleNo: purchase.fillVehicle ? purchase.fillVehicleNo || "" : "",
+        inQty: qty,
+        outQty: purchase.fillVehicle ? qty : 0,
+      };
+    }),
+    ...usedEntries.filter((entry) => !entry.purchase).map((entry) => {
+      const usedFor = usedForOf(entry);
+      return {
+        id: `used-${entry._id}`,
+        kind: "used",
+        usedFor,
+        date: entry.usedDate || entry.createdAt,
+        createdAt: entry.createdAt,
+        refNo: "",
+        particulars: usedFor === "vehicle" ? entry.vehicleNo || "-" : usedFor === "dg" ? "DG Set" : "Plant / Other",
+        detail: entry.notes || "",
+        vehicleNo: usedFor === "vehicle" ? entry.vehicleNo || "" : "",
+        inQty: 0,
+        outQty: toNumber(entry.usedQty),
+      };
+    }),
+    ...purchaseReturns.flatMap((entry) => (entry.items || [])
+      .filter((line) => String(line.product) === String(item._id))
+      .map((line, index) => ({
+        id: `return-${entry._id}-${index}`,
+        kind: "purchaseReturn",
+        date: entry.voucherDate || entry.createdAt,
+        createdAt: entry.createdAt,
+        refNo: entry.voucherNumber || "",
+        particulars: entry.party?.name || "-",
+        detail: "Returned to supplier",
+        vehicleNo: "",
+        inQty: 0,
+        outQty: toNumber(line.quantity),
+      }))),
+    ...adjustments.map((entry) => ({
+      id: `adjust-${entry._id}`,
+      kind: entry.adjustmentType === "add" ? "adjustIn" : "adjustOut",
+      date: entry.voucherDate || entry.createdAt,
+      createdAt: entry.createdAt,
+      refNo: entry.voucherNumber || "",
+      particulars: entry.reason || "Stock adjustment",
+      detail: "",
+      vehicleNo: "",
+      inQty: entry.adjustmentType === "add" ? toNumber(entry.quantity) : 0,
+      outQty: entry.adjustmentType === "add" ? 0 : toNumber(entry.quantity),
+    })),
+  ].sort((a, b) => new Date(a.date) - new Date(b.date) || new Date(a.createdAt) - new Date(b.createdAt));
+
+  // Stock before the first movement: opening stock and any direct edits of the item. Working it back from
+  // today's stock makes the last balance always equal the stock shown everywhere else.
+  const netMoved = movements.reduce((sum, row) => sum + row.inQty - row.outQty, 0);
+  const openingStock = toNumber(item.currentStock) - netMoved;
+  let running = openingStock;
+  const stockLedger = movements.map((row) => {
+    running += row.inQty - row.outQty;
+    return { ...row, balance: Math.round(running * 1000) / 1000 };
+  });
+
   return {
+    openingStock: Math.round(openingStock * 1000) / 1000,
+    stockLedger,
     item: {
       _id: item._id,
       name: item.name,

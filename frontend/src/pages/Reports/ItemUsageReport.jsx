@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, CalendarDays, Factory, Fuel, Inbox, Plus, RefreshCw, Search, Truck } from 'lucide-react';
+import { ArrowLeft, BookOpen, CalendarDays, Factory, Fuel, Inbox, Plus, RefreshCw, Search, Truck } from 'lucide-react';
 import apiClient from '../../utils/api';
 import StatCard from '../../components/StatCard';
 import Segmented from '../../components/Segmented';
@@ -71,11 +71,21 @@ const daysBetween = (from, to) => {
 };
 
 const TABS = [
+  { key: 'ledger', label: 'Stock Ledger', icon: BookOpen },
   { key: 'daily', label: 'Day-wise', icon: CalendarDays },
   { key: 'dg', label: 'DG Set', icon: Factory },
-  { key: 'vehicle', label: 'Vehicles', icon: Truck },
-  { key: 'entries', label: 'All Entries', icon: Fuel }
+  { key: 'vehicle', label: 'Vehicles', icon: Truck }
 ];
+
+// How each stock movement is shown in the ledger
+const MOVEMENT_TYPES = {
+  purchase: { label: 'Purchase', className: 'badge-green' },
+  pump: { label: 'Pump Fill', className: 'inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-700 ring-1 ring-amber-200' },
+  used: { label: 'Material Used', className: 'badge-gray' },
+  purchaseReturn: { label: 'Purchase Return', className: 'badge-red' },
+  adjustIn: { label: 'Adjustment +', className: 'badge-blue' },
+  adjustOut: { label: 'Adjustment −', className: 'badge-orange' }
+};
 
 const USED_FOR_TEXT = { dg: 'DG Set', vehicle: 'Vehicle', other: 'Plant / Other' };
 
@@ -342,7 +352,7 @@ export default function ItemUsageReport() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [tab, setTab] = useState('daily');
+  const [tab, setTab] = useState('ledger');
   const [periodKey, setPeriodKey] = useState('last7');
   const [search, setSearch] = useState('');
   const [selectedKey, setSelectedKey] = useState('');
@@ -451,47 +461,26 @@ export default function ItemUsageReport() {
     return [...byDay.values()].sort((a, b) => b.key.localeCompare(a.key));
   }, [usage, purchases, range]);
 
-  const dayTotals = useMemo(() => days.reduce((sum, day) => ({
-    dg: sum.dg + day.dg,
-    vehicle: sum.vehicle + day.vehicle,
-    pump: sum.pump + day.pump,
-    other: sum.other + day.other,
-    total: sum.total + day.total,
-    bought: sum.bought + day.bought
-  }), { dg: 0, vehicle: 0, pump: 0, other: 0, total: 0, bought: 0 }), [days]);
 
-  // In and out together, newest first
-  const ledger = useMemo(() => {
-    const rows = [
-      ...usage.map((row) => ({
-        id: `out-${row._id}`,
-        date: row.date,
-        dateKey: row.dateKey,
-        source: isPump(row) ? 'pump' : 'stock',
-        kind: isPump(row) ? 'Pump Fill' : USED_FOR_TEXT[row.usedFor],
-        name: row.usedFor === 'vehicle' ? row.vehicleNo || '-' : USED_FOR_TEXT[row.usedFor],
-        out: row.qty,
-        in: 0,
-        detail: isPump(row) ? pumpDetail(row, unit) : row.notes || ''
-      })),
-      ...purchases.map((row, index) => ({
-        id: `in-${row._id}-${index}`,
-        date: row.date,
-        dateKey: row.dateKey,
-        source: 'stock',
-        kind: 'Purchase',
-        name: row.partyName || '-',
-        out: 0,
-        in: row.qty,
-        detail: [row.refNo, row.rate ? `${formatMoney(row.rate)}/${unit}` : ''].filter(Boolean).join(' · ')
-      }))
-    ];
-    return rows
+  // Stock ledger, like a party ledger: newest first, the stock after each entry, and the stock
+  // before the period ("Previous Stock") at the bottom. Balances always come from the full history.
+  const stockLedger = useMemo(() => (data?.stockLedger || []).map((row) => ({ ...row, dateKey: toDateKey(row.date) })), [data]);
+  const ledgerView = useMemo(() => {
+    const before = range.from ? stockLedger.filter((row) => row.dateKey < range.from) : [];
+    const previous = before.length ? before[before.length - 1].balance : Number(data?.openingStock || 0);
+    const rows = stockLedger
       .filter((row) => inRange(row.dateKey, range))
-      .filter((row) => !sourceFilter || row.source === sourceFilter)
-      .filter((row) => !searchText || `${row.kind} ${row.name} ${row.detail}`.toLowerCase().includes(searchText))
-      .sort((a, b) => new Date(b.date) - new Date(a.date));
-  }, [usage, purchases, range, searchText, unit, sourceFilter]);
+      .filter((row) => !sourceFilter || (sourceFilter === 'pump' ? row.kind === 'pump' : row.kind !== 'pump'))
+      .filter((row) => !searchText || `${MOVEMENT_TYPES[row.kind]?.label || ''} ${row.particulars} ${row.detail} ${row.refNo}`.toLowerCase().includes(searchText))
+      .reverse();
+    const inPeriod = stockLedger.filter((row) => inRange(row.dateKey, range));
+    return {
+      rows,
+      previous,
+      totalIn: inPeriod.reduce((sum, row) => sum + row.inQty, 0),
+      totalOut: inPeriod.reduce((sum, row) => sum + row.outQty, 0)
+    };
+  }, [stockLedger, range, sourceFilter, searchText, data]);
 
   const changeTab = (key) => {
     setTab(key);
@@ -623,17 +612,6 @@ export default function ItemUsageReport() {
                         </tr>
                       ))}
                     </tbody>
-                    <tfoot>
-                      <tr className="bg-slate-50 font-bold text-slate-900">
-                        <td className="tbl-cell">Total</td>
-                        <td className="tbl-cell whitespace-nowrap text-right">{qtyCell(dayTotals.dg, unit)}</td>
-                        <td className="tbl-cell whitespace-nowrap text-right">{qtyCell(dayTotals.vehicle, unit)}</td>
-                        <td className="tbl-cell whitespace-nowrap text-right text-amber-700">{qtyCell(dayTotals.pump, unit)}</td>
-                        <td className="tbl-cell whitespace-nowrap text-right">{qtyCell(dayTotals.other, unit)}</td>
-                        <td className="tbl-cell whitespace-nowrap text-right">{qtyCell(dayTotals.total, unit)}</td>
-                        <td className="tbl-cell whitespace-nowrap text-right text-emerald-700">{qtyCell(dayTotals.bought, unit)}</td>
-                      </tr>
-                    </tfoot>
                   </table>
                 </div>
               )}
@@ -673,8 +651,8 @@ export default function ItemUsageReport() {
             <section className="panel">
               <div className="panel-header flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                 <div>
-                  <h2 className="text-sm font-bold text-slate-900">All Entries</h2>
-                  <p className="text-xs text-slate-500">Bought and given out · newest first</p>
+                  <h2 className="text-sm font-bold text-slate-900">Stock Ledger</h2>
+                  <p className="text-xs text-slate-500">Every stock in and out with the balance after it · newest first</p>
                 </div>
                 <div className="flex flex-col gap-2 md:flex-row md:items-center">
                   {isDiesel && (
@@ -686,66 +664,106 @@ export default function ItemUsageReport() {
                   )}
                   <div className="relative md:w-56">
                     <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                    <input className="input pl-9" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search..." />
+                    <input className="input pl-9" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search vehicle, party..." />
                   </div>
                   <Segmented options={PERIODS} value={periodKey} onChange={setPeriodKey} />
                 </div>
               </div>
-              {ledger.length === 0 ? (
-                <EmptyState title="No entries found" hint="Try another period or search." />
+
+              {/* Where the period starts and ends */}
+              <dl className="grid grid-cols-2 gap-px border-b border-slate-100 bg-slate-100 md:grid-cols-4">
+                {[
+                  { label: 'Previous Stock', value: ledgerView.previous, tone: 'text-slate-900' },
+                  { label: 'Stock In', value: ledgerView.totalIn, tone: 'text-emerald-700', sign: '+' },
+                  { label: 'Stock Out', value: ledgerView.totalOut, tone: 'text-rose-700', sign: '−' },
+                  { label: 'Current Stock', value: Number(data?.item?.currentStock || 0), tone: 'text-primary-700' }
+                ].map((stat) => (
+                  <div key={stat.label} className="bg-white px-4 py-3">
+                    <dt className="text-xs font-medium text-slate-500">{stat.label}</dt>
+                    <dd className={`mt-0.5 text-lg font-bold ${stat.tone}`}>
+                      {stat.sign && stat.value > 0 ? stat.sign : ''}{formatNumber(stat.value)} <span className="text-xs font-medium text-slate-400">{unit}</span>
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+
+              {ledgerView.rows.length === 0 ? (
+                <EmptyState title="No stock movement in this period" hint="Try a longer period, or clear the search." />
               ) : (
                 <>
                   <ul className="divide-y divide-slate-100 md:hidden">
-                    {ledger.map((row) => (
-                      <li key={row.id} className="flex items-start justify-between gap-3 px-4 py-3">
-                        <div className="min-w-0">
-                          <p className="truncate font-semibold text-slate-800">{row.name}</p>
-                          <p className="text-xs text-slate-500">{formatDate(row.date)} · <span className={row.source === 'pump' ? 'font-semibold text-amber-700' : ''}>{row.kind}</span></p>
-                          {row.detail && <p className="mt-0.5 truncate text-xs text-slate-500">{row.detail}</p>}
-                        </div>
-                        <p className={`shrink-0 font-bold ${row.in ? 'text-emerald-700' : 'text-slate-900'}`}>
-                          {row.in ? `+${formatNumber(row.in)}` : `−${formatNumber(row.out)}`} <span className="text-xs font-medium text-slate-400">{unit}</span>
-                        </p>
-                      </li>
-                    ))}
+                    {ledgerView.rows.map((row) => {
+                      const type = MOVEMENT_TYPES[row.kind] || MOVEMENT_TYPES.used;
+                      return (
+                        <li key={row.id} className="px-4 py-2.5">
+                          <div className="flex items-center justify-between gap-3">
+                            <span className={type.className}>{row.kind === 'pump' && <Fuel size={12} />}{type.label}</span>
+                            <span className="text-sm font-bold text-slate-900">{formatNumber(row.balance)} <span className="text-xs font-medium text-slate-400">{unit}</span></span>
+                          </div>
+                          <div className="mt-1 flex items-center justify-between gap-3 text-xs">
+                            <span className="min-w-0 truncate text-slate-500">
+                              {formatDate(row.date)} · <span className="font-semibold text-slate-700">{row.particulars}</span>{row.refNo ? ` · ${row.refNo}` : ''}
+                            </span>
+                            <span className="shrink-0 font-semibold">
+                              {row.inQty > 0 && <span className="text-emerald-700">+{formatNumber(row.inQty)}</span>}
+                              {row.inQty > 0 && row.outQty > 0 && ' / '}
+                              {row.outQty > 0 && <span className="text-rose-700">−{formatNumber(row.outQty)}</span>}
+                            </span>
+                          </div>
+                          {row.detail && <p className="truncate text-[11px] text-slate-400">{row.detail}</p>}
+                        </li>
+                      );
+                    })}
+                    <li className="flex items-center justify-between bg-slate-50 px-4 py-2.5 text-sm">
+                      <span className="font-semibold text-slate-600">Previous Stock</span>
+                      <span className="font-bold text-slate-900">{formatNumber(ledgerView.previous)} <span className="text-xs font-medium text-slate-400">{unit}</span></span>
+                    </li>
                   </ul>
+
                   <div className="hidden overflow-x-auto md:block">
-                    <table className="w-full min-w-[720px] text-left">
+                    <table className="w-full min-w-[820px] text-left">
                       <thead>
                         <tr>
                           <th className="tbl-head">Date</th>
                           <th className="tbl-head">Type</th>
-                          <th className="tbl-head">Given To / Bought From</th>
-                          <th className="tbl-head">Details</th>
-                          <th className="tbl-head text-right">Bought</th>
-                          <th className="tbl-head text-right">Given</th>
+                          <th className="tbl-head">Vehicle / Party / Used At</th>
+                          <th className="tbl-head text-right">In</th>
+                          <th className="tbl-head text-right">Out</th>
+                          <th className="tbl-head text-right">Balance</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {ledger.map((row) => (
-                          <tr key={row.id} className="tbl-row">
-                            <td className="tbl-cell whitespace-nowrap">{formatDate(row.date)}</td>
-                            <td className="tbl-cell whitespace-nowrap">
-                              {row.source === 'pump'
-                                ? <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-700 ring-1 ring-amber-200"><Fuel size={12} />{row.kind}</span>
-                                : <span className={row.in ? 'badge-green' : 'badge-gray'}>{row.kind}</span>}
-                            </td>
-                            <td className="tbl-cell font-semibold text-slate-800">{row.name}</td>
-                            <td className="tbl-cell text-slate-500"><div className="max-w-[18rem] truncate" title={row.detail || undefined}>{row.detail || '-'}</div></td>
-                            <td className="tbl-cell whitespace-nowrap text-right font-bold text-emerald-700">{qtyCell(row.in, unit)}</td>
-                            <td className="tbl-cell whitespace-nowrap text-right font-bold text-slate-900">{qtyCell(row.out, unit)}</td>
-                          </tr>
-                        ))}
+                        {ledgerView.rows.map((row) => {
+                          const type = MOVEMENT_TYPES[row.kind] || MOVEMENT_TYPES.used;
+                          return (
+                            <tr key={row.id} className="tbl-row">
+                              <td className="tbl-cell whitespace-nowrap">
+                                {formatDate(row.date)}
+                                {row.refNo && <span className="block text-[11px] leading-tight text-slate-400">{row.refNo}</span>}
+                              </td>
+                              <td className="tbl-cell whitespace-nowrap"><span className={type.className}>{row.kind === 'pump' && <Fuel size={12} />}{type.label}</span></td>
+                              <td className="tbl-cell">
+                                <p className="font-semibold text-slate-800">{row.particulars}</p>
+                                {row.detail && <p className="max-w-[22rem] truncate text-[11px] text-slate-500" title={row.detail}>{row.detail}</p>}
+                              </td>
+                              <td className="tbl-cell whitespace-nowrap text-right font-semibold text-emerald-700">{qtyCell(row.inQty, unit)}</td>
+                              <td className="tbl-cell whitespace-nowrap text-right font-semibold text-rose-700">{qtyCell(row.outQty, unit)}</td>
+                              <td className="tbl-cell whitespace-nowrap text-right font-bold text-slate-900">{formatNumber(row.balance)}<span className="ml-1 text-xs font-medium text-slate-400">{unit}</span></td>
+                            </tr>
+                          );
+                        })}
+                        <tr className="bg-slate-50">
+                          <td className="tbl-cell font-semibold text-slate-600" colSpan={5}>
+                            Previous Stock
+                            <span className="ml-2 text-xs font-normal text-slate-400">{range.from ? `before ${formatDate(range.from)}` : 'opening stock'}</span>
+                          </td>
+                          <td className="tbl-cell whitespace-nowrap text-right font-bold text-slate-900">{formatNumber(ledgerView.previous)}<span className="ml-1 text-xs font-medium text-slate-400">{unit}</span></td>
+                        </tr>
                       </tbody>
                     </table>
                   </div>
                 </>
               )}
-              <p className="border-t border-slate-100 px-4 py-2.5 text-xs text-slate-500 md:px-5">
-                Bought for stock {formatNumber(ledger.reduce((sum, row) => sum + row.in, 0))} {unit}
-                {' · '}Given from stock {formatNumber(ledger.filter((row) => row.source !== 'pump').reduce((sum, row) => sum + row.out, 0))} {unit}
-                {isDiesel && <>{' · '}<span className="font-semibold text-amber-700">At pump {formatNumber(ledger.filter((row) => row.source === 'pump').reduce((sum, row) => sum + row.out, 0))} {unit}</span></>}
-              </p>
             </section>
           )}
         </div>
