@@ -21,7 +21,8 @@ export default function MarketingHero() {
               transition={{ duration: 0.5 }}
               className="mb-2 text-2xl font-bold leading-tight tracking-tight text-white sm:text-3xl lg:text-[1.75rem]"
             >
-              CrusherBook
+              India&rsquo;s Best Stone Crusher Management Software{' '}
+              <span className="whitespace-nowrap text-brand-orange">&ndash; CrusherBook</span>
             </motion.h1>
 
             <motion.p
@@ -30,7 +31,7 @@ export default function MarketingHero() {
               transition={{ duration: 0.5, delay: 0.1 }}
               className="mb-4 text-sm font-semibold leading-snug text-brand-orange sm:text-base lg:text-lg"
             >
-              Stone Crusher Plant ERP Software
+              Billing, weighbridge, stock and party ledger for crusher plants
             </motion.p>
 
             <motion.p
@@ -39,7 +40,7 @@ export default function MarketingHero() {
               transition={{ duration: 0.5, delay: 0.2 }}
               className="mx-auto mb-5 max-w-sm text-xs leading-relaxed text-white/75 sm:max-w-md sm:text-sm lg:mx-0"
             >
-              One dashboard for sales slips, boulder entry, weighbridge workflow, stock, ledger, expenses, and profit reports — built for crusher plants.
+              One app for kanta parchi, boulder entry, gitti sales per ton or cft, stock, party khata, diesel, expenses and daily profit, in English and Hindi.
             </motion.p>
 
             <motion.div
@@ -73,8 +74,8 @@ export default function MarketingHero() {
               className="mx-auto grid max-w-sm gap-2 sm:max-w-none sm:grid-cols-1 lg:mx-0"
             >
               {[
-                { label: 'Weighbridge ready workflow' },
-                { label: 'Slip to entry in minutes' },
+                { label: 'Weighbridge slip to bill in one step' },
+                { label: 'Automated WhatsApp bills & payment reminders' },
                 { label: 'Plans starting Rs 9,999 per year' },
               ].map((item) => (
                 <div

@@ -15,7 +15,7 @@ const FeatureShowcase = () => {
             Snap a slip. We handle the rest.
           </h2>
           <p className="text-sm sm:text-base md:text-lg text-brand-slate leading-relaxed">
-            No more manual typing. Our OCR reads weighbridge slips instantly and automatically logs transactions with zero human entry.
+            Less typing at the gate. On the Advanced plan, AI reads the weighbridge slip photo and fills the entry for you to check and save.
           </p>
         </div>
 
@@ -38,7 +38,7 @@ const FeatureShowcase = () => {
                 </div>
               </div>
               <div>
-                <h4 className="text-xl font-bold text-brand-navy mb-2">1. Snap a Photo</h4>
+                <h3 className="text-xl font-bold text-brand-navy mb-2">1. Snap a Photo</h3>
                 <p className="text-brand-slate leading-relaxed">
                   Driver or operator takes a quick picture of the physical weighbridge slip using our mobile app or web upload.
                 </p>
@@ -58,9 +58,9 @@ const FeatureShowcase = () => {
                 </div>
               </div>
               <div>
-                <h4 className="text-xl font-bold text-brand-navy mb-2">2. Instant Processing</h4>
+                <h3 className="text-xl font-bold text-brand-navy mb-2">2. Instant Processing</h3>
                 <p className="text-brand-slate leading-relaxed">
-                  Our AI engine instantly reads the date, vehicle number, gross weight, and tare weight without any manual typing.
+                  AI reads the date, vehicle number, gross weight and tare weight from the photo, so staff only check and save.
                 </p>
               </div>
             </motion.div>
@@ -78,7 +78,7 @@ const FeatureShowcase = () => {
                 </div>
               </div>
               <div>
-                <h4 className="text-xl font-bold text-brand-navy mb-2">3. Auto Entry & Record</h4>
+                <h3 className="text-xl font-bold text-brand-navy mb-2">3. Auto Entry & Record</h3>
                 <p className="text-brand-slate leading-relaxed">
                   The transaction is automatically mapped to the correct party ledger, stock is updated, and the record is secured instantly.
                 </p>
@@ -169,8 +169,8 @@ const FeatureShowcase = () => {
           {[
             {
               icon: Scale,
-              title: 'Weightbridge Ready',
-              description: 'Capture readings automatically and eliminate manual dispatch entry.',
+              title: 'Weighbridge Integration',
+              description: 'Weights come straight from the weighbridge into the slip on the Enterprise plan.',
               color: 'bg-brand-orange/10 text-brand-orange'
             },
             {
@@ -196,7 +196,7 @@ const FeatureShowcase = () => {
               <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${color}`}>
                 <Icon className="h-5 w-5 sm:h-6 sm:w-6" />
               </div>
-              <h4 className="mt-4 sm:mt-5 text-base sm:text-lg font-bold text-brand-navy">{title}</h4>
+              <h3 className="mt-4 sm:mt-5 text-base sm:text-lg font-bold text-brand-navy">{title}</h3>
               <p className="mt-2 sm:mt-3 text-xs sm:text-sm leading-relaxed text-brand-slate">{description}</p>
             </div>
           ))}
