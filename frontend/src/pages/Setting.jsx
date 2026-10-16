@@ -235,7 +235,7 @@ export default function Setting() {
       <section className="card">
         <h2 className="flex items-center gap-2 text-sm font-bold text-slate-900"><Languages size={16} /> Language</h2>
         <p className="mt-0.5 text-xs text-slate-500">Choose the language for your login. It stays the same on every phone or computer you sign in on.</p>
-        <div className="mt-3 grid grid-cols-2 gap-2">
+        <div className="mt-3 grid grid-cols-3 gap-2">
           {LANGUAGES.map((option) => {
             const active = language === option.value;
             return (

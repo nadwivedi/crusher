@@ -407,7 +407,7 @@ const MESSAGES = {
   'Failed to login staff': 'स्टाफ लॉगिन नहीं हुआ',
   'Failed to update settings': 'सेटिंग सेव नहीं हुई',
   'Failed to save the language': 'भाषा सेव नहीं हुई',
-  'Choose English or Hindi': 'English या हिंदी चुनें',
+  'Choose English, Hindi or both': 'English, हिंदी या दोनों चुनें',
   'Failed to create sales': 'बिक्री नहीं जुड़ी',
   'Failed to update sales': 'बिक्री अपडेट नहीं हुई',
   'Failed to delete sales': 'बिक्री नहीं हटी',

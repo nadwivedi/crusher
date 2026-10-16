@@ -44,10 +44,11 @@ const employeeSchema = new mongoose.Schema(
       meterReadings: { type: Boolean, default: true },
       masters: { type: Boolean, default: true },
     },
-    // Language the app shows for this login: "en" (default) or "hi"; kept here so it follows them to any device
+    // Language the app shows for this login: "en" (default), "hi", or "both" (English with Hindi under it);
+    // kept here so it follows them to any device
     language: {
       type: String,
-      enum: ["en", "hi"],
+      enum: ["en", "hi", "both"],
       default: "en",
     },
     historyLimitDays: {

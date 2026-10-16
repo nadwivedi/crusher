@@ -90,7 +90,7 @@ const clearAuthCookie = (res) => {
   });
 };
 
-const LANGUAGES = ["en", "hi"];
+const LANGUAGES = ["en", "hi", "both"];
 
 const normalizeRateValue = (value) => {
   const numericValue = Number(value || 0);
@@ -354,7 +354,7 @@ module.exports = {
     try {
       const language = req.body?.language;
       if (!LANGUAGES.includes(language)) {
-        return res.status(400).json({ success: false, message: "Choose English or Hindi" });
+        return res.status(400).json({ success: false, message: "Choose English, Hindi or both" });
       }
 
       // An admin looking inside the account does not change the owner's own choice

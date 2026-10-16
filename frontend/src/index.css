@@ -398,3 +398,39 @@ html.soft .bg-\[\#f8f6f1\] { background-color: #e9ecef; }
 :lang(hi) [class*="tracking-"] {
   letter-spacing: 0;
 }
+
+/* English + Hindi: the Hindi sits under a label (or right after it, inside a sentence), a little smaller */
+.i18n-hi {
+  display: block;
+  font-size: 0.82em;
+  font-weight: 500;
+  line-height: 1.25;
+  letter-spacing: 0;
+  text-transform: none;
+  white-space: normal;
+  opacity: 0.8;
+}
+.i18n-hi-inline {
+  display: inline;
+  margin-inline-start: 0.35em;
+}
+/* A cut-off label keeps its Hindi on one cut-off line too */
+.truncate > .i18n-hi {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* Buttons, tabs and badges made for one line grow to fit the second one, Hindi under the English */
+:root[data-language="both"] :is(button, a, label, th, span, [role="tab"]):has(> .i18n-hi:not(.i18n-hi-inline)) {
+  height: auto;
+  flex-direction: column;
+  justify-content: center;
+}
+:root[data-language="both"] :is(button, a, [role="tab"]):has(> .i18n-hi:not(.i18n-hi-inline)) {
+  padding-block: 0.3rem;
+}
+:root[data-language="both"] :is(button, a, [role="tab"]):has(> .i18n-hi-inline) {
+  height: auto;
+  min-height: fit-content;
+  flex-wrap: wrap;
+}

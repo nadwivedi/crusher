@@ -31,6 +31,7 @@ const SENTENCES = {
   'Language': 'भाषा',
   'Choose the language for your login. It stays the same on every phone or computer you sign in on.': 'अपने लॉगिन की भाषा चुनें। आप जिस भी फ़ोन या कंप्यूटर पर लॉगिन करें, यही रहेगी।',
   'Language saved': 'भाषा सेव हुई',
+  'Both together': 'दोनों साथ में',
   'Could not save the language': 'भाषा सेव नहीं हुई',
 
   // Dashboard and menus

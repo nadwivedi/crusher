@@ -100,9 +100,15 @@ export const translateText = (value) => {
   return result;
 };
 
-// What each node showed in English and what it was changed to, so English can be put back
+// What each node showed in English and what was done to it, so English can be put back
 const textRecords = new WeakMap();
 const attributeRecords = new WeakMap();
+
+// "hi": Hindi in place of English. "both": English stays, with the Hindi under it (or after it).
+let mode = 'en';
+
+// Places that can only hold plain text: the Hindi goes into the same line ("Cash / नकद")
+const TEXT_ONLY_PARENTS = new Set(['OPTION', 'SELECT', 'TITLE', 'text', 'tspan']);
 
 const isSkipped = (element) => {
   for (let node = element; node && node !== document.body; node = node.parentElement) {
@@ -111,36 +117,73 @@ const isSkipped = (element) => {
   return false;
 };
 
+const isOurs = (node) => node.nodeType === Node.ELEMENT_NODE && node.hasAttribute('data-i18n');
+
+// A label on its own ("Sale Date") gets its Hindi on the next line; text mixed with other
+// pieces (an icon, a number in bold) gets it right after, so the line does not break apart
+const isOnlyText = (node) => [...node.parentNode.childNodes].every((child) => (
+  child === node || isOurs(child) || (child.nodeType === Node.TEXT_NODE && !child.nodeValue.trim())
+));
+
+const bothText = (english, hindi) => `${english.trimEnd()} / ${hindi.trim()}${english.match(/\s*$/)[0]}`;
+
+const forget = (node) => {
+  textRecords.get(node)?.span?.remove();
+  textRecords.delete(node);
+};
+
 const translateTextNode = (node) => {
   const record = textRecords.get(node);
   const current = node.nodeValue;
-  if (record && current === record.hindi) return;
+  if (record && current === record.shown) return;
   // New text from React (or never seen): this is the English to work from
+  forget(node);
   const hindi = translateText(current);
-  if (hindi === null || hindi === current) {
-    textRecords.delete(node);
+  if (hindi === null || hindi === current) return;
+  const parent = node.parentElement;
+  if (!parent || isSkipped(parent)) return;
+  // Next to English, a date in Hindi only repeats the same numbers
+  if (mode === 'both' && DATE_ONLY.test(current.trim())) return;
+
+  if (mode === 'hi') {
+    textRecords.set(node, { english: current, shown: hindi });
+    node.nodeValue = hindi;
     return;
   }
-  if (node.parentElement && isSkipped(node.parentElement)) return;
-  textRecords.set(node, { english: current, hindi });
-  node.nodeValue = hindi;
+
+  if (TEXT_ONLY_PARENTS.has(parent.tagName)) {
+    const shown = bothText(current, hindi);
+    textRecords.set(node, { english: current, shown });
+    node.nodeValue = shown;
+    return;
+  }
+
+  const span = document.createElement('span');
+  span.className = isOnlyText(node) ? 'i18n-hi' : 'i18n-hi i18n-hi-inline';
+  span.lang = 'hi';
+  span.setAttribute('data-i18n', '');
+  span.setAttribute('translate', 'no');
+  span.textContent = hindi.trim();
+  parent.insertBefore(span, node.nextSibling);
+  textRecords.set(node, { english: current, shown: current, span });
 };
 
 const translateAttributes = (element) => {
-  if (!element.getAttribute) return;
+  if (!element.getAttribute || isOurs(element)) return;
   let records = attributeRecords.get(element);
   for (const name of ATTRIBUTES) {
     const current = element.getAttribute(name);
     if (current === null) continue;
-    if (records?.[name] && records[name].hindi === current) continue;
+    if (records?.[name] && records[name].shown === current) continue;
     const hindi = translateText(current);
     if (hindi === null || hindi === current) continue;
+    const shown = mode === 'hi' ? hindi : bothText(current, hindi);
     if (!records) {
       records = {};
       attributeRecords.set(element, records);
     }
-    records[name] = { english: current, hindi };
-    element.setAttribute(name, hindi);
+    records[name] = { english: current, shown };
+    element.setAttribute(name, shown);
   }
 };
 
@@ -149,31 +192,35 @@ const translateTree = (root) => {
     translateTextNode(root);
     return;
   }
-  if (root.nodeType !== Node.ELEMENT_NODE || SKIP_TAGS.has(root.tagName)) return;
+  if (root.nodeType !== Node.ELEMENT_NODE || SKIP_TAGS.has(root.tagName) || isOurs(root)) return;
   translateAttributes(root);
   const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT, {
-    acceptNode: (node) => (node.nodeType === Node.ELEMENT_NODE && SKIP_TAGS.has(node.tagName)
+    acceptNode: (node) => (node.nodeType === Node.ELEMENT_NODE && (SKIP_TAGS.has(node.tagName) || isOurs(node))
       ? NodeFilter.FILTER_REJECT
       : NodeFilter.FILTER_ACCEPT)
   });
-  for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+  // Collected first: adding the Hindi lines while walking would walk into them
+  const nodes = [];
+  for (let node = walker.nextNode(); node; node = walker.nextNode()) nodes.push(node);
+  for (const node of nodes) {
     if (node.nodeType === Node.TEXT_NODE) translateTextNode(node);
     else translateAttributes(node);
   }
 };
 
 const restoreTree = (root) => {
+  root.querySelectorAll('[data-i18n]').forEach((span) => span.remove());
   const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT);
   for (let node = walker.currentNode; node; node = walker.nextNode()) {
     if (node.nodeType === Node.TEXT_NODE) {
       const record = textRecords.get(node);
-      if (record && node.nodeValue === record.hindi) node.nodeValue = record.english;
+      if (record && node.nodeValue === record.shown) node.nodeValue = record.english;
       textRecords.delete(node);
     } else {
       const records = attributeRecords.get(node);
       if (!records) continue;
       for (const [name, record] of Object.entries(records)) {
-        if (node.getAttribute(name) === record.hindi) node.setAttribute(name, record.english);
+        if (node.getAttribute(name) === record.shown) node.setAttribute(name, record.english);
       }
       attributeRecords.delete(node);
     }
@@ -184,14 +231,27 @@ let observer = null;
 let nativeConfirm = null;
 let nativeAlert = null;
 
-const startHindi = () => {
-  if (observer) return;
+// "Delete this sale?" boxes are drawn by the browser, not the page
+const dialogText = (message) => {
+  const english = String(message ?? '');
+  const hindi = translateText(english);
+  if (hindi === null) return message;
+  return mode === 'hi' ? hindi : `${english}\n\n${hindi}`;
+};
+
+const start = () => {
   translateTree(document.body);
   observer = new MutationObserver((mutations) => {
     for (const mutation of mutations) {
       if (mutation.type === 'characterData') translateTextNode(mutation.target);
       else if (mutation.type === 'attributes') translateAttributes(mutation.target);
-      else mutation.addedNodes.forEach(translateTree);
+      else {
+        // Text React took away takes its Hindi line with it
+        mutation.removedNodes.forEach((node) => {
+          if (node.nodeType === Node.TEXT_NODE) forget(node);
+        });
+        mutation.addedNodes.forEach(translateTree);
+      }
     }
   });
   observer.observe(document.body, {
@@ -202,14 +262,13 @@ const startHindi = () => {
     attributeFilter: ATTRIBUTES
   });
 
-  // "Delete this sale?" boxes are drawn by the browser, not the page
   nativeConfirm = window.confirm;
   nativeAlert = window.alert;
-  window.confirm = (message) => nativeConfirm.call(window, translateText(String(message ?? '')) ?? message);
-  window.alert = (message) => nativeAlert.call(window, translateText(String(message ?? '')) ?? message);
+  window.confirm = (message) => nativeConfirm.call(window, dialogText(message));
+  window.alert = (message) => nativeAlert.call(window, dialogText(message));
 };
 
-const stopHindi = () => {
+const stop = () => {
   if (!observer) return;
   observer.disconnect();
   observer = null;
@@ -218,8 +277,13 @@ const stopHindi = () => {
   if (nativeAlert) window.alert = nativeAlert;
 };
 
+// "en", "hi" or "both"
 export const applyLanguage = (language) => {
-  document.documentElement.lang = language === 'hi' ? 'hi' : 'en';
-  if (language === 'hi') startHindi();
-  else stopHindi();
+  const next = language === 'hi' || language === 'both' ? language : 'en';
+  document.documentElement.lang = next === 'hi' ? 'hi' : 'en';
+  document.documentElement.dataset.language = next;
+  if (next === mode) return;
+  stop();
+  mode = next;
+  if (mode !== 'en') start();
 };
