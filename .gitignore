@@ -1,0 +1,4 @@
+# Deploy state and logs written on the server by deploy/deploy.sh
+.deploy/
+*/dist-next/
+*/dist-old/

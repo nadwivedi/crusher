@@ -1,8 +1,9 @@
-import { LayoutDashboard, LogOut, Mountain, Users2 } from 'lucide-react'
+import { LayoutDashboard, LogOut, Mountain, Rocket, Users2 } from 'lucide-react'
 
 const NAV_ITEMS = [
   { key: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { key: 'users', label: 'Users', icon: Users2, showCount: true },
+  { key: 'deploy', label: 'Deploy', icon: Rocket },
 ]
 
 /** Left rail of the admin panel: brand, the sections, and the signed-in admin with logout. */

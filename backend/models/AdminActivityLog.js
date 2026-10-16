@@ -6,13 +6,13 @@ const adminActivityLogSchema = new mongoose.Schema(
   {
     action: {
       type: String,
-      enum: ["create", "update", "delete", "activate", "deactivate", "access", "login"],
+      enum: ["create", "update", "delete", "activate", "deactivate", "access", "login", "deploy"],
       required: true,
     },
     // What kind of record was touched
     entity: {
       type: String,
-      enum: ["user", "admin"],
+      enum: ["user", "admin", "server"],
       required: true,
     },
     entityId: { type: String },

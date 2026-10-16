@@ -30,11 +30,13 @@ import Sidebar from '../components/Sidebar'
 import StatCard from '../components/StatCard'
 import DashboardView from './DashboardView'
 import ActivityCenter from './ActivityCenter'
+import DeployView from './DeployView'
 
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api').replace(/\/$/, '')
 const ADMIN_AUTH_ENDPOINT = `${API_BASE_URL}/admin/auth`
 const USERS_ENDPOINT = `${API_BASE_URL}/admin/users`
 const ACTIVITY_ENDPOINT = `${API_BASE_URL}/admin/audit/activity`
+const DEPLOY_ENDPOINT = `${API_BASE_URL}/admin/deploy`
 
 const emptyForm = {
   name: '',
@@ -130,7 +132,7 @@ const getAvatarClass = (seed) => {
 
 function AdminPage() {
   const [admin, setAdmin] = useState(null)
-  // 'dashboard' | 'users' | 'activity'. The activity center has no link: only Ctrl+Alt+Space opens it,
+  // 'dashboard' | 'users' | 'deploy' | 'activity'. The activity center has no link: only Ctrl+Alt+Space opens it,
   // and it is kept in memory only, so a refresh or moving to another section closes it again.
   const [view, setView] = useState('dashboard')
   const [users, setUsers] = useState([])
@@ -546,6 +548,8 @@ function AdminPage() {
             </div>
           )
           : <DashboardView users={users} />)}
+
+        {view === 'deploy' && <DeployView endpoint={DEPLOY_ENDPOINT} onSessionEnd={handleSessionEnd} />}
 
         {view === 'activity' && (
           <ActivityCenter endpoint={ACTIVITY_ENDPOINT} onLock={() => setView('dashboard')} onSessionEnd={handleSessionEnd} />

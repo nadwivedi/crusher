@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import axios from 'axios'
-import { Activity, Ban, CheckCircle2, Eye, Loader2, LogIn, Pencil, Plus, RefreshCw, Search, Trash2 } from 'lucide-react'
+import { Activity, Ban, CheckCircle2, Eye, Loader2, LogIn, Pencil, Plus, RefreshCw, Rocket, Search, Trash2 } from 'lucide-react'
 
 // Dates are pinned to India time so the admin's device timezone can't shift a day.
 const IST = 'Asia/Kolkata'
@@ -52,8 +52,8 @@ const rangeFor = (key) => {
   return { from: shiftDate(today, preset.days[0]), to: shiftDate(today, preset.days[1]) }
 }
 
-const ENTITIES = { user: 'Users', admin: 'Admin Logins' }
-const ENTITY_SINGULAR = { user: 'User', admin: 'Admin' }
+const ENTITIES = { user: 'Users', admin: 'Admin Logins', server: 'Deploys' }
+const ENTITY_SINGULAR = { user: 'User', admin: 'Admin', server: 'Server' }
 
 // How each kind of action is shown in the list
 const ACTIONS = {
@@ -64,6 +64,7 @@ const ACTIONS = {
   deactivate: { label: 'Deactivated', icon: Ban, tile: 'bg-amber-50 text-amber-700 ring-amber-200' },
   access: { label: 'Opened as user', icon: Eye, tile: 'bg-violet-50 text-violet-700 ring-violet-200' },
   login: { label: 'Login', icon: LogIn, tile: 'bg-stone-100 text-stone-600 ring-stone-200' },
+  deploy: { label: 'Deploy', icon: Rocket, tile: 'bg-indigo-50 text-indigo-700 ring-indigo-200' },
 }
 
 const Tile = ({ label, value, accent = 'text-stone-900' }) => (
