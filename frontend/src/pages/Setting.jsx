@@ -41,7 +41,7 @@ const formatPlanDate = (value) => (value
 
 // Where the owner's plan stands today: { label, badge }
 const planStatus = (plan) => {
-  if (plan?.type === 'lifetime') return { label: 'Lifetime · never expires', badge: 'badge-green' };
+  if (plan?.type === 'lifetime') return { label: 'Lifetime', badge: 'badge-green' };
   if (!plan?.endAt) return { label: 'End date not set', badge: 'badge-gray' };
   const days = Math.round((new Date(dayKey(plan.endAt)) - new Date(dayKey(Date.now()))) / DAY_MS);
   if (days < 0) return { label: `Expired ${-days} day${days === -1 ? '' : 's'} ago`, badge: 'badge-red' };
@@ -193,7 +193,7 @@ export default function Setting() {
               </div>
               <div className="min-w-0">
                 <dt className="flex items-center gap-1 text-xs font-medium text-slate-500"><CalendarClock size={13} /> Plan expires</dt>
-                <dd className="mt-0.5 text-sm font-semibold text-slate-800">{isLifetime ? 'Never' : formatPlanDate(user.plan.endAt)}</dd>
+                <dd className="mt-0.5 text-sm font-semibold text-slate-800">{isLifetime ? 'Lifetime plan (never expires)' : formatPlanDate(user.plan.endAt)}</dd>
               </div>
             </dl>
           </section>

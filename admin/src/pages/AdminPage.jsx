@@ -615,6 +615,14 @@ function AdminPage() {
 
   // Plan period and where it stands: "16 Oct 2026 → 16 Oct 2027" and "Expires in 12 days"
   const renderPlanDates = (user) => {
+    if (user.planType === 'lifetime') {
+      return (
+        <span className="mt-1 block text-[11px] text-stone-500">
+          {user.planStartAt ? `Started ${formatDay(user.planStartAt)} · ` : ''}
+          <span className="font-semibold text-emerald-700">Lifetime plan (never expires)</span>
+        </span>
+      )
+    }
     const status = planStatus(user)
     return (
       <span className="mt-1 block text-[11px] text-stone-500">
@@ -976,7 +984,7 @@ function AdminPage() {
                   <label className="grid gap-1.5">
                     {renderFieldLabel('Plan Ends On')}
                     {form.planType === 'lifetime' ? (
-                      <span className="flex h-[38px] items-center rounded-lg border border-dashed border-stone-300 px-3 text-sm text-stone-500">Never expires</span>
+                      <span className="flex h-[38px] items-center rounded-lg border border-dashed border-stone-300 px-3 text-sm text-stone-500">Lifetime plan (never expires)</span>
                     ) : (
                       <input
                         name="planEndAt"
