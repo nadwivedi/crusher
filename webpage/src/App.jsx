@@ -8,6 +8,7 @@ import Contact from './pages/Contact';
 import Pricing from './pages/Pricing';
 import Features from './pages/Features';
 import KeywordLanding from './pages/KeywordLanding';
+import CrusherErpBuyingGuide from './pages/CrusherErpBuyingGuide';
 import { landingPages } from './data/landingPages';
 
 function App() {
@@ -21,6 +22,7 @@ function App() {
           <Route path="/about" element={<About />} />
           <Route path="/pricing" element={<Pricing />} />
           <Route path="/contact" element={<Contact />} />
+          <Route path="/how-to-choose-crusher-plant-erp-software" element={<CrusherErpBuyingGuide />} />
           {landingPages.map(({ slug }) => (
             <Route key={slug} path={`/${slug}`} element={<KeywordLanding key={slug} slug={slug} />} />
           ))}
