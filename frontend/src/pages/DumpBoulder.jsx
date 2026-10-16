@@ -94,10 +94,10 @@ const getPeriodLabel = ({ preset, fromDate, toDate, month, year }) => {
 
 const isStockIn = (row) => row.type === 'to_dump';
 
-// How the weight was taken: slip, trips × average, or trips fed
+// How the weight was taken: slip or trips × average (both ways); older hopper entries had only a weight
 const describeWeight = (row) => {
-  if (isStockIn(row) && row.entryMode === 'bulk') return `${row.trips} trips × ${formatTon(row.averageWeight)} T`;
-  if (isStockIn(row)) return `Slip ${formatKg(row.grossWeight)} − ${formatKg(row.tareWeight)} kg`;
+  if (row.entryMode === 'bulk') return `${row.trips} trips × ${formatTon(row.averageWeight)} T`;
+  if (Number(row.grossWeight || 0) > 0) return `Slip ${formatKg(row.grossWeight)} − ${formatKg(row.tareWeight)} kg`;
   return row.trips ? `${row.trips} trips` : '';
 };
 

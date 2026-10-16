@@ -29,7 +29,7 @@ const createVoucherNumber = async (userId, type, movementDate) => {
 
 /**
  * Entry fields from the request (weights in kg).
- * Boulder → dump: one slip (gross − tare) or bulk (trips × average). Dump → hopper: the weight fed, trips optional.
+ * Boulder → dump and dump → hopper: one slip (gross − tare) or bulk (trips × average).
  */
 const readMovement = async (body, userId) => {
   const type = String(body.type || "").trim();
@@ -60,13 +60,16 @@ const readMovement = async (body, userId) => {
     }
   }
 
-  if (type === "to_dump" && body.entryMode === "bulk") {
+  // Both ways (onto the dump and into the hopper) take one slip or bulk trips.
+  // A hopper entry sent with only a weight (older screens) is saved as that weight.
+  const hasSlip = body.grossWeight !== undefined && body.grossWeight !== null && body.grossWeight !== "";
+  if (body.entryMode === "bulk") {
     const trips = Math.floor(toNumber(body.trips));
     const averageWeight = roundKg(body.averageWeight);
     if (trips < 1) throw new Error("Number of trips must be at least 1");
     if (averageWeight <= 0) throw new Error("Average weight per trip must be more than 0");
     Object.assign(movement, { entryMode: "bulk", trips, averageWeight, weight: roundKg(trips * averageWeight) });
-  } else if (type === "to_dump") {
+  } else if (type === "to_dump" || hasSlip) {
     const grossWeight = roundKg(body.grossWeight);
     const tareWeight = roundKg(body.tareWeight);
     if (grossWeight <= tareWeight) throw new Error("Gross weight must be more than tare weight");
