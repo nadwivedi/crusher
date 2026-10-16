@@ -3,6 +3,18 @@ const { ensureDieselStock } = require("../utils/diesel");
 const User = require("../models/User");
 const { createAccessLink } = require("../utils/adminAccess");
 const { forgetAccountStatus } = require("../utils/accountStatus");
+const { recordAdminActivity, snapshot, diffSnapshots } = require("../utils/adminActivityLog");
+
+// Fields compared for the activity center when a user is added, edited or deleted
+const USER_FIELDS = [
+  { key: "name", label: "Name" },
+  { key: "mobile", label: "Mobile" },
+  { key: "email", label: "Email" },
+  { key: "state", label: "State" },
+  { key: "district", label: "District" },
+  { key: "planType", label: "Plan" },
+  { key: "planPrice", label: "Plan Price" },
+];
 
 const saltRounds = 10;
 
@@ -103,6 +115,15 @@ const createUser = async (req, res) => {
 
     await ensureDieselStock(user._id).catch(() => {});
 
+    recordAdminActivity(req, {
+      action: "create",
+      entity: "user",
+      entityId: user._id,
+      entityName: user.name,
+      summary: `Added user ${user.name} (${user.mobile})`,
+      changes: diffSnapshots({}, snapshot(user, USER_FIELDS), USER_FIELDS),
+    });
+
     return res.status(201).json({
       success: true,
       message: "User created successfully",
@@ -126,6 +147,7 @@ const updateUser = async (req, res) => {
     if (!user) {
       return res.status(404).json({ success: false, message: "User not found" });
     }
+    const before = snapshot(user, USER_FIELDS);
 
     if (mobile !== undefined) {
       if (!validateMobile(mobile)) {
@@ -166,7 +188,8 @@ const updateUser = async (req, res) => {
     if (state !== undefined) user.state = state.trim();
     if (district !== undefined) user.district = district.trim();
 
-    if (password !== undefined && password !== "") {
+    const passwordChanged = password !== undefined && password !== "";
+    if (passwordChanged) {
       if (String(password).length < 6) {
         return res.status(400).json({ success: false, message: "Password must be at least 6 characters" });
       }
@@ -174,6 +197,19 @@ const updateUser = async (req, res) => {
     }
 
     await user.save();
+
+    const changes = diffSnapshots(before, snapshot(user, USER_FIELDS), USER_FIELDS);
+    if (passwordChanged) changes.push({ field: "Password", from: "••••••", to: "Changed" });
+    if (changes.length) {
+      recordAdminActivity(req, {
+        action: "update",
+        entity: "user",
+        entityId: user._id,
+        entityName: user.name,
+        summary: `Edited user ${user.name}`,
+        changes,
+      });
+    }
 
     return res.json({
       success: true,
@@ -198,6 +234,15 @@ const deleteUser = async (req, res) => {
     if (!user) {
       return res.status(404).json({ success: false, message: "User not found" });
     }
+
+    recordAdminActivity(req, {
+      action: "delete",
+      entity: "user",
+      entityId: user._id,
+      entityName: user.name,
+      summary: `Deleted user ${user.name} (${user.mobile})`,
+      changes: diffSnapshots(snapshot(user, USER_FIELDS), {}, USER_FIELDS),
+    });
 
     return res.json({ success: true, message: "User deleted successfully" });
   } catch (error) {
@@ -224,6 +269,14 @@ const setUserStatus = async (req, res) => {
     }
     forgetAccountStatus(user._id);
 
+    recordAdminActivity(req, {
+      action: isActive ? "activate" : "deactivate",
+      entity: "user",
+      entityId: user._id,
+      entityName: user.name,
+      summary: `${isActive ? "Activated" : "Deactivated"} user ${user.name}`,
+    });
+
     return res.json({
       success: true,
       message: isActive ? "Account activated" : "Account deactivated",
@@ -242,6 +295,13 @@ const getUserAccessLink = async (req, res) => {
     if (!user) {
       return res.status(404).json({ success: false, message: "User not found" });
     }
+    recordAdminActivity(req, {
+      action: "access",
+      entity: "user",
+      entityId: user._id,
+      entityName: user.name,
+      summary: `Opened the app as ${user.name}`,
+    });
     return res.json({ success: true, data: { url: createAccessLink(user._id, req.adminId), name: user.name } });
   } catch (error) {
     console.error(error);

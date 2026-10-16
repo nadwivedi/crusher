@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import axios from 'axios'
 import { ToastContainer, toast } from 'react-toastify'
 import 'react-toastify/dist/ReactToastify.css'
@@ -28,10 +28,13 @@ import {
 } from 'lucide-react'
 import Sidebar from '../components/Sidebar'
 import StatCard from '../components/StatCard'
+import DashboardView from './DashboardView'
+import ActivityCenter from './ActivityCenter'
 
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api').replace(/\/$/, '')
 const ADMIN_AUTH_ENDPOINT = `${API_BASE_URL}/admin/auth`
 const USERS_ENDPOINT = `${API_BASE_URL}/admin/users`
+const ACTIVITY_ENDPOINT = `${API_BASE_URL}/admin/audit/activity`
 
 const emptyForm = {
   name: '',
@@ -127,6 +130,9 @@ const getAvatarClass = (seed) => {
 
 function AdminPage() {
   const [admin, setAdmin] = useState(null)
+  // 'dashboard' | 'users' | 'activity'. The activity center has no link: only Ctrl+Alt+Space opens it,
+  // and it is kept in memory only, so a refresh or moving to another section closes it again.
+  const [view, setView] = useState('dashboard')
   const [users, setUsers] = useState([])
   const [form, setForm] = useState(emptyForm)
   const [editingId, setEditingId] = useState(null)
@@ -184,6 +190,25 @@ function AdminPage() {
     }
 
     checkAdminSession()
+  }, [])
+
+  // Ctrl+Alt+Space (only after admin login) opens the hidden activity center
+  useEffect(() => {
+    if (!admin) return undefined
+    const onKeyDown = (event) => {
+      if (!event.ctrlKey || !event.altKey || event.metaKey || event.shiftKey || event.code !== 'Space') return
+      event.preventDefault()
+      setView('activity')
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [admin])
+
+  // The admin session ended while a page was open: back to the sign-in screen
+  const handleSessionEnd = useCallback(() => {
+    setAdmin(null)
+    setUsers([])
+    setView('dashboard')
   }, [])
 
   const handleChange = (event) => {
@@ -400,6 +425,7 @@ function AdminPage() {
       setEditingId(null)
       setIsModalOpen(false)
       setSearch('')
+      setView('dashboard')
     }
   }
 
@@ -509,9 +535,23 @@ function AdminPage() {
 
   return (
     <div className="flex min-h-screen flex-col bg-[#f5f4f0] lg:flex-row" style={{ colorScheme: 'light' }}>
-      <Sidebar userCount={users.length} adminEmail={admin.email} onLogout={handleAdminLogout} />
+      <Sidebar view={view} onNavigate={setView} userCount={users.length} adminEmail={admin.email} onLogout={handleAdminLogout} />
 
       <main className="min-w-0 flex-1 space-y-4 p-3 sm:p-5 lg:p-6">
+        {view === 'dashboard' && (isLoading
+          ? (
+            <div className="flex flex-col items-center justify-center gap-3 py-20 text-stone-500">
+              <Loader2 className="h-6 w-6 animate-spin text-stone-700" />
+              <p className="text-sm">Loading dashboard…</p>
+            </div>
+          )
+          : <DashboardView users={users} />)}
+
+        {view === 'activity' && (
+          <ActivityCenter endpoint={ACTIVITY_ENDPOINT} onLock={() => setView('dashboard')} onSessionEnd={handleSessionEnd} />
+        )}
+
+        {view === 'users' && (<>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="text-xl font-bold text-stone-900">Users</h1>
@@ -686,6 +726,7 @@ function AdminPage() {
             </div>
           )}
         </section>
+        </>)}
 
         {isModalOpen ? (
           <div className="fixed inset-0 z-40 grid place-items-center bg-black/40 p-4" onClick={resetForm}>

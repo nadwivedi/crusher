@@ -9,6 +9,7 @@ const { backfillDieselStock } = require("./utils/diesel");
 const authRoutes = require("./routes/authRoutes");
 const adminAuthRoutes = require("./routes/adminAuthRoutes");
 const adminUserRoutes = require("./routes/adminUserRoutes");
+const adminAuditRoutes = require("./routes/adminAuditRoutes");
 const bankRoutes = require("./routes/bankRoutes");
 const boulderRoutes = require("./routes/boulderRoutes");
 const dumpStockRoutes = require("./routes/dumpStockRoutes");
@@ -58,6 +59,7 @@ app.get("/", (req, res) => {
 app.use("/api/users", authRoutes);
 app.use("/api/admin/auth", adminAuthRoutes);
 app.use("/api/admin/users", adminUserRoutes);
+app.use("/api/admin/audit", adminAuditRoutes);
 app.use("/api/banks", bankRoutes);
 app.use("/api/boulders", boulderRoutes);
 app.use("/api/dump-stock", dumpStockRoutes);

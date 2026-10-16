@@ -1,6 +1,7 @@
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const Admin = require("../models/Admin");
+const { recordAdminActivity } = require("../utils/adminActivityLog");
 
 const ADMIN_COOKIE_NAME = process.env.ADMIN_AUTH_COOKIE_NAME || "admin_auth_token";
 
@@ -60,6 +61,15 @@ const loginAdmin = async (req, res) => {
     );
 
     setAdminCookie(res, token);
+
+    recordAdminActivity(req, {
+      action: "login",
+      entity: "admin",
+      entityId: admin._id,
+      entityName: admin.email,
+      summary: `${admin.email} signed in to the admin panel`,
+      admin,
+    });
 
     return res.json({
       success: true,
