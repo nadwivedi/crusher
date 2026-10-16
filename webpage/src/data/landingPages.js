@@ -576,6 +576,66 @@ export const landingPages = [
     related: ['stone-crusher-management-app', 'quarry-crusher-management-software', 'stone-crusher-management-software'],
   },
   {
+    slug: 'vehicle-maintenance-reminder-app-for-crusher-plant',
+    navLabel: 'Vehicle Maintenance Reminders',
+    seoTitle: 'Vehicle Maintenance Reminder App for Crusher Plant',
+    description:
+      'Get reminded before every dumper, loader, JCB, tipper and DG set is due for service by KM, hours or date, and before insurance, fitness, permit or PUC expires.',
+    keywords: [
+      'vehicle maintenance reminder app for crusher plant',
+      'vehicle service reminder app',
+      'crusher plant vehicle maintenance software',
+      'JCB loader service reminder',
+      'truck insurance fitness permit expiry reminder',
+      'dumper maintenance schedule app',
+      'gaadi service reminder app',
+    ],
+    eyebrow: 'Service & Document Reminders',
+    h1: 'Vehicle Maintenance Reminder App for Crusher Plants',
+    intro:
+      'A crusher plant runs on its machines. When a loader misses its oil change or a tipper is stopped at a checkpost because its fitness expired, the whole dispatch line waits. CrusherBook remembers every service and every paper for you: it watches the KM and hour meter readings you already enter, counts the days to each expiry, and warns you on the app and on WhatsApp before anything falls due.',
+    painTitle: 'Why machines break down at the worst time',
+    painPoints: [
+      {
+        title: 'Service dates live in the mechanic\'s head',
+        text: 'Engine oil, filters and greasing are due every few hundred hours, but nobody tracks the hours, so service happens only after a breakdown.',
+      },
+      {
+        title: 'Papers expire without notice',
+        text: 'Insurance, fitness, permit, PUC and road tax each expire on a different date. One missed date means a challan, a seized truck or an accident with no cover.',
+      },
+      {
+        title: 'Repair money with no history',
+        text: 'Spares and labour are paid in cash, so you cannot tell which old dumper is eating money and should be sold.',
+      },
+    ],
+    featuresTitle: 'How CrusherBook keeps every machine on time',
+    features: [
+      { icon: 'wrench', title: 'Service due by KM, hours or days', text: 'Set a schedule per machine, like engine oil every 250 hours for the loader or every 10,000 km for the tipper. The next due point moves forward after each service.' },
+      { icon: 'gauge', title: 'Uses your meter readings', text: 'The daily KM and hour meter readings you already enter count down to the next service, so nobody has to calculate it by hand.' },
+      { icon: 'shield', title: 'Insurance, fitness, permit, PUC', text: 'Save the expiry date of every paper for every vehicle. Each one shows how many days are left and turns red when it is close.' },
+      { icon: 'bell', title: 'Due-soon list every morning', text: 'One screen shows what is overdue, what is due this week and what is coming, for all vehicles and the DG set together.' },
+      { icon: 'message', title: 'WhatsApp alerts', text: 'The owner and supervisor get a WhatsApp message before a service or a paper falls due. Automatic alerts are on the Advanced plan.' },
+      { icon: 'receipt', title: 'Service history and cost', text: 'Mark a service done with the cost, parts and workshop. See the full history and total maintenance spend of each machine.' },
+    ],
+    stepsTitle: 'How reminders work',
+    steps: [
+      { title: 'Add the vehicle', text: 'Pick the dumper, loader, JCB or DG set already in CrusherBook and add its service schedule and paper expiry dates.' },
+      { title: 'Readings come in', text: 'The supervisor enters meter readings as usual. CrusherBook counts KM and hours towards the next service.' },
+      { title: 'Reminder goes out', text: 'A few days or a few hours before the due point, the app shows it and WhatsApp sends a message.' },
+      { title: 'Mark it done', text: 'After the service, enter the cost and parts. The next due point is set automatically.' },
+    ],
+    faq: [
+      { question: 'What is a vehicle maintenance reminder app for a crusher plant?', answer: 'It is an app that remembers when each machine at the plant needs its next service and when each vehicle paper expires. It warns you in advance, so dumpers, loaders, JCBs and the DG set are serviced on time and trucks never run with expired insurance or fitness.' },
+      { question: 'Can it remind me by hour meter for JCB and loader?', answer: 'Yes. Machines like JCBs, loaders, excavators and the DG set are scheduled by running hours, trucks and dumpers by kilometres, and anything can also be scheduled by date, like every 90 days.' },
+      { question: 'Which vehicle papers can it track?', answer: 'Insurance, fitness certificate, permit, PUC, road tax, and any other document you add with its own expiry date.' },
+      { question: 'Will I get the reminder on WhatsApp?', answer: 'Every plan shows due and overdue items in the app. Automatic WhatsApp reminders to the owner and supervisor are part of the Advanced and Enterprise plans.' },
+      { question: 'Does it work for hired vehicles?', answer: 'Yes. You can keep paper expiry dates for hired trucks too, so you know a hired vehicle\'s insurance or fitness is valid before it carries your material.' },
+      { question: 'What does it cost?', answer: 'Maintenance and document reminders are part of CrusherBook, along with meter readings, diesel and repair expenses. Plans start at Rs 9,999 per year, with a free demo first.' },
+    ],
+    related: ['crusher-plant-vehicle-mileage-tracking-software', 'stone-crusher-fleet-management-software', 'crusher-plant-diesel-consumption-tracking-software'],
+  },
+  {
     slug: 'crusher-plant-production-report-software',
     navLabel: 'Production Report Software',
     seoTitle: 'Crusher Plant Production Report Software | Daily & Monthly',

@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { Link, Navigate } from 'react-router-dom';
 import {
-  ArrowRight, BarChart3, BookOpen, Boxes, Building2, Camera, ChevronDown, Factory, Fuel, Gauge, Landmark,
-  MessageCircle, Mountain, Receipt, Scale, TriangleAlert, Truck, Undo2, UserCog, Users, Wallet,
+  ArrowRight, BarChart3, BellRing, BookOpen, Boxes, Building2, CalendarClock, Camera, ChevronDown, Factory, Fuel, Gauge, Landmark,
+  MessageCircle, Mountain, Receipt, Scale, ShieldCheck, TriangleAlert, Truck, Undo2, UserCog, Users, Wallet, Wrench,
 } from 'lucide-react';
 import ContactActions from '../components/ContactActions';
 import Seo from '../components/Seo';
@@ -11,9 +11,11 @@ import { landingPageBySlug } from '../data/landingPages';
 const SITE_URL = 'https://crusherbook.com';
 
 const iconMap = {
+  bell: BellRing,
   book: BookOpen,
   boxes: Boxes,
   building: Building2,
+  calendar: CalendarClock,
   camera: Camera,
   chart: BarChart3,
   factory: Factory,
@@ -24,11 +26,13 @@ const iconMap = {
   mountain: Mountain,
   receipt: Receipt,
   scale: Scale,
+  shield: ShieldCheck,
   truck: Truck,
   undo: Undo2,
   userCog: UserCog,
   users: Users,
   wallet: Wallet,
+  wrench: Wrench,
 };
 
 const buildSchema = (page) => {
