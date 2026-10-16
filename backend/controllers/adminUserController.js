@@ -14,6 +14,8 @@ const USER_FIELDS = [
   { key: "district", label: "District" },
   { key: "planType", label: "Plan" },
   { key: "planPrice", label: "Plan Price" },
+  { key: "planStartAt", label: "Plan Start" },
+  { key: "planEndAt", label: "Plan End" },
 ];
 
 const saltRounds = 10;
@@ -31,6 +33,8 @@ const sanitizeAdminUser = (user) => ({
   lastActivityAt: user.lastActivityAt || null,
   planType: user.planType || "yearly",
   planPrice: Number(user.planPrice || 0),
+  planStartAt: user.planStartAt || null,
+  planEndAt: user.planEndAt || null,
   isActive: user.isActive !== false,
   deactivatedAt: user.deactivatedAt || null,
   createdAt: user.createdAt,
@@ -41,20 +45,39 @@ const validateMobile = (mobile = "") => /^\d{10}$/.test(String(mobile).trim());
 
 const PLAN_TYPES = ["yearly", "lifetime"];
 
+// 'YYYY-MM-DD' -> start of that day in India time; null when empty, undefined when not a date
+const readPlanDate = (value) => {
+  if (value === null || value === undefined || value === "") return null;
+  const text = value instanceof Date ? value.toISOString() : String(value);
+  const iso = /^\d{4}-\d{2}-\d{2}$/.test(text) ? text : null;
+  if (!iso) {
+    const parsed = new Date(text);
+    return Number.isNaN(parsed.getTime()) ? undefined : parsed;
+  }
+  const date = new Date(`${iso}T00:00:00+05:30`);
+  return Number.isNaN(date.getTime()) ? undefined : date;
+};
+
 // The plan from the request, or an error message for the admin
 const readPlan = (body = {}) => {
   const planType = String(body.planType || "").trim();
   if (!PLAN_TYPES.includes(planType)) return { error: "Choose a yearly or lifetime plan" };
   const planPrice = Number(body.planPrice);
   if (!Number.isFinite(planPrice) || planPrice < 0) return { error: "Enter a valid plan price" };
-  return { planType, planPrice: Math.round(planPrice * 100) / 100 };
+  const planStartAt = readPlanDate(body.planStartAt);
+  if (planStartAt === undefined) return { error: "Enter a valid plan start date" };
+  // A lifetime plan never ends
+  const planEndAt = planType === "lifetime" ? null : readPlanDate(body.planEndAt);
+  if (planEndAt === undefined) return { error: "Enter a valid plan end date" };
+  if (planStartAt && planEndAt && planEndAt < planStartAt) return { error: "Plan end date must be after the start date" };
+  return { planType, planPrice: Math.round(planPrice * 100) / 100, planStartAt, planEndAt };
 };
 
 const getUsers = async (_req, res) => {
   try {
     const users = await User.find({})
       .sort({ createdAt: -1 })
-      .select("name email mobile state district lastLoginAt lastActivityAt planType planPrice isActive deactivatedAt createdAt updatedAt");
+      .select("name email mobile state district lastLoginAt lastActivityAt planType planPrice planStartAt planEndAt isActive deactivatedAt createdAt updatedAt");
 
     return res.json({
       success: true,
@@ -111,6 +134,8 @@ const createUser = async (req, res) => {
       district: district?.trim() || "",
       planType: plan.planType,
       planPrice: plan.planPrice,
+      planStartAt: plan.planStartAt,
+      planEndAt: plan.planEndAt,
     });
 
     await ensureDieselStock(user._id).catch(() => {});
@@ -175,13 +200,16 @@ const updateUser = async (req, res) => {
       user.email = normalizedEmail || undefined;
     }
 
-    if (req.body.planType !== undefined || req.body.planPrice !== undefined) {
-      const plan = readPlan({ planType: req.body.planType ?? user.planType, planPrice: req.body.planPrice ?? user.planPrice });
+    const planFields = ["planType", "planPrice", "planStartAt", "planEndAt"];
+    if (planFields.some((key) => req.body[key] !== undefined)) {
+      const plan = readPlan(Object.fromEntries(planFields.map((key) => [key, req.body[key] !== undefined ? req.body[key] : user[key]])));
       if (plan.error) {
         return res.status(400).json({ success: false, message: plan.error });
       }
       user.planType = plan.planType;
       user.planPrice = plan.planPrice;
+      user.planStartAt = plan.planStartAt;
+      user.planEndAt = plan.planEndAt;
     }
 
     if (name !== undefined) user.name = name.trim();

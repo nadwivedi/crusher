@@ -28,7 +28,7 @@ const recordAdminActivity = (req, { action, entity, entityId, entityName, summar
 // Make values comparable and readable: empty -> null, dates -> YYYY-MM-DD
 const normalize = (value) => {
   if (value === undefined || value === null || value === "") return null;
-  if (value instanceof Date) return Number.isNaN(value.getTime()) ? null : value.toISOString().slice(0, 10);
+  if (value instanceof Date) return Number.isNaN(value.getTime()) ? null : value.toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
   return value;
 };
 

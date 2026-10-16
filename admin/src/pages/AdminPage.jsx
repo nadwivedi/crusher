@@ -47,6 +47,50 @@ const emptyForm = {
   district: '',
   planType: 'yearly',
   planPrice: '',
+  planStartAt: '',
+  planEndAt: '',
+}
+
+// Plan dates are whole days in India time, kept as 'YYYY-MM-DD' in the form
+const toDateInput = (value) => {
+  if (!value) return ''
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? '' : date.toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' })
+}
+const todayInput = () => toDateInput(Date.now())
+
+// A yearly plan ends one year after it starts
+const addOneYear = (iso) => {
+  if (!iso) return ''
+  const [y, m, d] = iso.split('-').map(Number)
+  return new Date(Date.UTC(y + 1, m - 1, d)).toISOString().slice(0, 10)
+}
+
+const newUserForm = () => {
+  const start = todayInput()
+  return { ...emptyForm, planStartAt: start, planEndAt: addOneYear(start) }
+}
+
+const formatDay = (value) => {
+  if (!value) return ''
+  return new Date(value).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata', day: 'numeric', month: 'short', year: 'numeric' })
+}
+
+// Where the plan stands today: { label, tone } for the badge under the plan
+const PLAN_TONES = {
+  expired: 'bg-rose-50 text-rose-700 ring-rose-200',
+  soon: 'bg-amber-50 text-amber-700 ring-amber-200',
+  ok: 'bg-emerald-50 text-emerald-700 ring-emerald-200',
+  none: 'bg-stone-100 text-stone-500 ring-stone-200',
+}
+const planStatus = (user) => {
+  if (user?.planType === 'lifetime') return { label: 'Never expires', tone: 'ok' }
+  if (!user?.planEndAt) return { label: 'End date not set', tone: 'none' }
+  const days = Math.round((new Date(toDateInput(user.planEndAt)) - new Date(todayInput())) / DAY_MS)
+  if (days < 0) return { label: `Expired ${formatDay(user.planEndAt)}`, tone: 'expired' }
+  if (days === 0) return { label: 'Expires today', tone: 'soon' }
+  if (days <= 30) return { label: `Expires in ${days} day${days === 1 ? '' : 's'}`, tone: 'soon' }
+  return { label: `Till ${formatDay(user.planEndAt)}`, tone: 'ok' }
 }
 
 const PLAN_OPTIONS = [
@@ -218,6 +262,20 @@ function AdminPage() {
     setForm((current) => ({ ...current, [name]: value }))
   }
 
+  // A new start date moves a yearly plan's end date to one year later
+  const handlePlanStartChange = (event) => {
+    const start = event.target.value
+    setForm((current) => ({ ...current, planStartAt: start, planEndAt: current.planType === 'yearly' ? addOneYear(start) : current.planEndAt }))
+  }
+
+  const choosePlanType = (planType) => {
+    setForm((current) => ({
+      ...current,
+      planType,
+      planEndAt: planType === 'yearly' && !current.planEndAt ? addOneYear(current.planStartAt) : current.planEndAt,
+    }))
+  }
+
   const handleMobileChange = (event) => {
     const digitsOnly = event.target.value.replace(/\D/g, '').slice(0, 10)
     setForm((current) => ({ ...current, mobile: digitsOnly }))
@@ -236,7 +294,7 @@ function AdminPage() {
   }
 
   const openCreateModal = () => {
-    setForm(emptyForm)
+    setForm(newUserForm())
     setEditingId(null)
     setShowPassword(false)
     setIsModalOpen(true)
@@ -272,6 +330,8 @@ function AdminPage() {
       district: user.district || '',
       planType: user.planType === 'lifetime' ? 'lifetime' : 'yearly',
       planPrice: Number(user.planPrice || 0) > 0 ? String(user.planPrice) : '',
+      planStartAt: toDateInput(user.planStartAt),
+      planEndAt: toDateInput(user.planEndAt),
     })
     setShowPassword(false)
     setIsModalOpen(true)
@@ -291,6 +351,26 @@ function AdminPage() {
         district: form.district.trim(),
         planType: form.planType,
         planPrice: Number(form.planPrice || 0),
+        planStartAt: form.planStartAt || null,
+        planEndAt: form.planType === 'lifetime' ? null : form.planEndAt || null,
+      }
+
+      if (!payload.planStartAt) {
+        toast.error('Enter the plan start date')
+        setIsSubmitting(false)
+        return
+      }
+
+      if (form.planType === 'yearly' && !payload.planEndAt) {
+        toast.error('Enter the plan end date')
+        setIsSubmitting(false)
+        return
+      }
+
+      if (payload.planEndAt && payload.planEndAt < payload.planStartAt) {
+        toast.error('Plan end date must be after the start date')
+        setIsSubmitting(false)
+        return
       }
 
       if (!(payload.planPrice > 0)) {
@@ -533,6 +613,17 @@ function AdminPage() {
   const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).getTime()
   const newThisMonth = users.filter((user) => user.createdAt && new Date(user.createdAt).getTime() >= monthStart).length
 
+  // Plan period and where it stands: "16 Oct 2026 → 16 Oct 2027" and "Expires in 12 days"
+  const renderPlanDates = (user) => {
+    const status = planStatus(user)
+    return (
+      <span className="mt-1 block text-[11px] text-stone-500">
+        {user.planStartAt ? `${formatDay(user.planStartAt)} → ${user.planType === 'lifetime' ? 'Lifetime' : formatDay(user.planEndAt) || '?'}` : 'Plan dates not set'}
+        <span className={`ml-1.5 inline-flex rounded-full px-1.5 py-px text-[10px] font-semibold ring-1 ring-inset ${PLAN_TONES[status.tone]}`}>{status.label}</span>
+      </span>
+    )
+  }
+
   const renderFieldLabel = (text) => <span className="text-sm font-medium text-stone-700">{text}</span>
 
   return (
@@ -645,6 +736,7 @@ function AdminPage() {
                           <span className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold ring-1 ring-inset ${user.planType === 'lifetime' ? 'bg-violet-50 text-violet-700 ring-violet-200' : 'bg-sky-50 text-sky-700 ring-sky-200'}`}>
                             {describePlan(user)}
                           </span>
+                          {renderPlanDates(user)}
                         </td>
                         <td className="px-3 py-2.5">{[user.district, user.state].filter(Boolean).join(', ') || '—'}</td>
                         <td className="whitespace-nowrap px-3 py-2.5">{renderWhen(user.createdAt, 'Unknown')}</td>
@@ -692,6 +784,7 @@ function AdminPage() {
                       <p className="mt-0.5 flex items-center gap-1 text-xs text-stone-500"><Phone className="h-3 w-3" />{user.mobile}</p>
                       {user.email && <p className="mt-0.5 flex min-w-0 items-center gap-1 text-xs text-stone-500"><Mail className="h-3 w-3 shrink-0" /><span className="truncate">{user.email}</span></p>}
                       {user.createdAt && <p className="mt-0.5 flex items-center gap-1 text-xs text-stone-500"><UserPlus className="h-3 w-3" />Joined {formatDateTime(user.createdAt)}</p>}
+                      {renderPlanDates(user)}
                       <p className="mt-0.5 flex flex-wrap items-center gap-x-3 text-xs text-stone-400">
                         <span className="inline-flex items-center gap-1" title={user.lastLoginAt ? formatDateTime(user.lastLoginAt) : undefined}>
                           <Clock className="h-3 w-3" />Signed in {user.lastLoginAt ? formatTimeAgo(user.lastLoginAt) : 'never'}
@@ -835,7 +928,7 @@ function AdminPage() {
                         <button
                           key={option.value}
                           type="button"
-                          onClick={() => setForm((current) => ({ ...current, planType: option.value }))}
+                          onClick={() => choosePlanType(option.value)}
                           aria-pressed={active}
                           className={`rounded-lg border px-3 py-2 text-left transition ${active ? 'border-stone-900 bg-stone-900 text-white' : 'border-stone-300 bg-white text-stone-700 hover:bg-stone-100'}`}
                         >
@@ -867,6 +960,36 @@ function AdminPage() {
                     )}
                   </div>
                 </label>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <label className="grid gap-1.5">
+                    {renderFieldLabel('Plan Starts On')}
+                    <input
+                      name="planStartAt"
+                      type="date"
+                      value={form.planStartAt}
+                      onChange={handlePlanStartChange}
+                      className={`${INPUT_CLASS} pl-3`}
+                      required
+                    />
+                  </label>
+                  <label className="grid gap-1.5">
+                    {renderFieldLabel('Plan Ends On')}
+                    {form.planType === 'lifetime' ? (
+                      <span className="flex h-[38px] items-center rounded-lg border border-dashed border-stone-300 px-3 text-sm text-stone-500">Never expires</span>
+                    ) : (
+                      <input
+                        name="planEndAt"
+                        type="date"
+                        value={form.planEndAt}
+                        min={form.planStartAt || undefined}
+                        onChange={handleChange}
+                        className={`${INPUT_CLASS} pl-3`}
+                        required
+                      />
+                    )}
+                  </label>
+                </div>
 
                 <div className="flex justify-end gap-2 border-t border-stone-200 pt-4">
                   <button type="button" onClick={resetForm} className={SECONDARY_BUTTON}>Cancel</button>

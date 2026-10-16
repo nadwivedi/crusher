@@ -63,6 +63,15 @@ const userSchema = new mongoose.Schema(
       default: 0,
       min: 0,
     },
+    // When the plan started and when it ends (start of that day in India time). A lifetime plan has no end.
+    planStartAt: {
+      type: Date,
+      default: null,
+    },
+    planEndAt: {
+      type: Date,
+      default: null,
+    },
     featureAccess: {
       saleReturn: {
         type: Boolean,

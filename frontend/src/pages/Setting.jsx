@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { toast } from 'react-toastify';
 import { useNavigate } from 'react-router-dom';
-import { ChevronRight, CloudSun, LogOut, MessageCircle, Moon, Sun } from 'lucide-react';
+import { CalendarCheck, CalendarClock, ChevronRight, CloudSun, Crown, LogOut, MessageCircle, Moon, Sun } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import EmployeeManagement from '../components/EmployeeManagement';
 import { getStoredTheme, setStoredTheme } from '../utils/theme';
@@ -30,6 +30,25 @@ const RATE_KEYS = MATERIALS.flatMap((material) => [material.tonKey, material.cub
 const readUserMaterialRates = (user) => Object.fromEntries(
   RATE_KEYS.map((key) => [key, Number(user?.materialRates?.[key] || 0) || ''])
 );
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+// Plan dates are whole days in India time
+const dayKey = (value) => new Date(value).toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+const formatPlanDate = (value) => (value
+  ? new Date(value).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata', day: 'numeric', month: 'long', year: 'numeric' })
+  : 'Not set');
+
+// Where the owner's plan stands today: { label, badge }
+const planStatus = (plan) => {
+  if (plan?.type === 'lifetime') return { label: 'Lifetime · never expires', badge: 'badge-green' };
+  if (!plan?.endAt) return { label: 'End date not set', badge: 'badge-gray' };
+  const days = Math.round((new Date(dayKey(plan.endAt)) - new Date(dayKey(Date.now()))) / DAY_MS);
+  if (days < 0) return { label: `Expired ${-days} day${days === -1 ? '' : 's'} ago`, badge: 'badge-red' };
+  if (days === 0) return { label: 'Expires today', badge: 'badge-orange' };
+  if (days <= 30) return { label: `${days} day${days === 1 ? '' : 's'} left`, badge: 'badge-orange' };
+  return { label: `${days} days left`, badge: 'badge-green' };
+};
 
 function RateInput({ name, value, onChange }) {
   return (
@@ -150,6 +169,36 @@ export default function Setting() {
           ))}
         </dl>
       </section>
+
+      {/* Plan: set by the admin, shown to the owner */}
+      {user?.role !== 'employee' && user?.plan && (() => {
+        const status = planStatus(user.plan);
+        const isLifetime = user.plan.type === 'lifetime';
+        return (
+          <section className="card">
+            <div className="flex items-center gap-3">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-50 text-amber-600">
+                <Crown size={20} />
+              </span>
+              <div className="min-w-0 flex-1">
+                <h2 className="text-sm font-bold text-slate-900">Your Plan</h2>
+                <p className="text-xs text-slate-500">{isLifetime ? 'Lifetime plan' : 'Yearly plan'}</p>
+              </div>
+              <span className={`${status.badge} shrink-0`}>{status.label}</span>
+            </div>
+            <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-3 border-t border-slate-100 pt-4">
+              <div className="min-w-0">
+                <dt className="flex items-center gap-1 text-xs font-medium text-slate-500"><CalendarCheck size={13} /> Plan started</dt>
+                <dd className="mt-0.5 text-sm font-semibold text-slate-800">{formatPlanDate(user.plan.startAt)}</dd>
+              </div>
+              <div className="min-w-0">
+                <dt className="flex items-center gap-1 text-xs font-medium text-slate-500"><CalendarClock size={13} /> Plan expires</dt>
+                <dd className="mt-0.5 text-sm font-semibold text-slate-800">{isLifetime ? 'Never' : formatPlanDate(user.plan.endAt)}</dd>
+              </div>
+            </dl>
+          </section>
+        );
+      })()}
 
       {/* WhatsApp: its own page, opened only from here */}
       {user?.role !== 'employee' && (

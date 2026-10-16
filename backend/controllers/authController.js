@@ -23,6 +23,12 @@ const sanitizeUser = (user) => ({
   state: user.state,
   district: user.district,
   lastLoginAt: user.lastLoginAt,
+  // The owner's subscription, shown on the Settings page
+  plan: {
+    type: user.planType || "yearly",
+    startAt: user.planStartAt || null,
+    endAt: user.planEndAt || null,
+  },
   featureAccess: {
     saleReturn: Boolean(user.featureAccess?.saleReturn),
     stockAdjustment: Boolean(user.featureAccess?.stockAdjustment),
