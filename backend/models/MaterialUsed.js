@@ -53,6 +53,12 @@ const materialUsedSchema = new mongoose.Schema(
       trim: true,
       default: "",
     },
+    // Set on the issue made by a pump fill purchase: it is changed and removed only through that purchase
+    purchase: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Purchase",
+      default: null,
+    },
   },
   {
     timestamps: true,
@@ -60,6 +66,7 @@ const materialUsedSchema = new mongoose.Schema(
 );
 
 materialUsedSchema.index({ userId: 1, usedDate: -1, createdAt: -1 });
+materialUsedSchema.index({ userId: 1, purchase: 1 }, { partialFilterExpression: { purchase: { $type: "objectId" } } });
 
 // Who added and last changed each entry
 materialUsedSchema.plugin(require("./plugins/audit"));

@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Pencil, Search, Wallet, ChevronRight, Users } from 'lucide-react';
+import { Pencil, Search, Trash2, Wallet, ChevronRight, Users } from 'lucide-react';
 import { toast } from 'react-toastify';
 import apiClient from '../../utils/api';
-import { canEditEntry } from '../../utils/staffAccess';
+import { canDeleteEntries, canEditEntry } from '../../utils/staffAccess';
 import { useAuth } from '../../context/AuthContext';
 import AddPartyPopup from './component/AddPartyPopup';
 import { getSupplierRatesPayload } from '../../utils/transport';
@@ -155,6 +155,34 @@ export default function Party() {
     setEditingId(null);
     setFormData(getInitialForm());
   };
+
+  // The default Cash party stays; a party with entries is refused by the server with what still uses it
+  const isDefaultCash = (party) => party?.type === 'cash-in-hand' && String(party?.name || '').trim().toLowerCase() === 'cash';
+  const handleDelete = async (party) => {
+    if (!window.confirm(`Delete party "${party.name}"? This cannot be undone.`)) return;
+    try {
+      await apiClient.delete(`/parties/${party._id}`);
+      toast.success('Party deleted');
+      fetchParties();
+    } catch (err) {
+      toast.error(err.message || 'Could not delete this party', { autoClose: 6000 });
+    }
+  };
+
+  const deleteButton = (item, size = 'h-9 w-9') => (canDeleteEntries(user) && !isDefaultCash(item) ? (
+    <button
+      type="button"
+      title="Delete party"
+      aria-label={`Delete ${item.name}`}
+      onClick={(event) => {
+        event.stopPropagation();
+        handleDelete(item);
+      }}
+      className={`inline-flex ${size} shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500 shadow-sm transition-all hover:border-rose-300 hover:bg-rose-50 hover:text-rose-600`}
+    >
+      <Trash2 className="h-4 w-4" />
+    </button>
+  ) : null);
 
   const handleEdit = (party) => {
     setEditingId(party._id);
@@ -345,18 +373,21 @@ export default function Party() {
                             </p>
                           </div>
                         </div>
-                        {canEditEntry(user, item) && (
-                          <button
-                            type="button"
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              handleEdit(item);
-                            }}
-                            className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 shadow-sm transition-all hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-600"
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </button>
-                        )}
+                        <div className="flex shrink-0 items-center gap-1.5">
+                          {canEditEntry(user, item) && (
+                            <button
+                              type="button"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                handleEdit(item);
+                              }}
+                              className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 shadow-sm transition-all hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-600"
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </button>
+                          )}
+                          {deleteButton(item)}
+                        </div>
                       </div>
 
                       <div className="mt-6 flex flex-col gap-3">
@@ -399,7 +430,7 @@ export default function Party() {
                           </td>
                           <td className="px-6 py-4 font-bold text-slate-600">{item.mobile || '-'}</td>
                           <td className="px-6 py-4">
-                            <div className="flex items-center justify-center">
+                            <div className="flex items-center justify-center gap-1.5">
                               {canEditEntry(user, item) && (
                                 <button
                                   type="button"
@@ -412,6 +443,7 @@ export default function Party() {
                                   <Pencil className="h-4 w-4" />
                                 </button>
                               )}
+                              {deleteButton(item)}
                             </div>
                           </td>
                         </tr>

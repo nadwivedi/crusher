@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { ChevronDown, FileCheck2, Plus, Trash2, Upload } from 'lucide-react';
+import { ChevronDown, FileCheck2, Fuel, Package, Plus, Trash2, Upload } from 'lucide-react';
 import { handlePopupFormKeyDown } from '../../../utils/popupFormKeyboard';
 import { useFloatingDropdownPosition } from '../../../utils/useFloatingDropdownPosition';
 import AccountSelect from '../../../components/AccountSelect';
@@ -55,6 +55,7 @@ export default function AddPurchasePopup({
   handleProductInputChange,
   handleProductInputKeyDown,
   onOpenNewProduct,
+  onOpenPumpFill,
   handleSelectEnterMoveNext,
   handleInvoiceUpload,
   handleAddItem,
@@ -141,6 +142,39 @@ export default function AddPurchasePopup({
       onKeyDown={(event) => handlePopupFormKeyDown(event, handleCancel)}
     >
       {error && <p className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-medium text-rose-700">{error}</p>}
+
+      {/* Diesel filled at a petrol pump straight into a vehicle has its own short form */}
+      {!editingId && onOpenPumpFill && (
+        <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Purchase type">
+          <button
+            type="button"
+            role="radio"
+            aria-checked="true"
+            tabIndex={-1}
+            className="flex items-center gap-2.5 rounded-xl border border-primary-600 bg-primary-50 px-3 py-2.5 text-left ring-1 ring-primary-600"
+          >
+            <Package size={20} className="shrink-0 text-primary-700" />
+            <span className="min-w-0">
+              <span className="block text-sm font-bold text-primary-800">Purchase into Stock</span>
+              <span className="block truncate text-xs text-primary-700/80">Goods come into your stock</span>
+            </span>
+          </button>
+          <button
+            type="button"
+            role="radio"
+            aria-checked="false"
+            tabIndex={-1}
+            onClick={onOpenPumpFill}
+            className="flex items-center gap-2.5 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-left transition hover:border-amber-300 hover:bg-amber-50"
+          >
+            <Fuel size={20} className="shrink-0 text-amber-600" />
+            <span className="min-w-0">
+              <span className="block text-sm font-bold text-slate-800">Pump Fill</span>
+              <span className="block truncate text-xs text-slate-500">Diesel filled at a petrol pump straight into a vehicle</span>
+            </span>
+          </button>
+        </div>
+      )}
 
       <FormSection number={1} title="Purchase Details" tone="blue">
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">

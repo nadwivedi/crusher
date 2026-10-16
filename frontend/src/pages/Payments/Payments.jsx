@@ -5,7 +5,7 @@ import MoneyVoucherList from '../../components/MoneyVoucherList';
 import { toast } from 'react-toastify';
 import apiClient from '../../utils/api';
 import { useAuth } from '../../context/AuthContext';
-import { canDeleteEntries } from '../../utils/staffAccess';
+import { canDeleteEntries, canEditEntry } from '../../utils/staffAccess';
 import { getBankDisplayName } from '../../utils/bankAccounts';
 import AddPaymentPopup from './component/AddPaymentPopup';
 
@@ -116,6 +116,8 @@ export default function Payments({ modalOnly = false, onModalFinish = null }) {
   const [search, setSearch] = useState('');
   const [dateFilter, setDateFilter] = useState('');
   const [showForm, setShowForm] = useState(false);
+  // The payment being edited; null while adding a new one
+  const [editingId, setEditingId] = useState(null);
   const [partyQuery, setPartyQuery] = useState('');
   const [partyListIndex, setPartyListIndex] = useState(-1);
   const [isPartySectionActive, setIsPartySectionActive] = useState(false);
@@ -667,6 +669,7 @@ export default function Payments({ modalOnly = false, onModalFinish = null }) {
   };
 
   const handleOpenForm = () => {
+    setEditingId(null);
     setFormData(getInitialForm(defaultPaymentMethod));
     setPartyQuery('');
     setPartyListIndex(-1);
@@ -685,6 +688,7 @@ export default function Payments({ modalOnly = false, onModalFinish = null }) {
     }
 
     setShowForm(false);
+    setEditingId(null);
     setFormData(getInitialForm(defaultPaymentMethod));
     setPartyQuery('');
     setPartyListIndex(-1);
@@ -719,7 +723,8 @@ export default function Payments({ modalOnly = false, onModalFinish = null }) {
 
     try {
       setLoading(true);
-      await apiClient.post('/payments', {
+      const save = editingId ? (body) => apiClient.put(`/payments/${editingId}`, body) : (body) => apiClient.post('/payments', body);
+      await save({
         party: formData.party || null,
         amount: Number(formData.amount),
         method: formData.method,
@@ -733,7 +738,7 @@ export default function Payments({ modalOnly = false, onModalFinish = null }) {
       setError('');
       fetchPayments();
       fetchPurchases();
-      toast.success('Payment created successfully', TOAST_OPTIONS);
+      toast.success(editingId ? 'Payment updated' : 'Payment created successfully', TOAST_OPTIONS);
       if (modalOnly && typeof onModalFinish === 'function') {
         onModalFinish();
       }
@@ -743,6 +748,31 @@ export default function Payments({ modalOnly = false, onModalFinish = null }) {
       setLoading(false);
     }
   };
+
+  // Opens the form on a saved payment. One made by a purchase is changed through it instead.
+  const handleEdit = (id) => {
+    const entry = payments.find((item) => item._id === id);
+    if (!entry) return;
+    setEditingId(entry._id);
+    setFormData({
+      ...getInitialForm(entry.method),
+      party: entry.party?._id || entry.party || '',
+      amount: String(entry.amount ?? ''),
+      method: entry.method || '',
+      paymentDate: formatPaymentDateInput(entry.paymentDate),
+      notes: entry.notes || '',
+      refType: entry.refType || 'none',
+      refId: entry.refId ? String(entry.refId) : ''
+    });
+    setPartyQuery(entry.party ? getPartyDisplayName(entry.party) : '');
+    setPartyListIndex(-1);
+    setIsPartySectionActive(false);
+    setPaymentAccountQuery(entry.method || '');
+    setError('');
+    setShowForm(true);
+  };
+
+  const isAutoPayment = (entry) => Boolean(entry.paymentSource) && entry.paymentSource !== 'manual';
 
   const handleDelete = async (id) => {
     if (!window.confirm('Are you sure you want to delete this payment?')) return;
@@ -766,6 +796,8 @@ export default function Payments({ modalOnly = false, onModalFinish = null }) {
       <>
         <AddPaymentPopup
           showForm={showForm}
+          editing={Boolean(editingId)}
+        editing={Boolean(editingId)}
           loading={loading}
           error={error}
           formData={formData}
@@ -835,15 +867,19 @@ export default function Payments({ modalOnly = false, onModalFinish = null }) {
         account: payment.method,
         reference: payment.refType === 'purchase' ? 'Against Purchase' : 'On Account',
         notes: payment.notes,
-        amount: Number(payment.amount || 0)
+        amount: Number(payment.amount || 0),
+        editable: !isAutoPayment(payment) && canEditEntry(user, payment),
+        lockedHint: isAutoPayment(payment) ? "Made by a purchase's paid amount: edit that purchase" : ''
       }))}
       emptyTitle="No payments found"
       emptyHint='Use "New Payment" to record money you paid.'
       canDelete={canDeletePayments}
       onDelete={handleDelete}
+      onEdit={handleEdit}
     >
       <AddPaymentPopup
         showForm={showForm}
+        editing={Boolean(editingId)}
         loading={loading}
         error={showForm ? error : ''}
         formData={formData}

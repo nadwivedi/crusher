@@ -99,6 +99,25 @@ const purchaseSchema = new mongoose.Schema(
       trim: true,
       default: "",
     },
+    // Pump fill: bought at a petrol pump straight into this vehicle, never kept in stock.
+    // Saving it also issues the items to the vehicle (a linked Material Used entry), so stock is unchanged.
+    fillVehicle: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Vehicle",
+      default: null,
+    },
+    fillVehicleNo: {
+      type: String,
+      trim: true,
+      uppercase: true,
+      default: "",
+    },
+    // The vehicle's KM / hour meter at the pump (optional)
+    fillMeter: {
+      type: Number,
+      min: 0,
+      default: null,
+    },
   },
   {
     timestamps: true,

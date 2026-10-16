@@ -136,6 +136,7 @@ const getActivity = async (req, res) => {
         title: purchase.party?.name || "Purchase",
         detail: join([
           number("PUR", purchase.purchaseNumber),
+          purchase.fillVehicleNo ? `Pump fill → ${purchase.fillVehicleNo}` : "",
           itemsText(purchase.items),
           purchase.supplierInvoice ? `Bill ${purchase.supplierInvoice}` : "",
           dueText(purchase.totalAmount, purchase.paidAmount),
@@ -170,7 +171,8 @@ const getActivity = async (req, res) => {
         detail: join([expense.party?.name, expense.notes, expense.method]),
         amount: toNumber(expense.amount),
       })),
-      ...materialUsed.map((entry) => {
+      // A pump fill's issue is already shown by its purchase
+      ...materialUsed.filter((entry) => !entry.purchase).map((entry) => {
         const usedFor = usedForOf(entry);
         return {
           ...base("materialUsed", entry, entry.usedDate),

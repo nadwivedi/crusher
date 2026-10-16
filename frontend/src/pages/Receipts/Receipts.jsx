@@ -5,7 +5,7 @@ import MoneyVoucherList from '../../components/MoneyVoucherList';
 import { toast } from 'react-toastify';
 import apiClient from '../../utils/api';
 import { useAuth } from '../../context/AuthContext';
-import { canDeleteEntries } from '../../utils/staffAccess';
+import { canDeleteEntries, canEditEntry } from '../../utils/staffAccess';
 import { getBankDisplayName } from '../../utils/bankAccounts';
 import AddReceiptPopup from './component/AddReceiptPopup';
 
@@ -100,6 +100,8 @@ export default function Receipts({ modalOnly = false, onModalFinish = null }) {
   const [search, setSearch] = useState('');
   const [dateFilter, setDateFilter] = useState('');
   const [showForm, setShowForm] = useState(false);
+  // The receipt being edited; null while adding a new one
+  const [editingId, setEditingId] = useState(null);
   const [partyQuery, setPartyQuery] = useState('');
   const [partyListIndex, setPartyListIndex] = useState(-1);
   const [isPartySectionActive, setIsPartySectionActive] = useState(false);
@@ -634,6 +636,7 @@ export default function Receipts({ modalOnly = false, onModalFinish = null }) {
   };
 
   const handleOpenForm = () => {
+    setEditingId(null);
     setFormData(getInitialForm(defaultReceiptMethod));
     setPartyQuery('');
     setPartyListIndex(-1);
@@ -652,6 +655,7 @@ export default function Receipts({ modalOnly = false, onModalFinish = null }) {
     }
 
     setShowForm(false);
+    setEditingId(null);
     setFormData(getInitialForm(defaultReceiptMethod));
     setPartyQuery('');
     setPartyListIndex(-1);
@@ -687,21 +691,23 @@ export default function Receipts({ modalOnly = false, onModalFinish = null }) {
     try {
       setLoading(true);
       const resolvedRefType = formData.refId ? 'sale' : 'none';
-      await apiClient.post('/receipts', {
+      const save = editingId ? (body) => apiClient.put(`/receipts/${editingId}`, body) : (body) => apiClient.post('/receipts', body);
+      await save({
         party: formData.party || null,
         amount: Number(formData.amount),
         method: formData.method,
         receiptDate: parsedReceiptDate,
         notes: formData.notes,
-        refType: 'none',
-        refId: null
+        // A receipt against a sale keeps that link when edited
+        refType: resolvedRefType,
+        refId: resolvedRefType === 'sale' ? formData.refId : null
       });
 
       handleCloseForm();
       setError('');
       fetchReceipts();
       fetchSales();
-      toast.success('Receipt created successfully', TOAST_OPTIONS);
+      toast.success(editingId ? 'Receipt updated' : 'Receipt created successfully', TOAST_OPTIONS);
       if (modalOnly && typeof onModalFinish === 'function') {
         onModalFinish();
       }
@@ -711,6 +717,31 @@ export default function Receipts({ modalOnly = false, onModalFinish = null }) {
       setLoading(false);
     }
   };
+
+  // Opens the form on a saved receipt. One made by a sale is changed through it instead.
+  const handleEdit = (id) => {
+    const entry = receipts.find((item) => item._id === id);
+    if (!entry) return;
+    setEditingId(entry._id);
+    setFormData({
+      ...getInitialForm(entry.method),
+      party: entry.party?._id || entry.party || '',
+      amount: String(entry.amount ?? ''),
+      method: entry.method || '',
+      receiptDate: formatReceiptDateInput(entry.receiptDate),
+      notes: entry.notes || '',
+      refType: entry.refType || 'none',
+      refId: entry.refId ? String(entry.refId) : ''
+    });
+    setPartyQuery(entry.party ? getPartyDisplayName(entry.party) : '');
+    setPartyListIndex(-1);
+    setIsPartySectionActive(false);
+    setReceiptAccountQuery(entry.method || '');
+    setError('');
+    setShowForm(true);
+  };
+
+  const isAutoReceipt = (entry) => Boolean(entry.receiptSource) && entry.receiptSource !== 'manual';
 
   const handleDelete = async (id) => {
     if (!window.confirm('Are you sure you want to delete this receipt?')) return;
@@ -734,6 +765,8 @@ export default function Receipts({ modalOnly = false, onModalFinish = null }) {
       <>
         <AddReceiptPopup
           showForm={showForm}
+          editing={Boolean(editingId)}
+        editing={Boolean(editingId)}
           loading={loading}
           error={error}
           formData={formData}
@@ -801,15 +834,19 @@ export default function Receipts({ modalOnly = false, onModalFinish = null }) {
         account: receipt.method,
         reference: receipt.refType === 'sale' ? 'Against Sale' : 'On Account',
         notes: receipt.notes,
-        amount: Number(receipt.amount || 0)
+        amount: Number(receipt.amount || 0),
+        editable: !isAutoReceipt(receipt) && canEditEntry(user, receipt),
+        lockedHint: isAutoReceipt(receipt) ? "Made by a sale's received amount: edit that sale" : ''
       }))}
       emptyTitle="No receipts found"
       emptyHint='Use "New Receipt" to record money you received.'
       canDelete={canDeleteReceipts}
       onDelete={handleDelete}
+      onEdit={handleEdit}
     >
       <AddReceiptPopup
         showForm={showForm}
+        editing={Boolean(editingId)}
         loading={loading}
         error={showForm ? error : ''}
         formData={formData}

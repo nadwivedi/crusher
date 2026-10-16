@@ -1,4 +1,4 @@
-import { Inbox, Plus, Search, Trash2 } from 'lucide-react';
+import { Inbox, Pencil, Plus, Search, Trash2 } from 'lucide-react';
 import StatCard from './StatCard';
 
 const PERIODS = [
@@ -14,7 +14,8 @@ const fmt = (n) => new Intl.NumberFormat('en-IN', { style: 'currency', currency:
 
 /**
  * List page shared by Money Received (receipts) and Money Paid (payments).
- * rows: [{ id, number, date, party, account, reference, notes, amount }]
+ * rows: [{ id, number, date, party, account, reference, notes, amount, editable, lockedHint }]
+ * A row with editable gets an Edit button (onEdit); lockedHint explains why one cannot be edited here.
  * children: the page's own add popup.
  */
 export default function MoneyVoucherList({
@@ -24,13 +25,28 @@ export default function MoneyVoucherList({
   search, onSearchChange, searchPlaceholder,
   dateFilter, onDateFilterChange,
   loading, rows, emptyTitle, emptyHint,
-  canDelete, onDelete,
+  canDelete, onDelete, onEdit,
   children
 }) {
-  const deleteButton = (row) => (
-    <button type="button" className="icon-btn hover:bg-rose-50 hover:text-rose-600" title="Delete" aria-label="Delete" onClick={() => onDelete(row.id)}>
-      <Trash2 size={16} />
-    </button>
+  const hasActions = canDelete || (onEdit && rows.some((row) => row.editable));
+  const actionButtons = (row) => (
+    <div className="inline-flex items-center justify-end">
+      {onEdit && row.editable && (
+        <button type="button" className="icon-btn hover:bg-blue-50 hover:text-blue-600" title="Edit" aria-label="Edit" onClick={() => onEdit(row.id)}>
+          <Pencil size={16} />
+        </button>
+      )}
+      {onEdit && !row.editable && row.lockedHint && (
+        <span className="icon-btn cursor-help text-slate-300" title={row.lockedHint} aria-label={row.lockedHint}>
+          <Pencil size={16} />
+        </span>
+      )}
+      {canDelete && (
+        <button type="button" className="icon-btn hover:bg-rose-50 hover:text-rose-600" title="Delete" aria-label="Delete" onClick={() => onDelete(row.id)}>
+          <Trash2 size={16} />
+        </button>
+      )}
+    </div>
   );
 
   return (
@@ -107,7 +123,7 @@ export default function MoneyVoucherList({
                       <span className="badge-blue">{row.account || '-'}</span>
                       <span className="badge-gray">{row.reference}</span>
                     </div>
-                    {canDelete && deleteButton(row)}
+                    {hasActions && actionButtons(row)}
                   </div>
                   {row.notes && <p className="mt-1.5 text-xs text-slate-500">{row.notes}</p>}
                 </li>
@@ -125,7 +141,7 @@ export default function MoneyVoucherList({
                     <th className="tbl-head">Reference</th>
                     <th className="tbl-head">Notes</th>
                     <th className="tbl-head text-right">Amount</th>
-                    {canDelete && <th className="tbl-head text-right">Actions</th>}
+                    {hasActions && <th className="tbl-head text-right">Actions</th>}
                   </tr>
                 </thead>
                 <tbody>
@@ -138,7 +154,7 @@ export default function MoneyVoucherList({
                       <td className="tbl-cell whitespace-nowrap text-slate-500">{row.reference}</td>
                       <td className="tbl-cell text-slate-500"><div className="max-w-[18rem] truncate" title={row.notes || undefined}>{row.notes || '-'}</div></td>
                       <td className={`tbl-cell whitespace-nowrap text-right font-bold ${amountClass}`}>{fmt(row.amount)}</td>
-                      {canDelete && <td className="tbl-cell text-right">{deleteButton(row)}</td>}
+                      {hasActions && <td className="tbl-cell text-right">{actionButtons(row)}</td>}
                     </tr>
                   ))}
                 </tbody>

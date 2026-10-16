@@ -5,6 +5,7 @@ import apiClient from '../../utils/api';
 import StatCard from '../../components/StatCard';
 import Segmented from '../../components/Segmented';
 import MaterialUsed from '../MaterialUsed';
+import PumpFillPopup from '../../components/PumpFillPopup';
 import { describeVehicle } from '../../utils/diesel';
 
 const formatNumber = (value) => Number(value || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 });
@@ -88,6 +89,19 @@ const byOldest = (a, b) => new Date(a.date) - new Date(b.date) || new Date(a.cre
 
 const isTargetRow = (row, target) => row.usedFor === target.kind && (target.kind === 'dg' || (row.vehicleId || row.vehicleNo) === target.key);
 
+const isPump = (row) => row.source === 'pump';
+
+// "⛽ Pump" next to a fill made at a petrol pump; "Stock" for one given from the plant's stock
+const SourceBadge = ({ row }) => (isPump(row)
+  ? <span className="inline-flex items-center gap-1 rounded-md bg-amber-50 px-1.5 py-px text-[11px] font-semibold text-amber-700 ring-1 ring-amber-200"><Fuel size={11} />Pump</span>
+  : <span className="inline-flex rounded-md bg-slate-100 px-1.5 py-px text-[11px] font-semibold text-slate-600">Stock</span>);
+
+// Where a pump fill came from: "HP Pump · Pur-12 · ₹92.5/ltr · meter 45210"
+const pumpDetail = (row, unit) => (row.pump
+  ? [row.pump.partyName, row.pump.refNo, row.pump.rate ? `₹${formatNumber(row.pump.rate)}/${unit}` : '', row.pump.meter !== null && row.pump.meter !== undefined ? `meter ${formatNumber(row.pump.meter)}` : '']
+    .filter(Boolean).join(' · ')
+  : '');
+
 const qtyCell = (qty, unit) => (qty > 0 ? <>{formatNumber(qty)}<span className="ml-1 text-xs font-medium text-slate-400">{unit}</span></> : <span className="text-slate-300">-</span>);
 
 // Today / 7 / 30 days / lifetime of a list of fills
@@ -117,12 +131,15 @@ const buildVehicleTargets = (usage, vehicles, keys) => {
   return [...rowsByKey.entries()]
     .map(([key, rows]) => {
       const vehicle = vehiclesById.get(rows[0].vehicleId);
+      const pump = periodTotals(rows.filter(isPump), keys);
       return {
         key,
         kind: 'vehicle',
         name: rows[0].vehicleNo || vehicle?.vehicleNo || '-',
         subtitle: vehicle ? describeVehicle(vehicle) : '',
-        ...periodTotals(rows, keys)
+        ...periodTotals(rows, keys),
+        pumpD30: pump.d30,
+        pumpLife: pump.life
       };
     })
     .sort((a, b) => b.d30 - a.d30 || b.life - a.life || a.name.localeCompare(b.name));
@@ -170,7 +187,12 @@ function TargetDetail({ target, usage, unit, itemName, addLabel, onBack, childre
       .sort(byOldest);
     return {
       rows: inPeriod.reverse(),
-      stats: { total: sumQty(inPeriod), fills: inPeriod.length }
+      stats: {
+        total: sumQty(inPeriod),
+        stock: sumQty(inPeriod.filter((row) => !isPump(row))),
+        pump: sumQty(inPeriod.filter(isPump)),
+        fills: inPeriod.length
+      }
     };
   }, [usage, target, range]);
 
@@ -195,9 +217,15 @@ function TargetDetail({ target, usage, unit, itemName, addLabel, onBack, childre
         <Segmented options={PERIODS} value={periodKey} onChange={setPeriodKey} />
       </div>
 
-      <dl className="grid grid-cols-2 gap-px border-b border-slate-100 bg-slate-100">
+      <dl className={`grid grid-cols-2 gap-px border-b border-slate-100 bg-slate-100 ${target.kind === 'vehicle' ? 'md:grid-cols-4' : ''}`}>
         {[
           { label: 'Used', value: `${formatNumber(stats.total)} ${unit}` },
+          ...(target.kind === 'vehicle'
+            ? [
+                { label: 'From Stock', value: `${formatNumber(stats.stock)} ${unit}` },
+                { label: 'At Pump', value: `${formatNumber(stats.pump)} ${unit}` }
+              ]
+            : []),
           { label: 'Fills', value: formatNumber(stats.fills) }
         ].map((item) => (
           <div key={item.label} className="bg-white px-4 py-3">
@@ -215,18 +243,23 @@ function TargetDetail({ target, usage, unit, itemName, addLabel, onBack, childre
             <thead>
               <tr>
                 <th className="tbl-head">Date</th>
+                <th className="tbl-head">From</th>
                 <th className="tbl-head text-right">Qty</th>
-                <th className="tbl-head">Notes</th>
+                <th className="tbl-head">Details</th>
               </tr>
             </thead>
             <tbody>
-              {rows.map((row) => (
-                <tr key={row._id} className="tbl-row">
-                  <td className="tbl-cell whitespace-nowrap">{formatDate(row.date)}</td>
-                  <td className="tbl-cell whitespace-nowrap text-right font-bold text-slate-900">{qtyCell(row.qty, unit)}</td>
-                  <td className="tbl-cell text-slate-500"><div className="max-w-[16rem] truncate" title={row.notes || undefined}>{row.notes || '-'}</div></td>
-                </tr>
-              ))}
+              {rows.map((row) => {
+                const detail = isPump(row) ? pumpDetail(row, unit) : row.notes;
+                return (
+                  <tr key={row._id} className="tbl-row">
+                    <td className="tbl-cell whitespace-nowrap">{formatDate(row.date)}</td>
+                    <td className="tbl-cell whitespace-nowrap"><SourceBadge row={row} /></td>
+                    <td className="tbl-cell whitespace-nowrap text-right font-bold text-slate-900">{qtyCell(row.qty, unit)}</td>
+                    <td className="tbl-cell text-slate-500"><div className="max-w-[20rem] truncate" title={detail || undefined}>{detail || '-'}</div></td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -248,6 +281,7 @@ function VehicleSummary({ targets, unit, onOpen }) {
                 <p className="shrink-0 text-xs text-slate-500">Last: {target.lastDate ? formatDate(target.lastDate) : '-'}</p>
               </div>
               {target.subtitle && <p className="text-xs text-slate-500">{target.subtitle}</p>}
+              {target.pumpD30 > 0 && <p className="text-xs font-medium text-amber-700">{formatNumber(target.pumpD30)} {unit} at pump in 30 days</p>}
               <div className="mt-2 grid grid-cols-4 gap-2 text-center">
                 {[['Today', target.today], ['7 Days', target.d7], ['30 Days', target.d30], ['Lifetime', target.life]].map(([label, qty]) => (
                   <div key={label} className="rounded-lg bg-slate-50 px-1 py-1.5">
@@ -270,6 +304,7 @@ function VehicleSummary({ targets, unit, onOpen }) {
               <th className="tbl-head text-right">Last 7 Days</th>
               <th className="tbl-head text-right">Last 30 Days</th>
               <th className="tbl-head text-right">Lifetime</th>
+              <th className="tbl-head text-right">At Pump · 30 Days</th>
               <th className="tbl-head text-right">Fills</th>
               <th className="tbl-head">Last Filled</th>
             </tr>
@@ -285,6 +320,7 @@ function VehicleSummary({ targets, unit, onOpen }) {
                 <td className="tbl-cell whitespace-nowrap text-right">{qtyCell(target.d7, unit)}</td>
                 <td className="tbl-cell whitespace-nowrap text-right font-bold text-slate-900">{qtyCell(target.d30, unit)}</td>
                 <td className="tbl-cell whitespace-nowrap text-right">{qtyCell(target.life, unit)}</td>
+                <td className="tbl-cell whitespace-nowrap text-right text-amber-700">{qtyCell(target.pumpD30, unit)}</td>
                 <td className="tbl-cell whitespace-nowrap text-right">{formatNumber(target.fills)}</td>
                 <td className="tbl-cell whitespace-nowrap">{target.lastDate ? formatDate(target.lastDate) : '-'}</td>
               </tr>
@@ -311,6 +347,9 @@ export default function ItemUsageReport() {
   const [search, setSearch] = useState('');
   const [selectedKey, setSelectedKey] = useState('');
   const [showAddEntry, setShowAddEntry] = useState(false);
+  const [showPumpFill, setShowPumpFill] = useState(false);
+  // All Entries: '' everything, 'pump' pump fills only, 'stock' stock in and out only
+  const [sourceFilter, setSourceFilter] = useState('');
 
   const loadData = async () => {
     setLoading(true);
@@ -331,13 +370,13 @@ export default function ItemUsageReport() {
   useEffect(() => {
     const handleKeyDown = (event) => {
       // The entry popup handles Esc itself
-      if (event.defaultPrevented || event.key !== 'Escape' || showAddEntry) return;
+      if (event.defaultPrevented || event.key !== 'Escape' || showAddEntry || showPumpFill) return;
       if (selectedKey) setSelectedKey('');
       else navigate('/inventory');
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [navigate, showAddEntry, selectedKey]);
+  }, [navigate, showAddEntry, showPumpFill, selectedKey]);
 
   const unit = data?.item?.unit || '';
   const itemName = data?.item?.name || (id ? 'Item' : 'Diesel');
@@ -345,7 +384,13 @@ export default function ItemUsageReport() {
   const addLabel = isDiesel ? 'Give Diesel' : 'Record Use';
 
   const usage = useMemo(() => (data?.usage || []).map((row) => ({ ...row, dateKey: toDateKey(row.date) })), [data]);
-  const purchases = useMemo(() => (data?.purchases || []).map((row) => ({ ...row, dateKey: toDateKey(row.date) })), [data]);
+  const purchases = useMemo(() => (data?.purchases || [])
+    .filter((row) => !row.pumpFill)
+    .map((row) => ({ ...row, dateKey: toDateKey(row.date) })), [data]);
+  // Pump fills bought straight into vehicles: litres and money, for the tiles
+  const pumpPurchases = useMemo(() => (data?.purchases || [])
+    .filter((row) => row.pumpFill)
+    .map((row) => ({ ...row, dateKey: toDateKey(row.date) })), [data]);
 
   // Recomputed when the date changes, so a page left open overnight moves to the new day
   const todayKey = toDateKey(new Date());
@@ -357,15 +402,18 @@ export default function ItemUsageReport() {
       total: sumQty(rows),
       dg: sumQty(rows.filter((row) => row.usedFor === 'dg')),
       vehicle: sumQty(rows.filter((row) => row.usedFor === 'vehicle')),
-      other: sumQty(rows.filter((row) => row.usedFor === 'other'))
+      other: sumQty(rows.filter((row) => row.usedFor === 'other')),
+      pump: sumQty(rows.filter(isPump))
     });
+    const pump30 = pumpPurchases.filter((row) => row.dateKey >= keys.from30 && row.dateKey <= keys.today);
     return {
       today: split(between(keys.today)),
       d7: split(between(keys.from7)),
       d30: split(between(keys.from30)),
-      bought30: sumQty(purchases.filter((row) => row.dateKey >= keys.from30 && row.dateKey <= keys.today))
+      bought30: sumQty(purchases.filter((row) => row.dateKey >= keys.from30 && row.dateKey <= keys.today)),
+      pump30: { qty: sumQty(pump30), amount: pump30.reduce((sum, row) => sum + Number(row.amount || 0), 0), fills: pump30.length }
     };
-  }, [usage, purchases, keys]);
+  }, [usage, purchases, pumpPurchases, keys]);
 
   const dgTotals = useMemo(() => periodTotals(usage.filter((row) => row.usedFor === 'dg'), keys), [usage, keys]);
   const vehicleTargets = useMemo(() => buildVehicleTargets(usage, data?.vehicles, keys), [usage, data, keys]);
@@ -381,13 +429,15 @@ export default function ItemUsageReport() {
   // Day-wise: every day of the period (empty days too, so a missed DG fill shows); lifetime lists only days with entries
   const days = useMemo(() => {
     const byDay = new Map();
-    const blank = (key) => ({ key, dg: 0, vehicle: 0, other: 0, total: 0, bought: 0 });
+    const blank = (key) => ({ key, dg: 0, vehicle: 0, pump: 0, other: 0, total: 0, bought: 0 });
     if (range.from) daysBetween(range.from, range.to).forEach((key) => byDay.set(key, blank(key)));
 
     usage.forEach((row) => {
       if (!row.dateKey || !inRange(row.dateKey, range)) return;
       const day = byDay.get(row.dateKey) || blank(row.dateKey);
-      day[row.usedFor] += row.qty;
+      // Vehicles from stock and vehicles at the pump are separate columns
+      if (isPump(row)) day.pump += row.qty;
+      else day[row.usedFor] += row.qty;
       day.total += row.qty;
       byDay.set(row.dateKey, day);
     });
@@ -404,10 +454,11 @@ export default function ItemUsageReport() {
   const dayTotals = useMemo(() => days.reduce((sum, day) => ({
     dg: sum.dg + day.dg,
     vehicle: sum.vehicle + day.vehicle,
+    pump: sum.pump + day.pump,
     other: sum.other + day.other,
     total: sum.total + day.total,
     bought: sum.bought + day.bought
-  }), { dg: 0, vehicle: 0, other: 0, total: 0, bought: 0 }), [days]);
+  }), { dg: 0, vehicle: 0, pump: 0, other: 0, total: 0, bought: 0 }), [days]);
 
   // In and out together, newest first
   const ledger = useMemo(() => {
@@ -416,16 +467,18 @@ export default function ItemUsageReport() {
         id: `out-${row._id}`,
         date: row.date,
         dateKey: row.dateKey,
-        kind: USED_FOR_TEXT[row.usedFor],
+        source: isPump(row) ? 'pump' : 'stock',
+        kind: isPump(row) ? 'Pump Fill' : USED_FOR_TEXT[row.usedFor],
         name: row.usedFor === 'vehicle' ? row.vehicleNo || '-' : USED_FOR_TEXT[row.usedFor],
         out: row.qty,
         in: 0,
-        detail: row.notes || ''
+        detail: isPump(row) ? pumpDetail(row, unit) : row.notes || ''
       })),
       ...purchases.map((row, index) => ({
         id: `in-${row._id}-${index}`,
         date: row.date,
         dateKey: row.dateKey,
+        source: 'stock',
         kind: 'Purchase',
         name: row.partyName || '-',
         out: 0,
@@ -435,9 +488,10 @@ export default function ItemUsageReport() {
     ];
     return rows
       .filter((row) => inRange(row.dateKey, range))
+      .filter((row) => !sourceFilter || row.source === sourceFilter)
       .filter((row) => !searchText || `${row.kind} ${row.name} ${row.detail}`.toLowerCase().includes(searchText))
       .sort((a, b) => new Date(b.date) - new Date(a.date));
-  }, [usage, purchases, range, searchText, unit]);
+  }, [usage, purchases, range, searchText, unit, sourceFilter]);
 
   const changeTab = (key) => {
     setTab(key);
@@ -446,7 +500,7 @@ export default function ItemUsageReport() {
   };
 
   const splitHint = (split) => (split.total > 0
-    ? `DG ${formatNumber(split.dg)} · Vehicles ${formatNumber(split.vehicle)}${split.other ? ` · Other ${formatNumber(split.other)}` : ''}`
+    ? `DG ${formatNumber(split.dg)} · Vehicles ${formatNumber(split.vehicle)}${split.other ? ` · Other ${formatNumber(split.other)}` : ''}${split.pump ? ` (pump ${formatNumber(split.pump)})` : ''}`
     : 'Nothing used');
 
   const avgRate = Number(data?.avgRate || 0);
@@ -456,7 +510,7 @@ export default function ItemUsageReport() {
       label: 'In Stock',
       tone: 'emerald',
       value: `${formatNumber(data?.item?.currentStock)} ${unit}`,
-      hint: totals.bought30 > 0 ? `Bought ${formatNumber(totals.bought30)} ${unit} in 30 days` : 'Add stock through Purchase'
+      hint: totals.bought30 > 0 ? `Bought for stock ${formatNumber(totals.bought30)} ${unit} in 30 days` : 'Add stock through Purchase'
     },
     { icon: CalendarDays, label: 'Given Today', tone: 'blue', value: `${formatNumber(totals.today.total)} ${unit}`, hint: splitHint(totals.today) },
     { icon: CalendarDays, label: 'Last 7 Days', tone: 'indigo', value: `${formatNumber(totals.d7.total)} ${unit}`, hint: splitHint(totals.d7) },
@@ -468,12 +522,33 @@ export default function ItemUsageReport() {
       hint: avgRate > 0 && totals.d30.total > 0
         ? `≈ ${formatMoney(totals.d30.total * avgRate)} at ${formatMoney(avgRate)}/${unit}`
         : splitHint(totals.d30)
-    }
+    },
+    ...(isDiesel
+      ? [{
+          icon: Fuel,
+          label: 'At Pump · 30 Days',
+          tone: 'rose',
+          value: `${formatNumber(totals.pump30.qty)} ${unit}`,
+          hint: totals.pump30.fills > 0
+            ? `${totals.pump30.fills} fill${totals.pump30.fills === 1 ? '' : 's'} · ${formatMoney(totals.pump30.amount)} · not in stock`
+            : 'Filled at a pump straight into vehicles'
+        }]
+      : [])
   ];
 
   return (
     <div className="page-fade-in space-y-4 px-3 pb-8 pt-4 md:space-y-5 lg:px-6 lg:pt-5">
       {showAddEntry && <MaterialUsed modalOnly presetMaterialId={data?.item?._id} onModalFinish={() => { setShowAddEntry(false); loadData(); }} />}
+      {showPumpFill && (
+        <PumpFillPopup
+          presetVehicle={selectedVehicle?.key && /^[a-f0-9]{24}$/i.test(selectedVehicle.key) ? selectedVehicle.key : ''}
+          onClose={() => setShowPumpFill(false)}
+          onSaved={() => {
+            setShowPumpFill(false);
+            loadData();
+          }}
+        />
+      )}
 
       <div className="page-header">
         <div className="min-w-0">
@@ -484,6 +559,11 @@ export default function ItemUsageReport() {
           <button type="button" className="icon-btn" title="Refresh" aria-label="Refresh" onClick={loadData}>
             <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
           </button>
+          {isDiesel && (
+            <button type="button" className="btn-secondary" onClick={() => setShowPumpFill(true)} title="Diesel filled at a petrol pump straight into a vehicle">
+              <Fuel size={18} /> Pump Fill
+            </button>
+          )}
           <button type="button" className="btn-primary" onClick={() => setShowAddEntry(true)}>
             <Plus size={18} /> {addLabel}
           </button>
@@ -499,7 +579,7 @@ export default function ItemUsageReport() {
         </div>
       ) : data && (
         <div className={`space-y-4 transition-opacity md:space-y-5 ${loading ? 'pointer-events-none opacity-50' : ''}`}>
-          <section className="grid grid-cols-2 gap-2.5 lg:grid-cols-4 md:gap-4">
+          <section className={`grid grid-cols-2 gap-2.5 md:gap-4 ${stats.length > 4 ? 'lg:grid-cols-5' : 'lg:grid-cols-4'}`}>
             {stats.map((stat) => <StatCard key={stat.label} {...stat} />)}
           </section>
 
@@ -510,7 +590,7 @@ export default function ItemUsageReport() {
               <div className="panel-header flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                 <div>
                   <h2 className="text-sm font-bold text-slate-900">Day-wise</h2>
-                  <p className="text-xs text-slate-500">Given out and bought each day · newest first</p>
+                  <p className="text-xs text-slate-500">Used and bought each day · pump fills shown on their own · newest first</p>
                 </div>
                 <Segmented options={PERIODS} value={periodKey} onChange={setPeriodKey} />
               </div>
@@ -518,15 +598,16 @@ export default function ItemUsageReport() {
                 <EmptyState title="No entries yet" hint={`Use "${addLabel}" each time ${itemName} goes to the DG set, a vehicle or the plant.`} />
               ) : (
                 <div className="overflow-x-auto">
-                  <table className="w-full min-w-[640px] text-left">
+                  <table className="w-full min-w-[760px] text-left">
                     <thead>
                       <tr>
                         <th className="tbl-head">Date</th>
                         <th className="tbl-head text-right">DG Set</th>
-                        <th className="tbl-head text-right">Vehicles</th>
+                        <th className="tbl-head text-right">Vehicles · Stock</th>
+                        <th className="tbl-head text-right">Vehicles · Pump</th>
                         <th className="tbl-head text-right">Plant / Other</th>
-                        <th className="tbl-head text-right">Total Given</th>
-                        <th className="tbl-head text-right">Bought</th>
+                        <th className="tbl-head text-right">Total Used</th>
+                        <th className="tbl-head text-right">Bought for Stock</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -535,6 +616,7 @@ export default function ItemUsageReport() {
                           <td className="tbl-cell whitespace-nowrap">{formatDayKey(day.key)}</td>
                           <td className="tbl-cell whitespace-nowrap text-right">{qtyCell(day.dg, unit)}</td>
                           <td className="tbl-cell whitespace-nowrap text-right">{qtyCell(day.vehicle, unit)}</td>
+                          <td className="tbl-cell whitespace-nowrap text-right text-amber-700">{qtyCell(day.pump, unit)}</td>
                           <td className="tbl-cell whitespace-nowrap text-right">{qtyCell(day.other, unit)}</td>
                           <td className="tbl-cell whitespace-nowrap text-right font-bold text-slate-900">{qtyCell(day.total, unit)}</td>
                           <td className="tbl-cell whitespace-nowrap text-right text-emerald-700">{qtyCell(day.bought, unit)}</td>
@@ -546,6 +628,7 @@ export default function ItemUsageReport() {
                         <td className="tbl-cell">Total</td>
                         <td className="tbl-cell whitespace-nowrap text-right">{qtyCell(dayTotals.dg, unit)}</td>
                         <td className="tbl-cell whitespace-nowrap text-right">{qtyCell(dayTotals.vehicle, unit)}</td>
+                        <td className="tbl-cell whitespace-nowrap text-right text-amber-700">{qtyCell(dayTotals.pump, unit)}</td>
                         <td className="tbl-cell whitespace-nowrap text-right">{qtyCell(dayTotals.other, unit)}</td>
                         <td className="tbl-cell whitespace-nowrap text-right">{qtyCell(dayTotals.total, unit)}</td>
                         <td className="tbl-cell whitespace-nowrap text-right text-emerald-700">{qtyCell(dayTotals.bought, unit)}</td>
@@ -594,6 +677,13 @@ export default function ItemUsageReport() {
                   <p className="text-xs text-slate-500">Bought and given out · newest first</p>
                 </div>
                 <div className="flex flex-col gap-2 md:flex-row md:items-center">
+                  {isDiesel && (
+                    <Segmented
+                      options={[{ key: '', label: 'All' }, { key: 'stock', label: 'Stock' }, { key: 'pump', label: 'Pump Fills' }]}
+                      value={sourceFilter}
+                      onChange={setSourceFilter}
+                    />
+                  )}
                   <div className="relative md:w-56">
                     <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                     <input className="input pl-9" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search..." />
@@ -610,7 +700,7 @@ export default function ItemUsageReport() {
                       <li key={row.id} className="flex items-start justify-between gap-3 px-4 py-3">
                         <div className="min-w-0">
                           <p className="truncate font-semibold text-slate-800">{row.name}</p>
-                          <p className="text-xs text-slate-500">{formatDate(row.date)} · {row.kind}</p>
+                          <p className="text-xs text-slate-500">{formatDate(row.date)} · <span className={row.source === 'pump' ? 'font-semibold text-amber-700' : ''}>{row.kind}</span></p>
                           {row.detail && <p className="mt-0.5 truncate text-xs text-slate-500">{row.detail}</p>}
                         </div>
                         <p className={`shrink-0 font-bold ${row.in ? 'text-emerald-700' : 'text-slate-900'}`}>
@@ -635,7 +725,11 @@ export default function ItemUsageReport() {
                         {ledger.map((row) => (
                           <tr key={row.id} className="tbl-row">
                             <td className="tbl-cell whitespace-nowrap">{formatDate(row.date)}</td>
-                            <td className="tbl-cell whitespace-nowrap"><span className={row.in ? 'badge-green' : 'badge-gray'}>{row.kind}</span></td>
+                            <td className="tbl-cell whitespace-nowrap">
+                              {row.source === 'pump'
+                                ? <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-700 ring-1 ring-amber-200"><Fuel size={12} />{row.kind}</span>
+                                : <span className={row.in ? 'badge-green' : 'badge-gray'}>{row.kind}</span>}
+                            </td>
                             <td className="tbl-cell font-semibold text-slate-800">{row.name}</td>
                             <td className="tbl-cell text-slate-500"><div className="max-w-[18rem] truncate" title={row.detail || undefined}>{row.detail || '-'}</div></td>
                             <td className="tbl-cell whitespace-nowrap text-right font-bold text-emerald-700">{qtyCell(row.in, unit)}</td>
@@ -648,7 +742,9 @@ export default function ItemUsageReport() {
                 </>
               )}
               <p className="border-t border-slate-100 px-4 py-2.5 text-xs text-slate-500 md:px-5">
-                Bought {formatNumber(ledger.reduce((sum, row) => sum + row.in, 0))} {unit} · Given {formatNumber(ledger.reduce((sum, row) => sum + row.out, 0))} {unit}
+                Bought for stock {formatNumber(ledger.reduce((sum, row) => sum + row.in, 0))} {unit}
+                {' · '}Given from stock {formatNumber(ledger.filter((row) => row.source !== 'pump').reduce((sum, row) => sum + row.out, 0))} {unit}
+                {isDiesel && <>{' · '}<span className="font-semibold text-amber-700">At pump {formatNumber(ledger.filter((row) => row.source === 'pump').reduce((sum, row) => sum + row.out, 0))} {unit}</span></>}
               </p>
             </section>
           )}

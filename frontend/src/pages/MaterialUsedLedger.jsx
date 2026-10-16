@@ -1,10 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ClipboardList, Inbox, Package, Plus, RefreshCw, Search, TrendingUp } from 'lucide-react';
+import { ClipboardList, Fuel, Inbox, Package, Pencil, Plus, RefreshCw, Search, Trash2, TrendingUp } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { toast } from 'react-toastify';
 import apiClient from '../utils/api';
+import { useAuth } from '../context/AuthContext';
+import { canDeleteEntries, canEditEntry } from '../utils/staffAccess';
 import StatCard from '../components/StatCard';
 import Segmented from '../components/Segmented';
 import MaterialUsed from './MaterialUsed';
+import PumpFillPopup from '../components/PumpFillPopup';
 import { usedForName } from '../utils/diesel';
 
 // How many materials the usage panel shows before "Show all"
@@ -90,19 +94,24 @@ export default function MaterialUsedLedger() {
   const [rangeKey, setRangeKey] = useState('all');
   const [showAllMaterials, setShowAllMaterials] = useState(false);
   const [showAddEntry, setShowAddEntry] = useState(false);
+  const [showPumpFill, setShowPumpFill] = useState(false);
+  // Edit: a stock entry opens the Material Used popup, a pump fill opens its purchase in the Pump Fill form
+  const [editEntry, setEditEntry] = useState(null);
+  const [editPumpFill, setEditPumpFill] = useState(null);
+  const { user } = useAuth();
 
   useEffect(() => {
     const handleKeyDown = (event) => {
       // With the entry popup open, Esc closes the popup instead of leaving the page.
       // defaultPrevented covers the popup's own Esc handler, which has already closed it by the time this runs.
       if (event.defaultPrevented) return;
-      if (event.key === 'Escape' && !showAddEntry) {
+      if (event.key === 'Escape' && !showAddEntry && !showPumpFill && !editEntry && !editPumpFill) {
         navigate('/');
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [navigate, showAddEntry]);
+  }, [navigate, showAddEntry, showPumpFill, editEntry, editPumpFill]);
 
   useEffect(() => {
     loadEntries();
@@ -140,7 +149,10 @@ export default function MaterialUsedLedger() {
       givenTo: usedForName(entry),
       qty: Number(entry.usedQty || 0),
       unit: entry.unit || entry.materialType?.unit || '',
-      notes: entry.notes || ''
+      notes: entry.notes || '',
+      // Filled at a petrol pump by a pump fill purchase, not issued from stock
+      pump: Boolean(entry.purchase),
+      entry
     };
   }), [entries]);
 
@@ -184,6 +196,56 @@ export default function MaterialUsedLedger() {
     loadEntries();
   };
 
+  const pumpPurchaseId = (row) => row.entry.purchase?._id || row.entry.purchase;
+  const pumpRef = (row) => {
+    const number = row.entry.purchase?.purchaseNumber;
+    return number ? `Pur-${String(number).padStart(2, '0')}` : 'its purchase';
+  };
+
+  const handleEdit = async (row) => {
+    if (!row.pump) {
+      setEditEntry(row.entry);
+      return;
+    }
+    try {
+      const response = await apiClient.get(`/purchases/${pumpPurchaseId(row)}`);
+      setEditPumpFill(response.data);
+    } catch (err) {
+      toast.error(err.message || 'Could not open this pump fill');
+    }
+  };
+
+  // A pump fill is deleted with its purchase: the issue and the pump's bill go together
+  const handleDelete = async (row) => {
+    const question = row.pump
+      ? `This is a pump fill (${pumpRef(row)}). Deleting it also removes the purchase from the pump's ledger. Delete ${formatNumber(row.qty)} ${row.unit} for ${row.givenTo}?`
+      : `Delete ${formatNumber(row.qty)} ${row.unit} ${row.material}${row.givenTo ? ` given to ${row.givenTo}` : ''} on ${row.date}? The quantity goes back into stock.`;
+    if (!window.confirm(question)) return;
+    try {
+      if (row.pump) await apiClient.delete(`/purchases/${pumpPurchaseId(row)}`);
+      else await apiClient.delete(`/material-used/${row.id}`);
+      toast.success(row.pump ? 'Pump fill deleted' : 'Entry deleted');
+      loadEntries();
+    } catch (err) {
+      toast.error(err.message || 'Could not delete this entry');
+    }
+  };
+
+  const renderActions = (row) => (
+    <div className="flex items-center justify-end">
+      {canEditEntry(user, row.entry) && (
+        <button type="button" title={row.pump ? 'Edit pump fill' : 'Edit'} aria-label="Edit" className="icon-btn p-1.5 hover:bg-blue-50 hover:text-blue-600" onClick={() => handleEdit(row)}>
+          <Pencil size={15} />
+        </button>
+      )}
+      {canDeleteEntries(user) && (
+        <button type="button" title={row.pump ? 'Delete pump fill' : 'Delete'} aria-label="Delete" className="icon-btn p-1.5 hover:bg-rose-50 hover:text-rose-600" onClick={() => handleDelete(row)}>
+          <Trash2 size={15} />
+        </button>
+      )}
+    </div>
+  );
+
   const topMaterial = usage[0];
   const mixedUnits = new Set(usage.map((item) => item.unit)).size > 1;
   const visibleUsage = showAllMaterials ? usage : usage.slice(0, TOP_MATERIALS);
@@ -212,6 +274,35 @@ export default function MaterialUsedLedger() {
   return (
     <div className="page-fade-in space-y-4 px-3 pb-8 pt-4 md:space-y-5 lg:px-6 lg:pt-5">
       {showAddEntry && <MaterialUsed modalOnly onModalFinish={handleCloseAdd} />}
+      {editEntry && (
+        <MaterialUsed
+          modalOnly
+          editEntry={editEntry}
+          onModalFinish={() => {
+            setEditEntry(null);
+            loadEntries();
+          }}
+        />
+      )}
+      {editPumpFill && (
+        <PumpFillPopup
+          editing={editPumpFill}
+          onClose={() => setEditPumpFill(null)}
+          onSaved={() => {
+            setEditPumpFill(null);
+            loadEntries();
+          }}
+        />
+      )}
+      {showPumpFill && (
+        <PumpFillPopup
+          onClose={() => setShowPumpFill(false)}
+          onSaved={() => {
+            setShowPumpFill(false);
+            loadEntries();
+          }}
+        />
+      )}
 
       <div className="page-header">
         <div className="min-w-0">
@@ -220,6 +311,9 @@ export default function MaterialUsedLedger() {
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Segmented options={RANGES} value={rangeKey} onChange={setRangeKey} />
+          <button type="button" className="btn-secondary" onClick={() => setShowPumpFill(true)} title="Diesel filled at a petrol pump straight into a vehicle">
+            <Fuel size={18} /> Pump Fill
+          </button>
           <button type="button" className="btn-primary" onClick={() => setShowAddEntry(true)}>
             <Plus size={18} /> Add Material Used
           </button>
@@ -331,11 +425,17 @@ export default function MaterialUsedLedger() {
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
                           <p className="truncate font-semibold text-slate-800">{row.material}</p>
-                          <p className="mt-0.5 text-xs text-slate-500">{row.date}{row.givenTo ? ` · ${row.givenTo}` : ''}</p>
+                          <p className="mt-0.5 text-xs text-slate-500">
+                            {row.date}{row.givenTo ? ` · ${row.givenTo}` : ''}
+                            {row.pump && <span className="ml-1.5 inline-flex items-center gap-0.5 rounded bg-amber-50 px-1 font-semibold text-amber-700 ring-1 ring-amber-200"><Fuel size={11} />Pump</span>}
+                          </p>
                         </div>
                         <p className="shrink-0 whitespace-nowrap text-base font-bold text-slate-900">{qtyText(row)}</p>
                       </div>
-                      {row.notes && <p className="mt-1.5 text-xs text-slate-500">{row.notes}</p>}
+                      <div className="mt-1 flex items-center justify-between gap-2">
+                        <p className="min-w-0 truncate text-xs text-slate-500">{row.notes}</p>
+                        {renderActions(row)}
+                      </div>
                     </li>
                   ))}
                 </ul>
@@ -349,6 +449,7 @@ export default function MaterialUsedLedger() {
                         <th className="tbl-head">Given To</th>
                         <th className="tbl-head">Notes</th>
                         <th className="tbl-head text-right">Used Qty</th>
+                        <th className="tbl-head" />
                       </tr>
                     </thead>
                     <tbody>
@@ -358,11 +459,17 @@ export default function MaterialUsedLedger() {
                           <td className="tbl-cell font-semibold text-slate-800">{row.material}</td>
                           <td className="tbl-cell whitespace-nowrap">
                             {row.givenTo ? <span className="badge-gray">{row.givenTo}</span> : '-'}
+                            {row.pump && (
+                              <span className="ml-1.5 inline-flex items-center gap-1 rounded-md bg-amber-50 px-1.5 py-px text-[11px] font-semibold text-amber-700 ring-1 ring-amber-200" title="Filled at a petrol pump, not issued from stock">
+                                <Fuel size={11} /> Pump
+                              </span>
+                            )}
                           </td>
                           <td className="tbl-cell text-slate-500">
                             <div className="max-w-[18rem] truncate" title={row.notes || undefined}>{row.notes || '-'}</div>
                           </td>
                           <td className="tbl-cell whitespace-nowrap text-right font-bold text-slate-900">{qtyText(row)}</td>
+                          <td className="tbl-cell py-1!">{renderActions(row)}</td>
                         </tr>
                       ))}
                     </tbody>

@@ -4,6 +4,33 @@ const Purchase = require("../models/Purchase");
 const Expense = require("../models/Expense");
 const { scopedFilter, scopedIdFilter } = require("../utils/ownership");
 
+// Every kind of entry that points at a party, and what it is called for the admin
+const PARTY_LINKS = [
+  ["Sales", ["partyId", "transporterId"], "sale"],
+  ["Purchase", ["party"], "purchase"],
+  ["Receipt", ["party"], "receipt"],
+  ["Payment", ["party"], "payment"],
+  ["Expense", ["party"], "expense"],
+  ["Boulder", ["partyId", "transporterId"], "boulder entry"],
+  ["Transport", ["partyId"], "transport entry"],
+  ["MonthlyHire", ["partyId"], "monthly hire"],
+  ["SaleReturn", ["party"], "sale return"],
+  ["PurchaseReturn", ["party"], "purchase return"],
+  ["Vehicle", ["partyId"], "vehicle"],
+];
+
+// How many entries use this party: { total, parts: ["3 sales", "1 receipt"] }
+const countPartyEntries = async (userId, partyId) => {
+  const id = new mongoose.Types.ObjectId(partyId);
+  const counts = await Promise.all(PARTY_LINKS.map(([modelName, fields]) => (
+    require(`../models/${modelName}`).countDocuments({ userId, $or: fields.map((field) => ({ [field]: id })) })
+  )));
+  const parts = counts
+    .map((count, index) => (count ? `${count} ${PARTY_LINKS[index][2]}${count === 1 ? "" : "s"}` : ""))
+    .filter(Boolean);
+  return { total: counts.reduce((sum, count) => sum + count, 0), parts };
+};
+
 const isDefaultCashParty = (party) => (
   party?.type === "cash-in-hand" && String(party?.name || "").trim().toLowerCase() === "cash"
 );
@@ -114,6 +141,14 @@ const deleteParty = async (req, res) => {
     const existingParty = await Party.findOne(scopedIdFilter(req, id));
     if (isDefaultCashParty(existingParty)) {
       return res.status(400).json({ message: "The default Cash party cannot be deleted" });
+    }
+
+    // A party with entries keeps its ledger: deleting it would leave those entries without a party
+    const used = await countPartyEntries(req.userId, id);
+    if (used.total > 0) {
+      return res.status(400).json({
+        message: `${existingParty?.name || "This party"} has ${used.total} entr${used.total === 1 ? "y" : "ies"} (${used.parts.join(", ")}). Delete those entries first.`,
+      });
     }
 
     const party = await Party.findOneAndDelete(scopedIdFilter(req, id));

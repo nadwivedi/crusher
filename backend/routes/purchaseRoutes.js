@@ -2,6 +2,7 @@ const express = require("express");
 const {
   createPurchase,
   getAllPurchases,
+  getPurchaseById,
   updatePurchase,
   deletePurchase,
 } = require("../controllers/purchaseController");
@@ -17,6 +18,7 @@ router.use(auth);
 router.use(requireSection("purchases"));
 
 router.get("/", getAllPurchases);
+router.get("/:id", getPurchaseById);
 router.post("/", checkPermission("add"), createPurchase);
 router.put("/:id", checkPermission("edit"), ownEntryOnly(Purchase, "purchaseDate"), updatePurchase);
 router.delete("/:id", ownerOnly, deletePurchase);

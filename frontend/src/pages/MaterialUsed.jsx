@@ -323,7 +323,7 @@ function MaterialUsedForm({
   );
 }
 
-export default function MaterialUsed({ modalOnly = false, onModalFinish = null, presetMaterialId = '' }) {
+export default function MaterialUsed({ modalOnly = false, onModalFinish = null, presetMaterialId = '', editEntry = null }) {
   const [entries, setEntries] = useState([]);
   const [vehicles, setVehicles] = useState([]);
   const [materials, setMaterials] = useState([]);
@@ -510,6 +510,15 @@ export default function MaterialUsed({ modalOnly = false, onModalFinish = null, 
     setIsVehicleSectionActive(true);
     setVehicleListIndex(vehicleQuery.trim() && filteredVehicles.length > 0 ? 0 : -1);
   };
+
+  // Opened from a list's Edit button: start on that entry
+  const editEntryId = editEntry?._id;
+  const editLoaded = useRef(null);
+  useEffect(() => {
+    if (!editEntry || editLoaded.current === editEntryId) return;
+    editLoaded.current = editEntryId;
+    handleEdit(editEntry);
+  });
 
   const handleUsedForChange = (usedFor) => {
     setFormData((prev) => (prev.usedFor === usedFor ? prev : { ...prev, usedFor }));

@@ -7,6 +7,7 @@ import { useFloatingDropdownPosition } from '../../../utils/useFloatingDropdownP
 
 export default function AddPaymentPopup({
   showForm,
+  editing = false,
   loading,
   error = '',
   formData,
@@ -45,9 +46,9 @@ export default function AddPaymentPopup({
 
   return (
     <FormPopup
-      title="New Payment"
+      title={editing ? 'Edit Payment' : 'New Payment'}
       subtitle="Money paid to a party"
-      submitLabel={loading ? 'Saving...' : 'Save Payment'}
+      submitLabel={loading ? 'Saving...' : editing ? 'Update Payment' : 'Save Payment'}
       submitDisabled={loading}
       maxWidth="max-w-xl"
       onSubmit={handleSubmit}

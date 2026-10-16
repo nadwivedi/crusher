@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Banknote, CreditCard, Eye, Inbox, IndianRupee, Pencil, Plus, RefreshCw, Search, ShoppingCart, Trash2 } from 'lucide-react';
+import { Banknote, CreditCard, Eye, Fuel, Inbox, IndianRupee, Pencil, Plus, RefreshCw, Search, ShoppingCart, Trash2 } from 'lucide-react';
 import { toast } from 'react-toastify';
 import apiClient from '../../utils/api';
 import { useAuth } from '../../context/AuthContext';
@@ -11,6 +11,7 @@ import AddProductPopup from '../Products/component/AddProductPopup';
 import StatCard from '../../components/StatCard';
 import Segmented from '../../components/Segmented';
 import AddPurchasePopup from './component/AddPurchasePopup';
+import PumpFillPopup from '../../components/PumpFillPopup';
 import { getSupplierRatesPayload } from '../../utils/transport';
 
 const PURCHASE_TYPES = {
@@ -175,6 +176,8 @@ export default function Purchases({ modalOnly = false, onModalFinish = null }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [showForm, setShowForm] = useState(false);
+  // Pump Fill popup: { editing } for a saved pump fill, {} for a new one, null when closed
+  const [pumpFill, setPumpFill] = useState(null);
   const [editingId, setEditingId] = useState(null);
   const [search, setSearch] = useState('');
   const [dateFilter, setDateFilter] = useState('');
@@ -1048,6 +1051,11 @@ export default function Purchases({ modalOnly = false, onModalFinish = null }) {
   };
 
   const handleEdit = (purchase) => {
+    // A pump fill opens in its own short form
+    if (purchase.fillVehicle) {
+      setPumpFill({ editing: purchase });
+      return;
+    }
     const normalizedItems = (purchase.items || []).map((item) => ({
       ...item,
       product: item.product?._id || item.product,
@@ -1105,7 +1113,17 @@ export default function Purchases({ modalOnly = false, onModalFinish = null }) {
       onModalFinish();
       return;
     }
+    closePurchaseForm();
+  };
 
+  // "Pump Fill" chosen in the Add Purchase popup: close the purchase form and open the Pump Fill form instead
+  const openPumpFillFromForm = () => {
+    closePurchaseForm();
+    setPumpFill({});
+  };
+
+  // Closes and clears the purchase form only (the home-screen popup stays open, e.g. to show Pump Fill)
+  const closePurchaseForm = () => {
     setShowForm(false);
     setEditingId(null);
     setFormData(getInitialFormData());
@@ -1185,6 +1203,8 @@ export default function Purchases({ modalOnly = false, onModalFinish = null }) {
       party: resolveLeadgerNameById(purchase.party) || '—',
       supplierInvoice: purchase.supplierInvoice || purchase.invoiceNo || purchase.invoiceNumber || '',
       items: extraItems > 0 ? `${itemNames.slice(0, 2).join(', ')} +${extraItems} more` : itemNames.join(', '),
+      // Filled at a petrol pump straight into this vehicle
+      pumpVehicle: purchase.fillVehicle ? purchase.fillVehicleNo || 'vehicle' : '',
       allItems: itemNames.join(', '),
       type: getPurchaseType(total, paid),
       total,
@@ -1280,6 +1300,7 @@ export default function Purchases({ modalOnly = false, onModalFinish = null }) {
           handleProductInputChange={handleProductInputChange}
           handleProductInputKeyDown={handleProductInputKeyDown}
           onOpenNewProduct={openInlineProductForm}
+          onOpenPumpFill={openPumpFillFromForm}
           handleSelectEnterMoveNext={handleSelectEnterMoveNext}
           handleInvoiceUpload={handleInvoiceUpload}
           handleAddItem={handleAddItem}
@@ -1303,6 +1324,19 @@ export default function Purchases({ modalOnly = false, onModalFinish = null }) {
           onClose={() => closeInlineProductForm(true)}
           onProductCreated={handleProductCreated}
         />
+        {pumpFill && (
+          <PumpFillPopup
+            editing={pumpFill.editing || null}
+            onClose={() => {
+              setPumpFill(null);
+              if (typeof onModalFinish === 'function') onModalFinish();
+            }}
+            onSaved={() => {
+              setPumpFill(null);
+              if (typeof onModalFinish === 'function') onModalFinish();
+            }}
+          />
+        )}
       </>
     );
   }
@@ -1351,6 +1385,7 @@ export default function Purchases({ modalOnly = false, onModalFinish = null }) {
         handleProductInputChange={handleProductInputChange}
         handleProductInputKeyDown={handleProductInputKeyDown}
         onOpenNewProduct={openInlineProductForm}
+        onOpenPumpFill={openPumpFillFromForm}
         handleSelectEnterMoveNext={handleSelectEnterMoveNext}
         handleInvoiceUpload={handleInvoiceUpload}
         handleAddItem={handleAddItem}
@@ -1374,6 +1409,16 @@ export default function Purchases({ modalOnly = false, onModalFinish = null }) {
         onClose={() => closeInlineProductForm(true)}
         onProductCreated={handleProductCreated}
       />
+      {pumpFill && (
+        <PumpFillPopup
+          editing={pumpFill.editing || null}
+          onClose={() => setPumpFill(null)}
+          onSaved={() => {
+            setPumpFill(null);
+            fetchPurchases();
+          }}
+        />
+      )}
 
       {/* The page is three blocks, like the other reports: period filter, the period's totals, then one panel with the data */}
       <div className="page-header gap-2.5">
@@ -1383,6 +1428,9 @@ export default function Purchases({ modalOnly = false, onModalFinish = null }) {
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Segmented options={PERIODS} value={dateFilter} onChange={setDateFilter} />
+          <button type="button" className="btn-secondary" onClick={() => setPumpFill({})} title="Diesel filled at a petrol pump straight into a vehicle">
+            <Fuel size={18} /> Pump Fill
+          </button>
           <button type="button" className="btn-primary" onClick={handleOpenForm}>
             <Plus size={18} /> New Purchase
           </button>
@@ -1445,7 +1493,10 @@ export default function Purchases({ modalOnly = false, onModalFinish = null }) {
                       <p className="shrink-0 text-sm font-bold text-slate-900">{formatRupees(view.total)}</p>
                     </div>
                     <div className="mt-1 flex items-center justify-between gap-3">
-                      <p className="min-w-0 truncate text-xs text-slate-500">{view.items || 'No items'}</p>
+                      <p className="min-w-0 truncate text-xs text-slate-500">
+                        {view.pumpVehicle && <span className="mr-1.5 inline-flex items-center gap-0.5 rounded bg-amber-50 px-1 font-semibold text-amber-700 ring-1 ring-amber-200"><Fuel size={11} />{view.pumpVehicle}</span>}
+                        {view.items || 'No items'}
+                      </p>
                       <span className="shrink-0 text-xs text-slate-500">{formatDate(purchase.purchaseDate)}</span>
                     </div>
                     <div className="flex items-center justify-between gap-2">
@@ -1496,6 +1547,11 @@ export default function Purchases({ modalOnly = false, onModalFinish = null }) {
                           <p className="max-w-[20rem] truncate" title={view.allItems}>
                             {view.items || <span className="text-slate-400">No items</span>}
                           </p>
+                          {view.pumpVehicle && (
+                            <span className="mt-0.5 inline-flex items-center gap-1 rounded-md bg-amber-50 px-1.5 py-px text-[11px] font-semibold text-amber-700 ring-1 ring-amber-200" title="Filled at a petrol pump straight into this vehicle, not added to stock">
+                              <Fuel size={11} /> Pump fill · {view.pumpVehicle}
+                            </span>
+                          )}
                         </td>
                         <td className={`${TD} whitespace-nowrap text-right font-bold text-slate-900`}>{formatRupees(view.total)}</td>
                         <td className={`${TD} whitespace-nowrap text-right text-emerald-700`}>{formatRupees(view.paid)}</td>

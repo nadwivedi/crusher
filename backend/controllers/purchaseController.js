@@ -6,6 +6,8 @@ const Payment = require("../models/Payment");
 const Stock = require("../models/Stock");
 const Counter = require("../models/Counter");
 const Party = require("../models/Party");
+const MaterialUsed = require("../models/MaterialUsed");
+const Vehicle = require("../models/Vehicle");
 const { scopedFilter, scopedIdFilter } = require("../utils/ownership");
 const { resolveAccountId } = require("../utils/accounts");
 
@@ -126,18 +128,87 @@ const validateItems = (items) => {
   return null;
 };
 
+// Moves an item's stock up or down. The level is read and saved: the currentStock setter turns a
+// negative $inc into 0, so an $inc could never take stock out (an edited or deleted purchase kept its stock).
+const changeStockLevel = async (userId, productId, change) => {
+  const stock = await Stock.findOne({ _id: productId, userId });
+  if (!stock) throw new Error("Product not found");
+  stock.currentStock = toNumber(stock.currentStock) + change;
+  await stock.save();
+};
+
 const adjustStockLevels = async (userId, items, direction) => {
   for (const item of items) {
-    const stock = await Stock.findOneAndUpdate({
-      _id: item.product,
-      userId,
-    }, {
-      $inc: { currentStock: direction * toNumber(item.quantity) },
-    });
+    await changeStockLevel(userId, item.product, direction * toNumber(item.quantity));
+  }
+};
 
-    if (!stock) {
-      throw new Error("Product not found");
-    }
+// A wrong field in the request: answered with this message and status
+class PurchaseInputError extends Error {
+  constructor(message, status = 400) {
+    super(message);
+    this.status = status;
+  }
+}
+
+const sendPurchaseError = (res, error, message) => (
+  error instanceof PurchaseInputError
+    ? res.status(error.status).json({ message: error.message })
+    : res.status(400).json({ message, error: error.message })
+);
+
+const formatPurchaseNo = (value) => `Pur-${String(value).padStart(2, "0")}`;
+
+// Pump fill: the vehicle the purchase went straight into at the petrol pump, or none for a purchase into stock.
+// undefined when the request does not mention it, so an edit from the normal purchase form keeps what is saved.
+const readFill = async (req) => {
+  if (!Object.prototype.hasOwnProperty.call(req.body, "fillVehicle")) return undefined;
+  const vehicleId = req.body.fillVehicle;
+  if (!vehicleId) return { fillVehicle: null, fillVehicleNo: "", fillMeter: null };
+  if (!mongoose.Types.ObjectId.isValid(vehicleId)) throw new PurchaseInputError("Select the vehicle");
+
+  const vehicle = await Vehicle.findOne({ _id: vehicleId, userId: req.userId }).select("vehicleNo");
+  if (!vehicle) throw new PurchaseInputError("Vehicle not found", 404);
+
+  const meterValue = req.body.fillMeter;
+  let fillMeter = null;
+  if (meterValue !== "" && meterValue !== null && meterValue !== undefined) {
+    fillMeter = Number(meterValue);
+    if (!Number.isFinite(fillMeter) || fillMeter < 0) throw new PurchaseInputError("Meter reading must be a number of 0 or more");
+  }
+  return { fillVehicle: vehicle._id, fillVehicleNo: vehicle.vehicleNo, fillMeter };
+};
+
+// Takes back a pump fill's issue to the vehicle: its quantity returns to stock and the entry goes
+const removeFillIssues = async (userId, purchaseId) => {
+  const issues = await MaterialUsed.find({ userId, purchase: purchaseId }).select("materialType usedQty");
+  for (const issue of issues) {
+    await changeStockLevel(userId, issue.materialType, toNumber(issue.usedQty)).catch(() => {});
+  }
+  if (issues.length) await MaterialUsed.deleteMany({ userId, purchase: purchaseId });
+};
+
+// Issues every item of a pump fill to its vehicle. The purchase added the quantity to stock, this takes it
+// out again, so stock is unchanged while the vehicle's diesel and the diesel report count the fill.
+const createFillIssues = async (purchase) => {
+  if (!purchase.fillVehicle) return;
+  const refNo = formatPurchaseNo(purchase.purchaseNumber);
+  const meter = purchase.fillMeter !== null && purchase.fillMeter !== undefined ? ` · meter ${purchase.fillMeter}` : "";
+  for (const item of purchase.items || []) {
+    await changeStockLevel(purchase.userId, item.product, -toNumber(item.quantity));
+    await MaterialUsed.create({
+      userId: purchase.userId,
+      usedFor: "vehicle",
+      vehicle: purchase.fillVehicle,
+      vehicleNo: purchase.fillVehicleNo,
+      materialType: item.product,
+      materialTypeName: item.productName,
+      unit: item.unit || "",
+      usedQty: toNumber(item.quantity),
+      usedDate: purchase.purchaseDate || purchase.createdAt || new Date(),
+      notes: `Pump fill ${refNo}${meter}`,
+      purchase: purchase._id,
+    });
   }
 };
 
@@ -163,6 +234,7 @@ const createPurchase = async (req, res) => {
       }
     }
 
+    const fill = await readFill(req);
     const purchaseNumber = await getNextPurchaseNumber(req.userId);
     const totalAmount = toNumber(
       req.body.totalAmount,
@@ -182,18 +254,17 @@ const createPurchase = async (req, res) => {
       type: breakdown.type,
       account: await resolveAccountId(req.userId, req.body.account),
       notes: String(req.body.notes || "").trim(),
+      ...(fill || {}),
     });
 
     await adjustStockLevels(req.userId, normalizedItems, 1);
+    await createFillIssues(purchase);
     await syncPurchaseAutoPayments(purchase, req.userId);
 
     const savedPurchase = await populatePurchase(req.userId, purchase._id);
     return res.status(201).json({ data: savedPurchase });
   } catch (error) {
-    return res.status(400).json({
-      message: "Failed to create purchase",
-      error: error.message,
-    });
+    return sendPurchaseError(res, error, "Failed to create purchase");
   }
 };
 
@@ -275,6 +346,10 @@ const updatePurchase = async (req, res) => {
       }
     }
 
+    const fill = await readFill(req);
+
+    // A pump fill's issue is taken back first and made again from the saved purchase
+    await removeFillIssues(req.userId, purchase._id);
     await adjustStockLevels(req.userId, purchase.items || [], -1);
     await adjustStockLevels(req.userId, normalizedItems, 1);
 
@@ -297,17 +372,16 @@ const updatePurchase = async (req, res) => {
       purchase.account = await resolveAccountId(req.userId, req.body.account);
     }
     purchase.notes = String(req.body.notes || "").trim();
+    if (fill) Object.assign(purchase, fill);
 
     await purchase.save();
+    await createFillIssues(purchase);
     await syncPurchaseAutoPayments(purchase, req.userId);
 
     const savedPurchase = await populatePurchase(req.userId, purchase._id);
     return res.json({ data: savedPurchase });
   } catch (error) {
-    return res.status(400).json({
-      message: "Failed to update purchase",
-      error: error.message,
-    });
+    return sendPurchaseError(res, error, "Failed to update purchase");
   }
 };
 
@@ -329,6 +403,7 @@ const deletePurchase = async (req, res) => {
       return res.status(400).json({ message: `This purchase has return ${linkedReturn.voucherNumber}. Delete the return first.` });
     }
 
+    await removeFillIssues(req.userId, purchase._id);
     await adjustStockLevels(req.userId, purchase.items || [], -1);
     await Payment.deleteMany({
       userId: req.userId,
@@ -348,9 +423,23 @@ const deletePurchase = async (req, res) => {
   }
 };
 
+// GET /api/purchases/:id — one purchase, e.g. a pump fill opened from the diesel lists
+const getPurchaseById = async (req, res) => {
+  const { id } = req.params;
+  if (!mongoose.Types.ObjectId.isValid(id)) return res.status(400).json({ message: "Invalid purchase id" });
+  try {
+    const purchase = await populatePurchase(req.userId, id);
+    if (!purchase) return res.status(404).json({ message: "Purchase not found" });
+    return res.json({ data: purchase });
+  } catch (error) {
+    return res.status(500).json({ message: "Failed to fetch purchase", error: error.message });
+  }
+};
+
 module.exports = {
   createPurchase,
   getAllPurchases,
+  getPurchaseById,
   updatePurchase,
   deletePurchase,
 };

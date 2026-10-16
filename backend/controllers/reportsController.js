@@ -177,7 +177,7 @@ const buildSaleSummary = (sale) => {
   return parts.join(" | ");
 };
 
-const buildPurchaseSummary = (purchase) => (
+const buildPurchaseSummary = (purchase) => (purchase?.fillVehicleNo ? `Pump fill · ${purchase.fillVehicleNo} · ` : "") + (
   Array.isArray(purchase?.items)
     ? purchase.items
         .map((item) => {
@@ -815,6 +815,12 @@ const getPartyLedgerEntryDetail = async (req, res) => {
         fields: [
           { label: "Purchase Date", value: purchase.purchaseDate || purchase.createdAt },
           { label: "Supplier Invoice", value: purchase.supplierInvoice || "-" },
+          ...(purchase.fillVehicleNo
+            ? [
+                { label: "Filled At Pump Into", value: purchase.fillVehicleNo },
+                ...(purchase.fillMeter !== null && purchase.fillMeter !== undefined ? [{ label: "Meter At Pump", value: String(purchase.fillMeter) }] : []),
+              ]
+            : []),
           { label: "Paid Amount", value: formatAmount(purchase.paidAmount) },
           { label: "Pending Amount", value: formatAmount(toNumber(purchase.totalAmount) - toNumber(purchase.paidAmount)) },
           { label: "Invoice Link", value: purchase.invoiceLink || "-" },
@@ -1733,20 +1739,36 @@ const getDashboardSummary = async (req, res) => {
 const buildItemReport = async (userId, item) => {
   const [usedEntries, purchases, vehicles] = await Promise.all([
     MaterialUsed.find({ userId, materialType: item._id })
-      .select("usedDate createdAt usedQty usedFor vehicle vehicleNo notes")
+      .select("usedDate createdAt usedQty usedFor vehicle vehicleNo notes purchase")
       .sort({ usedDate: -1, createdAt: -1 })
       .lean(),
     Purchase.find({ userId, "items.product": item._id })
-      .select("purchaseNumber purchaseDate createdAt party supplierInvoice items")
+      .select("purchaseNumber purchaseDate createdAt party supplierInvoice items fillVehicle fillVehicleNo fillMeter")
       .populate("party", "name")
       .sort({ purchaseDate: -1, createdAt: -1 })
       .lean(),
     Vehicle.find({ userId }).select("vehicleNo category ownership").sort({ vehicleNo: 1 }).lean(),
   ]);
 
+  // Pump fills: where each one was bought and at what rate, shown on its issue
+  const pumpFills = new Map(purchases.filter((purchase) => purchase.fillVehicle).map((purchase) => {
+    const line = (purchase.items || []).find((row) => String(row.product) === String(item._id));
+    return [String(purchase._id), {
+      refNo: formatPurchaseNumber(purchase.purchaseNumber),
+      partyName: purchase.party?.name || "",
+      rate: toNumber(line?.unitPrice),
+      meter: purchase.fillMeter ?? null,
+    }];
+  }));
+
   const usage = usedEntries.map((entry) => {
     const usedFor = usedForOf(entry);
+    const pump = entry.purchase ? pumpFills.get(String(entry.purchase)) : null;
     return {
+      // "pump": filled at a petrol pump straight into the vehicle; "stock": issued from the plant's stock
+      source: entry.purchase ? "pump" : "stock",
+      purchaseId: entry.purchase ? String(entry.purchase) : "",
+      pump,
       _id: entry._id,
       date: entry.usedDate || entry.createdAt,
       createdAt: entry.createdAt,
@@ -1768,6 +1790,10 @@ const buildItemReport = async (userId, item) => {
       amount: toNumber(line.total),
       refNo: formatPurchaseNumber(purchase.purchaseNumber),
       partyName: purchase.party?.name || "",
+      // A pump fill went straight into this vehicle and never into stock
+      pumpFill: Boolean(purchase.fillVehicle),
+      vehicleNo: purchase.fillVehicleNo || "",
+      meter: purchase.fillMeter ?? null,
     })));
 
   // Average price paid per unit over every purchase; 0 when the item was never bought through Purchase

@@ -7,6 +7,7 @@ import { useFloatingDropdownPosition } from '../../../utils/useFloatingDropdownP
 
 export default function AddReceiptPopup({
   showForm,
+  editing = false,
   loading,
   error = '',
   formData,
@@ -45,9 +46,9 @@ export default function AddReceiptPopup({
 
   return (
     <FormPopup
-      title="New Receipt"
+      title={editing ? 'Edit Receipt' : 'New Receipt'}
       subtitle="Money received from a party"
-      submitLabel={loading ? 'Saving...' : 'Save Receipt'}
+      submitLabel={loading ? 'Saving...' : editing ? 'Update Receipt' : 'Save Receipt'}
       submitDisabled={loading}
       maxWidth="max-w-xl"
       onSubmit={handleSubmit}

@@ -36,9 +36,17 @@ const createPaymentNumber = async (userId, paymentDateValue) => {
   return `PAY-${paymentYear}-${String(counter.seq).padStart(2, "0")}`;
 };
 
-const getPurchasePaidTotal = async (userId, purchaseId) => {
+// Money already paid against a purchase; `exceptId` leaves out the payment being edited
+const getPurchasePaidTotal = async (userId, purchaseId, exceptId = null) => {
   const result = await Payment.aggregate([
-    { $match: { userId: new mongoose.Types.ObjectId(userId), refType: "purchase", refId: new mongoose.Types.ObjectId(purchaseId) } },
+    {
+      $match: {
+        userId: new mongoose.Types.ObjectId(userId),
+        refType: "purchase",
+        refId: new mongoose.Types.ObjectId(purchaseId),
+        ...(exceptId ? { _id: { $ne: new mongoose.Types.ObjectId(exceptId) } } : {}),
+      },
+    },
     { $group: { _id: null, total: { $sum: "$amount" } } },
   ]);
 
@@ -151,6 +159,68 @@ const getAllPayments = async (req, res) => {
   }
 };
 
+class PaymentInputError extends Error {
+  constructor(message, status = 400) {
+    super(message);
+    this.status = status;
+  }
+}
+
+// PUT /api/payments/:id — a payment entered by hand. One made by a purchase's "paid now" is changed through the purchase.
+const updatePayment = async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(id)) return res.status(400).json({ message: "Invalid payment id" });
+
+    const payment = await Payment.findOne(scopedIdFilter(req, id));
+    if (!payment) return res.status(404).json({ message: "Payment not found" });
+    if (payment.paymentSource && payment.paymentSource !== "manual") {
+      return res.status(400).json({ message: "This payment was made by a purchase's paid amount. Edit that purchase instead." });
+    }
+
+    const amount = toNumber(req.body.amount, NaN);
+    if (!Number.isFinite(amount) || amount <= 0) throw new PaymentInputError("Valid amount is required");
+
+    const refType = String(req.body.refType || "none") === "purchase" ? "purchase" : "none";
+    let refId = null;
+    let party = req.body.party || null;
+    if (party) {
+      if (!mongoose.Types.ObjectId.isValid(party)) throw new PaymentInputError("Party not found", 404);
+      const found = await Party.findOne({ _id: party, userId: req.userId }).select("_id");
+      if (!found) throw new PaymentInputError("Party not found", 404);
+      party = found._id;
+    }
+    if (refType === "purchase") {
+      if (!req.body.refId || !mongoose.Types.ObjectId.isValid(req.body.refId)) throw new PaymentInputError("Valid purchase id is required");
+      const purchase = await Purchase.findOne({ _id: req.body.refId, userId: req.userId });
+      if (!purchase) throw new PaymentInputError("Purchase not found", 404);
+      const paid = await getPurchasePaidTotal(req.userId, purchase._id, payment._id);
+      if (amount > Math.max(0, toNumber(purchase.totalAmount) - paid)) throw new PaymentInputError("Amount exceeds purchase pending amount");
+      refId = purchase._id;
+      party = party || purchase.party || null;
+    }
+
+    const account = await resolveAccountByIdOrName(req.userId, req.body.account, req.body.method);
+    Object.assign(payment, {
+      amount,
+      refType,
+      refId,
+      party,
+      method: account?.name || String(req.body.method || payment.method || "Cash Account").trim() || "Cash Account",
+      account: account?._id || null,
+      paymentDate: req.body.paymentDate ? new Date(req.body.paymentDate) : payment.paymentDate,
+      notes: String(req.body.notes || "").trim(),
+    });
+    await payment.save();
+
+    const savedPayment = await Payment.findOne({ _id: payment._id, userId: req.userId }).populate("party", "name");
+    return res.json({ data: savedPayment });
+  } catch (error) {
+    if (error instanceof PaymentInputError) return res.status(error.status).json({ message: error.message });
+    return res.status(400).json({ message: "Failed to update payment", error: error.message });
+  }
+};
+
 const deletePayment = async (req, res) => {
   try {
     const { id } = req.params;
@@ -172,5 +242,6 @@ const deletePayment = async (req, res) => {
 module.exports = {
   createPayment,
   getAllPayments,
+  updatePayment,
   deletePayment,
 };

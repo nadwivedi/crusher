@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'react-toastify';
-import { Minus, Plus } from 'lucide-react';
+import { Minus, Pencil, Plus, Trash2 } from 'lucide-react';
 import apiClient from '../utils/api';
+import { useAuth } from '../context/AuthContext';
+import { canDeleteEntries, canEditEntry } from '../utils/staffAccess';
 import FormPopup from '../components/FormPopup';
 import { handlePopupFormKeyDown } from '../utils/popupFormKeyboard';
 
@@ -74,6 +76,9 @@ export default function StockAdjustment({ modalOnly = false, onModalFinish = nul
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [showForm, setShowForm] = useState(false);
+  // The adjustment being edited; null while adding a new one
+  const [editing, setEditing] = useState(null);
+  const { user } = useAuth();
   const firstFieldRef = useRef(null);
 
   const stockOptions = useMemo(
@@ -84,7 +89,11 @@ export default function StockAdjustment({ modalOnly = false, onModalFinish = nul
   const isIncrease = formData.adjustmentType === 'add';
   const selectedProduct = products.find((product) => product._id === formData.stockItem);
   const unit = selectedProduct?.unit || '';
-  const inStock = Number(selectedProduct?.currentStock) || 0;
+  // While editing, the item's stock is shown as it was before this adjustment
+  const editingEffect = editing && String(editing.stockItem) === String(formData.stockItem)
+    ? (editing.adjustmentType === 'add' ? 1 : -1) * (Number(editing.quantity) || 0)
+    : 0;
+  const inStock = (Number(selectedProduct?.currentStock) || 0) - editingEffect;
   const quantityValue = Number(formData.quantity) || 0;
   const stockAfter = Math.round((inStock + (isIncrease ? quantityValue : -quantityValue)) * 1e6) / 1e6;
   const exceedsStock = Boolean(selectedProduct) && stockAfter < 0;
@@ -139,12 +148,14 @@ export default function StockAdjustment({ modalOnly = false, onModalFinish = nul
   }, [search]);
 
   const handleOpenForm = () => {
+    setEditing(null);
     setFormData(buildInitialForm());
     setError('');
     setShowForm(true);
   };
 
   const handleCloseForm = () => {
+    setEditing(null);
     setFormData(buildInitialForm());
     setError('');
     setShowForm(false);
@@ -198,21 +209,51 @@ export default function StockAdjustment({ modalOnly = false, onModalFinish = nul
     try {
       setSaving(true);
       setError('');
-      await apiClient.post('/stock-adjustments', {
+      const body = {
         voucherDate: parsedDate,
         stockItem: formData.stockItem,
         quantity,
         reason: formData.reason.trim(),
         notes: formData.notes.trim(),
         adjustmentType: formData.adjustmentType
-      });
-      toast.success(isIncrease ? 'Stock increased successfully' : 'Stock decreased successfully');
+      };
+      if (editing) await apiClient.put(`/stock-adjustments/${editing._id}`, body);
+      else await apiClient.post('/stock-adjustments', body);
+      toast.success(editing ? 'Adjustment updated' : isIncrease ? 'Stock increased successfully' : 'Stock decreased successfully');
       handleCloseForm();
       await Promise.all([refreshEntries(), fetchProducts()]);
     } catch (submitError) {
       setError(submitError?.response?.data?.message || submitError.message || 'Error saving stock adjustment');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleEdit = (item) => {
+    setEditing(item);
+    setFormData({
+      ...buildInitialForm(),
+      adjustmentType: item.adjustmentType,
+      voucherDate: item.voucherDate ? new Date(item.voucherDate).toLocaleDateString('en-CA') : buildInitialForm().voucherDate,
+      stockItem: String(item.stockItem || ''),
+      quantity: String(item.quantity ?? ''),
+      reason: item.reason || '',
+      notes: item.notes || ''
+    });
+    setError('');
+    setShowForm(true);
+  };
+
+  // Deleting undoes the adjustment: the stock goes back to what it was before it
+  const handleDelete = async (item) => {
+    const undo = item.adjustmentType === 'add' ? 'reduces' : 'increases';
+    if (!window.confirm(`Delete ${item.voucherNumber || 'this adjustment'}? This ${undo} ${item.stockItemName} stock by ${formatQty(item.quantity)} ${item.unit || ''}.`)) return;
+    try {
+      await apiClient.delete(`/stock-adjustments/${item._id}`);
+      toast.success('Adjustment deleted');
+      await Promise.all([refreshEntries(), fetchProducts()]);
+    } catch (deleteError) {
+      toast.error(deleteError.message || 'Could not delete the adjustment');
     }
   };
 
@@ -240,9 +281,9 @@ export default function StockAdjustment({ modalOnly = false, onModalFinish = nul
 
       {showForm && (
         <FormPopup
-          title="Add Stock Adjustment"
+          title={editing ? `Edit ${editing.voucherNumber || 'Stock Adjustment'}` : 'Add Stock Adjustment'}
           subtitle="Increase or decrease the stock of an item"
-          submitLabel={saving ? 'Saving...' : 'Save Adjustment'}
+          submitLabel={saving ? 'Saving...' : editing ? 'Update Adjustment' : 'Save Adjustment'}
           maxWidth="max-w-lg"
           onSubmit={handleSubmit}
           onClose={handleCloseForm}
@@ -326,6 +367,10 @@ export default function StockAdjustment({ modalOnly = false, onModalFinish = nul
             <label className="label">Reason *</label>
             <select className="input" name="reason" value={formData.reason} onChange={handleChange}>
               <option value="">Select reason</option>
+              {/* An older entry's reason that is no longer in the list still shows when editing */}
+              {formData.reason && !REASON_OPTIONS[formData.adjustmentType].includes(formData.reason) && (
+                <option value={formData.reason}>{formData.reason}</option>
+              )}
               {REASON_OPTIONS[formData.adjustmentType].map((option) => (
                 <option key={option} value={option}>
                   {option}
@@ -353,18 +398,19 @@ export default function StockAdjustment({ modalOnly = false, onModalFinish = nul
                   <th className="px-6 py-4 text-xs font-medium uppercase tracking-wider">Quantity</th>
                   <th className="px-6 py-4 text-xs font-medium uppercase tracking-wider">Reason</th>
                   <th className="px-6 py-4 text-xs font-medium uppercase tracking-wider">Notes</th>
+                  <th className="px-6 py-4" />
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {loading ? (
                   <tr>
-                    <td colSpan={6} className="px-6 py-8 text-center text-slate-500">
+                    <td colSpan={7} className="px-6 py-8 text-center text-slate-500">
                       Loading...
                     </td>
                   </tr>
                 ) : entries.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="px-6 py-8 text-center text-slate-500">
+                    <td colSpan={7} className="px-6 py-8 text-center text-slate-500">
                       No stock adjustments found
                     </td>
                   </tr>
@@ -379,6 +425,20 @@ export default function StockAdjustment({ modalOnly = false, onModalFinish = nul
                       </td>
                       <td className="px-6 py-4 text-slate-700">{item.reason || '-'}</td>
                       <td className="px-6 py-4 text-slate-500">{item.notes || '-'}</td>
+                      <td className="px-4 py-2">
+                        <div className="flex items-center justify-end">
+                          {canEditEntry(user, item) && (
+                            <button type="button" title="Edit" aria-label="Edit" className="icon-btn p-1.5 hover:bg-blue-50 hover:text-blue-600" onClick={() => handleEdit(item)}>
+                              <Pencil size={15} />
+                            </button>
+                          )}
+                          {canDeleteEntries(user) && (
+                            <button type="button" title="Delete" aria-label="Delete" className="icon-btn p-1.5 hover:bg-rose-50 hover:text-rose-600" onClick={() => handleDelete(item)}>
+                              <Trash2 size={15} />
+                            </button>
+                          )}
+                        </div>
+                      </td>
                     </tr>
                   ))
                 )}

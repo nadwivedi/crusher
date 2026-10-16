@@ -30,7 +30,15 @@ const populateMaterialUsed = (userId, id) => (
   MaterialUsed.findOne({ _id: id, userId })
     .populate("vehicle", "vehicleNo")
     .populate("materialType", "name unit")
+    .populate("purchase", "purchaseNumber")
 );
+
+// An issue made by a pump fill belongs to that purchase: edit or delete the purchase instead
+const pumpFillMessage = (entry, action) => {
+  const number = entry.purchase?.purchaseNumber;
+  const ref = number ? `Pur-${String(number).padStart(2, "0")}` : "its pump fill purchase";
+  return `This diesel was filled at the pump (${ref}). To ${action} it, ${action} that purchase.`;
+};
 
 class TargetError extends Error {
   constructor(status, message) {
@@ -124,6 +132,7 @@ const getAllMaterialUsed = async (req, res) => {
     const entries = await MaterialUsed.find(filter)
       .populate("vehicle", "vehicleNo")
       .populate("materialType", "name unit")
+      .populate("purchase", "purchaseNumber")
       .sort({ usedDate: -1, createdAt: -1 });
 
     return res.json({ data: entries });
@@ -143,9 +152,12 @@ const updateMaterialUsed = async (req, res) => {
   }
 
   try {
-    const entry = await MaterialUsed.findOne(scopedIdFilter(req, id));
+    const entry = await MaterialUsed.findOne(scopedIdFilter(req, id)).populate("purchase", "purchaseNumber");
     if (!entry) {
       return res.status(404).json({ message: "Material used entry not found" });
+    }
+    if (entry.purchase) {
+      return res.status(400).json({ message: pumpFillMessage(entry, "change") });
     }
 
     const usedQty = toNumber(req.body.usedQty);
@@ -201,9 +213,12 @@ const deleteMaterialUsed = async (req, res) => {
   }
 
   try {
-    const entry = await MaterialUsed.findOne(scopedIdFilter(req, id));
+    const entry = await MaterialUsed.findOne(scopedIdFilter(req, id)).populate("purchase", "purchaseNumber");
     if (!entry) {
       return res.status(404).json({ message: "Material used entry not found" });
+    }
+    if (entry.purchase) {
+      return res.status(400).json({ message: pumpFillMessage(entry, "delete") });
     }
 
     await adjustStock(req.userId, entry.materialType, entry.usedQty);
