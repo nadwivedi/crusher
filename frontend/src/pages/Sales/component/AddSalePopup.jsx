@@ -646,10 +646,13 @@ export default function AddSalePopup({
                 <input id="sale-paid-input" ref={paidAmountInputRef} className="input pl-7 font-semibold text-emerald-700" type="number" name="paidAmount" value={formData.paidAmount ?? ''} onChange={handleInputChange} onFocus={(event) => event.target.select()} onKeyDown={handlePaidAmountEnterSubmit} placeholder="0" step="0.01" />
               </div>
             </div>
-            <div>
-              <label className="label">Received In</label>
-              <AccountSelect accounts={accounts} defaultAccountId={defaultAccountId} value={formData.account} onChange={handleInputChange} className="input" />
-            </div>
+            {/* Which cash / bank account only matters when money was received */}
+            {Number(formData.paidAmount || 0) > 0 && (
+              <div>
+                <label className="label">Received In</label>
+                <AccountSelect accounts={accounts} defaultAccountId={defaultAccountId} value={formData.account} onChange={handleInputChange} className="input" />
+              </div>
+            )}
           </div>
 
           <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 rounded-lg bg-white/70 px-3 py-2 text-sm text-slate-600 ring-1 ring-inset ring-slate-200">

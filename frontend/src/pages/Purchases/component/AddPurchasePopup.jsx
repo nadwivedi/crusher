@@ -483,10 +483,13 @@ export default function AddPurchasePopup({
               />
             </div>
           </div>
-          <div>
-            <label className="label">Paid From</label>
-            <AccountSelect accounts={accounts} defaultAccountId={defaultAccountId} value={formData.account} onChange={handleInputChange} className="input" />
-          </div>
+          {/* Which cash / bank account only matters when money was paid */}
+          {paidAmount > 0 && (
+            <div>
+              <label className="label">Paid From</label>
+              <AccountSelect accounts={accounts} defaultAccountId={defaultAccountId} value={formData.account} onChange={handleInputChange} className="input" />
+            </div>
+          )}
         </div>
 
         {!editingId && (
