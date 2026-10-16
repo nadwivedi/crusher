@@ -114,6 +114,7 @@ function MaterialUsedForm({
                 autoFocus
                 type="text"
                 value={materialQuery}
+                onFocus={(event) => event.target.select()}
                 onChange={handleMaterialInputChange}
                 onKeyDown={handleMaterialInputKeyDown}
                 className="input pl-9"
@@ -228,6 +229,7 @@ function MaterialUsedForm({
                 ref={vehicleInputRef}
                 type="text"
                 value={vehicleQuery}
+                onFocus={(event) => event.target.select()}
                 onChange={handleVehicleInputChange}
                 onKeyDown={handleVehicleInputKeyDown}
                 className="input pl-9"
@@ -376,14 +378,19 @@ export default function MaterialUsed({ modalOnly = false, onModalFinish = null, 
   const filteredVehicles = useMemo(() => {
     const searchValue = String(vehicleQuery || '').trim().toLowerCase();
     if (!searchValue) return vehicles;
+    // The box still holding the picked vehicle is not a search: list them all to switch
+    const picked = vehicles.find((vehicle) => vehicle._id === formData.vehicle);
+    if (picked && getVehicleDisplayName(picked).toLowerCase() === searchValue) return vehicles;
     return vehicles.filter((vehicle) => getVehicleDisplayName(vehicle).toLowerCase().includes(searchValue));
-  }, [vehicles, vehicleQuery]);
+  }, [vehicles, vehicleQuery, formData.vehicle]);
 
   const filteredMaterials = useMemo(() => {
     const searchValue = String(materialQuery || '').trim().toLowerCase();
     if (!searchValue) return materials;
+    // The box opens holding Diesel (or the picked item): show every item, not just that one
+    if (selectedMaterial && getMaterialDisplayName(selectedMaterial).toLowerCase() === searchValue) return materials;
     return materials.filter((material) => getMaterialDisplayName(material).toLowerCase().includes(searchValue));
-  }, [materials, materialQuery]);
+  }, [materials, materialQuery, selectedMaterial]);
 
   const resetForm = () => {
     setFormData(initialFormData);
