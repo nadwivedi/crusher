@@ -45,6 +45,12 @@ const userSchema = new mongoose.Schema(
       enum: ["en", "hi", "both"],
       default: "en",
     },
+    // How a new sale starts for this account and its staff: by weight (ton) or by volume (cubic feet)
+    defaultPricingMode: {
+      type: String,
+      enum: ["per_ton", "per_cubic_meter"],
+      default: "per_ton",
+    },
     // When the starter expense types (Electricity, Food, ...) were added; unset means not yet
     defaultExpenseTypesAddedAt: {
       type: Date,

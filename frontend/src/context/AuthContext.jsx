@@ -107,8 +107,9 @@ export const AuthProvider = ({ children }) => {
 
   const updateUserSettings = async (settingsPayload) => {
     const response = await apiClient.patch('/users/current/settings', settingsPayload);
+    // Merged in: the reply is the account's settings, not who is signed in (role, language stay)
     if (response?.success && response?.user) {
-      setUser(response.user);
+      setUser((current) => ({ ...current, ...response.user, role: current?.role, language: current?.language }));
     }
     return response;
   };

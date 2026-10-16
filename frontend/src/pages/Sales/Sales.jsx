@@ -149,7 +149,8 @@ const getVehicleTransportDefaults = (vehicle, currentCharge = '') => {
   return { ...NO_SALE_TRANSPORT };
 };
 
-const getInitialFormData = () => ({
+// A new sale starts per ton or per cubic feet, as set in Settings
+const getInitialFormData = (pricingMode = 'per_ton') => ({
   saleDate: formatDateForInput(),
   invoiceNumber: '',
   rstNo: '',
@@ -165,7 +166,7 @@ const getInitialFormData = () => ({
   tareWeight: '',
   grossWeight: '',
   netWeight: '',
-  pricingMode: 'per_ton',
+  pricingMode,
   cubicMeterQty: '',
   rate: '',
   dispatchLocation: '',
@@ -423,7 +424,8 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
   // Staff edit only the sales they added; deleting is for the owner
   const canDeleteSales = canDeleteEntries(user);
   const canCreateSales = user?.role === 'owner' || user?.permissions?.add;
-  const initialFormData = getInitialFormData();
+  const defaultPricingMode = user?.defaultPricingMode === 'per_cubic_meter' ? 'per_cubic_meter' : 'per_ton';
+  const initialFormData = getInitialFormData(defaultPricingMode);
   const initialCurrentItem = {
     product: '',
     productName: '',
@@ -2307,7 +2309,7 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
         toastOptions
       );
       fetchSales();
-      setFormData(getInitialFormData());
+      setFormData(getInitialFormData(defaultPricingMode));
       setCurrentItem(initialCurrentItem);
       setEditingId(null);
       setShowPartyForm(false);
@@ -2413,7 +2415,7 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
     setPartyPopupError('');
     setShowForm(false);
     setEditingId(null);
-      setFormData(getInitialFormData());
+      setFormData(getInitialFormData(defaultPricingMode));
       setCurrentItem(initialCurrentItem);
       setLeadgerQuery('');
       setLeadgerListIndex(-1);
@@ -2436,7 +2438,7 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
     setShowVehicleForm(false);
     setPartyFormData(getInitialPartyFormData('customer'));
     setPartyPopupError('');
-      setFormData(getInitialFormData());
+      setFormData(getInitialFormData(defaultPricingMode));
       setCurrentItem(initialCurrentItem);
       setLeadgerQuery('');
       setLeadgerListIndex(0);

@@ -32,6 +32,12 @@ const readUserMaterialRates = (user) => Object.fromEntries(
   RATE_KEYS.map((key) => [key, Number(user?.materialRates?.[key] || 0) || ''])
 );
 
+// How a new sale starts; saved on the account, so staff sales start the same way
+const SALE_TYPE_OPTIONS = [
+  { value: 'per_ton', label: 'Per Ton', hint: 'By weight on the weighbridge' },
+  { value: 'per_cubic_meter', label: 'Per Cubic Feet', hint: 'By volume of the vehicle' }
+];
+
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 // Plan dates are whole days in India time
@@ -72,6 +78,21 @@ export default function Setting() {
   const [materialRates, setMaterialRates] = useState(() => readUserMaterialRates(user));
   const [saving, setSaving] = useState(false);
   const [theme, setTheme] = useState(getStoredTheme);
+
+  const defaultPricingMode = user?.defaultPricingMode === 'per_cubic_meter' ? 'per_cubic_meter' : 'per_ton';
+  const [savingSaleType, setSavingSaleType] = useState(false);
+  const chooseSaleType = async (value) => {
+    if (value === defaultPricingMode || savingSaleType) return;
+    setSavingSaleType(true);
+    try {
+      await updateUserSettings({ defaultPricingMode: value });
+      toast.success('Default sale type saved');
+    } catch (error) {
+      toast.error(error?.message || 'Could not save the default sale type');
+    } finally {
+      setSavingSaleType(false);
+    }
+  };
 
   const language = user?.language || 'en';
   const chooseLanguage = async (value) => {
@@ -160,7 +181,7 @@ export default function Setting() {
     <div className="page-fade-in max-w-5xl space-y-4 px-3 pb-8 pt-4 md:space-y-5 lg:px-6 lg:pt-5">
       <div>
         <h1 className="page-title">Settings</h1>
-        <p className="page-subtitle">Your account, appearance, material rates and staff logins</p>
+        <p className="page-subtitle">Your account, appearance, sale type, material rates and staff logins</p>
       </div>
 
       {/* Account */}
@@ -279,6 +300,32 @@ export default function Setting() {
           })}
         </div>
       </section>
+
+      {/* Default sale type: the owner's choice for every new sale */}
+      {user?.role !== 'employee' && (
+        <section className="card">
+          <h2 className="text-sm font-bold text-slate-900">Default Sale Type</h2>
+          <p className="mt-0.5 text-xs text-slate-500">A new sale starts with this. You can still change it on each sale.</p>
+          <div className="mt-3 grid grid-cols-2 gap-2">
+            {SALE_TYPE_OPTIONS.map((option) => {
+              const active = defaultPricingMode === option.value;
+              return (
+                <button
+                  key={option.value}
+                  type="button"
+                  onClick={() => chooseSaleType(option.value)}
+                  disabled={savingSaleType}
+                  aria-pressed={active}
+                  className={`rounded-xl border px-3 py-2.5 text-left transition ${active ? 'border-primary-600 bg-primary-600 text-white' : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-100'}`}
+                >
+                  <span className="block text-sm font-semibold">{option.label}</span>
+                  <span className={`mt-0.5 block text-[11px] ${active ? 'text-white/80' : 'text-slate-400'}`}>{option.hint}</span>
+                </button>
+              );
+            })}
+          </div>
+        </section>
+      )}
 
       <section className="panel">
         <div className="panel-header">

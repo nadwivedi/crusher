@@ -25,6 +25,8 @@ const sanitizeUser = (user) => ({
   district: user.district,
   lastLoginAt: user.lastLoginAt,
   language: user.language || "en",
+  // How a new sale starts: "per_ton" or "per_cubic_meter" (shown as cubic feet)
+  defaultPricingMode: user.defaultPricingMode || "per_ton",
   // The owner's subscription, shown on the Settings page
   plan: {
     type: user.planType || "yearly",
@@ -91,6 +93,7 @@ const clearAuthCookie = (res) => {
 };
 
 const LANGUAGES = ["en", "hi", "both"];
+const PRICING_MODES = ["per_ton", "per_cubic_meter"];
 
 const normalizeRateValue = (value) => {
   const numericValue = Number(value || 0);
@@ -311,6 +314,7 @@ module.exports = {
                stockAdjustment: Boolean(owner.featureAccess?.stockAdjustment),
              },
              materialRates: sanitizeUser(owner).materialRates,
+             defaultPricingMode: owner.defaultPricingMode || "per_ton",
              permissions: req.employee.permissions,
              sections: readSections(req.employee.sections),
              historyLimitDays: req.employee.historyLimitDays,
@@ -382,30 +386,44 @@ module.exports = {
         });
       }
 
-      user.featureAccess = {
-        saleReturn: Boolean(req.body?.featureAccess?.saleReturn),
-        stockAdjustment: Boolean(req.body?.featureAccess?.stockAdjustment),
-      };
-      user.materialRates = {
-        tenMmRate: normalizeRateValue(req.body?.materialRates?.tenMmRate),
-        tenMmRatePerCubicMeter: normalizeRateValue(req.body?.materialRates?.tenMmRatePerCubicMeter),
-        twentyMmRate: normalizeRateValue(req.body?.materialRates?.twentyMmRate),
-        twentyMmRatePerCubicMeter: normalizeRateValue(req.body?.materialRates?.twentyMmRatePerCubicMeter),
-        fortyMmRate: normalizeRateValue(req.body?.materialRates?.fortyMmRate),
-        fortyMmRatePerCubicMeter: normalizeRateValue(req.body?.materialRates?.fortyMmRatePerCubicMeter),
-        sixtyMmRate: normalizeRateValue(req.body?.materialRates?.sixtyMmRate),
-        sixtyMmRatePerCubicMeter: normalizeRateValue(req.body?.materialRates?.sixtyMmRatePerCubicMeter),
-        sixMmRate: normalizeRateValue(req.body?.materialRates?.sixMmRate),
-        sixMmRatePerCubicMeter: normalizeRateValue(req.body?.materialRates?.sixMmRatePerCubicMeter),
-        fourMmRate: normalizeRateValue(req.body?.materialRates?.fourMmRate),
-        fourMmRatePerCubicMeter: normalizeRateValue(req.body?.materialRates?.fourMmRatePerCubicMeter),
-        wmmRate: normalizeRateValue(req.body?.materialRates?.wmmRate),
-        wmmRatePerCubicMeter: normalizeRateValue(req.body?.materialRates?.wmmRatePerCubicMeter),
-        gsbRate: normalizeRateValue(req.body?.materialRates?.gsbRate),
-        gsbRatePerCubicMeter: normalizeRateValue(req.body?.materialRates?.gsbRatePerCubicMeter),
-        dustRate: normalizeRateValue(req.body?.materialRates?.dustRate),
-        dustRatePerCubicMeter: normalizeRateValue(req.body?.materialRates?.dustRatePerCubicMeter),
-      };
+      // Only what was sent changes: saving the rates leaves the default sale type alone, and the other way round
+      if (req.body?.featureAccess) {
+        user.featureAccess = {
+          saleReturn: Boolean(req.body?.featureAccess?.saleReturn),
+          stockAdjustment: Boolean(req.body?.featureAccess?.stockAdjustment),
+        };
+      }
+      if (req.body?.materialRates) {
+        user.materialRates = {
+          tenMmRate: normalizeRateValue(req.body?.materialRates?.tenMmRate),
+          tenMmRatePerCubicMeter: normalizeRateValue(req.body?.materialRates?.tenMmRatePerCubicMeter),
+          twentyMmRate: normalizeRateValue(req.body?.materialRates?.twentyMmRate),
+          twentyMmRatePerCubicMeter: normalizeRateValue(req.body?.materialRates?.twentyMmRatePerCubicMeter),
+          fortyMmRate: normalizeRateValue(req.body?.materialRates?.fortyMmRate),
+          fortyMmRatePerCubicMeter: normalizeRateValue(req.body?.materialRates?.fortyMmRatePerCubicMeter),
+          sixtyMmRate: normalizeRateValue(req.body?.materialRates?.sixtyMmRate),
+          sixtyMmRatePerCubicMeter: normalizeRateValue(req.body?.materialRates?.sixtyMmRatePerCubicMeter),
+          sixMmRate: normalizeRateValue(req.body?.materialRates?.sixMmRate),
+          sixMmRatePerCubicMeter: normalizeRateValue(req.body?.materialRates?.sixMmRatePerCubicMeter),
+          fourMmRate: normalizeRateValue(req.body?.materialRates?.fourMmRate),
+          fourMmRatePerCubicMeter: normalizeRateValue(req.body?.materialRates?.fourMmRatePerCubicMeter),
+          wmmRate: normalizeRateValue(req.body?.materialRates?.wmmRate),
+          wmmRatePerCubicMeter: normalizeRateValue(req.body?.materialRates?.wmmRatePerCubicMeter),
+          gsbRate: normalizeRateValue(req.body?.materialRates?.gsbRate),
+          gsbRatePerCubicMeter: normalizeRateValue(req.body?.materialRates?.gsbRatePerCubicMeter),
+          dustRate: normalizeRateValue(req.body?.materialRates?.dustRate),
+          dustRatePerCubicMeter: normalizeRateValue(req.body?.materialRates?.dustRatePerCubicMeter),
+        };
+      }
+      if (req.body?.defaultPricingMode !== undefined) {
+        if (req.employee) {
+          return res.status(403).json({ success: false, message: "Only the owner can change the default sale type" });
+        }
+        if (!PRICING_MODES.includes(req.body.defaultPricingMode)) {
+          return res.status(400).json({ success: false, message: "Choose per ton or per cubic feet" });
+        }
+        user.defaultPricingMode = req.body.defaultPricingMode;
+      }
 
       await user.save();
 

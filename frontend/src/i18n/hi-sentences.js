@@ -2,6 +2,15 @@
 const SENTENCES = {
   // Settings and login
   'Your account, appearance, material rates and staff logins': 'आपका अकाउंट, दिखावट, माल के रेट और स्टाफ लॉगिन',
+  'Your account, appearance, sale type, material rates and staff logins': 'आपका अकाउंट, दिखावट, बिक्री का प्रकार, माल के रेट और स्टाफ लॉगिन',
+  'Default Sale Type': 'बिक्री का डिफ़ॉल्ट प्रकार',
+  'A new sale starts with this. You can still change it on each sale.': 'नई बिक्री इसी से शुरू होगी। हर बिक्री में इसे बदल भी सकते हैं।',
+  'By weight on the weighbridge': 'काँटे पर वज़न से',
+  'By volume of the vehicle': 'गाड़ी के माप से',
+  'Default sale type saved': 'बिक्री का डिफ़ॉल्ट प्रकार सेव हुआ',
+  'Could not save the default sale type': 'बिक्री का डिफ़ॉल्ट प्रकार सेव नहीं हुआ',
+  'Only the owner can change the default sale type': 'बिक्री का डिफ़ॉल्ट प्रकार सिर्फ़ मालिक बदल सकता है',
+  'Choose per ton or per cubic feet': 'प्रति टन या प्रति घन फ़ुट चुनें',
   'Choose how the app looks on this device.': 'चुनें कि इस डिवाइस पर ऐप कैसा दिखे।',
   'Bright white pages': 'चमकीले सफ़ेद पेज',
   'Off-white grey, easy on the eyes': 'हल्का सलेटी, आँखों के लिए आरामदायक',
