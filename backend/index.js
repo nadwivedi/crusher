@@ -6,6 +6,7 @@ const path = require("path");
 const connectDB = require("./config/mongodb");
 const syncOwnershipIndexes = require("./config/syncIndexes");
 const { backfillDieselStock, backfillUsedInVehicle } = require("./utils/diesel");
+const { backfillDefaultExpenseTypes } = require("./utils/expenseTypes");
 const authRoutes = require("./routes/authRoutes");
 const adminAuthRoutes = require("./routes/adminAuthRoutes");
 const adminUserRoutes = require("./routes/adminUserRoutes");
@@ -94,6 +95,8 @@ const startServer = async () => {
     // Accounts made before signup created a Diesel item get one now
     await backfillDieselStock().catch((error) => console.error("Diesel backfill failed:", error.message));
     await backfillUsedInVehicle().catch((error) => console.error("Used-in-vehicle backfill failed:", error.message));
+    // Accounts made before starter expense types existed get them once
+    await backfillDefaultExpenseTypes().catch((error) => console.error("Expense type backfill failed:", error.message));
     app.listen(PORT, () => {
       console.log(`Server running on port ${PORT}`);
     });

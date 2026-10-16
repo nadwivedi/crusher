@@ -3,6 +3,7 @@ const jwt = require("jsonwebtoken");
 const User = require("../models/User");
 const Employee = require("../models/Employee");
 const { ensureDieselStock } = require("../utils/diesel");
+const { ensureDefaultExpenseTypes } = require("../utils/expenseTypes");
 
 const saltRounds = 10;
 const AUTH_COOKIE_NAME = process.env.AUTH_COOKIE_NAME || "auth_token";
@@ -142,6 +143,8 @@ const signupUser = async (req, res) => {
 
     // Every account starts with a Diesel item; the diesel report creates it later if this fails
     await ensureDieselStock(user._id).catch(() => {});
+    // And with the usual expense types; the server-start backfill retries if this fails
+    await ensureDefaultExpenseTypes(user._id).catch(() => {});
 
     const token = generateToken(user._id);
     setAuthCookie(res, token);

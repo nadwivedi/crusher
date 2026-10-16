@@ -38,6 +38,10 @@ const userSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+    // When the starter expense types (Electricity, Food, ...) were added; unset means not yet
+    defaultExpenseTypesAddedAt: {
+      type: Date,
+    },
     // Last time the account (owner or any of its staff) used the app; kept to within a few minutes
     lastActivityAt: {
       type: Date,

@@ -1,5 +1,6 @@
 const bcrypt = require("bcryptjs");
 const { ensureDieselStock } = require("../utils/diesel");
+const { ensureDefaultExpenseTypes } = require("../utils/expenseTypes");
 const User = require("../models/User");
 const { createAccessLink } = require("../utils/adminAccess");
 const { forgetAccountStatus } = require("../utils/accountStatus");
@@ -139,6 +140,7 @@ const createUser = async (req, res) => {
     });
 
     await ensureDieselStock(user._id).catch(() => {});
+    await ensureDefaultExpenseTypes(user._id).catch(() => {});
 
     recordAdminActivity(req, {
       action: "create",
