@@ -51,6 +51,11 @@ const userSchema = new mongoose.Schema(
       enum: ["per_ton", "per_cubic_meter"],
       default: "per_ton",
     },
+    // Record both cubic feet and weight on a sale, whichever it is billed by: the weight counts in tons sold
+    recordBothQuantities: {
+      type: Boolean,
+      default: false,
+    },
     // When the starter expense types (Electricity, Food, ...) were added; unset means not yet
     defaultExpenseTypesAddedAt: {
       type: Date,

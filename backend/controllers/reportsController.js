@@ -191,17 +191,18 @@ const buildPurchaseSummary = (purchase) => (purchase?.fillVehicleNo ? `Pump fill
     : ""
 );
 
+// "5 cft" for a sale by volume, "16200 kg (16.20 ton)" by weight, and both when a sale by volume was weighed too
+const saleQuantityLabel = (sale) => {
+  const cubic = toNumber(sale?.cubicMeterQty);
+  const weight = toNumber(sale?.netWeight || sale?.materialWeight);
+  const weightLabel = weight > 0 ? `${weight} kg (${(weight / 1000).toFixed(2)} ton)` : "";
+  if (sale?.pricingMode !== "per_cubic_meter") return weightLabel;
+  return [cubic > 0 ? `${cubic} cft` : "", weightLabel].filter(Boolean).join(" · ");
+};
+
 const buildSaleMaterialSummary = (sale) => {
   const materialType = String(sale?.stoneSize || "Uncategorized").trim();
-  const quantity = sale?.pricingMode === "per_cubic_meter"
-    ? toNumber(sale?.cubicMeterQty)
-    : toNumber(sale?.netWeight || sale?.materialWeight);
-  
-  const quantityLabel = quantity > 0
-    ? (sale?.pricingMode === "per_cubic_meter"
-        ? `${quantity} cft`
-        : `${quantity} kg (${(quantity / 1000).toFixed(2)} ton)`)
-    : "";
+  const quantityLabel = saleQuantityLabel(sale);
 
   return [materialType, quantityLabel]
     .filter(Boolean)
@@ -776,17 +777,21 @@ const getPartyLedgerEntryDetail = async (req, res) => {
           { label: "Paid Amount", value: formatAmount(getSaleAmounts(sale).paidAmount) },
           { label: "Pending Amount", value: formatAmount(getSaleAmounts(sale).pendingAmount) },
           { label: "Vehicle No", value: sale.vehicleNo || "-" },
+          // The quantity it is billed by, and the weight of a sale by volume that was weighed too
           ...(sale.pricingMode === "per_cubic_meter"
             ? [
                 { label: "Cubic Feet Qty", value: toNumber(sale.cubicMeterQty) || "-" },
-                { label: "Rate Per M3", value: toNumber(sale.rate) || "-" },
+                { label: "Rate Per Cft", value: toNumber(sale.rate) || "-" },
               ]
-            : [
+            : []),
+          ...(sale.pricingMode !== "per_cubic_meter" || toNumber(sale.netWeight) > 0
+            ? [
                 { label: "Gross Weight", value: toNumber(sale.grossWeight, toNumber(sale.netWeight)) || "-" },
                 { label: "Tare Weight", value: toNumber(sale.tareWeight, toNumber(sale.vehicleWeight)) || "-" },
                 { label: "Net Weight", value: toNumber(sale.netWeight, toNumber(sale.materialWeight)) || "-" },
-                { label: "Rate Per Ton", value: toNumber(sale.rate) || "-" },
-              ]),
+              ]
+            : []),
+          ...(sale.pricingMode !== "per_cubic_meter" ? [{ label: "Rate Per Ton", value: toNumber(sale.rate) || "-" }] : []),
         ],
         items: [],
       });
@@ -1133,9 +1138,7 @@ const getDayBook = async (req, res) => {
             method: [
               getSaleTypeLabel(item.totalAmount, item.paidAmount),
               item.vehicleNo ? `Vehicle ${item.vehicleNo}` : "",
-              item.pricingMode === "per_cubic_meter"
-                ? `Qty ${toNumber(item.cubicMeterQty)} cft`
-                : `Qty ${toNumber(item.netWeight || item.materialWeight)} kg (${toNumber(item.netWeight || item.materialWeight) / 1000} ton)`,
+              saleQuantityLabel(item) ? `Qty ${saleQuantityLabel(item)}` : "",
             ].filter(Boolean).join(" | ") || "-",
             totalAmount: saleAmounts.totalAmount,
             paidAmount: saleAmounts.paidAmount,

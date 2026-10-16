@@ -113,12 +113,14 @@ const getActivity = async (req, res) => {
           sale.invoiceNumber,
           String(sale.stoneSize || "").toUpperCase(),
           sale.pricingMode === "per_cubic_meter" ? `${qty(sale.cubicMeterQty)} cft` : tons(sale.netWeight),
+          // Billed by volume but also weighed: the weight too
+          sale.pricingMode === "per_cubic_meter" && toNumber(sale.netWeight) > 0 ? tons(sale.netWeight) : "",
           sale.vehicleNo,
           sale.dispatchLocation,
           dueText(sale.totalAmount, sale.paidAmount),
         ]),
         amount: toNumber(sale.totalAmount),
-        weightKg: sale.pricingMode === "per_cubic_meter" ? 0 : toNumber(sale.netWeight),
+        weightKg: toNumber(sale.netWeight),
       })),
       ...boulders.map((boulder) => ({
         ...base("boulder", boulder, boulder.boulderDate),
@@ -249,7 +251,8 @@ const getActivity = async (req, res) => {
       people,
       totals: {
         sales: sum(sales, (sale) => sale.totalAmount),
-        salesKg: sum(sales, (sale) => (sale.pricingMode === "per_cubic_meter" ? 0 : sale.netWeight)),
+        // Every sale with a weight, including those billed by volume and weighed too
+        salesKg: sum(sales, (sale) => sale.netWeight),
         boulderKg: sum(boulders, (boulder) => boulder.netWeight),
         received: sum(receipts, (receipt) => receipt.amount),
         paid: sum(payments, (payment) => payment.amount),

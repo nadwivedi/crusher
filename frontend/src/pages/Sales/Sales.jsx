@@ -308,10 +308,11 @@ const getSaleRateLabel = (sale) => (
   `₹${formatQty(sale?.rate)}/${sale?.pricingMode === 'per_cubic_meter' ? 'cft' : 'T'}`
 );
 
-// Tons sold of a material, plus the cubic feet of its sales made by volume
+// Tons sold of a material (every sale with a weight), and the cubic feet of its sales billed by volume.
+// A sale can have both, so the two are shown side by side, not added.
 const getMaterialQtyLabel = (row) => {
   const tons = `${formatQty(row.totalWeight / 1000)} T`;
-  return row.totalCubicMeter > 0 ? `${tons} + ${formatQty(row.totalCubicMeter)} cft` : tons;
+  return row.totalCubicMeter > 0 ? `${tons} · ${formatQty(row.totalCubicMeter)} cft` : tons;
 };
 
 const SALE_TYPE_BADGE = { cash: 'badge-green', partial: 'badge-orange', credit: 'badge-red' };
@@ -425,6 +426,12 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
   const canDeleteSales = canDeleteEntries(user);
   const canCreateSales = user?.role === 'owner' || user?.permissions?.add;
   const defaultPricingMode = user?.defaultPricingMode === 'per_cubic_meter' ? 'per_cubic_meter' : 'per_ton';
+  // Settings → "Record both": a sale keeps its weight and its cubic feet, whichever it is billed by.
+  // The weight is what counts in tons sold, for the stock of crushed material.
+  const recordBoth = Boolean(user?.recordBothQuantities);
+  // A sale already saved with a weight keeps showing it, even when the setting is off
+  const showsWeight = (state) => state.pricingMode !== 'per_cubic_meter' || recordBoth || Number(state.netWeight || 0) > 0;
+  const showsCubic = (state) => state.pricingMode === 'per_cubic_meter' || recordBoth;
   const initialFormData = getInitialFormData(defaultPricingMode);
   const initialCurrentItem = {
     product: '',
@@ -1125,13 +1132,13 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
         vehicleId: '',
         vehicleNo: '',
         tareWeight: '',
-        netWeight: prev.pricingMode === 'per_ton'
+        netWeight: showsWeight(prev)
           ? getSafeNetWeight(prev.grossWeight, 0)
           : '',
         cubicMeterQty: prev.pricingMode === 'per_cubic_meter' ? '' : prev.cubicMeterQty,
         totalAmount: recalculateSaleAmount({
           ...prev,
-          netWeight: prev.pricingMode === 'per_ton'
+          netWeight: showsWeight(prev)
             ? getSafeNetWeight(prev.grossWeight, 0)
             : '',
           cubicMeterQty: prev.pricingMode === 'per_cubic_meter' ? '' : prev.cubicMeterQty,
@@ -1158,14 +1165,14 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
         vehicleId: vehicle._id,
         vehicleNo: vehicleNumber,
         tareWeight: unladenWeight,
-        cubicMeterQty: prev.pricingMode === 'per_cubic_meter'
+        cubicMeterQty: showsCubic(prev)
           ? (vehicle?.capacityCubicMeter ?? prev.cubicMeterQty ?? '')
           : prev.cubicMeterQty
       };
 
       const numericTareWeight = Number(unladenWeight || 0);
       const numericGrossWeight = Number(prev.grossWeight || 0);
-      nextState.netWeight = nextState.pricingMode === 'per_ton'
+      nextState.netWeight = showsWeight(nextState)
         ? getSafeNetWeight(numericGrossWeight, numericTareWeight)
         : '';
       nextState.totalAmount = recalculateSaleAmount(nextState);
@@ -1617,9 +1624,11 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
 
   const selectPricingMode = (value) => {
     const selectedVehicle = vehicles.find((vehicle) => String(vehicle._id) === String(formData.vehicleId || ''));
-    const cubicMeterQty = value === 'per_cubic_meter'
+    const cubicMeterQty = value === 'per_cubic_meter' || recordBoth
       ? (formData.cubicMeterQty || selectedVehicle?.capacityCubicMeter || '')
       : formData.cubicMeterQty;
+    // Billing by volume drops the weights, unless they are being recorded too
+    const dropWeights = value === 'per_cubic_meter' && !recordBoth;
     const resolvedRate = formData.materialType
       ? getSaleRateForParty(user, selectedLeadger, formData.materialType, value)
       : Number(formData.rate || 0);
@@ -1627,9 +1636,9 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
       ...formData,
       pricingMode: value,
       cubicMeterQty,
-      grossWeight: value === 'per_cubic_meter' ? '' : formData.grossWeight,
-      tareWeight: value === 'per_cubic_meter' ? '' : formData.tareWeight,
-      netWeight: value === 'per_cubic_meter'
+      grossWeight: dropWeights ? '' : formData.grossWeight,
+      tareWeight: dropWeights ? '' : formData.tareWeight,
+      netWeight: dropWeights
         ? ''
         : getSafeNetWeight(formData.grossWeight, formData.tareWeight),
       rate: formData.materialType ? (resolvedRate > 0 ? String(resolvedRate) : '') : formData.rate,
@@ -2276,9 +2285,9 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
         stoneSize: formData.materialType,
         entryTime: String(formData.entryTime || '').trim(),
         exitTime: String(formData.exitTime || '').trim(),
-        tareWeight: formData.pricingMode === 'per_ton' ? Number(formData.tareWeight || 0) : 0,
-        grossWeight: formData.pricingMode === 'per_ton' ? Number(formData.grossWeight || 0) : 0,
-        netWeight: formData.pricingMode === 'per_ton' ? Number(formData.netWeight || 0) : 0,
+        tareWeight: showsWeight(formData) ? Number(formData.tareWeight || 0) : 0,
+        grossWeight: showsWeight(formData) ? Number(formData.grossWeight || 0) : 0,
+        netWeight: showsWeight(formData) ? Number(formData.netWeight || 0) : 0,
         pricingMode: formData.pricingMode || 'per_ton',
         cubicMeterQty: Number(formData.cubicMeterQty || 0),
         rate: Number(formData.rate || 0),
@@ -2464,6 +2473,8 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
     return (
       <>
         <AddSalePopup
+          showWeight={showsWeight(formData)}
+          showCubic={showsCubic(formData)}
           showForm={showForm}
           editingId={editingId}
           loading={loading}
@@ -2634,7 +2645,7 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
     {
       icon: Scale, label: 'Material Sold', tone: 'indigo',
       value: `${formatQty(summary.totalWeight / 1000)} tons`,
-      hint: summaryCubicMeter > 0 ? `+ ${formatQty(summaryCubicMeter)} cft by volume` : `${formatQty(summary.totalWeight)} kg`
+      hint: summaryCubicMeter > 0 ? `${formatQty(summaryCubicMeter)} cft billed by volume` : `${formatQty(summary.totalWeight)} kg`
     }
   ];
 
@@ -2666,6 +2677,8 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
       material: String(sale.materialType || sale.stoneSize || '').trim(),
       isCubic: sale.pricingMode === 'per_cubic_meter',
       netWeight: Number(sale.netWeight || sale.materialWeight || 0),
+      // Cubic feet noted on a sale billed per ton (Settings → "Record both")
+      extraCubic: sale.pricingMode !== 'per_cubic_meter' && recordBoth ? Number(sale.cubicMeterQty || 0) : 0,
       transportNote: transporter ? `${ownVehicle} · ${transporter}` : ownVehicle,
       transportMode: sale.transportMode || 'party',
       transporter,
@@ -2722,6 +2735,8 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
   return (
     <div className="page-fade-in space-y-3.5 px-3 pb-6 pt-3.5 md:space-y-4 lg:px-6 lg:pt-4">
       <AddSalePopup
+        showWeight={showsWeight(formData)}
+        showCubic={showsCubic(formData)}
         showForm={showForm}
         editingId={editingId}
         loading={loading}
@@ -2952,7 +2967,11 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
                               <span className="shrink-0 text-xs text-slate-500">{formatDate(sale.saleDate)}</span>
                             </div>
                             <p className="shrink-0 text-sm font-bold text-emerald-700">
-                              {view.isCubic ? `${formatQty(sale.cubicMeterQty)} cft` : `${formatQty(view.netWeight / 1000)} T`}
+                              {[
+                                view.isCubic ? `${formatQty(sale.cubicMeterQty)} cft` : `${formatQty(view.netWeight / 1000)} T`,
+                                view.isCubic && view.netWeight > 0 ? `${formatQty(view.netWeight / 1000)} T` : '',
+                                view.extraCubic > 0 ? `${formatQty(view.extraCubic)} cft` : ''
+                              ].filter(Boolean).join(' · ')}
                             </p>
                           </div>
                           {view.transportMode !== 'party' && (
@@ -3034,8 +3053,8 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
                                 {renderMaterial(view.material)}
                                 <span className="mt-0.5 block text-[11px] leading-tight text-slate-500">{getSaleRateLabel(sale)}</span>
                               </td>
-                              {view.isCubic ? (
-                                // A sale by volume has no weighbridge weights: its quantity goes in the net column
+                              {view.isCubic && !view.netWeight ? (
+                                // A sale by volume with no weighbridge weights: its quantity goes in the net column
                                 <>
                                   <td className={`${TD} text-right text-xs text-slate-400`} colSpan={2}>Sold by volume</td>
                                   <td className={`${TD} whitespace-nowrap text-right font-bold text-emerald-700`}>{formatQty(sale.cubicMeterQty)} cft</td>
@@ -3044,7 +3063,15 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
                                 <>
                                   <td className={`${TD} text-right`}>{sale.grossWeight ? formatQty(sale.grossWeight) : '—'}</td>
                                   <td className={`${TD} text-right`}>{sale.tareWeight ? formatQty(sale.tareWeight) : '—'}</td>
-                                  <td className={`${TD} text-right font-bold text-emerald-700`}>{view.netWeight ? formatQty(view.netWeight) : '—'}</td>
+                                  <td className={`${TD} text-right font-bold text-emerald-700`}>
+                                    {view.netWeight ? formatQty(view.netWeight) : '—'}
+                                    {/* Weighed and also measured: the cubic feet show under the net weight */}
+                                    {(view.isCubic || view.extraCubic > 0) && (
+                                      <span className="block text-[11px] font-semibold text-slate-500">
+                                        {formatQty(view.isCubic ? sale.cubicMeterQty : view.extraCubic)} cft{view.isCubic ? ' billed' : ''}
+                                      </span>
+                                    )}
+                                  </td>
                                 </>
                               )}
                               <td className={`${TD} whitespace-nowrap text-right`}>

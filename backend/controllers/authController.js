@@ -27,6 +27,7 @@ const sanitizeUser = (user) => ({
   language: user.language || "en",
   // How a new sale starts: "per_ton" or "per_cubic_meter" (shown as cubic feet)
   defaultPricingMode: user.defaultPricingMode || "per_ton",
+  recordBothQuantities: Boolean(user.recordBothQuantities),
   // The owner's subscription, shown on the Settings page
   plan: {
     type: user.planType || "yearly",
@@ -315,6 +316,7 @@ module.exports = {
              },
              materialRates: sanitizeUser(owner).materialRates,
              defaultPricingMode: owner.defaultPricingMode || "per_ton",
+             recordBothQuantities: Boolean(owner.recordBothQuantities),
              permissions: req.employee.permissions,
              sections: readSections(req.employee.sections),
              historyLimitDays: req.employee.historyLimitDays,
@@ -423,6 +425,12 @@ module.exports = {
           return res.status(400).json({ success: false, message: "Choose per ton or per cubic feet" });
         }
         user.defaultPricingMode = req.body.defaultPricingMode;
+      }
+      if (req.body?.recordBothQuantities !== undefined) {
+        if (req.employee) {
+          return res.status(403).json({ success: false, message: "Only the owner can change how sales are recorded" });
+        }
+        user.recordBothQuantities = Boolean(req.body.recordBothQuantities);
       }
 
       await user.save();

@@ -67,10 +67,13 @@ const getSaleQtyValue = (sale) => {
 const getSaleQtyLabel = (sale) => {
   const qtyValue = getSaleQtyValue(sale);
   if (sale?.pricingMode === 'per_cubic_meter') {
-    return `${Number(qtyValue || 0).toLocaleString('en-IN', {
+    const cubic = `${Number(qtyValue || 0).toLocaleString('en-IN', {
       minimumFractionDigits: 0,
       maximumFractionDigits: 3
     })} cft`;
+    // Billed by volume; weighed too when the weight was recorded
+    const weight = Number(sale?.netWeight || sale?.materialWeight || 0);
+    return weight > 0 ? `${cubic} · ${(weight / 1000).toLocaleString('en-IN', { maximumFractionDigits: 3 })} ton` : cubic;
   }
 
   const netWeight = Number(sale?.netWeight || sale?.materialWeight || 0);
@@ -253,11 +256,9 @@ export default function ReportsDashboard({ initialReport = 'partyLedger', showPi
   const salesSummary = useMemo(() => {
     const totals = sortedSales.reduce((acc, sale) => {
       acc.amount += Number(sale.totalAmount || 0);
-      if (sale?.pricingMode === 'per_cubic_meter') {
-        acc.totalCubicMeterQty += Number(sale.cubicMeterQty || 0);
-      } else {
-        acc.totalTonQty += Number(sale.netWeight || sale.materialWeight || 0) / 1000;
-      }
+      // Tons: every sale with a weight, including one billed by volume and weighed too
+      if (sale?.pricingMode === 'per_cubic_meter') acc.totalCubicMeterQty += Number(sale.cubicMeterQty || 0);
+      acc.totalTonQty += Number(sale.netWeight || sale.materialWeight || 0) / 1000;
       return acc;
     }, { amount: 0, totalTonQty: 0, totalCubicMeterQty: 0 });
 

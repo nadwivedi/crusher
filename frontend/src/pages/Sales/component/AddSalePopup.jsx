@@ -32,6 +32,9 @@ const SUFFIX_CLASS = 'pointer-events-none absolute inset-y-0 right-3 flex items-
 const formatAmount = (value) => `Rs ${Number(value || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 export default function AddSalePopup({
+  // Which quantities the sale records: the one it is billed by, and with Settings → "Record both" the other one too
+  showWeight = true,
+  showCubic = false,
   showForm,
   editingId,
   loading,
@@ -190,6 +193,8 @@ export default function AddSalePopup({
     if (file) setScannerFile(file);
   }, []);
   const currentItemTotal = Math.max(0, Number(currentItem.quantity || 0) * Number(currentItem.unitPrice || 0));
+  // The quantity not billed by is only a record, kept for the stock of crushed material
+  const byCubic = formData.pricingMode === 'per_cubic_meter';
   const transportMode = formData.transportMode || 'party';
   const transportCharge = getSaleTransportCharge(formData);
   const saleTransport = getSaleTransport(formData);
@@ -439,10 +444,10 @@ export default function AddSalePopup({
             </div>
           </div>
 
-          {formData.pricingMode === 'per_ton' ? (
+          {showWeight && (
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               <div>
-                <label className="label" htmlFor="sale-gross-input">Gross Weight</label>
+                <label className="label" htmlFor="sale-gross-input">Gross Weight{byCubic && <span className="ml-1 font-normal text-slate-400">(for stock)</span>}</label>
                 <div className="relative">
                   <input id="sale-gross-input" className="input pr-10" type="number" name="grossWeight" value={formData.grossWeight || ''} onChange={handleInputChange} onKeyDown={handleSelectEnterMoveNext} placeholder="0" step="0.01" />
                   <span className={SUFFIX_CLASS}>kg</span>
@@ -463,9 +468,10 @@ export default function AddSalePopup({
                 </div>
               </div>
             </div>
-          ) : (
+          )}
+          {showCubic && (
             <div>
-              <label className="label" htmlFor="sale-cubic-input">Cubic Feet Qty</label>
+              <label className="label" htmlFor="sale-cubic-input">Cubic Feet Qty{!byCubic && <span className="ml-1 font-normal text-slate-400">(record only)</span>}</label>
               <div className="relative sm:max-w-xs">
                 <input id="sale-cubic-input" className="input pr-10" type="number" name="cubicMeterQty" value={formData.cubicMeterQty || ''} onChange={handleInputChange} onKeyDown={handleSelectEnterMoveNext} placeholder="0" step="0.01" />
                 <span className={SUFFIX_CLASS}>cft</span>

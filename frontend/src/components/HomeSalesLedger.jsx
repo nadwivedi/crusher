@@ -53,11 +53,13 @@ const formatSaleTypeLabel = (value) => {
 };
 
 const getSaleQtyLabel = (sale) => {
+  const netWeight = Number(sale?.netWeight || sale?.materialWeight || 0);
   if (sale?.pricingMode === 'per_cubic_meter') {
-    return `${formatNumber(sale?.cubicMeterQty || 0)} cft`;
+    // Billed by volume; weighed too when the weight was recorded
+    const cubic = `${formatNumber(sale?.cubicMeterQty || 0)} cft`;
+    return netWeight > 0 ? `${cubic} · ${formatNumber(netWeight / 1000)} ton` : cubic;
   }
 
-  const netWeight = Number(sale?.netWeight || sale?.materialWeight || 0);
   return `${formatNumber(netWeight)} kg (${formatNumber(netWeight / 1000)} ton)`;
 };
 

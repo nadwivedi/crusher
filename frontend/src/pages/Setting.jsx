@@ -94,6 +94,20 @@ export default function Setting() {
     }
   };
 
+  const recordBoth = Boolean(user?.recordBothQuantities);
+  const toggleRecordBoth = async () => {
+    if (savingSaleType) return;
+    setSavingSaleType(true);
+    try {
+      await updateUserSettings({ recordBothQuantities: !recordBoth });
+      toast.success('Saved');
+    } catch (error) {
+      toast.error(error?.message || 'Could not save');
+    } finally {
+      setSavingSaleType(false);
+    }
+  };
+
   const language = user?.language || 'en';
   const chooseLanguage = async (value) => {
     if (value === language) return;
@@ -324,6 +338,20 @@ export default function Setting() {
               );
             })}
           </div>
+          {/* Billed one way, weighed and measured both: the weight keeps tons sold right for the stock */}
+          <label className="mt-3 flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 px-3 py-2.5 hover:bg-slate-50">
+            <input
+              type="checkbox"
+              className="mt-0.5 h-4 w-4 shrink-0 accent-primary-600"
+              checked={recordBoth}
+              disabled={savingSaleType}
+              onChange={toggleRecordBoth}
+            />
+            <span className="min-w-0">
+              <span className="block text-sm font-semibold text-slate-800">Record both cubic feet and weight</span>
+              <span className="block text-xs text-slate-500">Each sale shows the cubic feet box and the Gross / Tare / Net boxes. The bill uses the Sale Basis you pick; the other is kept as a record, and every weight counts in tons sold for your stock.</span>
+            </span>
+          </label>
         </section>
       )}
 
