@@ -25,6 +25,16 @@ const vehicleSchema = new mongoose.Schema(
       default: 0,
       min: 0,
     },
+    // Last tare read on the weighbridge, for single weighing and tare checks
+    lastTareKg: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    lastTareAt: {
+      type: Date,
+      default: null,
+    },
     capacityCubicMeter: {
       type: Number,
       default: 0,

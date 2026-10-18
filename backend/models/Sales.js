@@ -164,6 +164,17 @@ const salesSchema = new mongoose.Schema(
       default: "credit",
       trim: true,
     },
+    // Set when the weights came from a weighbridge ticket; those weights cannot be changed by hand
+    weighmentId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Weighment",
+      default: null,
+    },
+    weightSource: {
+      type: String,
+      enum: ["manual", "weighbridge"],
+      default: "manual",
+    },
     slipImg: {
       type: String,
       trim: true,

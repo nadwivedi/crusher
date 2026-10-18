@@ -103,6 +103,11 @@ const userSchema = new mongoose.Schema(
         type: Boolean,
         default: false,
       },
+      // Enterprise: weighbridge integration. Only the admin turns it on.
+      weighbridge: {
+        type: Boolean,
+        default: false,
+      },
     },
     materialRates: {
       tenMmRate: {

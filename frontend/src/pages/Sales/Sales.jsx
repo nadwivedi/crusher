@@ -416,7 +416,21 @@ function Plate({ children }) {
   );
 }
 
-export default function Sales({ modalOnly = false, onModalFinish = null }) {
+// Weights of a sale made from a weighbridge ticket (RST); the form cannot change them
+const ticketWeights = (source) => ({
+  grossWeight: Number(source.grossKg ?? source.grossWeight ?? 0),
+  tareWeight: Number(source.tareKg ?? source.tareWeight ?? 0),
+  netWeight: Number(source.netKg ?? source.netWeight ?? 0)
+});
+
+const formatClock = (value) => {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+};
+
+// weighment: a closed weighbridge ticket to make this sale from (opens the form filled in)
+export default function Sales({ modalOnly = false, onModalFinish = null, weighment = null }) {
   const toastOptions = { autoClose: 1200 };
   const location = useLocation();
   const navigate = useNavigate();
@@ -499,6 +513,9 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
   const [productListIndex, setProductListIndex] = useState(-1);
   const [isProductSectionActive, setIsProductSectionActive] = useState(false);
   const [ocrVehicleMismatch, setOcrVehicleMismatch] = useState(null);
+  // Set while the form holds weights from the weighbridge; every change to them is put back
+  const [lockedWeights, setLockedWeights] = useState(null);
+  const weighmentVehiclePickedRef = useRef(false);
   const salesRequestRef = useRef(0);
   const leadgerSectionRef = useRef(null);
   const leadgerInputRef = useRef(null);
@@ -552,6 +569,28 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
     if (!modalOnly || showForm) return;
     handleOpenForm();
   }, [modalOnly, showForm]);
+
+  // Vehicle picking, slip scanning and the sale basis all touch the weights; weighbridge weights always win
+  useEffect(() => {
+    if (!lockedWeights) return;
+    const same = Number(formData.grossWeight || 0) === lockedWeights.grossWeight
+      && Number(formData.tareWeight || 0) === lockedWeights.tareWeight
+      && Number(formData.netWeight || 0) === lockedWeights.netWeight;
+    if (same) return;
+    setFormData((prev) => {
+      const next = { ...prev, ...lockedWeights };
+      return { ...next, totalAmount: recalculateSaleAmount(next) };
+    });
+  }, [formData.grossWeight, formData.tareWeight, formData.netWeight, lockedWeights]);
+
+  // A sale from a ticket: once the lists load, pick the saved vehicle so its party and transport fill in
+  useEffect(() => {
+    if (!weighment || weighmentVehiclePickedRef.current || !showForm || !vehicles.length || !leadgers.length) return;
+    weighmentVehiclePickedRef.current = true;
+    const typed = String(weighment.vehicleNo || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+    const match = vehicles.find((vehicle) => String(getVehicleDisplayName(vehicle)).toUpperCase().replace(/[^A-Z0-9]/g, '') === typed);
+    if (match) selectVehicle(match, leadgers);
+  }, [weighment, showForm, vehicles, leadgers]);
 
   useEffect(() => {
     const handleKeyDown = (event) => {
@@ -2304,7 +2343,8 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
         account: formData.account || defaultAccountId || undefined,
         slipImg: String(formData.slipImg || '').trim(),
         saleDate: saleDateTime.toISOString(),
-        saleTime: formData.saleTime || ''
+        saleTime: formData.saleTime || '',
+        ...(!editingId && formData.weighmentId ? { weighmentId: formData.weighmentId } : {})
       };
 
       let savedSale;
@@ -2318,6 +2358,7 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
         toastOptions
       );
       fetchSales();
+      setLockedWeights(null);
       setFormData(getInitialFormData(defaultPricingMode));
       setCurrentItem(initialCurrentItem);
       setEditingId(null);
@@ -2381,6 +2422,7 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
         account: sale.account?._id || sale.account || '',
         slipImg: sale.slipImg || ''
       });
+      setLockedWeights(sale.weighmentId ? ticketWeights(sale) : null);
       setLeadgerQuery(resolvedLeadgerName);
       setLeadgerListIndex(resolvedLeadgerName ? 0 : -1);
       setIsLeadgerSectionActive(false);
@@ -2424,6 +2466,7 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
     setPartyPopupError('');
     setShowForm(false);
     setEditingId(null);
+    setLockedWeights(null);
       setFormData(getInitialFormData(defaultPricingMode));
       setCurrentItem(initialCurrentItem);
       setLeadgerQuery('');
@@ -2447,12 +2490,34 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
     setShowVehicleForm(false);
     setPartyFormData(getInitialPartyFormData('customer'));
     setPartyPopupError('');
+    if (weighment) {
+      // From a weighbridge ticket: vehicle, RST, weights and times come from the kanta
+      const weights = ticketWeights(weighment);
+      const times = [weighment.first?.at, weighment.second?.at].filter(Boolean).sort((a, b) => new Date(a) - new Date(b));
+      const base = getInitialFormData(defaultPricingMode);
+      setLockedWeights(weights);
+      weighmentVehiclePickedRef.current = false;
+      setFormData({
+        ...base,
+        ...weights,
+        // Weighed on the kanta, so billed by weight unless changed
+        pricingMode: 'per_ton',
+        vehicleNo: String(weighment.vehicleNo || '').toUpperCase(),
+        rstNo: String(weighment.rstNo || ''),
+        entryTime: times[0] ? formatClock(times[0]) : '',
+        exitTime: times[1] ? formatClock(times[1]) : '',
+        weighmentId: weighment._id
+      });
+      setVehicleQuery(String(weighment.vehicleNo || '').toUpperCase());
+    } else {
+      setLockedWeights(null);
       setFormData(getInitialFormData(defaultPricingMode));
+    }
       setCurrentItem(initialCurrentItem);
       setLeadgerQuery('');
       setLeadgerListIndex(0);
       setIsLeadgerSectionActive(false);
-      setVehicleQuery('');
+      if (!weighment) setVehicleQuery('');
       setVehicleListIndex(0);
       setIsVehicleSectionActive(false);
       setMaterialQuery('');
@@ -2474,6 +2539,7 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
       <>
         <AddSalePopup
           showWeight={showsWeight(formData)}
+          weightsLocked={Boolean(lockedWeights)}
           showCubic={showsCubic(formData)}
           showForm={showForm}
           editingId={editingId}
@@ -2736,6 +2802,7 @@ export default function Sales({ modalOnly = false, onModalFinish = null }) {
     <div className="page-fade-in space-y-3.5 px-3 pb-6 pt-3.5 md:space-y-4 lg:px-6 lg:pt-4">
       <AddSalePopup
         showWeight={showsWeight(formData)}
+          weightsLocked={Boolean(lockedWeights)}
         showCubic={showsCubic(formData)}
         showForm={showForm}
         editingId={editingId}

@@ -39,6 +39,7 @@ import ProfitLossReport from './pages/Reports/ProfitLossReport';
 import Analytics from './pages/Analytics';
 import Setting from './pages/Setting';
 import WeighbridgeTest from './pages/WeighbridgeTest';
+import Weighbridge from './pages/Weighbridge/Weighbridge';
 import Payroll from './pages/Payroll/Payroll';
 import Accounts from './pages/Accounts/Accounts';
 import AccountLedger from './pages/Accounts/AccountLedger';
@@ -182,6 +183,10 @@ function App() {
           <Route path="/settings" element={<Setting />} />
           <Route path="/whatsapp" element={<WhatsApp />} />
           <Route path="/settings/weighbridge" element={<StaffRoute ownerOnly><WeighbridgeTest /></StaffRoute>} />
+          <Route
+            path="/weighbridge"
+            element={can('sales') || can('boulder') ? <Weighbridge /> : <Navigate to="/" replace />}
+          />
         </Route>
 
         <Route path="*" element={<Navigate to="/" />} />

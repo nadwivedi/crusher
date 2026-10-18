@@ -1,7 +1,7 @@
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
   ArrowDownToLine, ArrowUpFromLine, CalendarClock, ChevronRight, FileText, Gauge, HandCoins, Mountain,
-  PackageMinus, RotateCcw, Send, ShoppingCart, SlidersHorizontal, Undo2, Wallet, Warehouse, Package
+  PackageMinus, RotateCcw, Scale, Send, ShoppingCart, SlidersHorizontal, Undo2, Wallet, Warehouse, Package
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { canAddEntries, canUseSection } from '../utils/staffAccess';
@@ -25,6 +25,7 @@ const ENTRIES = [
 ];
 
 const LISTS = [
+  { label: 'Weighbridge', to: '/weighbridge', anySection: ['sales', 'boulder'], feature: 'weighbridge', icon: Scale },
   { label: 'Boulder', to: '/reports/boulder-ledger', section: 'boulder', icon: Mountain },
   { label: 'Dump Boulder', to: '/dump-boulder', section: 'boulder', icon: Warehouse },
   { label: 'Sales', to: '/reports/sales-report', section: 'sales', icon: FileText },
@@ -51,7 +52,10 @@ export default function StaffHome() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const allowed = (item) => canUseSection(user, item.section) && (!item.feature || hasFeatureAccess(user, item.feature));
+  const allowed = (item) => (
+    (item.anySection ? item.anySection.some((section) => canUseSection(user, section)) : canUseSection(user, item.section))
+    && (!item.feature || hasFeatureAccess(user, item.feature))
+  );
   const entries = canAddEntries(user) ? ENTRIES.filter(allowed) : [];
   const lists = LISTS.filter(allowed);
 

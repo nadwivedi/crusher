@@ -1,5 +1,48 @@
 # CrusherBook weighbridge integration: research and build plan (17 October 2026)
 
+## Status (17 October 2026): Phase 1 built
+
+Phase 1 (server + Web Serial) is built and tested against a local database and in Chrome, using the simulator. It has not been tried on a real indicator yet.
+
+**What is in the app**
+- **Admin panel → edit user → "Weighbridge integration"** switches it on per account (`User.featureAccess.weighbridge`). Owners cannot turn it on themselves. After it is switched on, the owner reloads the app (the server notices within a minute).
+- **Weighbridge page** (`/weighbridge`, in the sidebar under Operations, and on the staff home screen). Staff with the Sales or Boulder part can use it.
+  - *This computer reads the kanta*: Connect (Web Serial), Reconnect, and Simulator (owner only). The kanta computer posts the reading every 500 ms, and again just before each capture.
+  - The live weight reaches every other screen (owner's phone, office) through Server-Sent Events.
+  - *New weighing*: vehicle number plus Sale (out) / Boulder (in) → **Capture first weight**. A ticket gets the next RST number (counter `weighment-rst`).
+  - *Waiting for second weight* → **Capture second** → gross, tare and net are worked out.
+  - *Ready* → **Make sale** / **Make boulder entry** opens the usual form, already filled in, with the weights locked → *Done today*.
+  - **Single weighing with saved tare**: shown when the vehicle has a `lastTareKg` from an earlier weighbridge tare.
+  - Owner only: weight typed by hand (a reason is required, and the ticket is flagged), cancelling a ticket, kanta settings (port, format, stability, tare alert), and more than one kanta.
+  - Printed slip for each ticket.
+- **Settings → "Weighbridge indicator test"** (the earlier test page) now has **Use these settings for my kanta**. Use it to find the format on site, then save it.
+
+**Server rules (`backend/routes/weighbridgeRoutes.js`, `controllers/weighbridgeController.js`, `utils/weighbridge.js`)**
+- A capture never takes a weight from the client. It uses the device's last reading on the server, which must be:
+  - at most 3 s old (judged by server time),
+  - stable,
+  - not an overload,
+  - at or above `minWeightKg`.
+- One open ticket per vehicle at a time.
+- Each ticket is flagged where it applies: `manual`, `stored_tare`, `tare_mismatch` (tare differs from the vehicle's last tare by more than `tareAlertKg`) and `short_stay` (back on the bridge within 60 s). Each closed ticket gets `hash` / `prevHash`, which chains it to the previous one.
+- **Sale or boulder entry from a ticket:**
+  - The ticket is claimed in one atomic step (`closed` → `used`), so it can never be used twice.
+  - Gross, tare, net, RST and the entry/exit times come from the ticket. A different net (for per-ton sales) or a different vehicle is refused.
+  - When editing the entry later, these weights are kept as they are.
+  - Deleting the entry frees the ticket again.
+  - New fields: `weighmentId` and `weightSource` on Sales and Boulder, `rstNo` on Boulder, and `lastTareKg` / `lastTareAt` on Vehicle.
+- New models: `WeighbridgeDevice` and `Weighment`. `WeighReading` (raw reading log) was left out for now; the device keeps its `lastReading` and `lastSeenAt`.
+
+**Deploy notes**
+- No new npm packages.
+- The live stream sends `X-Accel-Buffering: no` and a ping every 20 s, so the default nginx proxy works. The `ws` package and the nginx Upgrade headers are only needed for the Phase 2 agent.
+- Live readings are kept in memory, which is correct while the backend runs as one PM2 process. Running it in cluster mode would need Redis.
+
+**Next**
+1. Phase 0 field check and the 1b pilot at one Enterprise plant: real indicator samples, then add parser tests for each profile.
+2. Phase 2 agent (Go). It posts to the same `/api/weighbridge/readings` contract, and later uses a device token and WebSocket.
+3. Phase 3 extras: camera snapshot, ANPR, an anti-fraud report built on the flags above, and a WhatsApp alert when the kanta goes offline.
+
 ## 1. The problem in one line
 
 CrusherBook runs in the cloud (Express + MongoDB on our server, React in the browser). The weighbridge indicator sits in the kanta cabin and only talks over a **serial cable (RS-232, sometimes RS-485 or USB)** to the PC next to it. A website on our server cannot reach that cable by itself, so **something on the plant side has to read the cable and pass the weight to the cloud.**

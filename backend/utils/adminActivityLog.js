@@ -36,7 +36,8 @@ const normalize = (value) => {
 const snapshot = (doc, fields) => {
   const source = doc && typeof doc.toObject === "function" ? doc.toObject() : doc || {};
   const out = {};
-  for (const { key } of fields) out[key] = normalize(source[key]);
+  // A dotted key reads a nested field (featureAccess.weighbridge)
+  for (const { key } of fields) out[key] = normalize(key.split(".").reduce((value, part) => value?.[part], source));
   return out;
 };
 

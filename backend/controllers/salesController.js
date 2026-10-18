@@ -12,6 +12,13 @@ const {
   syncSaleTransportEntries,
   deleteSaleTransportEntries,
 } = require("../utils/transport");
+const {
+  claimWeighment,
+  linkWeighment,
+  releaseWeighment,
+  stripLockedFields,
+  weighmentWeights,
+} = require("../utils/weighbridge");
 
 const SALE_TYPES = {
   CREDIT: "credit",
@@ -248,10 +255,14 @@ const findInvoiceNumberConflict = async (userId, invoiceNumber, excludeId = null
 
 const isDuplicateInvoiceError = (error) => error?.code === 11000 && /invoiceNumber/.test(String(error?.message || ""));
 
+const sameVehicle = (a, b) => normalizeVehicleNo(a).replace(/[^A-Z0-9]/g, "") === normalizeVehicleNo(b).replace(/[^A-Z0-9]/g, "");
+
 const createSales = async (req, res) => {
+  let claimedWeighment = null;
   try {
     const breakdown = getSalePaymentBreakdown(req.body.totalAmount, req.body.paidAmount);
-    const normalizedBody = await resolveSalesVehicle(normalizeSalesPayload(req.body), req.userId);
+    const { weighmentId, weightSource, ...body } = req.body || {};
+    const normalizedBody = await resolveSalesVehicle(normalizeSalesPayload(body), req.userId);
     if (!normalizedBody.partyId || !mongoose.Types.ObjectId.isValid(normalizedBody.partyId)) {
       throw new Error("Party is required");
     }
@@ -270,9 +281,23 @@ const createSales = async (req, res) => {
 
     const transport = await resolveSaleTransport(normalizedBody, req.userId);
 
+    // From a weighbridge ticket: the weights are the ticket's, never the typed ones
+    let ticketWeights = {};
+    if (weighmentId) {
+      claimedWeighment = await claimWeighment(req.userId, weighmentId, "sale");
+      if (!sameVehicle(claimedWeighment.vehicleNo, normalizedBody.vehicleNo)) {
+        throw new Error(`RST ${claimedWeighment.rstNo} is for vehicle ${claimedWeighment.vehicleNo}`);
+      }
+      if ((normalizedBody.pricingMode || "per_ton") === "per_ton" && Math.abs(toNumber(normalizedBody.netWeight) - claimedWeighment.netKg) > 0.01) {
+        throw new Error(`Net weight must be ${claimedWeighment.netKg} kg as on RST ${claimedWeighment.rstNo}`);
+      }
+      ticketWeights = weighmentWeights(claimedWeighment);
+    }
+
     const payload = {
       ...normalizedBody,
       ...transport,
+      ...ticketWeights,
       userId: req.userId,
       saleDate: normalizedBody.saleDate || new Date(),
       invoiceNumber: manualInvoiceNumber || await createInvoiceNumber(req.userId, normalizedBody.saleDate),
@@ -282,15 +307,21 @@ const createSales = async (req, res) => {
     };
 
     const sales = await Sales.create(payload);
+    if (claimedWeighment) {
+      await linkWeighment(claimedWeighment._id, "sale", sales._id);
+      claimedWeighment = null;
+    }
     await syncSaleAutoReceipts(sales, req.userId);
     await syncSaleTransportEntries(sales);
     return res.status(201).json(serializeSale(sales));
   } catch (error) {
+    // The sale was not saved, so its ticket is free again
+    if (claimedWeighment) await releaseWeighment(req.userId, claimedWeighment._id).catch(() => {});
     if (isDuplicateInvoiceError(error)) {
       return res.status(409).json({ message: "This Invoice / Slip No is already used by another sale" });
     }
     return res.status(400).json({
-      message: "Failed to create sales",
+      message: error.message || "Failed to create sales",
       error: error.message,
     });
   }
@@ -438,7 +469,18 @@ const editSales = async (req, res) => {
       return res.status(400).json({ message: `This sale has return ${linkedReturn.voucherNumber}. Delete the return first.` });
     }
 
-    const updatePayload = await resolveSalesVehicle(normalizeSalesPayload(req.body), req.userId);
+    // Weights read from the weighbridge stay as they were; other fields can still be corrected
+    const { weighmentId: _ignoredWeighment, weightSource: _ignoredSource, ...editBody } = req.body || {};
+    const updatePayload = await resolveSalesVehicle(
+      normalizeSalesPayload(sales.weighmentId ? stripLockedFields(editBody) : editBody),
+      req.userId
+    );
+    if (sales.weighmentId) {
+      delete updatePayload.tareWeight;
+      if (updatePayload.vehicleNo && !sameVehicle(updatePayload.vehicleNo, sales.vehicleNo)) {
+        throw new Error("The vehicle of a weighbridge sale cannot be changed");
+      }
+    }
     // Allow correcting the invoice / slip number; a blank value keeps the existing one
     const nextInvoiceNumber = normalizeInvoiceNumber(updatePayload.invoiceNumber);
     delete updatePayload.invoiceNumber;
@@ -491,7 +533,7 @@ const editSales = async (req, res) => {
       return res.status(409).json({ message: "This Invoice / Slip No is already used by another sale" });
     }
     return res.status(400).json({
-      message: "Failed to update sales",
+      message: error.message || "Failed to update sales",
       error: error.message,
     });
   }
@@ -522,6 +564,8 @@ const deleteSales = async (req, res) => {
       receiptSource: { $in: AUTO_RECEIPT_SOURCES },
     });
     await deleteSaleTransportEntries(req.userId, sales._id);
+    // Its weighbridge ticket can be used for a new sale
+    await releaseWeighment(req.userId, sales.weighmentId);
 
     return res.json({ message: "Sales deleted successfully" });
   } catch (error) {

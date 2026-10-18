@@ -108,8 +108,12 @@ const sortVehiclesByTypePreference = (vehicles, preferredType) => [...vehicles].
   return String(a?.vehicleNo || a?.vehicleNumber || '').localeCompare(String(a?.vehicleNo || a?.vehicleNumber || ''));
 });
 
-export default function BoulderEntry({ onModalFinish = null, editingEntry = null }) {
+// weighment: a closed weighbridge ticket to make this entry from (weights, RST and times come from the kanta)
+export default function BoulderEntry({ onModalFinish = null, editingEntry = null, weighment = null }) {
   const [formData, setFormData] = useState(initialFormData);
+  // Weights read from the weighbridge; every change to them is put back
+  const lockedWeightsRef = useRef(null);
+  const weighmentVehiclePickedRef = useRef(false);
   const [vehicleQuery, setVehicleQuery] = useState('');
   const [vehicles, setVehicles] = useState([]);
   const [parties, setParties] = useState([]);
@@ -192,11 +196,42 @@ export default function BoulderEntry({ onModalFinish = null, editingEntry = null
 
   useEffect(() => {
     if (!editingEntry?._id) {
+      if (weighment) {
+        const times = [weighment.first?.at, weighment.second?.at].filter(Boolean).sort((a, b) => new Date(a) - new Date(b));
+        const weights = {
+          grossWeight: String(weighment.grossKg ?? ''),
+          tareWeight: String(weighment.tareKg ?? ''),
+          netWeight: String(weighment.netKg ?? '')
+        };
+        lockedWeightsRef.current = weights;
+        weighmentVehiclePickedRef.current = false;
+        setFormData({
+          ...initialFormData,
+          ...weights,
+          entryMode: 'single',
+          vehicleNo: String(weighment.vehicleNo || '').toUpperCase(),
+          entryTime: times[0] ? formatTimeForInput(times[0]) : '',
+          exitTime: times[1] ? formatTimeForInput(times[1]) : '',
+          weighmentId: weighment._id
+        });
+        setVehicleQuery(String(weighment.vehicleNo || '').toUpperCase());
+        setPartyQuery('');
+        return;
+      }
+      lockedWeightsRef.current = null;
       setFormData(initialFormData);
       setVehicleQuery('');
       setPartyQuery('');
       return;
     }
+
+    lockedWeightsRef.current = editingEntry.weighmentId
+      ? {
+        grossWeight: String(editingEntry.grossWeight ?? ''),
+        tareWeight: String(editingEntry.tareWeight ?? ''),
+        netWeight: String(editingEntry.netWeight ?? '')
+      }
+      : null;
 
     const vehicleId = typeof editingEntry.vehicleId === 'object'
       ? editingEntry.vehicleId?._id || ''
@@ -220,11 +255,12 @@ export default function BoulderEntry({ onModalFinish = null, editingEntry = null
       tripCount: entryMode === 'bulk' ? String(editingEntry.tripCount || '') : '',
       boulderRateBasis: editingEntry.boulderRateBasis || 'per_ton',
       transportLocation: editingEntry.transportLocation || '',
-      slipImg: editingEntry.slipImg || ''
+      slipImg: editingEntry.slipImg || '',
+      rstNo: editingEntry.rstNo || ''
     });
     setVehicleQuery(vehicleNo);
     setPartyQuery(editingEntry.partyName || '');
-  }, [editingEntry]);
+  }, [editingEntry, weighment]);
 
   const filteredVehicles = useMemo(() => {
     const search = vehicleQuery.trim().toLowerCase();
@@ -316,6 +352,7 @@ export default function BoulderEntry({ onModalFinish = null, editingEntry = null
   };
 
   const updateWeights = (nextValues) => {
+    if (lockedWeightsRef.current) return { ...nextValues, ...lockedWeightsRef.current };
     const tareWeight = parseFloat(nextValues.tareWeight) || 0;
     const grossWeight = parseFloat(nextValues.grossWeight) || 0;
     const netWeight = grossWeight > 0 && tareWeight > 0 ? Math.max(grossWeight - tareWeight, 0) : '';
@@ -355,6 +392,15 @@ export default function BoulderEntry({ onModalFinish = null, editingEntry = null
     setIsVehicleSectionActive(false);
     setOcrVehicleMismatch(null);
   };
+
+  // An entry from a ticket: once the lists load, pick the saved vehicle so its supplier and transport fill in
+  useEffect(() => {
+    if (!weighment || editingEntry?._id || weighmentVehiclePickedRef.current || !vehicles.length) return;
+    weighmentVehiclePickedRef.current = true;
+    const typed = String(weighment.vehicleNo || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+    const match = vehicles.find((vehicle) => getVehicleDisplayName(vehicle).toUpperCase().replace(/[^A-Z0-9]/g, '') === typed);
+    if (match) selectVehicle(match);
+  }, [weighment, editingEntry, vehicles, parties]);
 
   const openInlineVehicleForm = () => {
     setIsVehicleSectionActive(false);
@@ -552,7 +598,8 @@ export default function BoulderEntry({ onModalFinish = null, editingEntry = null
         exitTime: formData.exitTime,
         boulderRateBasis,
         transportLocation: formData.transportLocation,
-        slipImg: formData.slipImg
+        slipImg: formData.slipImg,
+        ...(!isEditing && formData.weighmentId ? { weighmentId: formData.weighmentId } : {})
       };
       const payload = isBulkMode
         ? {
@@ -722,6 +769,11 @@ export default function BoulderEntry({ onModalFinish = null, editingEntry = null
         onClose={handleClose}
         onKeyDown={(e) => handlePopupFormKeyDown(e, handleClose)}
       >
+        {lockedWeightsRef.current ? (
+          <p className="rounded-lg bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-800 ring-1 ring-inset ring-emerald-200">
+            Weights from weighbridge{formData.rstNo || weighment?.rstNo ? ` RST ${formData.rstNo || weighment?.rstNo}` : ''}: they cannot be changed here.
+          </p>
+        ) : (
         <Segmented
           className="w-full [&>button]:flex-1 [&>button]:justify-center"
           options={[
@@ -731,6 +783,7 @@ export default function BoulderEntry({ onModalFinish = null, editingEntry = null
           value={formData.entryMode}
           onChange={(mode) => setFormData((prev) => ({ ...prev, entryMode: mode }))}
         />
+        )}
 
         <FormSection number={1} title="Vehicle & Supplier" tone="blue">
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
@@ -896,15 +949,15 @@ export default function BoulderEntry({ onModalFinish = null, editingEntry = null
             )}
           </FormSection>
         ) : (
-          <FormSection number={2} title="Weight" tone="emerald" hint={formData.vehicleId ? 'Tare is filled from the saved vehicle. Change it if needed.' : ''}>
+          <FormSection number={2} title="Weight" tone="emerald" hint={formData.vehicleId && !lockedWeightsRef.current ? 'Tare is filled from the saved vehicle. Change it if needed.' : ''}>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
               <div>
                 <label className="label" htmlFor="boulder-gross">Gross (kg) <span className="text-rose-500">*</span></label>
-                <input id="boulder-gross" className="input text-right font-semibold" type="number" name="grossWeight" value={formData.grossWeight || ''} onChange={handleChange} placeholder="0" step="0.01" />
+                <input id="boulder-gross" className={`input text-right font-semibold ${lockedWeightsRef.current ? 'bg-slate-50' : ''}`} type="number" name="grossWeight" value={formData.grossWeight || ''} onChange={handleChange} placeholder="0" step="0.01" readOnly={Boolean(lockedWeightsRef.current)} />
               </div>
               <div>
                 <label className="label" htmlFor="boulder-tare">Tare (kg) <span className="text-rose-500">*</span></label>
-                <input id="boulder-tare" className="input text-right font-semibold" type="number" name="tareWeight" value={formData.tareWeight || ''} onChange={handleChange} placeholder="0" step="0.01" />
+                <input id="boulder-tare" className={`input text-right font-semibold ${lockedWeightsRef.current ? 'bg-slate-50' : ''}`} type="number" name="tareWeight" value={formData.tareWeight || ''} onChange={handleChange} placeholder="0" step="0.01" readOnly={Boolean(lockedWeightsRef.current)} />
               </div>
               <div className="col-span-2 sm:col-span-1">
                 <p className="label">Net Weight</p>

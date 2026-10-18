@@ -5,6 +5,13 @@ const Party = require("../models/Party");
 const Vehicle = require("../models/Vehicle");
 const { scopedFilter, scopedIdFilter } = require("../utils/ownership");
 const { syncBoulderTransportEntry, deleteBoulderTransportEntry } = require("../utils/transport");
+const {
+  claimWeighment,
+  linkWeighment,
+  releaseWeighment,
+  stripLockedFields,
+  weighmentWeights,
+} = require("../utils/weighbridge");
 
 const getCurrentTime = () => {
   const now = new Date();
@@ -338,17 +345,41 @@ const normalizeBoulderPayload = async (payload, userId) => {
   return normalizedPayload;
 };
 
+const sameVehicle = (a, b) => normalizeVehicleNo(a).replace(/[^A-Z0-9]/g, "") === normalizeVehicleNo(b).replace(/[^A-Z0-9]/g, "");
+
 const createBoulder = async (req, res) => {
+  let claimedWeighment = null;
   try {
-    const payload = await normalizeBoulderPayload(req.body, req.userId);
+    const { weighmentId, weightSource, ...body } = req.body || {};
+    let source = body;
+    // From a weighbridge ticket: a single entry with the ticket's weights, never the typed ones
+    if (weighmentId) {
+      claimedWeighment = await claimWeighment(req.userId, weighmentId, "boulder");
+      if (!sameVehicle(claimedWeighment.vehicleNo, body.vehicleNo || claimedWeighment.vehicleNo)) {
+        throw new Error(`RST ${claimedWeighment.rstNo} is for vehicle ${claimedWeighment.vehicleNo}`);
+      }
+      const { grossWeight, tareWeight, netWeight, rstNo, entryTime, exitTime } = weighmentWeights(claimedWeighment);
+      source = { ...stripLockedFields(body), grossWeight, tareWeight, netWeight, rstNo, entryTime, exitTime, entryMode: "single" };
+    }
+    const payload = await normalizeBoulderPayload(source, req.userId);
     payload.userId = req.userId;
     payload.boulderNumber = await createBoulderNumber(req.userId, payload.boulderDate);
+    if (claimedWeighment) {
+      payload.weighmentId = claimedWeighment._id;
+      payload.weightSource = "weighbridge";
+    }
     const boulder = await Boulder.create(payload);
+    if (claimedWeighment) {
+      await linkWeighment(claimedWeighment._id, "boulder", boulder._id);
+      claimedWeighment = null;
+    }
     await syncBoulderTransportEntry(boulder);
     return res.status(201).json(boulder);
   } catch (error) {
+    // The entry was not saved, so its ticket is free again
+    if (claimedWeighment) await releaseWeighment(req.userId, claimedWeighment._id).catch(() => {});
     return res.status(400).json({
-      message: "Failed to create boulder",
+      message: error.message || "Failed to create boulder",
       error: error.message,
     });
   }
@@ -409,8 +440,26 @@ const editBoulder = async (req, res) => {
   }
 
   try {
-    const payload = await normalizeBoulderPayload(req.body, req.userId);
-    const existingBoulder = await Boulder.findOne(scopedIdFilter(req, id)).select("boulderNumber userId");
+    const existingBoulder = await Boulder.findOne(scopedIdFilter(req, id)).select("boulderNumber userId weighmentId grossWeight tareWeight netWeight rstNo entryTime exitTime vehicleNo");
+    if (!existingBoulder) {
+      return res.status(404).json({ message: "Boulder not found" });
+    }
+    const { weighmentId: _ignoredWeighment, weightSource: _ignoredSource, ...body } = req.body || {};
+    let source = body;
+    // Weights read from the weighbridge stay as they were; other fields can still be corrected
+    if (existingBoulder.weighmentId) {
+      if (body.vehicleNo && !sameVehicle(body.vehicleNo, existingBoulder.vehicleNo)) {
+        throw new Error("The vehicle of a weighbridge entry cannot be changed");
+      }
+      source = {
+        ...stripLockedFields(body),
+        grossWeight: existingBoulder.grossWeight,
+        tareWeight: existingBoulder.tareWeight,
+        netWeight: existingBoulder.netWeight,
+        entryMode: "single",
+      };
+    }
+    const payload = await normalizeBoulderPayload(source, req.userId);
     if (existingBoulder?.boulderNumber) {
       payload.boulderNumber = existingBoulder.boulderNumber;
     }
@@ -429,7 +478,7 @@ const editBoulder = async (req, res) => {
     return res.json(boulder);
   } catch (error) {
     return res.status(400).json({
-      message: "Failed to update boulder",
+      message: error.message || "Failed to update boulder",
       error: error.message,
     });
   }
@@ -449,6 +498,8 @@ const deleteBoulder = async (req, res) => {
       return res.status(404).json({ message: "Boulder not found" });
     }
     await deleteBoulderTransportEntry(boulder.userId, boulder._id);
+    // Its weighbridge ticket can be used for a new entry
+    await releaseWeighment(req.userId, boulder.weighmentId);
 
     return res.json({ message: "Boulder deleted successfully" });
   } catch (error) {

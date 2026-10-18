@@ -35,6 +35,8 @@ export default function AddSalePopup({
   // Which quantities the sale records: the one it is billed by, and with Settings → "Record both" the other one too
   showWeight = true,
   showCubic = false,
+  // Weights came from a weighbridge ticket: shown, not editable
+  weightsLocked = false,
   showForm,
   editingId,
   loading,
@@ -284,6 +286,7 @@ export default function AddSalePopup({
                 name="rstNo"
                 value={formData.rstNo || ''}
                 onChange={handleInputChange}
+                readOnly={weightsLocked}
                 onKeyDown={handleSelectEnterMoveNext}
                 maxLength={40}
                 autoComplete="off"
@@ -444,19 +447,24 @@ export default function AddSalePopup({
             </div>
           </div>
 
+          {showWeight && weightsLocked && (
+            <p className="rounded-lg bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-800 ring-1 ring-inset ring-emerald-200">
+              Weights from weighbridge RST {formData.rstNo}: they cannot be changed here.
+            </p>
+          )}
           {showWeight && (
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               <div>
                 <label className="label" htmlFor="sale-gross-input">Gross Weight{byCubic && <span className="ml-1 font-normal text-slate-400">(for stock)</span>}</label>
                 <div className="relative">
-                  <input id="sale-gross-input" className="input pr-10" type="number" name="grossWeight" value={formData.grossWeight || ''} onChange={handleInputChange} onKeyDown={handleSelectEnterMoveNext} placeholder="0" step="0.01" />
+                  <input id="sale-gross-input" className={weightsLocked ? `${COMPUTED_CLASS} pr-10` : 'input pr-10'} type="number" name="grossWeight" value={formData.grossWeight || ''} onChange={handleInputChange} onKeyDown={handleSelectEnterMoveNext} placeholder="0" step="0.01" readOnly={weightsLocked} />
                   <span className={SUFFIX_CLASS}>kg</span>
                 </div>
               </div>
               <div>
                 <label className="label" htmlFor="sale-tare-input">Tare Weight</label>
                 <div className="relative">
-                  <input id="sale-tare-input" className="input pr-10" type="number" name="tareWeight" value={formData.tareWeight || ''} onChange={handleInputChange} onKeyDown={handleSelectEnterMoveNext} placeholder="0" step="0.01" />
+                  <input id="sale-tare-input" className={weightsLocked ? `${COMPUTED_CLASS} pr-10` : 'input pr-10'} type="number" name="tareWeight" value={formData.tareWeight || ''} onChange={handleInputChange} onKeyDown={handleSelectEnterMoveNext} placeholder="0" step="0.01" readOnly={weightsLocked} />
                   <span className={SUFFIX_CLASS}>kg</span>
                 </div>
               </div>

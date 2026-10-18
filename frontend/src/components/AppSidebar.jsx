@@ -4,10 +4,11 @@ import { useAuth } from '../context/AuthContext';
 import {
   LayoutDashboard, Activity, ChartNoAxesCombined, Mountain, FileText, HandCoins, Send, Wallet,
   PackageMinus, IdCard, ChartColumn, Users, Boxes, Truck, Landmark, Tags,
-  Settings, X, ShoppingCart, Warehouse, Package, Gauge
+  Settings, X, ShoppingCart, Warehouse, Package, Gauge, Scale
 } from 'lucide-react';
 import Logo from './Logo';
 import { canUseSection, isStaff } from '../utils/staffAccess';
+import { hasFeatureAccess } from '../utils/featureAccess';
 
 const navGroups = [
   {
@@ -21,6 +22,7 @@ const navGroups = [
   {
     label: 'Operations',
     items: [
+      { to: '/weighbridge', icon: Scale, label: 'Weighbridge', anySection: ['sales', 'boulder'], feature: 'weighbridge' },
       { to: '/reports/boulder-ledger', icon: Mountain, label: 'Boulder', section: 'boulder' },
       { to: '/dump-boulder', icon: Warehouse, label: 'Dump Boulder', section: 'boulder' },
       { to: '/reports/sales-report', icon: FileText, label: 'Sales', section: 'sales' },
@@ -95,7 +97,14 @@ export default function AppSidebar({ mobileOpen = false, onClose }) {
   const visibleGroups = navGroups
     .map((group) => ({
       ...group,
-      items: group.items.filter((item) => !isStaff(user) || (!item.ownerOnly && (!item.section || canUseSection(user, item.section)))),
+      items: group.items.filter((item) => (
+        (!item.feature || hasFeatureAccess(user, item.feature))
+        && (!isStaff(user) || (
+          !item.ownerOnly
+          && (!item.section || canUseSection(user, item.section))
+          && (!item.anySection || item.anySection.some((section) => canUseSection(user, section)))
+        ))
+      )),
     }))
     .filter((group) => group.items.length > 0);
 

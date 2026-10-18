@@ -37,6 +37,7 @@ const sanitizeUser = (user) => ({
   featureAccess: {
     saleReturn: Boolean(user.featureAccess?.saleReturn),
     stockAdjustment: Boolean(user.featureAccess?.stockAdjustment),
+    weighbridge: Boolean(user.featureAccess?.weighbridge),
   },
   materialRates: {
     tenMmRate: Number(user.materialRates?.tenMmRate || 0),
@@ -313,6 +314,7 @@ module.exports = {
              featureAccess: {
                saleReturn: Boolean(owner.featureAccess?.saleReturn),
                stockAdjustment: Boolean(owner.featureAccess?.stockAdjustment),
+               weighbridge: Boolean(owner.featureAccess?.weighbridge),
              },
              materialRates: sanitizeUser(owner).materialRates,
              defaultPricingMode: owner.defaultPricingMode || "per_ton",
@@ -393,6 +395,8 @@ module.exports = {
         user.featureAccess = {
           saleReturn: Boolean(req.body?.featureAccess?.saleReturn),
           stockAdjustment: Boolean(req.body?.featureAccess?.stockAdjustment),
+          // Set by the admin only
+          weighbridge: Boolean(user.featureAccess?.weighbridge),
         };
       }
       if (req.body?.materialRates) {

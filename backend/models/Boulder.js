@@ -40,6 +40,13 @@ const boulderSchema = new mongoose.Schema(
       uppercase: true,
       sparse: true,
     },
+    // Weighbridge RST (receipt) number, optional
+    rstNo: {
+      type: String,
+      trim: true,
+      uppercase: true,
+      default: "",
+    },
     entryMode: {
       type: String,
       enum: ["single", "bulk"],
@@ -137,6 +144,17 @@ const boulderSchema = new mongoose.Schema(
       type: String,
       trim: true,
       default: getCurrentTime,
+    },
+    // Set when the weights came from a weighbridge ticket; those weights cannot be changed by hand
+    weighmentId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Weighment",
+      default: null,
+    },
+    weightSource: {
+      type: String,
+      enum: ["manual", "weighbridge"],
+      default: "manual",
     },
     slipImg: {
       type: String,

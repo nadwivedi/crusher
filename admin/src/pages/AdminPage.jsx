@@ -51,6 +51,7 @@ const emptyForm = {
   planPrice: '',
   planStartAt: '',
   planEndAt: '',
+  weighbridge: false,
 }
 
 // Plan dates are whole days in India time, kept as 'YYYY-MM-DD' in the form
@@ -356,6 +357,7 @@ function AdminPage() {
       planPrice: Number(user.planPrice || 0) > 0 ? String(user.planPrice) : '',
       planStartAt: toDateInput(user.planStartAt),
       planEndAt: toDateInput(user.planEndAt),
+      weighbridge: Boolean(user.weighbridge),
     })
     setShowPassword(false)
     setIsModalOpen(true)
@@ -377,6 +379,7 @@ function AdminPage() {
         planPrice: Number(form.planPrice || 0),
         planStartAt: form.planStartAt || null,
         planEndAt: form.planType === 'lifetime' ? null : form.planEndAt || null,
+        weighbridge: Boolean(form.weighbridge),
       }
 
       if (!payload.planStartAt) {
@@ -1051,6 +1054,20 @@ function AdminPage() {
                     )}
                   </label>
                 </div>
+
+                {/* Enterprise add-on: the Weighbridge page and RST tickets for this account */}
+                <label className="flex items-start gap-3 rounded-lg border border-stone-200 bg-white px-3 py-2.5">
+                  <input
+                    type="checkbox"
+                    checked={Boolean(form.weighbridge)}
+                    onChange={(event) => setForm((current) => ({ ...current, weighbridge: event.target.checked }))}
+                    className="mt-0.5 h-4 w-4"
+                  />
+                  <span>
+                    <span className="block text-sm font-semibold text-stone-800">Weighbridge integration</span>
+                    <span className="block text-[11px] text-stone-500">Enterprise: read the kanta indicator, RST tickets, sales and boulder entries with locked weights</span>
+                  </span>
+                </label>
 
                 <div className="flex justify-end gap-2 border-t border-stone-200 pt-4">
                   <button type="button" onClick={resetForm} className={SECONDARY_BUTTON}>Cancel</button>

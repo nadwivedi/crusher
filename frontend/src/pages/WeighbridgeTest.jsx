@@ -3,9 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import {
   AlertTriangle, ArrowLeft, Cable, CheckCircle2, FlaskConical, Pause, Play, Plug, PlugZap, Printer,
-  RotateCcw, Scale, Search, Trash2, Truck, Unplug, Wand2
+  RotateCcw, Save, Scale, Search, Trash2, Truck, Unplug, Wand2
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import apiClient from '../utils/api';
+import { hasFeatureAccess } from '../utils/featureAccess';
 import {
   PROFILES, UNITS, createFrameSplitter, createStabilityTracker, describePort, detectProfile,
   findProfile, formatFrame, hexText, parseFrame, visibleText
@@ -326,6 +328,41 @@ export default function WeighbridgeTest() {
     toast.success(`Format found: ${findProfile(best.profile).label}. Reads ${formatKg(best.sample)} kg — compare with the indicator display.`);
   };
 
+  // ---------- Save to the kanta used on the Weighbridge page ----------
+
+  const kantaOn = hasFeatureAccess(user, 'weighbridge');
+  const [savingKanta, setSavingKanta] = useState(false);
+  const saveToKanta = async () => {
+    setSavingKanta(true);
+    try {
+      const response = await apiClient.get('/weighbridge/devices');
+      const devices = response?.data || [];
+      let chosenId = '';
+      try { chosenId = localStorage.getItem('cb_weighbridge_device') || ''; } catch { /* storage blocked */ }
+      const device = devices.find((d) => d._id === chosenId) || devices[0];
+      if (!device) throw new Error('No weighbridge set up yet');
+      const s = settingsRef.current;
+      await apiClient.put(`/weighbridge/devices/${device._id}`, {
+        baudRate: Number(s.baudRate),
+        dataBits: Number(s.dataBits),
+        parity: s.parity,
+        stopBits: Number(s.stopBits),
+        profile: s.profile,
+        unit: s.unit,
+        multiplier: Number(s.multiplier) || 1,
+        customRegex: s.customRegex,
+        stableMs: Number(s.stableMs),
+        toleranceKg: Number(s.toleranceKg),
+        minWeightKg: Number(s.minWeightKg)
+      });
+      toast.success(`Settings saved to ${device.name}. The Weighbridge page will read the indicator this way.`);
+    } catch (error) {
+      toast.error(error?.message || 'Could not save the settings');
+    } finally {
+      setSavingKanta(false);
+    }
+  };
+
   // ---------- Test weighments ----------
 
   const [tickets, setTickets] = useState(() => readStored(TICKETS_KEY, []));
@@ -570,9 +607,16 @@ export default function WeighbridgeTest() {
       <section className="card space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h2 className="flex items-center gap-2 text-sm font-bold text-slate-900"><Search size={16} /> 2. Data format</h2>
-          <button type="button" className="btn-secondary btn-sm" onClick={autoDetect} disabled={!connected}>
-            <Wand2 size={14} /> Auto-detect format
-          </button>
+          <div className="flex flex-wrap gap-2">
+            <button type="button" className="btn-secondary btn-sm" onClick={autoDetect} disabled={!connected}>
+              <Wand2 size={14} /> Auto-detect format
+            </button>
+            {kantaOn && (
+              <button type="button" className="btn-primary btn-sm" onClick={saveToKanta} disabled={savingKanta}>
+                <Save size={14} /> {savingKanta ? 'Saving…' : 'Use these settings for my kanta'}
+              </button>
+            )}
+          </div>
         </div>
         <div className="grid gap-3 md:grid-cols-3">
           <div className="md:col-span-1">

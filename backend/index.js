@@ -35,6 +35,7 @@ const monthlyHireRoutes = require("./routes/monthlyHireRoutes");
 const uploadRoutes = require("./routes/uploadRoutes");
 const vehicleRoutes = require("./routes/vehicleRoutes");
 const ocrRoutes = require("./routes/ocrRoutes");
+const weighbridgeRoutes = require("./routes/weighbridgeRoutes");
 
 dotenv.config({ path: path.join(__dirname, ".env") });
 // Count days in India time even when the server clock is UTC
@@ -87,6 +88,7 @@ app.use("/api/monthly-hires", monthlyHireRoutes);
 app.use("/api/uploads", uploadRoutes);
 app.use("/api/vehicles", vehicleRoutes);
 app.use("/api/ocr", ocrRoutes);
+app.use("/api/weighbridge", weighbridgeRoutes);
 
 const startServer = async () => {
   try {

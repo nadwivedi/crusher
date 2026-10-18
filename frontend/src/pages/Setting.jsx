@@ -6,6 +6,7 @@ import { useAuth } from '../context/AuthContext';
 import EmployeeManagement from '../components/EmployeeManagement';
 import { getStoredTheme, setStoredTheme } from '../utils/theme';
 import { LANGUAGES } from '../i18n/language';
+import { hasFeatureAccess } from '../utils/featureAccess';
 
 const THEME_OPTIONS = [
   { value: 'light', label: 'Light', hint: 'Bright white pages', Icon: Sun },
@@ -355,6 +356,24 @@ export default function Setting() {
         </section>
       )}
 
+      {/* Weighbridge: the test page checks the indicator reading; the kanta screen when the plan has it */}
+      {user?.role !== 'employee' && (
+        <section className="card">
+          <h2 className="flex items-center gap-2 text-sm font-bold text-slate-900"><Scale size={16} /> Weighbridge</h2>
+          <p className="mt-1 text-xs text-slate-500">Connect the weighbridge indicator to this computer and check the weight reading. Works in Chrome or Edge.</p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <button type="button" className="btn-primary inline-flex items-center gap-1.5 px-4" onClick={() => navigate('/settings/weighbridge')}>
+              <Scale size={15} /> Test Weight Reading
+            </button>
+            {hasFeatureAccess(user, 'weighbridge') && (
+              <button type="button" className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100" onClick={() => navigate('/weighbridge')}>
+                Open Weighbridge
+              </button>
+            )}
+          </div>
+        </section>
+      )}
+
       <section className="panel">
         <div className="panel-header">
           <h2 className="text-sm font-bold text-slate-900">Material Rates</h2>
@@ -392,15 +411,6 @@ export default function Setting() {
       </section>
 
       {user?.role !== 'employee' && <EmployeeManagement />}
-
-      {/* Weighbridge test page: kept low-key here until it goes into the sales flow */}
-      {user?.role !== 'employee' && (
-        <div className="flex justify-center pt-2">
-          <button type="button" className="inline-flex items-center gap-1.5 text-xs text-slate-400 transition hover:text-slate-600" onClick={() => navigate('/settings/weighbridge')}>
-            <Scale size={13} /> Weighbridge integration (test)
-          </button>
-        </div>
-      )}
     </div>
   );
 }

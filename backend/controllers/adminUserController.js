@@ -17,6 +17,7 @@ const USER_FIELDS = [
   { key: "planPrice", label: "Plan Price" },
   { key: "planStartAt", label: "Plan Start" },
   { key: "planEndAt", label: "Plan End" },
+  { key: "featureAccess.weighbridge", label: "Weighbridge" },
 ];
 
 const saltRounds = 10;
@@ -36,6 +37,7 @@ const sanitizeAdminUser = (user) => ({
   planPrice: Number(user.planPrice || 0),
   planStartAt: user.planStartAt || null,
   planEndAt: user.planEndAt || null,
+  weighbridge: Boolean(user.featureAccess?.weighbridge),
   isActive: user.isActive !== false,
   deactivatedAt: user.deactivatedAt || null,
   createdAt: user.createdAt,
@@ -78,7 +80,7 @@ const getUsers = async (_req, res) => {
   try {
     const users = await User.find({})
       .sort({ createdAt: -1 })
-      .select("name email mobile state district lastLoginAt lastActivityAt planType planPrice planStartAt planEndAt isActive deactivatedAt createdAt updatedAt");
+      .select("name email mobile state district lastLoginAt lastActivityAt planType planPrice planStartAt planEndAt featureAccess isActive deactivatedAt createdAt updatedAt");
 
     return res.json({
       success: true,
@@ -137,6 +139,7 @@ const createUser = async (req, res) => {
       planPrice: plan.planPrice,
       planStartAt: plan.planStartAt,
       planEndAt: plan.planEndAt,
+      featureAccess: { weighbridge: Boolean(req.body.weighbridge) },
     });
 
     await ensureDieselStock(user._id).catch(() => {});
@@ -212,6 +215,10 @@ const updateUser = async (req, res) => {
       user.planPrice = plan.planPrice;
       user.planStartAt = plan.planStartAt;
       user.planEndAt = plan.planEndAt;
+    }
+
+    if (req.body.weighbridge !== undefined) {
+      user.set("featureAccess.weighbridge", Boolean(req.body.weighbridge));
     }
 
     if (name !== undefined) user.name = name.trim();
