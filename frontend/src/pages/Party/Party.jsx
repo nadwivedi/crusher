@@ -56,6 +56,13 @@ const getTypeBadgeClass = (type) => {
 };
 
 const getTypeLabel = (party) => PARTY_TYPE_LABELS[party?.type] || 'Supplier';
+
+// Old transporter parties are suppliers too (you hire their vehicles)
+const TYPE_FILTERS = [
+  { value: 'all', label: 'All', matches: () => true },
+  { value: 'customer', label: 'Customers', matches: (party) => party.type === 'customer' },
+  { value: 'supplier', label: 'Suppliers', matches: (party) => ['supplier', 'transporter'].includes(party.type) }
+];
 const getDefaultOpeningBalanceType = (partyType) => (['supplier', 'transporter'].includes(partyType) ? 'payable' : 'receivable');
 const resolveOpeningBalanceType = (party) => {
   const explicitType = String(party?.openingBalanceType || '').trim().toLowerCase();
@@ -81,6 +88,7 @@ export default function Party() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [search, setSearch] = useState('');
+  const [typeFilter, setTypeFilter] = useState('all');
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
 
@@ -254,6 +262,9 @@ export default function Party() {
     }
   };
 
+  const activeTypeFilter = TYPE_FILTERS.find((filter) => filter.value === typeFilter) || TYPE_FILTERS[0];
+  const visibleParties = parties.filter(activeTypeFilter.matches);
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-purple-50">
       <div className="w-full px-3 md:px-4 lg:px-6 pt-4 lg:pt-4 pb-8">
@@ -282,7 +293,7 @@ export default function Party() {
             <div className="min-w-0">
               <p className="text-[9px] sm:text-xs font-medium text-slate-500 leading-tight truncate">Suppliers</p>
               <p className="mt-0.5 sm:mt-2 text-[13px] sm:text-2xl font-bold text-emerald-600 leading-tight truncate">
-                {parties.filter(p => p.type === 'supplier').length}
+                {parties.filter(TYPE_FILTERS[2].matches).length}
               </p>
             </div>
             <div className="shrink-0 flex h-7 w-7 sm:h-12 sm:w-12 items-center justify-center rounded-lg sm:rounded-xl bg-emerald-50 text-emerald-600">
@@ -333,6 +344,19 @@ export default function Party() {
                 />
             </div>
 
+            <select
+              value={typeFilter}
+              onChange={(e) => setTypeFilter(e.target.value)}
+              aria-label="Filter by party type"
+              className="w-full rounded-lg border border-gray-300 bg-white py-2.5 pl-3 pr-8 text-sm font-semibold text-slate-700 outline-none transition focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 lg:w-48"
+            >
+              {TYPE_FILTERS.map((filter) => (
+                <option key={filter.value} value={filter.value}>
+                  {filter.value === 'all' ? 'All Parties' : filter.label} ({parties.filter(filter.matches).length})
+                </option>
+              ))}
+            </select>
+
             <button
               onClick={handleOpenForm}
               className="inline-flex items-center justify-center rounded-lg bg-slate-800 px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-900 whitespace-nowrap"
@@ -346,10 +370,10 @@ export default function Party() {
           <div className="px-6 py-10 text-center text-slate-500">Loading...</div>
         ) : (
           <div className="rounded-[20px] border border-slate-200 bg-[radial-gradient(circle_at_top_right,rgba(148,163,184,0.16),transparent_28%),linear-gradient(180deg,rgba(255,255,255,0.98)_0%,rgba(241,245,249,0.96)_100%)] p-3 shadow-[0_18px_36px_rgba(15,23,42,0.08)] sm:p-5">
-            {parties.length > 0 ? (
+            {visibleParties.length > 0 ? (
               <>
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:hidden">
-                  {parties.map((item) => (
+                  {visibleParties.map((item) => (
                     <div
                       key={item._id}
                       onClick={() => handleOpenPartyLedger(item)}
@@ -410,7 +434,7 @@ export default function Party() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 bg-white/50">
-                      {parties.map((item) => (
+                      {visibleParties.map((item) => (
                         <tr
                           key={item._id}
                           onClick={() => handleOpenPartyLedger(item)}
@@ -449,8 +473,8 @@ export default function Party() {
             ) : (
               <div className="rounded-3xl border border-dashed border-slate-300 bg-white/80 px-6 py-16 text-center text-slate-500">
                 <Users size={48} className="mx-auto mb-4 text-slate-300" />
-                <p className="text-lg font-bold">No parties found</p>
-                <p className="text-sm">Create your first party to get started</p>
+                <p className="text-lg font-bold">{parties.length > 0 ? `No ${activeTypeFilter.label.toLowerCase()} found` : 'No parties found'}</p>
+                <p className="text-sm">{parties.length > 0 ? 'Try another filter or search' : 'Create your first party to get started'}</p>
               </div>
             )}
           </div>
