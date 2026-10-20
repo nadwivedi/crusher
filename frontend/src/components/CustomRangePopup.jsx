@@ -60,7 +60,17 @@ export function CustomRangeButton({ from, to, onClick }) {
 }
 
 // Render only while open: the drafts start from the applied range each time it opens.
-export default function CustomRangePopup({ from = '', to = '', onApply, onClose }) {
+// The title and button can be changed, e.g. to pick the period of an Excel export.
+export default function CustomRangePopup({
+  from = '',
+  to = '',
+  onApply,
+  onClose,
+  title = 'Custom Range',
+  subtitle = 'Pick the start and end date',
+  applyLabel = 'Apply',
+  busy = false
+}) {
   const [draftFrom, setDraftFrom] = useState(from);
   const [draftTo, setDraftTo] = useState(to);
 
@@ -76,7 +86,7 @@ export default function CustomRangePopup({ from = '', to = '', onApply, onClose 
     return () => window.removeEventListener('keydown', handleKeyDown, true);
   }, [onClose]);
 
-  const canApply = Boolean(draftFrom && draftTo);
+  const canApply = Boolean(draftFrom && draftTo) && !busy;
 
   return (
     <div
@@ -88,12 +98,12 @@ export default function CustomRangePopup({ from = '', to = '', onApply, onClose 
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
-        aria-label="Select custom date range"
+        aria-label={title}
       >
         <div className="flex items-start justify-between border-b border-slate-100 px-6 py-4">
           <div>
-            <h3 className="text-lg font-black text-slate-800">Custom Range</h3>
-            <p className="text-sm text-slate-500">Pick the start and end date</p>
+            <h3 className="text-lg font-black text-slate-800">{title}</h3>
+            <p className="text-sm text-slate-500">{subtitle}</p>
           </div>
           <button
             type="button"
@@ -149,7 +159,7 @@ export default function CustomRangePopup({ from = '', to = '', onApply, onClose 
 
         <div className="flex items-center justify-between gap-3 border-t border-slate-100 bg-slate-50 px-6 py-4">
           <p className="text-sm font-semibold text-slate-600">
-            {canApply ? formatRangeLabel(draftFrom, draftTo) : 'Select both dates'}
+            {draftFrom && draftTo ? formatRangeLabel(draftFrom, draftTo) : 'Select both dates'}
           </p>
           <div className="flex gap-2">
             <button
@@ -165,7 +175,7 @@ export default function CustomRangePopup({ from = '', to = '', onApply, onClose 
               disabled={!canApply}
               className="rounded-xl bg-slate-800 px-5 py-2 text-sm font-semibold text-white transition hover:bg-slate-900 disabled:cursor-not-allowed disabled:opacity-40"
             >
-              Apply
+              {applyLabel}
             </button>
           </div>
         </div>

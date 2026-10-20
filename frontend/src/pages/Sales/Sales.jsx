@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Banknote, ClipboardList, CreditCard, Eye, Inbox, IndianRupee, Layers, Pencil, Plus, RefreshCw, Scale, Search, Trash2, X } from 'lucide-react';
+import { Banknote, ClipboardList, CreditCard, Eye, FileSpreadsheet, Inbox, IndianRupee, Layers, Pencil, Plus, RefreshCw, Scale, Search, Trash2, X } from 'lucide-react';
 import { toast } from 'react-toastify';
 import apiClient from '../../utils/api';
 import { useAuth } from '../../context/AuthContext';
@@ -15,7 +15,8 @@ import AddVehiclePopup from '../Vehicle/component/AddVehiclePopup';
 import AddSalePopup from './component/AddSalePopup';
 import StatCard from '../../components/StatCard';
 import Segmented from '../../components/Segmented';
-import CustomRangePopup, { formatRangeLabel } from '../../components/CustomRangePopup';
+import CustomRangePopup, { formatRangeLabel, toLocalDateInput } from '../../components/CustomRangePopup';
+import { downloadExcel, getExportFileName } from '../../utils/excelExport';
 import MonthPickerPopup, { formatMonthLabel } from '../../components/MonthPickerPopup';
 
 const isCompleteVehicleNumber = (value) => normalizeVehicleValue(value).length >= 9;
@@ -471,6 +472,8 @@ export default function Sales({ modalOnly = false, onModalFinish = null, weighme
   const rangeBeforeMonthRef = useRef('lifetime');
   const rangeBeforeCustomRef = useRef('lifetime');
   const [showCustomPicker, setShowCustomPicker] = useState(false);
+  const [showExportPicker, setShowExportPicker] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [materialStats, setMaterialStats] = useState([]);
   const [materialFilter, setMaterialFilter] = useState('');
   const [tab, setTab] = useState('entries');
@@ -2741,6 +2744,91 @@ export default function Sales({ modalOnly = false, onModalFinish = null, weighme
     };
   };
 
+  // The export period starts as the period on screen; "All" starts at this month
+  const getExportStartRange = () => {
+    const { from, to } = getRangeBounds(tableRange, customFrom, customTo, selectedMonth, selectedYear);
+    const today = new Date();
+    return {
+      from: from ? toLocalDateInput(new Date(from)) : toLocalDateInput(new Date(today.getFullYear(), today.getMonth(), 1)),
+      to: to ? toLocalDateInput(new Date(to)) : toLocalDateInput(today)
+    };
+  };
+
+  // Every sale of the period (not only the page on screen), oldest first, one row each
+  const handleExportExcel = async (fromDay, toDay) => {
+    setExporting(true);
+    try {
+      const response = await apiClient.get('/sales', {
+        params: {
+          from: new Date(`${fromDay}T00:00:00`).toISOString(),
+          to: new Date(`${toDay}T23:59:59.999`).toISOString()
+        }
+      });
+      const rows = (Array.isArray(response) ? response : [])
+        .map((sale) => ({ sale, view: describeSale(sale) }))
+        .sort((a, b) => (
+          new Date(a.sale.saleDate || a.sale.createdAt) - new Date(b.sale.saleDate || b.sale.createdAt)
+          || new Date(a.sale.createdAt) - new Date(b.sale.createdAt)
+        ));
+      if (rows.length === 0) {
+        toast.info('No sales in this period');
+        return;
+      }
+
+      const balanceOf = ({ sale }) => Math.max(0, Number(sale.totalAmount || 0) - Number(sale.paidAmount || 0));
+      const sum = (getValue) => rows.reduce((total, row) => total + Number(getValue(row) || 0), 0);
+      const columns = [
+        { key: 'date', header: 'Date', type: 'date', width: 12, value: ({ sale }) => sale.saleDate || sale.createdAt },
+        { key: 'invoice', header: 'Invoice No', width: 12, value: ({ sale }) => sale.invoiceNumber },
+        { key: 'rst', header: 'RST No', width: 10, value: ({ sale }) => sale.rstNo },
+        { key: 'party', header: 'Party', width: 26, value: ({ view }) => (view.party === '—' ? '' : view.party) },
+        { key: 'vehicle', header: 'Vehicle No', width: 14, value: ({ sale }) => sale.vehicleNo },
+        { key: 'material', header: 'Material', width: 10, value: ({ view }) => view.material.toUpperCase() },
+        { key: 'billedBy', header: 'Billed By', width: 10, value: ({ view }) => (view.isCubic ? 'Cft' : 'Ton') },
+        { key: 'gross', header: 'Gross (kg)', type: 'number', format: '#,##0', width: 12, value: ({ sale }) => sale.grossWeight || '' },
+        { key: 'tare', header: 'Tare (kg)', type: 'number', format: '#,##0', width: 12, value: ({ sale }) => sale.tareWeight || '' },
+        { key: 'net', header: 'Net (kg)', type: 'number', format: '#,##0', width: 12, value: ({ view }) => view.netWeight || '' },
+        { key: 'tons', header: 'Net (Ton)', type: 'number', format: '#,##0.000', width: 11, value: ({ view }) => (view.netWeight ? view.netWeight / 1000 : '') },
+        { key: 'cft', header: 'Cft', type: 'number', width: 10, value: ({ sale }) => Number(sale.cubicMeterQty || 0) || '' },
+        { key: 'rate', header: 'Rate', type: 'number', width: 10, value: ({ sale }) => sale.rate },
+        { key: 'materialAmount', header: 'Material Amount', type: 'number', width: 15, value: ({ view }) => view.materialAmount },
+        { key: 'transportCharge', header: 'Transport Charge', type: 'number', width: 15, value: ({ view }) => view.transportCharge || '' },
+        { key: 'total', header: 'Total Amount', type: 'number', width: 14, value: ({ sale }) => sale.totalAmount },
+        { key: 'paid', header: 'Paid', type: 'number', width: 12, value: ({ sale }) => sale.paidAmount || '' },
+        { key: 'balance', header: 'Balance', type: 'number', width: 12, value: (row) => balanceOf(row) || '' },
+        { key: 'payment', header: 'Payment', width: 10, value: ({ sale }) => formatSaleTypeLabel(sale.type) },
+        { key: 'dispatch', header: 'Dispatch To', width: 18, value: ({ sale }) => sale.dispatchLocation },
+        { key: 'transport', header: 'Transport', width: 24, value: ({ view }) => (view.transportMode === 'party' ? 'Party vehicle' : view.transportNote) }
+      ];
+
+      await downloadExcel({
+        fileName: getExportFileName('Sales', fromDay, toDay),
+        sheet: 'Sales',
+        columns,
+        rows,
+        totals: {
+          date: `Total (${entryCount(rows.length)})`,
+          gross: sum(({ sale }) => sale.grossWeight),
+          tare: sum(({ sale }) => sale.tareWeight),
+          net: sum(({ view }) => view.netWeight),
+          tons: sum(({ view }) => view.netWeight) / 1000,
+          cft: sum(({ sale }) => sale.cubicMeterQty),
+          materialAmount: sum(({ view }) => view.materialAmount),
+          transportCharge: sum(({ view }) => view.transportCharge),
+          total: sum(({ sale }) => sale.totalAmount),
+          paid: sum(({ sale }) => sale.paidAmount),
+          balance: sum(balanceOf)
+        }
+      });
+      setShowExportPicker(false);
+      toast.success(`Exported ${entryCount(rows.length)}`, toastOptions);
+    } catch (err) {
+      toast.error(err.message || 'Could not export sales');
+    } finally {
+      setExporting(false);
+    }
+  };
+
   const renderMaterial = (material) => (material
     ? <span className={`inline-flex shrink-0 rounded-full px-2 py-0.5 text-[11px] font-bold uppercase ${getMaterialBadgeClass(material)}`}>{material}</span>
     : <span className="text-slate-400">—</span>);
@@ -2920,6 +3008,17 @@ export default function Sales({ modalOnly = false, onModalFinish = null, weighme
       {showCustomPicker && (
         <CustomRangePopup from={customFrom} to={customTo} onApply={applyCustomPicker} onClose={closeCustomPicker} />
       )}
+      {showExportPicker && (
+        <CustomRangePopup
+          {...getExportStartRange()}
+          title="Export Sales to Excel"
+          subtitle="Every sale between these dates goes in the file"
+          applyLabel={exporting ? 'Exporting...' : 'Export Excel'}
+          busy={exporting}
+          onApply={handleExportExcel}
+          onClose={() => !exporting && setShowExportPicker(false)}
+        />
+      )}
       {showMonthPicker && (
         <MonthPickerPopup
           month={selectedMonth}
@@ -2937,6 +3036,9 @@ export default function Sales({ modalOnly = false, onModalFinish = null, weighme
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Segmented options={SALES_RANGE_OPTIONS} value={tableRange} onChange={handleRangeChange} />
+          <button type="button" className="btn-secondary" onClick={() => setShowExportPicker(true)} title="Export sales of a period to Excel">
+            <FileSpreadsheet size={18} /> Excel
+          </button>
           {canCreateSales && (
             <button type="button" className="btn-primary" onClick={handleOpenForm}>
               <Plus size={18} /> New Sale

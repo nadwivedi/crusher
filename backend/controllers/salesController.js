@@ -334,12 +334,6 @@ const getAllSales = async (req, res) => {
        query.saleDate = { $gte: req.visibilityBoundary };
     }
 
-    // Without ?page the full list is returned (other screens rely on this).
-    if (req.query.page === undefined) {
-      const sales = await Sales.find(query).sort({ createdAt: -1 });
-      return res.json(sales.map(serializeSale));
-    }
-
     const from = req.query.from ? new Date(req.query.from) : null;
     const to = req.query.to ? new Date(req.query.to) : null;
     if ((from && !Number.isNaN(from.getTime())) || (to && !Number.isNaN(to.getTime()))) {
@@ -349,6 +343,12 @@ const getAllSales = async (req, res) => {
       }
       if (to && !Number.isNaN(to.getTime())) range.$lte = to;
       query.saleDate = range;
+    }
+
+    // Without ?page the full list (of the ?from/?to period, if given) is returned: other screens and the Excel export use this
+    if (req.query.page === undefined) {
+      const sales = await Sales.find(query).sort({ createdAt: -1 });
+      return res.json(sales.map(serializeSale));
     }
 
     const search = String(req.query.search || "").trim();
