@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { Fragment, useState } from 'react';
 import { ChevronDown, Store, User } from 'lucide-react';
 import FormPopup from '../../../components/FormPopup';
 import FormSection from '../../../components/FormSection';
 import { handlePopupFormKeyDown } from '../../../utils/popupFormKeyboard';
+import { PARTY_SALE_RATES, PARTY_SALE_RATE_KEYS } from '../../../utils/partyRates';
 
 const TYPE_OPTIONS = [
   { value: 'customer', label: 'Customer', hint: 'Buys material from you', Icon: User },
@@ -14,22 +15,13 @@ const OPENING_BALANCE_OPTIONS = [
   { value: 'payable', label: 'Payable', hint: 'You have to pay the party this amount.', activeClass: 'border-rose-600 bg-rose-600 text-white' }
 ];
 
-const SALE_RATE_FIELDS = [
-  { name: 'tenMmRate', label: '10mm' },
-  { name: 'twentyMmRate', label: '20mm' },
-  { name: 'fortyMmRate', label: '40mm' },
-  { name: 'wmmRate', label: 'WMM' },
-  { name: 'gsbRate', label: 'GSB' },
-  { name: 'dustRate', label: 'Dust' }
-];
-
 const INACTIVE_OPTION_CLASS = 'border-slate-300 bg-white text-slate-700 hover:bg-slate-100';
 
-/** Rate box with the unit shown inside it. */
-function RateInput({ name, label, value, onChange, unit = 'ton' }) {
+/** Rate box with the unit shown inside it. Without a label it is named by ariaLabel. */
+function RateInput({ name, label, ariaLabel, value, onChange, unit = 'ton' }) {
   return (
     <div>
-      <label className="label" htmlFor={`party-${name}`}>{label}</label>
+      {label && <label className="label" htmlFor={`party-${name}`}>{label}</label>}
       <div className="relative">
         <input
           id={`party-${name}`}
@@ -41,6 +33,7 @@ function RateInput({ name, label, value, onChange, unit = 'ton' }) {
           min="0"
           step="0.01"
           placeholder="0"
+          aria-label={label ? undefined : ariaLabel}
         />
         <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-xs font-semibold text-slate-400">₹/{unit}</span>
       </div>
@@ -54,7 +47,7 @@ function PartyForm({ editingId, loading, formData, error, handleCloseForm, handl
   const isCashParty = formData.type === 'cash-in-hand';
   const hasOpeningBalance = String(formData.openingBalance ?? '').trim() !== '';
   const openingBalanceOption = OPENING_BALANCE_OPTIONS.find((option) => option.value === formData.openingBalanceType);
-  const filledRateCount = SALE_RATE_FIELDS.filter((field) => Number(formData[field.name] || 0) > 0).length;
+  const filledRateCount = PARTY_SALE_RATE_KEYS.filter((key) => Number(formData[key] || 0) > 0).length;
   // Customers are the ones who buy, so their rates start open; for others they stay out of the way
   const ratesOpen = ratesToggled ?? (formData.type === 'customer' || filledRateCount > 0);
 
@@ -219,7 +212,7 @@ function PartyForm({ editingId, loading, formData, error, handleCloseForm, handl
           number={++sectionNumber}
           title="Special Sale Rates"
           tone="emerald"
-          hint="Only if this party gets its own price. Blank uses your normal rate."
+          hint="Only if this party gets its own price, per ton or per cubic feet. Blank uses your normal rate."
           action={(
             <button
               type="button"
@@ -234,9 +227,16 @@ function PartyForm({ editingId, loading, formData, error, handleCloseForm, handl
           )}
         >
           {ratesOpen && (
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-              {SALE_RATE_FIELDS.map((field) => (
-                <RateInput key={field.name} name={field.name} label={field.label} value={formData[field.name]} onChange={handleChange} />
+            <div className="grid grid-cols-[3.5rem_1fr_1fr] items-center gap-x-2 gap-y-2 sm:grid-cols-[5rem_1fr_1fr] sm:gap-x-3">
+              <span />
+              <span className="label mb-0">Per Ton</span>
+              <span className="label mb-0">Per Cubic Feet</span>
+              {PARTY_SALE_RATES.map((rate) => (
+                <Fragment key={rate.tonKey}>
+                  <span className="text-sm font-semibold text-slate-700">{rate.label}</span>
+                  <RateInput name={rate.tonKey} ariaLabel={`${rate.label} rate per ton`} value={formData[rate.tonKey]} onChange={handleChange} />
+                  <RateInput name={rate.cubicKey} ariaLabel={`${rate.label} rate per cubic feet`} value={formData[rate.cubicKey]} onChange={handleChange} unit="cft" />
+                </Fragment>
               ))}
             </div>
           )}

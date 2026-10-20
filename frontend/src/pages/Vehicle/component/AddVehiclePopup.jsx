@@ -10,6 +10,7 @@ import { handlePopupFormKeyDown } from '../../../utils/popupFormKeyboard';
 import { useFloatingDropdownPosition } from '../../../utils/useFloatingDropdownPosition';
 import { VEHICLE_CATEGORY_OPTIONS, VEHICLE_OWNERSHIP_OPTIONS, getFilledTripRates, getSupplierRatesPayload, getTripRatesError } from '../../../utils/transport';
 import { formatHireDate, toDayInput, todayInput } from '../../../utils/monthlyHire';
+import { getPartySaleRatesPayload } from '../../../utils/partyRates';
 
 const initialFormData = {
   partyId: '',
@@ -247,12 +248,7 @@ export default function AddVehiclePopup({ vehicle, onClose, onSave, onVehicleSav
         address: String(partyFormData.address || '').trim(),
         openingBalance: Number(partyFormData.openingBalance || 0),
         openingBalanceType: String(partyFormData.openingBalanceType || 'receivable'),
-        tenMmRate: Number(partyFormData.tenMmRate || 0),
-        twentyMmRate: Number(partyFormData.twentyMmRate || 0),
-        fortyMmRate: Number(partyFormData.fortyMmRate || 0),
-        wmmRate: Number(partyFormData.wmmRate || 0),
-        gsbRate: Number(partyFormData.gsbRate || 0),
-        dustRate: Number(partyFormData.dustRate || 0),
+        ...getPartySaleRatesPayload(partyFormData),
         ...getSupplierRatesPayload(partyFormData)
       });
       setParties((prev) => [createdParty, ...prev.filter((item) => String(item._id) !== String(createdParty._id))]);

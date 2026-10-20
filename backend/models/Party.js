@@ -101,6 +101,43 @@ const partySchema = new mongoose.Schema(
       min: 0,
       set: normalizeRate,
     },
+    // Special rates for sales billed per cubic feet (pricing mode "per_cubic_meter")
+    tenMmRatePerCubicMeter: {
+      type: Number,
+      default: 0,
+      min: 0,
+      set: normalizeRate,
+    },
+    twentyMmRatePerCubicMeter: {
+      type: Number,
+      default: 0,
+      min: 0,
+      set: normalizeRate,
+    },
+    fortyMmRatePerCubicMeter: {
+      type: Number,
+      default: 0,
+      min: 0,
+      set: normalizeRate,
+    },
+    wmmRatePerCubicMeter: {
+      type: Number,
+      default: 0,
+      min: 0,
+      set: normalizeRate,
+    },
+    gsbRatePerCubicMeter: {
+      type: Number,
+      default: 0,
+      min: 0,
+      set: normalizeRate,
+    },
+    dustRatePerCubicMeter: {
+      type: Number,
+      default: 0,
+      min: 0,
+      set: normalizeRate,
+    },
     boulderRatePerTon: {
       type: Number,
       default: 0,

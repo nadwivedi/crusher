@@ -7,6 +7,7 @@ import { useAuth } from '../../context/AuthContext';
 import { canDeleteEntries, canEditEntry } from '../../utils/staffAccess';
 import { getSmartVehicleMatch, normalizeVehicleValue } from '../../utils/vehicleMatching';
 import useAccounts from '../../utils/useAccounts';
+import { getPartyMaterialRate, getPartySaleRatesPayload } from '../../utils/partyRates';
 import { PERIOD_BASES, getBasisUnit, getOwnershipLabel, getSaleTransport, getSaleTransportCharge, getTripRate, getSupplierRatesPayload, getVehicleHireRates, getVehicleOwnerIds } from '../../utils/transport';
 import AddPartyPopup from '../Party/component/AddPartyPopup';
 import AddProductPopup from '../Products/component/AddProductPopup';
@@ -247,19 +248,6 @@ const getCrusherMaterialRate = (user, materialType, pricingMode = 'per_ton') => 
   const rates = user?.materialRates || {};
   const rateKey = getCrusherRateKey(materialType, pricingMode);
   return rateKey ? Number(rates[rateKey] || 0) : 0;
-};
-
-const getPartyMaterialRate = (party, materialType, pricingMode = 'per_ton') => {
-  if (!party || !materialType) return 0;
-  if (pricingMode === 'per_cubic_meter') return 0;
-
-  if (materialType === '10mm') return Number(party.tenMmRate || 0);
-  if (materialType === '20mm') return Number(party.twentyMmRate || 0);
-  if (materialType === '40mm') return Number(party.fortyMmRate || 0);
-  if (materialType === 'wmm') return Number(party.wmmRate || 0);
-  if (materialType === 'gsb') return Number(party.gsbRate || 0);
-  if (materialType === 'dust') return Number(party.dustRate || 0);
-  return 0;
 };
 
 const getSaleRateForParty = (user, party, materialType, pricingMode = 'per_ton') => {
@@ -2130,12 +2118,7 @@ export default function Sales({ modalOnly = false, onModalFinish = null, weighme
           pincode: String(partyFormData.pincode || '').trim(),
           openingBalance: Number(partyFormData.openingBalance || 0),
           openingBalanceType: String(partyFormData.openingBalanceType || 'receivable'),
-          tenMmRate: Number(partyFormData.tenMmRate || 0),
-          twentyMmRate: Number(partyFormData.twentyMmRate || 0),
-          fortyMmRate: Number(partyFormData.fortyMmRate || 0),
-          wmmRate: Number(partyFormData.wmmRate || 0),
-          gsbRate: Number(partyFormData.gsbRate || 0),
-          dustRate: Number(partyFormData.dustRate || 0),
+          ...getPartySaleRatesPayload(partyFormData),
           ...getSupplierRatesPayload(partyFormData)
         };
 

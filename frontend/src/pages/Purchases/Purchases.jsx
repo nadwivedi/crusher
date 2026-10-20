@@ -13,6 +13,7 @@ import Segmented from '../../components/Segmented';
 import AddPurchasePopup from './component/AddPurchasePopup';
 import PumpFillPopup from '../../components/PumpFillPopup';
 import { getSupplierRatesPayload } from '../../utils/transport';
+import { getPartySaleRatesPayload } from '../../utils/partyRates';
 
 const PURCHASE_TYPES = {
   cash: { label: 'Cash', badge: 'badge-green' },
@@ -943,12 +944,7 @@ export default function Purchases({ modalOnly = false, onModalFinish = null }) {
           pincode: String(partyFormData.pincode || '').trim(),
           openingBalance: Number(partyFormData.openingBalance || 0),
           openingBalanceType: String(partyFormData.openingBalanceType || 'payable'),
-          tenMmRate: Number(partyFormData.tenMmRate || 0),
-          twentyMmRate: Number(partyFormData.twentyMmRate || 0),
-          fortyMmRate: Number(partyFormData.fortyMmRate || 0),
-          wmmRate: Number(partyFormData.wmmRate || 0),
-          gsbRate: Number(partyFormData.gsbRate || 0),
-          dustRate: Number(partyFormData.dustRate || 0),
+          ...getPartySaleRatesPayload(partyFormData),
           ...getSupplierRatesPayload(partyFormData)
         };
 

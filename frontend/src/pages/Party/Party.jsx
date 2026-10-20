@@ -7,6 +7,7 @@ import { canDeleteEntries, canEditEntry } from '../../utils/staffAccess';
 import { useAuth } from '../../context/AuthContext';
 import AddPartyPopup from './component/AddPartyPopup';
 import { getSupplierRatesPayload } from '../../utils/transport';
+import { getPartySaleRatesPayload, readPartySaleRates } from '../../utils/partyRates';
 
 const getInitialForm = () => ({
   type: '',
@@ -194,12 +195,7 @@ export default function Party() {
       address: String(party.address || ''),
       openingBalance: Math.abs(Number(party.openingBalance || 0)) || '',
       openingBalanceType: resolveOpeningBalanceType(party),
-      tenMmRate: Number(party.tenMmRate || 0) || '',
-      twentyMmRate: Number(party.twentyMmRate || 0) || '',
-      fortyMmRate: Number(party.fortyMmRate || 0) || '',
-      wmmRate: Number(party.wmmRate || 0) || '',
-      gsbRate: Number(party.gsbRate || 0) || '',
-      dustRate: Number(party.dustRate || 0) || '',
+      ...readPartySaleRates(party),
       boulderRatePerTon: Number(party.boulderRatePerTon || 0) || '',
       boulderRatePerTrip: Number(party.boulderRatePerTrip || 0) || ''
     });
@@ -234,12 +230,7 @@ export default function Party() {
         address: String(formData.address || '').trim(),
         openingBalance: Number(formData.openingBalance || 0),
         openingBalanceType: String(formData.openingBalanceType || getDefaultOpeningBalanceType(formData.type)),
-        tenMmRate: Number(formData.tenMmRate || 0),
-        twentyMmRate: Number(formData.twentyMmRate || 0),
-        fortyMmRate: Number(formData.fortyMmRate || 0),
-        wmmRate: Number(formData.wmmRate || 0),
-        gsbRate: Number(formData.gsbRate || 0),
-        dustRate: Number(formData.dustRate || 0),
+        ...getPartySaleRatesPayload(formData),
         ...getSupplierRatesPayload(formData)
       };
 
