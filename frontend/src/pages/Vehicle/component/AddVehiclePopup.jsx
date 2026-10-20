@@ -244,6 +244,7 @@ export default function AddVehiclePopup({ vehicle, onClose, onSave, onVehicleSav
         type: partyFormData.type,
         name: String(partyFormData.name || '').trim(),
         mobile: String(partyFormData.mobile || '').trim(),
+        address: String(partyFormData.address || '').trim(),
         openingBalance: Number(partyFormData.openingBalance || 0),
         openingBalanceType: String(partyFormData.openingBalanceType || 'receivable'),
         tenMmRate: Number(partyFormData.tenMmRate || 0),

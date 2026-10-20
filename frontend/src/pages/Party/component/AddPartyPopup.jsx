@@ -140,6 +140,20 @@ function PartyForm({ editingId, loading, formData, error, handleCloseForm, handl
             />
           </div>
         </div>
+
+        <div>
+          <label className="label" htmlFor="party-address-input">Address <span className="text-xs font-normal text-slate-400">(optional)</span></label>
+          <textarea
+            id="party-address-input"
+            className="input min-h-[64px] resize-y"
+            name="address"
+            value={formData.address ?? ''}
+            onChange={handleChange}
+            rows={2}
+            placeholder="e.g. Near bus stand, Raipur"
+            autoComplete="off"
+          />
+        </div>
       </FormSection>
 
       <FormSection
