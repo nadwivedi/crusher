@@ -23,6 +23,13 @@ export const AuthProvider = ({ children }) => {
     bootstrapAuth();
   }, []);
 
+  // A save refused because the account is deactivated: show the notice without waiting for a reload
+  useEffect(() => {
+    const markDeactivated = () => setUser((current) => (current && !current.adminAccess ? { ...current, deactivated: true } : current));
+    window.addEventListener('account-deactivated', markDeactivated);
+    return () => window.removeEventListener('account-deactivated', markDeactivated);
+  }, []);
+
   // The signed-in person's saved language wins over what this device used last
   useEffect(() => {
     if (user?.language) setLanguage(user.language);

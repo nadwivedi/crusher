@@ -456,7 +456,7 @@ function AdminPage() {
     }
   }
 
-  // Deactivated accounts are signed out and cannot sign in, staff included
+  // Deactivated accounts can still sign in, staff included, but only see the deactivated notice
   const changeUserStatus = async (user, isActive) => {
     try {
       setStatusChangingId(user.id)
@@ -1094,7 +1094,7 @@ function AdminPage() {
               </span>
               <h3 className="mt-3 text-base font-bold text-stone-900">Deactivate this account?</h3>
               <p className="mt-1 text-sm text-stone-500">
-                <span className="font-semibold text-stone-800">{userToDeactivate.name}</span> and their staff will be signed out and cannot sign in. Their data is kept, and you can activate the account again any time.
+                <span className="font-semibold text-stone-800">{userToDeactivate.name}</span> and their staff will see an &quot;Account deactivated&quot; notice over the app and cannot save anything. Their data is kept, and you can activate the account again any time.
               </p>
               <div className="mt-5 flex gap-2">
                 <button type="button" onClick={() => setUserToDeactivate(null)} disabled={Boolean(statusChangingId)} className={`${SECONDARY_BUTTON} flex-1`}>

@@ -288,7 +288,7 @@ const deleteUser = async (req, res) => {
   }
 };
 
-// Deactivate or turn back on an account. A deactivated owner and their staff are signed out and cannot sign in.
+// Deactivate or turn back on an account. A deactivated owner and their staff can sign in but see only the deactivated notice.
 const setUserStatus = async (req, res) => {
   try {
     if (typeof req.body?.isActive !== "boolean") {

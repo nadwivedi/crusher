@@ -65,7 +65,7 @@ const userSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
-    // Turned off by the admin: the owner and their staff cannot sign in or use the app
+    // Turned off by the admin: the owner and their staff can sign in but only see the deactivated notice
     isActive: {
       type: Boolean,
       default: true,

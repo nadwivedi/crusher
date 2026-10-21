@@ -68,7 +68,7 @@ const generateToken = (id) => (
 );
 
 const { redeemAccessToken, createAdminSessionToken } = require("../utils/adminAccess");
-const { isAccountActive, DEACTIVATED_MESSAGE } = require("../utils/accountStatus");
+const { isAccountActive } = require("../utils/accountStatus");
 const { readSections } = require("../utils/staffSections");
 
 const getCookieOptions = () => {
@@ -196,20 +196,20 @@ const loginUser = async (req, res) => {
       return res.status(401).json({ message: "Invalid mobile number, email or password" });
     }
 
-    if (user.isActive === false) {
-      return res.status(403).json({ message: DEACTIVATED_MESSAGE, code: "ACCOUNT_DEACTIVATED" });
-    }
-
     user.lastLoginAt = new Date();
     await user.save();
 
     const token = generateToken(user._id);
     setAuthCookie(res, token);
 
+    // A deactivated account can still sign in; the app shows it the deactivated notice
+    const signedIn = sanitizeUser(user);
+    if (user.isActive === false) signedIn.deactivated = true;
+
     return res.json({
       success: true,
       message: "Login successful",
-      user: sanitizeUser(user),
+      user: signedIn,
     });
   } catch (error) {
     return res.status(500).json({ message: "Failed to login user" });
@@ -233,10 +233,8 @@ const employeeLogin = async (req, res) => {
       return res.status(403).json({ message: "Your access has been revoked by the owner" });
     }
 
-    // Staff of a deactivated account cannot sign in either
-    if (!(await isAccountActive(emp.ownerId))) {
-      return res.status(403).json({ message: DEACTIVATED_MESSAGE, code: "ACCOUNT_DEACTIVATED" });
-    }
+    // Staff of a deactivated account sign in too, and see the same deactivated notice
+    const accountActive = await isAccountActive(emp.ownerId);
 
     const token = jwt.sign(
       { id: emp.ownerId, employeeId: emp._id, role: 'employee' },
@@ -259,6 +257,7 @@ const employeeLogin = async (req, res) => {
          sections: readSections(emp.sections),
          historyLimitDays: emp.historyLimitDays,
          language: emp.language || "en",
+         deactivated: !accountActive,
       },
     });
   } catch (error) {
@@ -323,6 +322,7 @@ module.exports = {
              sections: readSections(req.employee.sections),
              historyLimitDays: req.employee.historyLimitDays,
              language: req.employee.language || "en",
+             deactivated: owner.isActive === false && !req.adminAccess,
           }
         });
       }
@@ -339,6 +339,7 @@ module.exports = {
       const sanitized = sanitizeUser(user);
       sanitized.role = 'owner';
       if (req.adminAccess) sanitized.adminAccess = true;
+      else if (user.isActive === false) sanitized.deactivated = true;
 
       return res.json({
         success: true,

@@ -22,6 +22,10 @@ const recordActivity = (userId) => {
 
 const AUTH_COOKIE_NAME = process.env.AUTH_COOKIE_NAME || "auth_token";
 
+// Changing the app language is the one save a deactivated account may still make
+const isAllowedWhileDeactivated = (req) =>
+  req.method === "PATCH" && `${req.baseUrl}${req.path}`.replace(/\/+$/, "") === "/api/users/current/language";
+
 const auth = async (req, res, next) => {
   try {
     const token = req.cookies?.[AUTH_COOKIE_NAME] || req.headers.authorization?.split(" ")[1];
@@ -41,9 +45,10 @@ const auth = async (req, res, next) => {
     req.adminAccess = Boolean(decoded.adminAccess);
     req.adminId = decoded.adminId || "";
 
-    // A deactivated account is signed out everywhere; the admin can still open it from the admin panel
-    if (!req.adminAccess && !(await isAccountActive(req.userId))) {
-      return res.status(401).json({
+    // A deactivated account stays signed in but only sees its pages behind the deactivated notice:
+    // it can read, never save. The admin can still open it from the admin panel.
+    if (!req.adminAccess && req.method !== "GET" && !isAllowedWhileDeactivated(req) && !(await isAccountActive(req.userId))) {
+      return res.status(403).json({
         success: false,
         code: "ACCOUNT_DEACTIVATED",
         message: DEACTIVATED_MESSAGE,
