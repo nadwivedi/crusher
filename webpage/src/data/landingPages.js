@@ -810,6 +810,64 @@ export const landingPages = [
     related: ['crusher-plant-production-tracking-software', 'crusher-plant-vehicle-mileage-tracking-software', 'crusher-plant-production-report-software'],
   },
   {
+    slug: 'stone-crusher-production-management-software',
+    navLabel: 'Production Management Software',
+    seoTitle: 'Stone Crusher Production Management Software | Boulder to Dispatch',
+    description:
+      'Manage stone crusher production from boulder in to aggregate out: weighbridge entries, dump stock, size-wise stock and dispatch, DG hours, diesel and production cost in one app. Made for Indian crushers.',
+    keywords: [
+      'stone crusher production management software',
+      'crusher production management system',
+      'crusher plant production management',
+      'stone crusher production software',
+      'aggregate production management software',
+      'crusher production planning and control',
+    ],
+    eyebrow: 'Boulder In, Aggregate Out',
+    h1: 'Stone Crusher Production Management Software',
+    intro:
+      'Managing production at a stone crusher means keeping three things in balance every day: enough boulder coming in, the plant and its machines running, and the right sizes going out to the right parties. CrusherBook brings all of it into one app, from the weighbridge slip of a boulder truck to the sale slip of a 20mm load, so the owner sees what was crushed, what is in stock, what was dispatched and what it cost, without adding up registers.',
+    painTitle: 'Why production is hard to manage on registers',
+    painPoints: [
+      {
+        title: 'Every step in a different book',
+        text: 'Boulder is in the weighbridge register, dump in the supervisor\'s diary, sales in the bill book and diesel in a notebook, so nobody sees the whole day.',
+      },
+      {
+        title: 'Stock known only by looking',
+        text: 'How much 20mm or dust is lying in the yard is a guess, so orders are taken that cannot be filled, or a size piles up unsold.',
+      },
+      {
+        title: 'Cost per ton unknown',
+        text: 'Boulder, diesel, wages and machine hire are paid separately, and the real cost of what was produced is worked out once a year, if at all.',
+      },
+    ],
+    featuresTitle: 'Production management in one place',
+    features: [
+      { icon: 'mountain', title: 'Boulder intake', text: 'Every boulder truck from its weighbridge slip or a bulk trip entry, with supplier, vehicle and net weight, and the supplier\'s account updated.' },
+      { icon: 'boxes', title: 'Dump and hopper', text: 'Boulder sent to the dump while the hopper is down, and fed back later, is recorded both ways so the dump stock is always known.' },
+      { icon: 'scale', title: 'Size-wise stock and dispatch', text: 'Tons and amount for 10mm, 20mm, 40mm, WMM, GSB and dust, with stock adjusted when the yard is measured.' },
+      { icon: 'gauge', title: 'DG and machine hours', text: 'Opening and closing meter readings of the DG set, loaders and JCBs show how long the plant and its machines ran.' },
+      { icon: 'fuel', title: 'Diesel and running cost', text: 'Diesel given to the DG set and each machine, plus wages, hire and other expenses, set against the day\'s production.' },
+      { icon: 'chart', title: 'Production reports', text: 'Boulder crushed, dispatch by size and sales against expenses by day or month on the phone, with Excel export on the Advanced plan.' },
+    ],
+    stepsTitle: 'How production is managed day to day',
+    steps: [
+      { title: 'Plan the inputs', text: 'Add boulder suppliers, vehicles, the DG set and your product sizes once.' },
+      { title: 'Record the day', text: 'Staff enter boulder in, dump movements, readings, diesel and sales on their phones as they happen.' },
+      { title: 'Watch stock', text: 'Size-wise stock and dump stock stay up to date from those entries.' },
+      { title: 'Review and act', text: 'The owner checks the dashboard and reports and decides on boulder buying, prices and machines.' },
+    ],
+    faq: [
+      { question: 'What is stone crusher production management software?', answer: 'It is software that manages the full production cycle of a stone crusher: boulder received, boulder on the dump and fed to the hopper, aggregate stock by size, material dispatched, machine hours, diesel and expenses, all from the entries made at the plant every day.' },
+      { question: 'How is it different from production tracking or a production report?', answer: 'Tracking follows the plant during the day, and a report sums it up afterwards. Production management covers both, plus the stock, cost and supplier side, so you can decide how much boulder to buy and which sizes to push.' },
+      { question: 'Does it measure the output of the crusher machine directly?', answer: 'Not directly. Output is measured from boulder received and material dispatched by size, with yard stock corrected through stock adjustment. A separate output count from the crusher itself is not part of the software today.' },
+      { question: 'Can my munshi and supervisor make the entries?', answer: 'Yes. Each staff member gets their own login and sees only the screens you allow, while rates and profit stay with the owner.' },
+      { question: 'What does it cost?', answer: 'Plans start at Rs 9,999 per year, with a free demo first.' },
+    ],
+    related: ['crusher-plant-production-tracking-software', 'crusher-plant-production-report-software', 'stone-crusher-boulder-production-tracking-software'],
+  },
+  {
     slug: 'crusher-plant-expense-tracking-software',
     navLabel: 'Expense Tracking Software',
     seoTitle: 'Crusher Plant Expense Tracking Software | Every Rupee',
