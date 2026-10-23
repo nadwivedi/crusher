@@ -1,12 +1,14 @@
 import { useEffect, useState } from 'react';
 import { toast } from 'react-toastify';
 import { useNavigate } from 'react-router-dom';
-import { CalendarCheck, CalendarClock, ChevronRight, CloudSun, Crown, Languages, LogOut, MessageCircle, Moon, Scale, Sun } from 'lucide-react';
+import { CalendarCheck, CalendarClock, CheckCircle2, ChevronRight, CloudSun, Crown, Download, Languages, LogOut, MessageCircle, Moon, Scale, Sun } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import EmployeeManagement from '../components/EmployeeManagement';
 import { getStoredTheme, setStoredTheme } from '../utils/theme';
 import { LANGUAGES } from '../i18n/language';
 import { hasFeatureAccess } from '../utils/featureAccess';
+import usePwaInstall from '../hooks/usePwaInstall';
+import { isAppInstalled } from '../utils/pwaInstall';
 
 const THEME_OPTIONS = [
   { value: 'light', label: 'Light', hint: 'Bright white pages', Icon: Sun },
@@ -38,6 +40,19 @@ const SALE_TYPE_OPTIONS = [
   { value: 'per_ton', label: 'Per Ton', hint: 'By weight on the weighbridge' },
   { value: 'per_cubic_meter', label: 'Per Cubic Feet', hint: 'By volume of the vehicle' }
 ];
+
+// Steps to install by hand, for when the browser has not offered (or no longer offers) its install popup
+const manualInstallSteps = () => {
+  const agent = navigator.userAgent || '';
+  const isIos = /iPad|iPhone|iPod/.test(agent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  if (isIos) {
+    return ['Open this page in Safari', 'Tap the Share button (square with an arrow)', 'Tap "Add to Home Screen", then "Add"'];
+  }
+  if (/Android/i.test(agent)) {
+    return ['Open this page in Chrome', 'Tap the ⋮ menu at the top right', 'Tap "Install app" or "Add to Home screen"'];
+  }
+  return ['Open this page in Chrome or Edge', 'Click the install icon at the right end of the address bar, or open the ⋮ / … menu', 'Choose "Install CrusherBook" (in Edge: Apps → Install this site as an app)'];
+};
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -79,6 +94,17 @@ export default function Setting() {
   const [materialRates, setMaterialRates] = useState(() => readUserMaterialRates(user));
   const [saving, setSaving] = useState(false);
   const [theme, setTheme] = useState(getStoredTheme);
+  const { installable, install } = usePwaInstall();
+  const [installed, setInstalled] = useState(isAppInstalled);
+  const [showInstallSteps, setShowInstallSteps] = useState(false);
+
+  const handleInstallApp = async () => {
+    if (!installable) {
+      setShowInstallSteps(true);
+      return;
+    }
+    if (await install()) setInstalled(true);
+  };
 
   const defaultPricingMode = user?.defaultPricingMode === 'per_cubic_meter' ? 'per_cubic_meter' : 'per_ton';
   const [savingSaleType, setSavingSaleType] = useState(false);
@@ -314,6 +340,33 @@ export default function Setting() {
             );
           })}
         </div>
+      </section>
+
+      {/* Install App: for when the browser's own install popup was missed or closed */}
+      <section className="card">
+        <div className="flex items-center gap-3">
+          <img src="/icon-192.png" alt="" className="h-10 w-10 shrink-0 rounded-xl border border-slate-200 bg-white object-contain" />
+          <div className="min-w-0 flex-1">
+            <h2 className="text-sm font-bold text-slate-900">Install App</h2>
+            <p className="text-xs text-slate-500">Open CrusherBook from your home screen or desktop like an app.</p>
+          </div>
+          {installed ? (
+            <span className="badge-green inline-flex shrink-0 items-center gap-1"><CheckCircle2 size={13} /> Installed</span>
+          ) : (
+            <button type="button" className="btn-primary inline-flex shrink-0 items-center gap-1.5 px-4" onClick={handleInstallApp}>
+              <Download size={15} /> Download App
+            </button>
+          )}
+        </div>
+        {!installed && showInstallSteps && (
+          <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5">
+            <p className="text-xs font-semibold text-slate-700">This browser did not open its install popup. Install it by hand:</p>
+            <ol className="mt-1.5 list-decimal space-y-0.5 pl-5 text-xs text-slate-600">
+              {manualInstallSteps().map((step) => <li key={step}>{step}</li>)}
+            </ol>
+            <p className="mt-1.5 text-[11px] text-slate-400">If CrusherBook is already installed on this device, open it from your home screen or apps list.</p>
+          </div>
+        )}
       </section>
 
       {/* Default sale type: the owner's choice for every new sale */}
