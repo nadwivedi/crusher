@@ -52,7 +52,7 @@ export const downloadExcel = async ({ fileName, sheet, columns, rows, totals }) 
   }).toFile(fileName);
 };
 
-// "Sales 01 Apr 2026 to 20 Oct 2026.xlsx"
-export const getExportFileName = (name, from, to) => (
-  `${name} ${from === to ? formatDisplayDate(from) : `${formatDisplayDate(from)} to ${formatDisplayDate(to)}`}.xlsx`
+// "Sales 01 Apr 2026 to 20 Oct 2026.xlsx" (or .pdf)
+export const getExportFileName = (name, from, to, extension = 'xlsx') => (
+  `${name} ${from === to ? formatDisplayDate(from) : `${formatDisplayDate(from)} to ${formatDisplayDate(to)}`}.${extension}`
 );

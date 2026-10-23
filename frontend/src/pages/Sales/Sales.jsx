@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Banknote, ClipboardList, CreditCard, Eye, FileSpreadsheet, Inbox, IndianRupee, Layers, Pencil, Plus, RefreshCw, Scale, Search, Trash2, X } from 'lucide-react';
+import { Banknote, ClipboardList, CreditCard, Eye, FileSpreadsheet, FileText, Inbox, IndianRupee, Layers, Pencil, Plus, RefreshCw, Scale, Search, Trash2, X } from 'lucide-react';
 import { toast } from 'react-toastify';
 import apiClient from '../../utils/api';
 import { useAuth } from '../../context/AuthContext';
@@ -17,6 +17,7 @@ import StatCard from '../../components/StatCard';
 import Segmented from '../../components/Segmented';
 import CustomRangePopup, { formatRangeLabel, toLocalDateInput } from '../../components/CustomRangePopup';
 import { downloadExcel, getExportFileName } from '../../utils/excelExport';
+import { downloadPdf } from '../../utils/pdfExport';
 import MonthPickerPopup, { formatMonthLabel } from '../../components/MonthPickerPopup';
 
 const isCompleteVehicleNumber = (value) => normalizeVehicleValue(value).length >= 9;
@@ -472,7 +473,8 @@ export default function Sales({ modalOnly = false, onModalFinish = null, weighme
   const rangeBeforeMonthRef = useRef('lifetime');
   const rangeBeforeCustomRef = useRef('lifetime');
   const [showCustomPicker, setShowCustomPicker] = useState(false);
-  const [showExportPicker, setShowExportPicker] = useState(false);
+  // 'excel' or 'pdf' while the export period popup is open
+  const [exportFormat, setExportFormat] = useState(null);
   const [exporting, setExporting] = useState(false);
   const [materialStats, setMaterialStats] = useState([]);
   const [materialFilter, setMaterialFilter] = useState('');
@@ -2754,8 +2756,12 @@ export default function Sales({ modalOnly = false, onModalFinish = null, weighme
     };
   };
 
-  // Every sale of the period (not only the page on screen), oldest first, one row each
-  const handleExportExcel = async (fromDay, toDay) => {
+  // The crusher's name heads a PDF export; staff export under their owner's name
+  const companyName = String((user?.role === 'employee' ? user?.ownerName : user?.name) || '').trim();
+
+  // Every sale of the period (not only the page on screen), oldest first, one row each.
+  // The PDF leaves out gross / tare / net in kg, dispatch place and transport note so the table fits an A4 page.
+  const handleExport = async (fromDay, toDay) => {
     setExporting(true);
     try {
       const response = await apiClient.get('/sales', {
@@ -2785,9 +2791,9 @@ export default function Sales({ modalOnly = false, onModalFinish = null, weighme
         { key: 'vehicle', header: 'Vehicle No', width: 14, value: ({ sale }) => sale.vehicleNo },
         { key: 'material', header: 'Material', width: 10, value: ({ view }) => view.material.toUpperCase() },
         { key: 'billedBy', header: 'Billed By', width: 10, value: ({ view }) => (view.isCubic ? 'Cft' : 'Ton') },
-        { key: 'gross', header: 'Gross (kg)', type: 'number', format: '#,##0', width: 12, value: ({ sale }) => sale.grossWeight || '' },
-        { key: 'tare', header: 'Tare (kg)', type: 'number', format: '#,##0', width: 12, value: ({ sale }) => sale.tareWeight || '' },
-        { key: 'net', header: 'Net (kg)', type: 'number', format: '#,##0', width: 12, value: ({ view }) => view.netWeight || '' },
+        { key: 'gross', header: 'Gross (kg)', type: 'number', format: '#,##0', width: 12, pdf: false, value: ({ sale }) => sale.grossWeight || '' },
+        { key: 'tare', header: 'Tare (kg)', type: 'number', format: '#,##0', width: 12, pdf: false, value: ({ sale }) => sale.tareWeight || '' },
+        { key: 'net', header: 'Net (kg)', type: 'number', format: '#,##0', width: 12, pdf: false, value: ({ view }) => view.netWeight || '' },
         { key: 'tons', header: 'Net (Ton)', type: 'number', format: '#,##0.000', width: 11, value: ({ view }) => (view.netWeight ? view.netWeight / 1000 : '') },
         { key: 'cft', header: 'Cft', type: 'number', width: 10, value: ({ sale }) => Number(sale.cubicMeterQty || 0) || '' },
         { key: 'rate', header: 'Rate', type: 'number', width: 10, value: ({ sale }) => sale.rate },
@@ -2797,30 +2803,36 @@ export default function Sales({ modalOnly = false, onModalFinish = null, weighme
         { key: 'paid', header: 'Paid', type: 'number', width: 12, value: ({ sale }) => sale.paidAmount || '' },
         { key: 'balance', header: 'Balance', type: 'number', width: 12, value: (row) => balanceOf(row) || '' },
         { key: 'payment', header: 'Payment', width: 10, value: ({ sale }) => formatSaleTypeLabel(sale.type) },
-        { key: 'dispatch', header: 'Dispatch To', width: 18, value: ({ sale }) => sale.dispatchLocation },
-        { key: 'transport', header: 'Transport', width: 24, value: ({ view }) => (view.transportMode === 'party' ? 'Party vehicle' : view.transportNote) }
+        { key: 'dispatch', header: 'Dispatch To', width: 18, pdf: false, value: ({ sale }) => sale.dispatchLocation },
+        { key: 'transport', header: 'Transport', width: 24, pdf: false, value: ({ view }) => (view.transportMode === 'party' ? 'Party vehicle' : view.transportNote) }
       ];
 
-      await downloadExcel({
-        fileName: getExportFileName('Sales', fromDay, toDay),
-        sheet: 'Sales',
-        columns,
-        rows,
-        totals: {
-          date: `Total (${entryCount(rows.length)})`,
-          gross: sum(({ sale }) => sale.grossWeight),
-          tare: sum(({ sale }) => sale.tareWeight),
-          net: sum(({ view }) => view.netWeight),
-          tons: sum(({ view }) => view.netWeight) / 1000,
-          cft: sum(({ sale }) => sale.cubicMeterQty),
-          materialAmount: sum(({ view }) => view.materialAmount),
-          transportCharge: sum(({ view }) => view.transportCharge),
-          total: sum(({ sale }) => sale.totalAmount),
-          paid: sum(({ sale }) => sale.paidAmount),
-          balance: sum(balanceOf)
-        }
-      });
-      setShowExportPicker(false);
+      const totals = {
+        date: `Total (${entryCount(rows.length)})`,
+        gross: sum(({ sale }) => sale.grossWeight),
+        tare: sum(({ sale }) => sale.tareWeight),
+        net: sum(({ view }) => view.netWeight),
+        tons: sum(({ view }) => view.netWeight) / 1000,
+        cft: sum(({ sale }) => sale.cubicMeterQty),
+        materialAmount: sum(({ view }) => view.materialAmount),
+        transportCharge: sum(({ view }) => view.transportCharge),
+        total: sum(({ sale }) => sale.totalAmount),
+        paid: sum(({ sale }) => sale.paidAmount),
+        balance: sum(balanceOf)
+      };
+      if (exportFormat === 'pdf') {
+        await downloadPdf({
+          fileName: getExportFileName('Sales', fromDay, toDay, 'pdf'),
+          title: `${companyName ? `${companyName} - ` : ''}Sales Report`,
+          subtitle: `${formatRangeLabel(fromDay, toDay)} · ${entryCount(rows.length)}`,
+          columns,
+          rows,
+          totals
+        });
+      } else {
+        await downloadExcel({ fileName: getExportFileName('Sales', fromDay, toDay), sheet: 'Sales', columns, rows, totals });
+      }
+      setExportFormat(null);
       toast.success(`Exported ${entryCount(rows.length)}`, toastOptions);
     } catch (err) {
       toast.error(err.message || 'Could not export sales');
@@ -3008,15 +3020,15 @@ export default function Sales({ modalOnly = false, onModalFinish = null, weighme
       {showCustomPicker && (
         <CustomRangePopup from={customFrom} to={customTo} onApply={applyCustomPicker} onClose={closeCustomPicker} />
       )}
-      {showExportPicker && (
+      {exportFormat && (
         <CustomRangePopup
           {...getExportStartRange()}
-          title="Export Sales to Excel"
+          title={exportFormat === 'pdf' ? 'Export Sales to PDF' : 'Export Sales to Excel'}
           subtitle="Every sale between these dates goes in the file"
-          applyLabel={exporting ? 'Exporting...' : 'Export Excel'}
+          applyLabel={exporting ? 'Exporting...' : exportFormat === 'pdf' ? 'Export PDF' : 'Export Excel'}
           busy={exporting}
-          onApply={handleExportExcel}
-          onClose={() => !exporting && setShowExportPicker(false)}
+          onApply={handleExport}
+          onClose={() => !exporting && setExportFormat(null)}
         />
       )}
       {showMonthPicker && (
@@ -3036,8 +3048,11 @@ export default function Sales({ modalOnly = false, onModalFinish = null, weighme
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Segmented options={SALES_RANGE_OPTIONS} value={tableRange} onChange={handleRangeChange} />
-          <button type="button" className="btn-secondary" onClick={() => setShowExportPicker(true)} title="Export sales of a period to Excel">
+          <button type="button" className="btn-secondary" onClick={() => setExportFormat('excel')} title="Export sales of a period to Excel">
             <FileSpreadsheet size={18} /> Excel
+          </button>
+          <button type="button" className="btn-secondary" onClick={() => setExportFormat('pdf')} title="Export sales of a period to PDF, ready to print">
+            <FileText size={18} /> PDF
           </button>
           {canCreateSales && (
             <button type="button" className="btn-primary" onClick={handleOpenForm}>

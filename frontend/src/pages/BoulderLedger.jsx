@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
-  CalendarDays, ClipboardList, Eye, FileSpreadsheet, Filter, Gauge, Inbox, IndianRupee, Mountain, Pencil, Plus, RefreshCw, Repeat,
+  CalendarDays, ClipboardList, Eye, FileSpreadsheet, FileText, Filter, Gauge, Inbox, IndianRupee, Mountain, Pencil, Plus, RefreshCw, Repeat,
   Search, Trash2, Truck, X
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -11,9 +11,10 @@ import { canDeleteEntries, canEditEntry } from '../utils/staffAccess';
 import StatCard from '../components/StatCard';
 import Segmented from '../components/Segmented';
 import BoulderEntry from './BoulderEntry/BoulderEntry';
-import CustomRangePopup, { toLocalDateInput } from '../components/CustomRangePopup';
+import CustomRangePopup, { formatRangeLabel, toLocalDateInput } from '../components/CustomRangePopup';
 import MonthPickerPopup, { getMonthRange, formatMonthLabel } from '../components/MonthPickerPopup';
 import { downloadExcel, getExportFileName } from '../utils/excelExport';
+import { downloadPdf } from '../utils/pdfExport';
 
 // The views of the data panel
 const TABS = [
@@ -182,7 +183,8 @@ export default function BoulderLedger() {
   const [showMonthPicker, setShowMonthPicker] = useState(false);
   // The filter panel opens from the Filters button in the header
   const [showFilters, setShowFilters] = useState(false);
-  const [showExportPicker, setShowExportPicker] = useState(false);
+  // 'excel' or 'pdf' while the export period popup is open
+  const [exportFormat, setExportFormat] = useState(null);
   const [exporting, setExporting] = useState(false);
   const [selectedMonth, setSelectedMonth] = useState(String(new Date().getMonth()));
   const [selectedYear, setSelectedYear] = useState(String(new Date().getFullYear()));
@@ -192,14 +194,14 @@ export default function BoulderLedger() {
       // With an entry popup open, Esc closes the popup instead of leaving the page.
       // defaultPrevented covers the popup's own Esc handler, which has already closed it by the time this runs.
       if (event.defaultPrevented) return;
-      if (event.key === 'Escape' && !showMonthPicker && !showExportPicker && !showAddEntry && !editingEntry) {
+      if (event.key === 'Escape' && !showMonthPicker && !exportFormat && !showAddEntry && !editingEntry) {
         navigate('/');
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [navigate, showMonthPicker, showExportPicker, showAddEntry, editingEntry]);
+  }, [navigate, showMonthPicker, exportFormat, showAddEntry, editingEntry]);
 
   useEffect(() => {
     loadBoulders();
@@ -419,7 +421,11 @@ export default function BoulderLedger() {
   ];
 
   // Every boulder entry of the chosen days (the vehicle, supplier and search filters are not applied), oldest first
-  const handleExportExcel = async (fromDay, toDay) => {
+  // The crusher's name heads a PDF export; staff export under their owner's name
+  const companyName = String((user?.role === 'employee' ? user?.ownerName : user?.name) || '').trim();
+
+  // The PDF leaves out the times, gross / tare and transport rate / place so the table fits an A4 page
+  const handleExport = async (fromDay, toDay) => {
     const rows = boulders
       .filter((entry) => {
         const day = getEntryDayKey(entry);
@@ -444,39 +450,45 @@ export default function BoulderLedger() {
       { key: 'vehicle', header: 'Vehicle No', width: 14, value: (entry) => entry.vehicleNo },
       { key: 'mode', header: 'Entry', width: 8, value: (entry) => (isBulkEntry(entry) ? 'Bulk' : 'Single') },
       { key: 'trips', header: 'Trips', type: 'number', format: '#,##0', width: 8, value: getEntryTrips },
-      { key: 'entryTime', header: 'In Time', width: 9, value: (entry) => entry.entryTime },
-      { key: 'exitTime', header: 'Out Time', width: 9, value: (entry) => entry.exitTime },
-      { key: 'gross', header: 'Gross (kg)', type: 'number', format: '#,##0', width: 12, value: weighed((entry) => entry.grossWeight) },
-      { key: 'tare', header: 'Tare (kg)', type: 'number', format: '#,##0', width: 12, value: weighed((entry) => entry.tareWeight) },
+      { key: 'entryTime', header: 'In Time', width: 9, pdf: false, value: (entry) => entry.entryTime },
+      { key: 'exitTime', header: 'Out Time', width: 9, pdf: false, value: (entry) => entry.exitTime },
+      { key: 'gross', header: 'Gross (kg)', type: 'number', format: '#,##0', width: 12, pdf: false, value: weighed((entry) => entry.grossWeight) },
+      { key: 'tare', header: 'Tare (kg)', type: 'number', format: '#,##0', width: 12, pdf: false, value: weighed((entry) => entry.tareWeight) },
       { key: 'net', header: 'Net (kg)', type: 'number', format: '#,##0', width: 12, value: (entry) => entry.netWeight },
       { key: 'tons', header: 'Net (Ton)', type: 'number', format: '#,##0.000', width: 11, value: (entry) => Number(entry.netWeight || 0) / 1000 },
       { key: 'rateBasis', header: 'Rate By', width: 9, value: (entry) => (isPerTripEntry(entry) ? 'Trip' : 'Ton') },
       { key: 'rate', header: 'Rate', type: 'number', width: 10, value: (entry) => (isPerTripEntry(entry) ? entry.boulderRatePerTrip : entry.boulderRatePerTon) },
       { key: 'amount', header: 'Amount', type: 'number', width: 14, value: (entry) => entry.amount },
-      { key: 'transportRate', header: 'Transport Rate', type: 'number', width: 14, value: (entry) => entry.transportRate || '' },
+      { key: 'transportRate', header: 'Transport Rate', type: 'number', width: 14, pdf: false, value: (entry) => entry.transportRate || '' },
       { key: 'transportAmount', header: 'Transport Amount', type: 'number', width: 16, value: (entry) => entry.transportAmount || '' },
-      { key: 'transportLocation', header: 'Transport Location', width: 18, value: (entry) => entry.transportLocation }
+      { key: 'transportLocation', header: 'Transport Location', width: 18, pdf: false, value: (entry) => entry.transportLocation }
     ];
 
     setExporting(true);
     try {
-      await downloadExcel({
-        fileName: getExportFileName('Boulder', fromDay, toDay),
-        sheet: 'Boulder',
-        columns,
-        rows,
-        totals: {
-          date: `Total (${entryCount(rows.length)})`,
-          trips: sum(getEntryTrips),
-          gross: sum(weighed((entry) => entry.grossWeight)),
-          tare: sum(weighed((entry) => entry.tareWeight)),
-          net: sum((entry) => entry.netWeight),
-          tons: sum((entry) => entry.netWeight) / 1000,
-          amount: sum((entry) => entry.amount),
-          transportAmount: sum((entry) => entry.transportAmount)
-        }
-      });
-      setShowExportPicker(false);
+      const totals = {
+        date: `Total (${entryCount(rows.length)})`,
+        trips: sum(getEntryTrips),
+        gross: sum(weighed((entry) => entry.grossWeight)),
+        tare: sum(weighed((entry) => entry.tareWeight)),
+        net: sum((entry) => entry.netWeight),
+        tons: sum((entry) => entry.netWeight) / 1000,
+        amount: sum((entry) => entry.amount),
+        transportAmount: sum((entry) => entry.transportAmount)
+      };
+      if (exportFormat === 'pdf') {
+        await downloadPdf({
+          fileName: getExportFileName('Boulder', fromDay, toDay, 'pdf'),
+          title: `${companyName ? `${companyName} - ` : ''}Boulder Ledger`,
+          subtitle: `${formatRangeLabel(fromDay, toDay)} · ${entryCount(rows.length)}`,
+          columns,
+          rows,
+          totals
+        });
+      } else {
+        await downloadExcel({ fileName: getExportFileName('Boulder', fromDay, toDay), sheet: 'Boulder', columns, rows, totals });
+      }
+      setExportFormat(null);
       toast.success(`Exported ${entryCount(rows.length)}`, { autoClose: 1200 });
     } catch (err) {
       toast.error(err.message || 'Could not export boulder entries');
@@ -550,16 +562,16 @@ export default function BoulderLedger() {
         />
       )}
       {/* The export period starts as the period on screen; "All" starts at this month */}
-      {showExportPicker && (
+      {exportFormat && (
         <CustomRangePopup
           from={fromDate || toLocalDateInput(new Date(new Date().getFullYear(), new Date().getMonth(), 1))}
           to={toDate || toLocalDateInput(new Date())}
-          title="Export Boulder to Excel"
+          title={exportFormat === 'pdf' ? 'Export Boulder to PDF' : 'Export Boulder to Excel'}
           subtitle="Every boulder entry between these dates goes in the file"
-          applyLabel={exporting ? 'Exporting...' : 'Export Excel'}
+          applyLabel={exporting ? 'Exporting...' : exportFormat === 'pdf' ? 'Export PDF' : 'Export Excel'}
           busy={exporting}
-          onApply={handleExportExcel}
-          onClose={() => !exporting && setShowExportPicker(false)}
+          onApply={handleExport}
+          onClose={() => !exporting && setExportFormat(null)}
         />
       )}
       {editingEntry && <BoulderEntry editingEntry={editingEntry} onModalFinish={handleCloseEdit} />}
@@ -596,12 +608,21 @@ export default function BoulderLedger() {
           </button>
           <button
             type="button"
-            onClick={() => setShowExportPicker(true)}
+            onClick={() => setExportFormat('excel')}
             title="Export boulder entries of a period to Excel"
             className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-white px-3 py-2.5 text-sm font-semibold text-slate-600 ring-1 ring-inset ring-slate-300 transition hover:bg-slate-50"
           >
             <FileSpreadsheet size={18} />
             <span className="hidden sm:inline">Excel</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setExportFormat('pdf')}
+            title="Export boulder entries of a period to PDF, ready to print"
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-white px-3 py-2.5 text-sm font-semibold text-slate-600 ring-1 ring-inset ring-slate-300 transition hover:bg-slate-50"
+          >
+            <FileText size={18} />
+            <span className="hidden sm:inline">PDF</span>
           </button>
           <button type="button" className="btn-primary px-5 py-2.5 text-[15px] shadow-md shadow-primary-600/25" onClick={() => setShowAddEntry(true)}>
             <Plus size={20} /> Add Boulder
