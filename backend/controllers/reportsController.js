@@ -727,6 +727,64 @@ const getPartyLedger = async (req, res) => {
   }
 };
 
+// A party's statement for a period, like a bank statement: the balance brought forward from
+// everything before the period (the party's own opening balance included), the period's entries
+// in date order with the balance after each, and the closing balance.
+const getPartyStatement = async (req, res) => {
+  try {
+    const partyId = toObjectId(req.query.partyId);
+    const fromDate = staffFrom(req, toDateBoundary(req.query.fromDate));
+    const toDate = toDateBoundary(req.query.toDate, true);
+    if (!partyId || !fromDate || !toDate) {
+      return res.status(400).json({ message: "Choose the party and the period" });
+    }
+
+    const { parties, ledgerRows } = await getPartyLedgerData({ userId: req.userId, partyId, fromDate: null, toDate: null });
+    if (parties.length === 0) {
+      return res.status(404).json({ message: "Party not found" });
+    }
+
+    const entryDay = (row) => new Date(row.date || row.entryCreatedAt);
+    let openingBalance = 0;
+    const periodRows = [];
+    ledgerRows.forEach((row) => {
+      // The party's opening balance is what it owed before any entry, so it is always brought forward
+      if (row.type === "opening" || entryDay(row) < fromDate) {
+        openingBalance += toNumber(row.impact);
+      } else if (entryDay(row) <= toDate) {
+        periodRows.push(row);
+      }
+    });
+
+    periodRows.sort((firstRow, secondRow) => (
+      entryDay(firstRow) - entryDay(secondRow)
+      || new Date(firstRow.entryCreatedAt) - new Date(secondRow.entryCreatedAt)
+      || String(firstRow.refId || "").localeCompare(String(secondRow.refId || ""))
+    ));
+
+    let balance = openingBalance;
+    const rows = periodRows.map((row) => {
+      balance += toNumber(row.impact);
+      return { ...row, runningBalance: balance };
+    });
+
+    const party = parties[0];
+    return res.json({
+      party: { _id: party._id, name: party.name, mobile: party.mobile, address: party.address, type: party.type },
+      fromDate,
+      toDate,
+      openingBalance,
+      rows,
+      closingBalance: balance,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      message: "Failed to load party statement",
+      error: error.message,
+    });
+  }
+};
+
 const getStockLedger = async (req, res) => {
   try {
     const productId = toObjectId(req.query.productId);
@@ -2212,6 +2270,7 @@ module.exports = {
   getDayBook,
   getOutstanding,
   getPartyLedger,
+  getPartyStatement,
   getPartyLedgerEntryDetail,
   getStockLedger,
   getDashboardAnalytics,

@@ -1,9 +1,15 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { ArrowDownLeft, ArrowLeft, ArrowUpRight, Inbox, Scale, ShoppingCart } from 'lucide-react';
+import { ArrowDownLeft, ArrowLeft, ArrowUpRight, FileDown, Inbox, Scale, ShoppingCart } from 'lucide-react';
+import { toast } from 'react-toastify';
 import apiClient from '../utils/api';
+import { useAuth } from '../context/AuthContext';
 import StatCard from '../components/StatCard';
 import Segmented from '../components/Segmented';
+import PartyStatementPopup from '../components/PartyStatementPopup';
+import { formatRangeLabel } from '../components/CustomRangePopup';
+import { downloadExcel, getExportFileName } from '../utils/excelExport';
+import { downloadPdf } from '../utils/pdfExport';
 
 const toInputDate = (value) => {
   const date = value instanceof Date ? value : new Date(value);
@@ -121,6 +127,42 @@ const formatBalance = (value) => {
   if (amount === 0) return formatCurrency(0);
   return `${formatCurrency(Math.abs(amount))} ${amount > 0 ? 'Dr' : 'Cr'}`;
 };
+
+// A statement shows each entry as Debit (adds to what they owe you) and Credit (takes from it).
+// A sale is debited in full and its payment credited, a purchase or expense the other way round,
+// so a cash sale shows both sides instead of vanishing; debit - credit is always the entry's impact.
+const statementSides = (row) => {
+  const amount = Number(row.amount || 0);
+  const paid = Number(row.paidAmount || 0);
+  if (row.type === 'sale') return { debit: amount, credit: paid };
+  if (row.type === 'purchase' || row.type === 'expense') return { debit: paid, credit: amount };
+  const impact = Number(row.impact || 0);
+  return impact >= 0 ? { debit: impact, credit: 0 } : { debit: 0, credit: -impact };
+};
+
+// "12,000.00 Dr" without the rupee sign, which the PDF font cannot print
+const formatStatementBalance = (value) => {
+  const amount = Number(value || 0);
+  const text = Math.abs(amount).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return amount === 0 ? text : `${text} ${amount > 0 ? 'Dr' : 'Cr'}`;
+};
+
+const describeBalance = (value) => {
+  const amount = Number(value || 0);
+  const text = `Rs ${Math.abs(amount).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  if (amount > 0) return `${text} Receivable`;
+  if (amount < 0) return `${text} Payable`;
+  return `${text} (Settled)`;
+};
+
+// "Sale · 20MM · 18,420 kg (18.42 ton) · CG04AB1234"
+const describeStatementEntry = (row) => [
+  getEntryTypeLabel(row),
+  getLedgerMaterialType(row),
+  formatLedgerQuantity(row),
+  getLedgerVehicleNumber(row),
+  row.type === 'receipt' || row.type === 'payment' ? row.itemSummary : ''
+].filter((part) => part && part !== '-').join(' · ');
 
 const PERIODS = [
   { key: '', label: 'All Time', shortLabel: 'All' },
@@ -354,6 +396,10 @@ export default function PartyDetail() {
   const [voucherLoading, setVoucherLoading] = useState(false);
   const [voucherError, setVoucherError] = useState('');
 
+  const [showStatement, setShowStatement] = useState(false);
+  const [exportingStatement, setExportingStatement] = useState(false);
+  const { user } = useAuth();
+
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -582,6 +628,78 @@ export default function PartyDetail() {
     window.location.href = whatsappUrl;
   };
 
+  // The statement of one period: balance brought forward, the period's entries and the closing balance
+  const handleExportStatement = async (format, fromDay, toDay) => {
+    setExportingStatement(true);
+    try {
+      const statement = await apiClient.get('/reports/party-statement', {
+        params: { partyId: id, fromDate: fromDay, toDate: toDay }
+      });
+      const entries = Array.isArray(statement?.rows) ? statement.rows : [];
+      const openingBalance = Number(statement?.openingBalance || 0);
+      const closingBalance = Number(statement?.closingBalance || 0);
+      const partyName = statement?.party?.name || party?.name || 'Party';
+      const rows = [
+        { kind: 'opening', date: `${fromDay}T00:00:00`, balance: openingBalance },
+        ...entries.map((row) => ({ kind: 'entry', row, ...statementSides(row), balance: Number(row.runningBalance || 0) }))
+      ];
+      const sum = (key) => rows.reduce((total, row) => total + Number(row[key] || 0), 0);
+
+      const columns = [
+        { key: 'date', header: 'Date', type: 'date', width: 12, value: (row) => (row.kind === 'opening' ? row.date : row.row.date) },
+        { key: 'voucher', header: 'Voucher No', width: 14, value: (row) => (row.kind === 'opening' || row.row.refNumber === '-' ? '' : row.row.refNumber) },
+        { key: 'particulars', header: 'Particulars', width: 48, value: (row) => (row.kind === 'opening' ? 'Opening Balance' : describeStatementEntry(row.row)) },
+        { key: 'debit', header: 'Debit', type: 'number', format: '#,##0.00', width: 14, value: (row) => row.debit || '' },
+        { key: 'credit', header: 'Credit', type: 'number', format: '#,##0.00', width: 14, value: (row) => row.credit || '' },
+        { key: 'balance', header: 'Balance', width: 18, align: 'right', value: (row) => formatStatementBalance(row.balance) }
+      ];
+      const totals = {
+        date: 'Closing Balance',
+        debit: sum('debit'),
+        credit: sum('credit'),
+        balance: formatStatementBalance(closingBalance)
+      };
+
+      const companyName = String((user?.role === 'employee' ? user?.ownerName : user?.name) || '').trim();
+      const contact = [statement?.party?.mobile, statement?.party?.address].filter(Boolean).join(' · ');
+      const titleLines = [
+        `Party Statement: ${partyName}`,
+        contact,
+        `Period: ${formatRangeLabel(fromDay, toDay)}`,
+        `Opening: ${describeBalance(openingBalance)}  |  Closing: ${describeBalance(closingBalance)}`,
+        'Dr = receivable from the party, Cr = payable to the party'
+      ].filter(Boolean);
+      const baseName = `${partyName.replace(/[\\/:*?"<>|]/g, '-')} Statement`;
+
+      if (format === 'pdf') {
+        await downloadPdf({
+          fileName: getExportFileName(baseName, fromDay, toDay, 'pdf'),
+          title: companyName || titleLines[0],
+          subtitle: companyName ? titleLines : titleLines.slice(1),
+          columns,
+          rows,
+          totals,
+          orientation: 'portrait'
+        });
+      } else {
+        await downloadExcel({
+          fileName: getExportFileName(baseName, fromDay, toDay),
+          sheet: 'Statement',
+          titleLines: companyName ? [companyName, ...titleLines] : titleLines,
+          columns,
+          rows,
+          totals
+        });
+      }
+      setShowStatement(false);
+      toast.success('Statement downloaded', { autoClose: 1200 });
+    } catch (err) {
+      toast.error(err.message || 'Could not export the statement');
+    } finally {
+      setExportingStatement(false);
+    }
+  };
+
   const boughtTotal = summary.totalPurchases + summary.totalBoulderPayable - summary.totalPurchaseReturns;
   const stats = [
     {
@@ -634,6 +752,14 @@ export default function PartyDetail() {
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Segmented options={PERIODS} value={period} onChange={choosePeriod} />
+          <button
+            type="button"
+            onClick={() => setShowStatement(true)}
+            title="Download the statement of a month or dates, as Excel or PDF"
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50"
+          >
+            <FileDown size={16} /> Statement
+          </button>
           <button
             type="button"
             onClick={handleShareOnWhatsApp}
@@ -770,6 +896,15 @@ export default function PartyDetail() {
           </>
         )}
       </section>
+
+      {showStatement && (
+        <PartyStatementPopup
+          partyName={party?.name}
+          busy={exportingStatement}
+          onExport={handleExportStatement}
+          onClose={() => setShowStatement(false)}
+        />
+      )}
 
       <VoucherDetailModal
         detail={voucherDetail}

@@ -28,12 +28,17 @@ const toCell = (column, value, style = {}) => {
  * Download rows as an .xlsx file.
  * columns: [{ key, header, width, type: 'text' | 'number' | 'date', format, value: (row) => any }]
  * totals: { [column key]: value } for a bold last row; the first column reads "Total" unless given
+ * titleLines: lines written above the table (the first in bold), e.g. the party and the period
  */
-export const downloadExcel = async ({ fileName, sheet, columns, rows, totals }) => {
+export const downloadExcel = async ({ fileName, sheet, columns, rows, totals, titleLines = [] }) => {
   // Loaded only when someone exports, so it stays out of the app's first load
   const { default: writeExcelFile } = await import('write-excel-file/browser');
 
+  const titleRows = titleLines.length > 0
+    ? [...titleLines.map((line, index) => [{ value: line, type: String, ...(index === 0 ? { fontWeight: 'bold' } : {}) }]), [null]]
+    : [];
   const data = [
+    ...titleRows,
     columns.map((column) => ({ value: column.header, ...HEADER_STYLE })),
     ...rows.map((row) => columns.map((column) => toCell(column, column.value(row))))
   ];
@@ -48,7 +53,7 @@ export const downloadExcel = async ({ fileName, sheet, columns, rows, totals }) 
   await writeExcelFile(data, {
     sheet,
     columns: columns.map((column) => ({ width: column.width || 14 })),
-    stickyRowsCount: 1
+    stickyRowsCount: titleRows.length + 1
   }).toFile(fileName);
 };
 

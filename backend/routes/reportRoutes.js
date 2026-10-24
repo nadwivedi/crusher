@@ -3,6 +3,7 @@ const {
   getDayBook,
   getOutstanding,
   getPartyLedger,
+  getPartyStatement,
   getPartyLedgerEntryDetail,
   getStockLedger,
   getDashboardAnalytics,
@@ -26,6 +27,7 @@ router.use(syncMonthlyHiresMiddleware);
 router.get("/day-book", ownerOnly, getDayBook);
 router.get("/outstanding", ownerOnly, getOutstanding);
 router.get("/party-ledger", requireSection("masters"), getPartyLedger);
+router.get("/party-statement", requireSection("masters"), getPartyStatement);
 router.get("/party-ledger-entry-detail", requireSection("masters"), getPartyLedgerEntryDetail);
 router.get("/stock-ledger", requireSection("materialUsed"), getStockLedger);
 router.get("/dashboard-analytics", ownerOnly, getDashboardAnalytics);
