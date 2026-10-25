@@ -766,7 +766,6 @@ export default function Receipts({ modalOnly = false, onModalFinish = null }) {
         <AddReceiptPopup
           showForm={showForm}
           editing={Boolean(editingId)}
-        editing={Boolean(editingId)}
           loading={loading}
           error={error}
           formData={formData}

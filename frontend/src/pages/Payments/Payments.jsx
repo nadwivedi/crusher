@@ -797,7 +797,6 @@ export default function Payments({ modalOnly = false, onModalFinish = null }) {
         <AddPaymentPopup
           showForm={showForm}
           editing={Boolean(editingId)}
-        editing={Boolean(editingId)}
           loading={loading}
           error={error}
           formData={formData}
