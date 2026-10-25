@@ -252,7 +252,9 @@ export default function BoulderLedger() {
       if (!normalizedSearch) return true;
       return String(entry.vehicleNo || '').toLowerCase().includes(normalizedSearch)
         || String(entry.partyName || '').toLowerCase().includes(normalizedSearch)
-        || String(entry.boulderNumber || '').toLowerCase().includes(normalizedSearch);
+        || String(entry.boulderNumber || '').toLowerCase().includes(normalizedSearch)
+        || String(entry.slipNo || '').toLowerCase().includes(normalizedSearch)
+        || String(entry.rstNo || '').toLowerCase().includes(normalizedSearch);
     });
   }, [periodBoulders, partyFilter, searchTerm]);
 
@@ -445,6 +447,7 @@ export default function BoulderLedger() {
     const columns = [
       { key: 'date', header: 'Date', type: 'date', width: 12, value: (entry) => entry.boulderDate || entry.createdAt },
       { key: 'number', header: 'Boulder No', width: 11, value: (entry) => entry.boulderNumber },
+      { key: 'slip', header: 'Slip No', width: 10, value: (entry) => entry.slipNo },
       { key: 'rst', header: 'RST No', width: 10, value: (entry) => entry.rstNo },
       { key: 'party', header: 'Supplier', width: 26, value: (entry) => getPartyKey(entry) },
       { key: 'vehicle', header: 'Vehicle No', width: 14, value: (entry) => entry.vehicleNo },

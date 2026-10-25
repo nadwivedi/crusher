@@ -265,6 +265,7 @@ Extract fields from this BOULDER weighbridge slip (raw material incoming). Retur
 ${VEHICLE_NO_PROMPT}
 
 Fields to extract:
+- slipNo: the slip / serial / ticket number printed on the slip (e.g. "Sr No", "Slip No", "Ticket No"), or "" if none
 - vehicleNo: vehicle registration number (9 or 10 chars, no spaces)
 - grossWeight: GROSS weight in kg (number only)
 - tareWeight: TARE weight in kg (number only)
@@ -274,12 +275,13 @@ Fields to extract:
 - time2: second time seen on the slip (HH:MM format, 24h, or "" if only one time visible)
 
 Return ONLY:
-{"vehicleNo":"","grossWeight":0,"tareWeight":0,"netWeight":0,"boulderDate":"","time1":"","time2":""}`;
+{"slipNo":"","vehicleNo":"","grossWeight":0,"tareWeight":0,"netWeight":0,"boulderDate":"","time1":"","time2":""}`;
 
     const parsed = await callGroq(apiKey, dataUrl, prompt);
     const { entryTime, exitTime } = resolveEntryAndExitTimes(parsed.time1, parsed.time2);
 
     return res.json({
+      slipNo:      String(parsed.slipNo || "").trim().replace(/\s+/g, "").toUpperCase().slice(0, 40),
       vehicleNo:   normalizeVehicleNo(parsed.vehicleNo),
       materialType: "boulder",
       grossWeight:  Number(parsed.grossWeight) || 0,

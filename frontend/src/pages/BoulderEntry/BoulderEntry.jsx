@@ -38,6 +38,9 @@ const initialFormData = {
   vehicleNo: '',
   partyName: '',
   boulderDate: formatDateForInput(),
+  // Both optional
+  slipNo: '',
+  rstNo: '',
   entryTime: '',
   exitTime: '',
   tareWeight: '',
@@ -210,6 +213,7 @@ export default function BoulderEntry({ onModalFinish = null, editingEntry = null
           ...weights,
           entryMode: 'single',
           vehicleNo: String(weighment.vehicleNo || '').toUpperCase(),
+          rstNo: String(weighment.rstNo || ''),
           entryTime: times[0] ? formatTimeForInput(times[0]) : '',
           exitTime: times[1] ? formatTimeForInput(times[1]) : '',
           weighmentId: weighment._id
@@ -256,6 +260,7 @@ export default function BoulderEntry({ onModalFinish = null, editingEntry = null
       boulderRateBasis: editingEntry.boulderRateBasis || 'per_ton',
       transportLocation: editingEntry.transportLocation || '',
       slipImg: editingEntry.slipImg || '',
+      slipNo: editingEntry.slipNo || '',
       rstNo: editingEntry.rstNo || ''
     });
     setVehicleQuery(vehicleNo);
@@ -594,6 +599,8 @@ export default function BoulderEntry({ onModalFinish = null, editingEntry = null
         vehicleNo: formData.vehicleNo.toUpperCase(),
         partyName: String(formData.partyName || '').trim(),
         boulderDate: formData.boulderDate,
+        slipNo: String(formData.slipNo || '').trim().toUpperCase(),
+        rstNo: String(formData.rstNo || '').trim().toUpperCase(),
         entryTime: formData.entryTime,
         exitTime: formData.exitTime,
         boulderRateBasis,
@@ -671,6 +678,8 @@ export default function BoulderEntry({ onModalFinish = null, editingEntry = null
       tareWeight: tareWeight > 0 ? tareWeight : prev.tareWeight,
       netWeight: netWeight > 0 ? netWeight : prev.netWeight,
       boulderDate: data.boulderDate || prev.boulderDate,
+      // Slip number from the slip, unless one was already typed
+      slipNo: prev.slipNo || String(data.slipNo || '').trim().toUpperCase(),
       entryTime: data.entryTime || prev.entryTime,
       exitTime: data.exitTime || prev.exitTime,
       slipImg: data.slipImg || prev.slipImg
@@ -882,6 +891,39 @@ export default function BoulderEntry({ onModalFinish = null, editingEntry = null
                   />
                 )}
               </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+            <div>
+              <label className="label" htmlFor="boulder-slip-input">Slip No</label>
+              <input
+                id="boulder-slip-input"
+                className="input uppercase placeholder:normal-case"
+                type="text"
+                name="slipNo"
+                value={formData.slipNo || ''}
+                onChange={handleChange}
+                maxLength={40}
+                autoComplete="off"
+                placeholder="Optional"
+              />
+            </div>
+            <div>
+              <label className="label" htmlFor="boulder-rst-input">RST No</label>
+              {/* A weighbridge entry keeps the RST of its ticket */}
+              <input
+                id="boulder-rst-input"
+                className="input uppercase placeholder:normal-case"
+                type="text"
+                name="rstNo"
+                value={formData.rstNo || ''}
+                onChange={handleChange}
+                readOnly={Boolean(lockedWeightsRef.current)}
+                maxLength={40}
+                autoComplete="off"
+                placeholder="Optional"
+              />
             </div>
           </div>
 

@@ -47,6 +47,13 @@ const boulderSchema = new mongoose.Schema(
       uppercase: true,
       default: "",
     },
+    // Slip number printed on the supplier's / weighbridge slip, optional
+    slipNo: {
+      type: String,
+      trim: true,
+      uppercase: true,
+      default: "",
+    },
     entryMode: {
       type: String,
       enum: ["single", "bulk"],
