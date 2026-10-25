@@ -4,6 +4,9 @@ export const PARTY_SALE_RATES = [
   { material: '10mm', label: '10mm', tonKey: 'tenMmRate', cubicKey: 'tenMmRatePerCubicMeter' },
   { material: '20mm', label: '20mm', tonKey: 'twentyMmRate', cubicKey: 'twentyMmRatePerCubicMeter' },
   { material: '40mm', label: '40mm', tonKey: 'fortyMmRate', cubicKey: 'fortyMmRatePerCubicMeter' },
+  { material: '60mm', label: '60mm', tonKey: 'sixtyMmRate', cubicKey: 'sixtyMmRatePerCubicMeter' },
+  { material: '6mm', label: '6mm', tonKey: 'sixMmRate', cubicKey: 'sixMmRatePerCubicMeter' },
+  { material: '4mm', label: '4mm', tonKey: 'fourMmRate', cubicKey: 'fourMmRatePerCubicMeter' },
   { material: 'wmm', label: 'WMM', tonKey: 'wmmRate', cubicKey: 'wmmRatePerCubicMeter' },
   { material: 'gsb', label: 'GSB', tonKey: 'gsbRate', cubicKey: 'gsbRatePerCubicMeter' },
   { material: 'dust', label: 'Dust', tonKey: 'dustRate', cubicKey: 'dustRatePerCubicMeter' }

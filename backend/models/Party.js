@@ -83,6 +83,24 @@ const partySchema = new mongoose.Schema(
       min: 0,
       set: normalizeRate,
     },
+    sixtyMmRate: {
+      type: Number,
+      default: 0,
+      min: 0,
+      set: normalizeRate,
+    },
+    sixMmRate: {
+      type: Number,
+      default: 0,
+      min: 0,
+      set: normalizeRate,
+    },
+    fourMmRate: {
+      type: Number,
+      default: 0,
+      min: 0,
+      set: normalizeRate,
+    },
     wmmRate: {
       type: Number,
       default: 0,
@@ -115,6 +133,24 @@ const partySchema = new mongoose.Schema(
       set: normalizeRate,
     },
     fortyMmRatePerCubicMeter: {
+      type: Number,
+      default: 0,
+      min: 0,
+      set: normalizeRate,
+    },
+    sixtyMmRatePerCubicMeter: {
+      type: Number,
+      default: 0,
+      min: 0,
+      set: normalizeRate,
+    },
+    sixMmRatePerCubicMeter: {
+      type: Number,
+      default: 0,
+      min: 0,
+      set: normalizeRate,
+    },
+    fourMmRatePerCubicMeter: {
       type: Number,
       default: 0,
       min: 0,
