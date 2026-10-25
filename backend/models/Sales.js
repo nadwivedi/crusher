@@ -97,6 +97,22 @@ const salesSchema = new mongoose.Schema(
       default: 0,
       min: 0,
     },
+    // GST sale: gstAmount is gstRate % of material + transport and is already included in totalAmount
+    isGst: {
+      type: Boolean,
+      default: false,
+    },
+    gstRate: {
+      type: Number,
+      default: 0,
+      min: 0,
+      max: 100,
+    },
+    gstAmount: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
     // Whose vehicle carried the material: the party's own, mine, or one hired from a transporter
     transportMode: {
       type: String,

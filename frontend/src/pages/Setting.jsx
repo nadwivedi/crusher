@@ -135,6 +135,32 @@ export default function Setting() {
     }
   };
 
+  // GST % a sale marked as GST sale starts with
+  const savedGstRate = Number(user?.gstRate ?? 5);
+  const [gstRateInput, setGstRateInput] = useState(String(savedGstRate));
+  const [savingGstRate, setSavingGstRate] = useState(false);
+  useEffect(() => {
+    setGstRateInput(String(savedGstRate));
+  }, [savedGstRate]);
+  const saveGstRate = async (event) => {
+    event.preventDefault();
+    const value = Number(gstRateInput);
+    if (gstRateInput === '' || !Number.isFinite(value) || value < 0 || value > 100) {
+      toast.error('GST rate must be between 0 and 100');
+      return;
+    }
+    if (value === savedGstRate || savingGstRate) return;
+    setSavingGstRate(true);
+    try {
+      await updateUserSettings({ gstRate: value });
+      toast.success('GST rate saved');
+    } catch (error) {
+      toast.error(error?.message || 'Could not save the GST rate');
+    } finally {
+      setSavingGstRate(false);
+    }
+  };
+
   const language = user?.language || 'en';
   const chooseLanguage = async (value) => {
     if (value === language) return;
@@ -406,6 +432,32 @@ export default function Setting() {
               <span className="block text-xs text-slate-500">Each sale shows the cubic feet box and the Gross / Tare / Net boxes. The bill uses the Sale Basis you pick; the other is kept as a record, and every weight counts in tons sold for your stock.</span>
             </span>
           </label>
+        </section>
+      )}
+
+      {/* GST rate: what a GST sale charges on material + transport */}
+      {user?.role !== 'employee' && (
+        <section className="card">
+          <h2 className="text-sm font-bold text-slate-900">GST Rate</h2>
+          <p className="mt-0.5 text-xs text-slate-500">When you mark a sale as GST Sale, this GST is added on top of the material and transport amount. You can still change it on each sale.</p>
+          <form onSubmit={saveGstRate} className="mt-3 flex items-center gap-2">
+            <div className="relative w-32">
+              <input
+                type="number"
+                className="input pr-8 font-semibold"
+                value={gstRateInput}
+                onChange={(event) => setGstRateInput(event.target.value)}
+                min="0"
+                max="100"
+                step="0.01"
+                aria-label="GST rate"
+              />
+              <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-sm font-semibold text-slate-400">%</span>
+            </div>
+            <button type="submit" className="btn-primary px-4" disabled={savingGstRate || Number(gstRateInput) === savedGstRate}>
+              {savingGstRate ? 'Saving...' : 'Save'}
+            </button>
+          </form>
         </section>
       )}
 

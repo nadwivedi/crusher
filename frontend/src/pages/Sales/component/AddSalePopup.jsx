@@ -17,6 +17,7 @@ import {
   getSaleTransport,
   getSaleTransportCharge
 } from '../../../utils/transport';
+import { formatGstRate } from '../../../utils/saleGst';
 
 const SALE_BASIS_OPTIONS = [
   { value: 'per_ton', label: 'Per Ton' },
@@ -96,6 +97,8 @@ export default function AddSalePopup({
   handleSubmit,
   handleInputChange,
   saleTypePreview,
+  // Turns GST Sale on / off
+  onToggleGst,
   pendingAmountPreview,
   excessAmountPreview,
   handleLeadgerFocus,
@@ -202,8 +205,10 @@ export default function AddSalePopup({
   const saleTransport = getSaleTransport(formData);
   const transportUnit = getBasisUnit(formData.transportBasis);
   const saleBalance = Number(formData.totalAmount || 0) - Number(formData.paidAmount || 0);
-  // The material on its own: the sale total less the transport charged to the party
-  const materialAmount = Math.max(0, Number(formData.totalAmount || 0) - transportCharge);
+  // The material on its own: the sale total less the transport charged to the party and the GST
+  const subtotalAmount = Math.max(0, Number(formData.totalAmount || 0)) / (formData.isGst ? 1 + Number(formData.gstRate || 0) / 100 : 1);
+  const gstAmount = formData.isGst ? Math.max(0, Number(formData.totalAmount || 0) - subtotalAmount) : 0;
+  const materialAmount = Math.max(0, subtotalAmount - transportCharge);
   const resolvedProductInputRef = productInputRef || localProductInputRef;
   const leadgerDropdownStyle = useFloatingDropdownPosition(leadgerSectionRef, isLeadgerSectionActive, [filteredLeadgers.length, leadgerListIndex]);
   const vehicleDropdownStyle = useFloatingDropdownPosition(vehicleSectionRef, isVehicleSectionActive, [filteredVehicles.length, vehicleListIndex]);
@@ -634,8 +639,31 @@ export default function AddSalePopup({
         </FormSection>
 
         <FormSection number={5} title="Final Price & Payment" tone="slate">
-          {/* Material + transport = what the party pays in all */}
-          <div className="grid grid-cols-[1fr_auto_1fr_auto_1fr] items-center gap-1.5 rounded-lg bg-white px-3 py-2.5 text-center ring-1 ring-inset ring-slate-200 sm:gap-3">
+          {/* GST Sale: GST % of material + transport is added on top */}
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-white px-3 py-2 ring-1 ring-inset ring-slate-200">
+            <label className="flex cursor-pointer items-center gap-2.5">
+              <input
+                id="sale-gst-toggle"
+                type="checkbox"
+                className="h-4 w-4 accent-primary-600"
+                checked={Boolean(formData.isGst)}
+                onChange={onToggleGst}
+              />
+              <span className="text-sm font-semibold text-slate-800">GST Sale</span>
+            </label>
+            {formData.isGst && (
+              <div className="flex items-center gap-2">
+                <label className="text-xs font-semibold text-slate-500" htmlFor="sale-gst-rate-input">GST Rate</label>
+                <div className="relative w-24">
+                  <input id="sale-gst-rate-input" className="input py-1.5 pr-7 font-semibold" type="number" name="gstRate" value={formData.gstRate ?? ''} onChange={handleInputChange} onKeyDown={handleSelectEnterMoveNext} placeholder="0" step="0.01" min="0" max="100" />
+                  <span className={SUFFIX_CLASS}>%</span>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Material + transport (+ GST) = what the party pays in all */}
+          <div className={`grid ${formData.isGst ? 'grid-cols-[1fr_auto_1fr_auto_1fr_auto_1fr]' : 'grid-cols-[1fr_auto_1fr_auto_1fr]'} items-center gap-1.5 rounded-lg bg-white px-3 py-2.5 text-center ring-1 ring-inset ring-slate-200 sm:gap-3`}>
             <div>
               <p className="text-[11px] font-semibold uppercase text-slate-400">Material</p>
               <p className="text-sm font-bold text-slate-800 sm:text-base">{formatAmount(materialAmount)}</p>
@@ -645,6 +673,15 @@ export default function AddSalePopup({
               <p className="text-[11px] font-semibold uppercase text-slate-400">Transport</p>
               <p className="text-sm font-bold text-slate-800 sm:text-base">{formatAmount(transportCharge)}</p>
             </div>
+            {formData.isGst && (
+              <>
+                <span className="text-lg font-bold text-slate-400">+</span>
+                <div>
+                  <p className="text-[11px] font-semibold uppercase text-slate-400">GST {formatGstRate(formData.gstRate)}</p>
+                  <p className="text-sm font-bold text-sky-700 sm:text-base">{formatAmount(gstAmount)}</p>
+                </div>
+              </>
+            )}
             <span className="text-lg font-bold text-slate-400">=</span>
             <div>
               <p className="text-[11px] font-semibold uppercase text-slate-400">Total</p>

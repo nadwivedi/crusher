@@ -8,6 +8,7 @@ import { canDeleteEntries, canEditEntry } from '../../utils/staffAccess';
 import { getSmartVehicleMatch, normalizeVehicleValue } from '../../utils/vehicleMatching';
 import useAccounts from '../../utils/useAccounts';
 import { getPartyMaterialRate, getPartySaleRatesPayload } from '../../utils/partyRates';
+import { formatGstRate, getSaleGstAmount, getSavedSaleGst } from '../../utils/saleGst';
 import { PERIOD_BASES, getBasisUnit, getOwnershipLabel, getSaleTransport, getSaleTransportCharge, getTripRate, getSupplierRatesPayload, getVehicleHireRates, getVehicleOwnerIds } from '../../utils/transport';
 import AddPartyPopup from '../Party/component/AddPartyPopup';
 import AddProductPopup from '../Products/component/AddProductPopup';
@@ -174,6 +175,9 @@ const getInitialFormData = (pricingMode = 'per_ton') => ({
   rate: '',
   dispatchLocation: '',
   ...NO_SALE_TRANSPORT,
+  // GST sale: GST % of material + transport is added to the total
+  isGst: false,
+  gstRate: '',
   totalAmount: 0,
   // Most sales are on credit: nothing paid unless entered
   paidAmount: '0',
@@ -259,12 +263,18 @@ const getSaleRateForParty = (user, party, materialType, pricingMode = 'per_ton')
 };
 
 // Material amount plus the transport charged to the party
-const recalculateSaleAmount = (payload = {}) => calculateSaleTotalAmount({
+const getSaleSubtotal = (payload = {}) => calculateSaleTotalAmount({
   pricingMode: payload.pricingMode,
   netWeight: payload.netWeight,
   cubicMeterQty: payload.cubicMeterQty,
   rate: payload.rate,
 }) + getSaleTransportCharge(payload);
+
+// The sale total: material + transport, plus GST on both for a GST sale
+const recalculateSaleAmount = (payload = {}) => {
+  const subtotal = getSaleSubtotal(payload);
+  return subtotal + getSaleGstAmount(payload, subtotal);
+};
 
 const deriveSaleType = (totalAmountValue, paidAmountValue) => {
   const totalAmount = Math.max(0, Number(totalAmountValue || 0));
@@ -351,6 +361,12 @@ const SALES_RANGE_OPTIONS = [
 const TABS = [
   { key: 'entries', label: 'Entries', icon: ClipboardList },
   { key: 'materials', label: 'Material-wise', icon: Layers }
+];
+
+const GST_FILTER_OPTIONS = [
+  { key: 'all', label: 'All' },
+  { key: 'gst', label: 'GST' },
+  { key: 'non_gst', label: 'Non-GST' }
 ];
 
 // Table cells a little tighter than the app default, so every column fits without scrolling
@@ -478,6 +494,8 @@ export default function Sales({ modalOnly = false, onModalFinish = null, weighme
   const [exporting, setExporting] = useState(false);
   const [materialStats, setMaterialStats] = useState([]);
   const [materialFilter, setMaterialFilter] = useState('');
+  // 'all', 'gst' or 'non_gst'
+  const [gstFilter, setGstFilter] = useState('all');
   const [tab, setTab] = useState('entries');
   const [summary, setSummary] = useState({ totalAmount: 0, cashAmount: 0, creditAmount: 0, totalWeight: 0, count: 0 });
   const [debouncedSearch, setDebouncedSearch] = useState('');
@@ -533,11 +551,11 @@ export default function Sales({ modalOnly = false, onModalFinish = null, weighme
 
   useEffect(() => {
     setPage(1);
-  }, [debouncedSearch, tableRange, customFrom, customTo, selectedMonth, selectedYear, materialFilter]);
+  }, [debouncedSearch, tableRange, customFrom, customTo, selectedMonth, selectedYear, materialFilter, gstFilter]);
 
   useEffect(() => {
     fetchSales();
-  }, [page, debouncedSearch, tableRange, customFrom, customTo, selectedMonth, selectedYear, materialFilter]);
+  }, [page, debouncedSearch, tableRange, customFrom, customTo, selectedMonth, selectedYear, materialFilter, gstFilter]);
 
   useEffect(() => {
     const handleKeyDown = (event) => {
@@ -673,6 +691,7 @@ export default function Sales({ modalOnly = false, onModalFinish = null, weighme
       };
       if (debouncedSearch) params.search = debouncedSearch;
       if (materialFilter) params.material = materialFilter;
+      if (gstFilter !== 'all') params.gst = gstFilter;
 
       const response = await apiClient.get('/sales', { params });
       if (requestId !== salesRequestRef.current) return;
@@ -2008,6 +2027,16 @@ export default function Sales({ modalOnly = false, onModalFinish = null, weighme
     }));
   };
 
+  // GST Sale on / off; turning it on starts with the GST rate from Settings
+  const toggleGst = () => {
+    setFormData((prev) => {
+      const isGst = !prev.isGst;
+      const gstRate = isGst && !(Number(prev.gstRate) > 0) ? String(user?.gstRate ?? 5) : prev.gstRate;
+      const nextState = { ...prev, isGst, gstRate };
+      return { ...nextState, totalAmount: recalculateSaleAmount(nextState) };
+    });
+  };
+
   const handleInputChange = (e) => {
     const { name, value } = e.target;
       if (name === 'customerPhone') {
@@ -2070,6 +2099,11 @@ export default function Sales({ modalOnly = false, onModalFinish = null, weighme
         transportRate: tripRate ? String(tripRate.rate || '') : formData.transportRate,
         dispatchLocation: String(formData.dispatchLocation || '').trim() ? formData.dispatchLocation : value
       });
+      return;
+    }
+    if (name === 'gstRate') {
+      const nextState = { ...formData, gstRate: value };
+      setFormData({ ...nextState, totalAmount: recalculateSaleAmount(nextState) });
       return;
     }
     if (name === 'transportCharge') {
@@ -2326,6 +2360,9 @@ export default function Sales({ modalOnly = false, onModalFinish = null, weighme
         transportLocation: formData.transportBasis === 'per_trip' ? String(formData.transportLocation || '').trim() : '',
         transportQty: getSaleTransport(formData).qty,
         transportRate: Number(formData.transportRate || 0),
+        isGst: Boolean(formData.isGst),
+        gstRate: formData.isGst ? Number(formData.gstRate || 0) : 0,
+        gstAmount: getSaleGstAmount(formData, getSaleSubtotal(formData)),
         totalAmount: Number(formData.totalAmount || 0),
         paidAmount: Number(formData.paidAmount || 0),
         account: formData.account || defaultAccountId || undefined,
@@ -2588,6 +2625,7 @@ export default function Sales({ modalOnly = false, onModalFinish = null, weighme
           handleSubmit={handleSubmit}
           handleInputChange={handleInputChange}
           saleTypePreview={saleTypePreview}
+          onToggleGst={toggleGst}
           pendingAmountPreview={pendingAmountPreview}
           excessAmountPreview={excessAmountPreview}
           handleLeadgerFocus={handleLeadgerFocus}
@@ -2665,7 +2703,7 @@ export default function Sales({ modalOnly = false, onModalFinish = null, weighme
   // The popup shares `loading` while it saves; the list behind it should not react to that
   const listLoading = loading && !showForm;
   const initialLoading = listLoading && sales.length === 0;
-  const hasFilters = Boolean(debouncedSearch || materialFilter || tableRange !== 'lifetime');
+  const hasFilters = Boolean(debouncedSearch || materialFilter || gstFilter !== 'all' || tableRange !== 'lifetime');
 
   const periodLabel = (() => {
     if (tableRange === 'month') return formatMonthLabel(selectedMonth, selectedYear);
@@ -2693,7 +2731,7 @@ export default function Sales({ modalOnly = false, onModalFinish = null, weighme
   );
 
   const stats = [
-    { icon: IndianRupee, label: 'Total Sales', tone: 'emerald', value: formatRupees(summary.totalAmount), hint: entryCount(summary.count) },
+    { icon: IndianRupee, label: 'Total Sales', tone: 'emerald', value: formatRupees(summary.totalAmount), hint: Number(summary.gstAmount || 0) > 0 ? `${entryCount(summary.count)} · GST ${formatRupees(summary.gstAmount)}` : entryCount(summary.count) },
     { icon: Banknote, label: 'Cash Sale', tone: 'blue', value: formatRupees(summary.cashAmount), hint: shareOfSales(summary.cashAmount) },
     { icon: CreditCard, label: 'Credit Sale', tone: 'rose', value: formatRupees(summary.creditAmount), hint: shareOfSales(summary.creditAmount) },
     {
@@ -2716,6 +2754,7 @@ export default function Sales({ modalOnly = false, onModalFinish = null, weighme
     const transporter = sale.transportMode === 'hired' ? resolveLeadgerNameById(sale.transporterId) : '';
     const ownVehicle = sale.transportMode && sale.transportMode !== 'party' ? getOwnershipLabel(sale.transportMode) : '';
     const transportCharge = getSaleTransportCharge(sale);
+    const gstAmount = getSavedSaleGst(sale);
     // What the transporter is paid for this trip: "₹500 / trip · Raipur", "₹180 / ton", or monthly rent
     const unit = getBasisUnit(sale.transportBasis);
     const transportRate = sale.transportMode !== 'hired'
@@ -2739,7 +2778,8 @@ export default function Sales({ modalOnly = false, onModalFinish = null, weighme
       transportRate,
       transportCost: sale.transportMode === 'hired' ? getSaleTransport(sale).cost : 0,
       transportCharge,
-      materialAmount: Math.max(0, Number(sale.totalAmount || 0) - transportCharge),
+      materialAmount: Math.max(0, Number(sale.totalAmount || 0) - transportCharge - gstAmount),
+      gstAmount,
       paid,
       // Only a part-paid sale needs its balance spelled out; the Cash / Credit badge says the rest
       balance: paid > 0 && total > paid ? total - paid : 0
@@ -2767,7 +2807,8 @@ export default function Sales({ modalOnly = false, onModalFinish = null, weighme
       const response = await apiClient.get('/sales', {
         params: {
           from: new Date(`${fromDay}T00:00:00`).toISOString(),
-          to: new Date(`${toDay}T23:59:59.999`).toISOString()
+          to: new Date(`${toDay}T23:59:59.999`).toISOString(),
+          ...(gstFilter !== 'all' ? { gst: gstFilter } : {})
         }
       });
       const rows = (Array.isArray(response) ? response : [])
@@ -2799,6 +2840,7 @@ export default function Sales({ modalOnly = false, onModalFinish = null, weighme
         { key: 'rate', header: 'Rate', type: 'number', width: 10, value: ({ sale }) => sale.rate },
         { key: 'materialAmount', header: 'Material Amount', type: 'number', width: 15, value: ({ view }) => view.materialAmount },
         { key: 'transportCharge', header: 'Transport Charge', type: 'number', width: 15, value: ({ view }) => view.transportCharge || '' },
+        { key: 'gst', header: 'GST', type: 'number', width: 12, value: ({ view }) => view.gstAmount || '' },
         { key: 'total', header: 'Total Amount', type: 'number', width: 14, value: ({ sale }) => sale.totalAmount },
         { key: 'paid', header: 'Paid', type: 'number', width: 12, value: ({ sale }) => sale.paidAmount || '' },
         { key: 'balance', header: 'Balance', type: 'number', width: 12, value: (row) => balanceOf(row) || '' },
@@ -2816,6 +2858,7 @@ export default function Sales({ modalOnly = false, onModalFinish = null, weighme
         cft: sum(({ sale }) => sale.cubicMeterQty),
         materialAmount: sum(({ view }) => view.materialAmount),
         transportCharge: sum(({ view }) => view.transportCharge),
+        gst: sum(({ view }) => view.gstAmount),
         total: sum(({ sale }) => sale.totalAmount),
         paid: sum(({ sale }) => sale.paidAmount),
         balance: sum(balanceOf)
@@ -2947,6 +2990,7 @@ export default function Sales({ modalOnly = false, onModalFinish = null, weighme
         handleSubmit={handleSubmit}
         handleInputChange={handleInputChange}
         saleTypePreview={saleTypePreview}
+        onToggleGst={toggleGst}
         pendingAmountPreview={pendingAmountPreview}
         excessAmountPreview={excessAmountPreview}
         handleLeadgerFocus={handleLeadgerFocus}
@@ -3072,7 +3116,10 @@ export default function Sales({ modalOnly = false, onModalFinish = null, weighme
 
       <section className="panel">
         <div className="panel-header py-2.5 flex flex-wrap items-center justify-between gap-2.5">
-          <Segmented options={TABS} value={tab} onChange={setTab} />
+          <div className="flex flex-wrap items-center gap-2">
+            <Segmented options={TABS} value={tab} onChange={setTab} />
+            <Segmented options={GST_FILTER_OPTIONS} value={gstFilter} onChange={setGstFilter} />
+          </div>
           <div className="flex min-w-0 flex-1 basis-56 items-center justify-end gap-2">
             {tab === 'entries' && materialFilter && (
               <button
@@ -3149,6 +3196,7 @@ export default function Sales({ modalOnly = false, onModalFinish = null, weighme
                           <div className="flex items-center justify-between gap-2">
                             <div className="flex min-w-0 items-center gap-1.5 text-[11px] text-slate-400">
                               <span className={`${SALE_TYPE_BADGE[sale.type] || 'badge-red'} shrink-0`}>{formatSaleTypeLabel(sale.type)}</span>
+                              {sale.isGst && <span className="badge-blue shrink-0">GST</span>}
                               <button type="button" onClick={() => handleOpenInvoicePdf(sale._id)} className="shrink-0 font-semibold text-primary-600">
                                 {sale.invoiceNumber}
                               </button>
@@ -3248,9 +3296,15 @@ export default function Sales({ modalOnly = false, onModalFinish = null, weighme
                                     {formatRupees(view.materialAmount)} + {formatRupees(view.transportCharge)} transport
                                   </span>
                                 )}
+                                {view.gstAmount > 0 && (
+                                  <span className="block text-[11px] leading-tight text-sky-600">
+                                    incl. GST {formatRupees(view.gstAmount)} ({formatGstRate(sale.gstRate)})
+                                  </span>
+                                )}
                               </td>
                               <td className={`${TD} whitespace-nowrap`}>
                                 <span className={SALE_TYPE_BADGE[sale.type] || 'badge-red'}>{formatSaleTypeLabel(sale.type)}</span>
+                                {sale.isGst && <span className="badge-blue ml-1">GST</span>}
                                 {view.balance > 0 && (
                                   <span className="mt-0.5 block text-[11px] leading-tight text-rose-600" title={`Paid ${formatRupees(view.paid)}`}>
                                     Bal {formatRupees(view.balance)}

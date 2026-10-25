@@ -28,6 +28,7 @@ const sanitizeUser = (user) => ({
   // How a new sale starts: "per_ton" or "per_cubic_meter" (shown as cubic feet)
   defaultPricingMode: user.defaultPricingMode || "per_ton",
   recordBothQuantities: Boolean(user.recordBothQuantities),
+  gstRate: user.gstRate ?? 5,
   // The owner's subscription, shown on the Settings page
   plan: {
     type: user.planType || "yearly",
@@ -318,6 +319,7 @@ module.exports = {
              materialRates: sanitizeUser(owner).materialRates,
              defaultPricingMode: owner.defaultPricingMode || "per_ton",
              recordBothQuantities: Boolean(owner.recordBothQuantities),
+             gstRate: owner.gstRate ?? 5,
              permissions: req.employee.permissions,
              sections: readSections(req.employee.sections),
              historyLimitDays: req.employee.historyLimitDays,
@@ -436,6 +438,16 @@ module.exports = {
           return res.status(403).json({ success: false, message: "Only the owner can change how sales are recorded" });
         }
         user.recordBothQuantities = Boolean(req.body.recordBothQuantities);
+      }
+      if (req.body?.gstRate !== undefined) {
+        if (req.employee) {
+          return res.status(403).json({ success: false, message: "Only the owner can change the GST rate" });
+        }
+        const gstRate = Number(req.body.gstRate);
+        if (!Number.isFinite(gstRate) || gstRate < 0 || gstRate > 100) {
+          return res.status(400).json({ success: false, message: "GST rate must be between 0 and 100" });
+        }
+        user.gstRate = Math.round(gstRate * 100) / 100;
       }
 
       await user.save();

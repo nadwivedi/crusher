@@ -56,6 +56,13 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    // GST % a sale marked as GST sale starts with (5% is the usual rate on crushed stone)
+    gstRate: {
+      type: Number,
+      default: 5,
+      min: 0,
+      max: 100,
+    },
     // When the starter expense types (Electricity, Food, ...) were added; unset means not yet
     defaultExpenseTypesAddedAt: {
       type: Date,

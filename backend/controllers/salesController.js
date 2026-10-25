@@ -90,6 +90,13 @@ const normalizeSalesPayload = (payload = {}) => {
     : "per_ton";
   nextPayload.cubicMeterQty = Math.max(0, toNumber(nextPayload.cubicMeterQty));
 
+  // A non-GST sale carries no GST amount
+  if (Object.prototype.hasOwnProperty.call(nextPayload, "isGst")) {
+    nextPayload.isGst = nextPayload.isGst === true || nextPayload.isGst === "true";
+    nextPayload.gstRate = nextPayload.isGst ? Math.min(100, Math.max(0, toNumber(nextPayload.gstRate))) : 0;
+    nextPayload.gstAmount = nextPayload.isGst ? Math.max(0, toNumber(nextPayload.gstAmount)) : 0;
+  }
+
   delete nextPayload.party;
   delete nextPayload.materialType;
   delete nextPayload.invoice;
@@ -173,6 +180,9 @@ const serializeSale = (saleDoc) => {
     netWeight,
     pricingMode: sale.pricingMode || "per_ton",
     cubicMeterQty: toNumber(sale.cubicMeterQty),
+    isGst: Boolean(sale.isGst),
+    gstRate: toNumber(sale.gstRate),
+    gstAmount: toNumber(sale.gstAmount),
   };
 };
 
@@ -345,6 +355,10 @@ const getAllSales = async (req, res) => {
       query.saleDate = range;
     }
 
+    // ?gst=gst for GST sales only, ?gst=non_gst for the rest
+    if (req.query.gst === "gst") query.isGst = true;
+    else if (req.query.gst === "non_gst") query.isGst = { $ne: true };
+
     // Without ?page the full list (of the ?from/?to period, if given) is returned: other screens and the Excel export use this
     if (req.query.page === undefined) {
       const sales = await Sales.find(query).sort({ createdAt: -1 });
@@ -377,11 +391,11 @@ const getAllSales = async (req, res) => {
         .limit(limit),
       Sales.countDocuments(query),
       Sales.find(statsQuery)
-        .select("totalAmount type netWeight stoneSize pricingMode cubicMeterQty")
+        .select("totalAmount gstAmount type netWeight stoneSize pricingMode cubicMeterQty")
         .lean(),
     ]);
 
-    const summary = { totalAmount: 0, cashAmount: 0, creditAmount: 0, totalWeight: 0 };
+    const summary = { totalAmount: 0, gstAmount: 0, cashAmount: 0, creditAmount: 0, totalWeight: 0 };
     const materialMap = new Map();
     statRows.forEach((row) => {
       const amount = Number(row.totalAmount || 0);
@@ -398,6 +412,7 @@ const getAllSales = async (req, res) => {
       if (material && key !== material.toLowerCase()) return;
       summary.totalAmount += amount;
       summary.totalWeight += weight;
+      summary.gstAmount += Number(row.gstAmount || 0);
       if (row.type === "cash") summary.cashAmount += amount;
       else summary.creditAmount += amount;
     });
