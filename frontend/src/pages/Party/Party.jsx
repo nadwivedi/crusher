@@ -94,7 +94,7 @@ export default function Party() {
 
   useEffect(() => {
     fetchParties();
-  }, [search]);
+  }, []);
 
   useEffect(() => {
     const handleKeyDown = (event) => {
@@ -113,7 +113,7 @@ export default function Party() {
   const fetchParties = async () => {
     try {
       setLoading(true);
-      const response = await apiClient.get('/parties', { params: { search } });
+      const response = await apiClient.get('/parties');
       setParties(Array.isArray(response) ? response : []);
       setError('');
     } catch (err) {
@@ -263,7 +263,11 @@ export default function Party() {
   };
 
   const activeTypeFilter = TYPE_FILTERS.find((filter) => filter.value === typeFilter) || TYPE_FILTERS[0];
-  const visibleParties = parties.filter(activeTypeFilter.matches);
+  // Search runs on the loaded list: by name, mobile or address, any part of it, ignoring case
+  const searchText = search.trim().toLowerCase();
+  const matchesSearch = (party) => !searchText || [party.name, party.mobile, party.address]
+    .some((value) => String(value || '').toLowerCase().includes(searchText));
+  const visibleParties = parties.filter(activeTypeFilter.matches).filter(matchesSearch);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-purple-50">
@@ -337,7 +341,7 @@ export default function Party() {
                 <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                 <input
                   type="text"
-                  placeholder="Search parties..."
+                  placeholder="Search name, mobile or address..."
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   className="w-full rounded-lg border border-gray-300 bg-white py-2.5 pl-9 pr-4 text-sm text-slate-700 outline-none transition focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
