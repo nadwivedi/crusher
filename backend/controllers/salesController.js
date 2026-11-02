@@ -370,9 +370,11 @@ const getAllSales = async (req, res) => {
     const search = String(req.query.search || "").trim();
     if (search) {
       const pattern = new RegExp(search.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i");
+      // The party name lives on the party, not on the sale: find the matching parties first
+      const matchingParties = await Party.find({ userId: req.userId, name: pattern }).select("_id").lean();
       query.$or = [
         { invoiceNumber: pattern },
-        { customerName: pattern },
+        ...(matchingParties.length ? [{ partyId: { $in: matchingParties.map((party) => party._id) } }] : []),
         { vehicleNo: pattern },
         { stoneSize: pattern },
         { type: pattern },
