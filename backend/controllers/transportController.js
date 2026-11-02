@@ -3,6 +3,7 @@ const Party = require("../models/Party");
 const Transport = require("../models/Transport");
 const Vehicle = require("../models/Vehicle");
 const { scopedFilter, scopedIdFilter } = require("../utils/ownership");
+const { applyCreatorFilter } = require("../middleware/staffAccess");
 const { createTransportNumber, isBilledInSale } = require("../utils/transport");
 const { TRANSPORT_BASES, calcTransportAmount } = require("../utils/transportBasis");
 
@@ -97,6 +98,7 @@ const getTransportEntries = async (req, res) => {
     if (req.visibilityBoundary) {
       query.entryDate = { $gte: req.visibilityBoundary };
     }
+    applyCreatorFilter(req, query);
 
     const entries = await Transport.find(query)
       .populate("partyId", "name type")

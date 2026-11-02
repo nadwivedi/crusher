@@ -47,6 +47,13 @@ const historyText = (value) => {
   return `the last ${days} days`;
 };
 
+// Whose entries this login sees, as the owner set it
+const SEE_TEXT = {
+  own: ' · only your own entries',
+  own_owner: " · your own and the owner's entries",
+  own_staff: ' · your own and other staff entries',
+};
+
 export default function StaffHome() {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -68,7 +75,7 @@ export default function StaffHome() {
       <div>
         <h1 className="page-title">Hello, {user?.name || 'Staff'}</h1>
         <p className="page-subtitle">
-          {user?.ownerName ? `${user.ownerName} · ` : ''}You can see {historyText(user?.historyLimitDays)}
+          {user?.ownerName ? `${user.ownerName} · ` : ''}You can see {historyText(user?.historyLimitDays)}{SEE_TEXT[user?.seeEntriesOf] || ''}
         </p>
       </div>
 

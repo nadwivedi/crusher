@@ -4,6 +4,7 @@ const Counter = require("../models/Counter");
 const Party = require("../models/Party");
 const Vehicle = require("../models/Vehicle");
 const { scopedFilter, scopedIdFilter } = require("../utils/ownership");
+const { applyCreatorFilter } = require("../middleware/staffAccess");
 const { syncBoulderTransportEntry, deleteBoulderTransportEntry } = require("../utils/transport");
 const {
   claimWeighment,
@@ -391,6 +392,7 @@ const getAllBoulders = async (req, res) => {
     if (req.visibilityBoundary) {
       query.boulderDate = { $gte: req.visibilityBoundary };
     }
+    applyCreatorFilter(req, query);
 
     const boulders = await Boulder.find(query)
       .populate("vehicleId")
@@ -416,6 +418,7 @@ const getBoulderById = async (req, res) => {
     if (req.visibilityBoundary) {
       query.boulderDate = { $gte: req.visibilityBoundary };
     }
+    applyCreatorFilter(req, query);
 
     const boulder = await Boulder.findOne(query).populate("vehicleId");
 

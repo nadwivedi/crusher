@@ -1,5 +1,5 @@
 const mongoose = require("mongoose");
-const { applyVisibility } = require("../middleware/staffAccess");
+const { applyVisibility, applyCreatorFilter } = require("../middleware/staffAccess");
 const Purchase = require("../models/Purchase");
 const PurchaseReturn = require("../models/PurchaseReturn");
 const Payment = require("../models/Payment");
@@ -428,6 +428,10 @@ const getPurchaseById = async (req, res) => {
   const { id } = req.params;
   if (!mongoose.Types.ObjectId.isValid(id)) return res.status(400).json({ message: "Invalid purchase id" });
   try {
+    // Staff limited to some people's entries cannot open the others by link
+    if (req.employee && !(await Purchase.exists(applyCreatorFilter(req, scopedIdFilter(req, id))))) {
+      return res.status(404).json({ message: "Purchase not found" });
+    }
     const purchase = await populatePurchase(req.userId, id);
     if (!purchase) return res.status(404).json({ message: "Purchase not found" });
     return res.json({ data: purchase });

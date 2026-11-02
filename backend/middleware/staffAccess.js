@@ -38,8 +38,29 @@ const ownEntryOnly = (Model, dateField) => async (req, res, next) => {
   }
 };
 
-// Adds the staff login's oldest visible date to a list query, so older entries are never sent
+const ENTRY_VISIBILITY = ["all", "own", "own_owner", "own_staff"];
+
+// Whose entries a staff login may see: always their own, plus the owner's and/or other staff's as the owner chose.
+// Entries saved before we recorded who added them count as the owner's.
+const creatorCondition = (req) => {
+  const mode = req.employee?.seeEntriesOf;
+  if (!req.employee || !mode || mode === "all") return null;
+  const own = { "createdBy.kind": "staff", "createdBy.id": String(req.employee._id) };
+  if (mode === "own_owner") return { $or: [own, { "createdBy.kind": { $ne: "staff" } }] };
+  if (mode === "own_staff") return { "createdBy.kind": "staff" };
+  return own;
+};
+
+// Keeps only the entries this staff login may see (owner logins are not limited)
+const applyCreatorFilter = (req, query) => {
+  const condition = creatorCondition(req);
+  if (condition) query.$and = [...(query.$and || []), condition];
+  return query;
+};
+
+// Adds the staff login's oldest visible date (and whose entries they see) to a list query, so other entries are never sent
 const applyVisibility = (req, query, dateField) => {
+  applyCreatorFilter(req, query);
   if (!req.visibilityBoundary) return query;
   const current = query[dateField];
   // An exact date asked for: keep it unless it is too old
@@ -53,4 +74,4 @@ const applyVisibility = (req, query, dateField) => {
   return query;
 };
 
-module.exports = { requireSection, sectionForChanges, ownerOnly, ownEntryOnly, applyVisibility, hasSection };
+module.exports = { requireSection, sectionForChanges, ownerOnly, ownEntryOnly, applyVisibility, applyCreatorFilter, hasSection, ENTRY_VISIBILITY };

@@ -6,6 +6,7 @@ const Receipt = require("../models/Receipt");
 const Party = require("../models/Party");
 const Vehicle = require("../models/Vehicle");
 const { scopedFilter, scopedIdFilter } = require("../utils/ownership");
+const { applyCreatorFilter } = require("../middleware/staffAccess");
 const { resolveAccountId } = require("../utils/accounts");
 const {
   resolveSaleTransport,
@@ -343,6 +344,7 @@ const getAllSales = async (req, res) => {
     if (req.visibilityBoundary) {
        query.saleDate = { $gte: req.visibilityBoundary };
     }
+    applyCreatorFilter(req, query);
 
     const from = req.query.from ? new Date(req.query.from) : null;
     const to = req.query.to ? new Date(req.query.to) : null;
@@ -449,6 +451,7 @@ const getSalesById = async (req, res) => {
     if (req.visibilityBoundary) {
       query.saleDate = { $gte: req.visibilityBoundary };
     }
+    applyCreatorFilter(req, query);
 
     const sales = await Sales.findOne(query);
 

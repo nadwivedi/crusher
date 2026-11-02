@@ -51,6 +51,13 @@ const employeeSchema = new mongoose.Schema(
       enum: ["en", "hi", "both"],
       default: "en",
     },
+    // Whose entries this login sees in the lists: always their own, plus
+    // "all" everyone's, "own_owner" the owner's too, "own_staff" other staff's too, "own" only their own
+    seeEntriesOf: {
+      type: String,
+      enum: ["all", "own", "own_owner", "own_staff"],
+      default: "all",
+    },
     historyLimitDays: {
       type: mongoose.Mixed, // Can be a Number (7, 28, 90, 365) or "all"
       default: 7, 

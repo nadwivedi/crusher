@@ -1,6 +1,9 @@
 const Employee = require("../models/Employee");
 const bcrypt = require("bcryptjs");
 const { readSections } = require("../utils/staffSections");
+const { ENTRY_VISIBILITY } = require("../middleware/staffAccess");
+
+const readSeeEntriesOf = (value) => (ENTRY_VISIBILITY.includes(value) ? value : "all");
 
 const saltRounds = 10;
 
@@ -22,7 +25,7 @@ const getEmployees = async (req, res) => {
 // Add a new employee
 const addEmployee = async (req, res) => {
   try {
-    const { name, mobile, password, isActive, permissions, historyLimitDays, sections } = req.body;
+    const { name, mobile, password, isActive, permissions, historyLimitDays, sections, seeEntriesOf } = req.body;
 
     // Check limit
     const employeeCount = await Employee.countDocuments({ ownerId: req.userId });
@@ -55,6 +58,7 @@ const addEmployee = async (req, res) => {
       permissions: permissions || { view: true, add: false, edit: false },
       historyLimitDays: historyLimitDays || 7,
       sections: readSections(sections),
+      seeEntriesOf: readSeeEntriesOf(seeEntriesOf),
     });
 
     res.status(201).json({ success: true, message: "Employee added successfully", data: Object.assign({}, newEmployee.toObject(), { password: null }) });
@@ -68,7 +72,7 @@ const addEmployee = async (req, res) => {
 const updateEmployee = async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, mobile, isActive, permissions, historyLimitDays, sections, password } = req.body;
+    const { name, mobile, isActive, permissions, historyLimitDays, sections, seeEntriesOf, password } = req.body;
 
     const employee = await Employee.findOne({ _id: id, ownerId: req.userId });
     if (!employee) {
@@ -90,6 +94,7 @@ const updateEmployee = async (req, res) => {
     if (permissions) employee.permissions = permissions;
     if (historyLimitDays !== undefined) employee.historyLimitDays = historyLimitDays;
     if (sections !== undefined) employee.sections = readSections(sections);
+    if (seeEntriesOf !== undefined) employee.seeEntriesOf = readSeeEntriesOf(seeEntriesOf);
     // A new password typed in the edit form
     if (password) {
       if (String(password).length < 6) {

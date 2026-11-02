@@ -14,6 +14,14 @@ const HISTORY_LIMITS = [
   { value: 365, label: 'Last 1 year' },
   { value: 'all', label: 'All data' }
 ];
+// Whose entries the staff login sees; their own are always shown
+const SEE_ENTRIES_OF = [
+  { value: 'all', label: "Everyone's entries", hint: 'Their own, yours (owner) and other staff' },
+  { value: 'own_owner', label: "Their own + owner's", hint: 'Not other staff entries' },
+  { value: 'own_staff', label: 'Their own + other staff', hint: 'Not the entries you (owner) added' },
+  { value: 'own', label: 'Only their own entries', hint: 'Nothing added by you or other staff' }
+];
+const seeEntriesLabel = (value) => SEE_ENTRIES_OF.find((item) => item.value === (value || 'all'))?.label || SEE_ENTRIES_OF[0].label;
 const historyLabel = (value) => HISTORY_LIMITS.find((item) => String(item.value) === String(value))?.label || `Last ${value} days`;
 
 export default function EmployeeManagement() {
@@ -27,6 +35,7 @@ export default function EmployeeManagement() {
     mobile: '',
     password: '',
     historyLimitDays: 30,
+    seeEntriesOf: 'all',
     permissions: { view: true, add: true, edit: true },
     sections: allSectionsOn(),
     isActive: true
@@ -54,6 +63,7 @@ export default function EmployeeManagement() {
       mobile: '',
       password: '',
       historyLimitDays: 30,
+      seeEntriesOf: 'all',
       permissions: { view: true, add: true, edit: true },
       sections: allSectionsOn(),
       isActive: true
@@ -68,6 +78,7 @@ export default function EmployeeManagement() {
       mobile: emp.mobile,
       password: '', // blank password when editing
       historyLimitDays: emp.historyLimitDays,
+      seeEntriesOf: emp.seeEntriesOf || 'all',
       permissions: emp.permissions,
       sections: { ...allSectionsOn(), ...(emp.sections || {}) },
       isActive: emp.isActive
@@ -154,6 +165,22 @@ export default function EmployeeManagement() {
             </div>
           </div>
 
+          {/* Whose entries show in this login's lists */}
+          <div>
+            <label className="label">Entries they can see</label>
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
+              {SEE_ENTRIES_OF.map((option) => (
+                <label key={option.value} className="flex cursor-pointer items-start gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 has-[:checked]:border-primary-300 has-[:checked]:bg-primary-50/50">
+                  <input type="radio" name="seeEntriesOf" value={option.value} checked={(formData.seeEntriesOf || 'all') === option.value} onChange={() => setFormData({ ...formData, seeEntriesOf: option.value })} className="mt-0.5 accent-primary-600" />
+                  <span className="min-w-0">
+                    <span className="block font-semibold">{option.label}</span>
+                    <span className="block text-[11px] text-slate-500">{option.hint}</span>
+                  </span>
+                </label>
+              ))}
+            </div>
+          </div>
+
           <div>
             <label className="label">Allowed to</label>
             <div className="flex flex-wrap gap-2">
@@ -212,7 +239,7 @@ export default function EmployeeManagement() {
                   {!emp.isActive && <span className="badge-red">Access revoked</span>}
                 </div>
                 <p className="mt-0.5 text-xs text-slate-500">
-                  {emp.mobile} · Sees {historyLabel(emp.historyLimitDays).toLowerCase()}
+                  {emp.mobile} · Sees {historyLabel(emp.historyLimitDays).toLowerCase()} · {seeEntriesLabel(emp.seeEntriesOf)}
                 </p>
                 <div className="mt-1.5 flex flex-wrap gap-1.5">
                   <span className="badge-gray">View</span>

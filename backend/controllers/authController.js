@@ -257,6 +257,7 @@ const employeeLogin = async (req, res) => {
          permissions: emp.permissions,
          sections: readSections(emp.sections),
          historyLimitDays: emp.historyLimitDays,
+         seeEntriesOf: emp.seeEntriesOf || "all",
          language: emp.language || "en",
          deactivated: !accountActive,
       },
@@ -323,6 +324,7 @@ module.exports = {
              permissions: req.employee.permissions,
              sections: readSections(req.employee.sections),
              historyLimitDays: req.employee.historyLimitDays,
+             seeEntriesOf: req.employee.seeEntriesOf || "all",
              language: req.employee.language || "en",
              deactivated: owner.isActive === false && !req.adminAccess,
           }
