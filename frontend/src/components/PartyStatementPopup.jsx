@@ -18,14 +18,18 @@ const monthDays = (month, year) => {
   return { from: range.from, to: range.to > today ? today : range.to };
 };
 
-// Pick a month (or your own dates) and download the party's statement for it as Excel or PDF.
-// onExport(format, from, to) gets 'excel' or 'pdf' and yyyy-mm-dd days.
+// Pick a month, your own dates or the party's whole lifetime and download its statement as Excel or PDF.
+// onExport(format, from, to, { lifetime }) gets 'excel' or 'pdf' and yyyy-mm-dd days; for the lifetime,
+// from is empty and the statement runs from the party's first entry to today, month by month.
 export default function PartyStatementPopup({ partyName, busy = false, onExport, onClose }) {
   const now = new Date();
   const currentYear = now.getFullYear();
   const [year, setYear] = useState(currentYear);
   const [month, setMonth] = useState(now.getMonth());
-  const [custom, setCustom] = useState(false);
+  // 'month', 'custom' or 'lifetime'
+  const [mode, setMode] = useState('month');
+  const custom = mode === 'custom';
+  const lifetime = mode === 'lifetime';
   const [customFrom, setCustomFrom] = useState(() => monthDays(now.getMonth(), currentYear).from);
   const [customTo, setCustomTo] = useState(() => toLocalDateInput(now));
 
@@ -41,8 +45,11 @@ export default function PartyStatementPopup({ partyName, busy = false, onExport,
     return () => window.removeEventListener('keydown', handleKeyDown, true);
   }, [busy, onClose]);
 
-  const range = custom ? { from: customFrom, to: customTo } : monthDays(month, year);
-  const canExport = Boolean(range.from && range.to && range.from <= range.to) && !busy;
+  const today = toLocalDateInput(now);
+  const range = lifetime ? { from: '', to: today } : custom ? { from: customFrom, to: customTo } : monthDays(month, year);
+  const validRange = lifetime || Boolean(range.from && range.to && range.from <= range.to);
+  const canExport = validRange && !busy;
+  const exportAs = (format) => onExport(format, range.from, range.to, { lifetime });
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-sm" onClick={() => !busy && onClose()}>
@@ -64,12 +71,21 @@ export default function PartyStatementPopup({ partyName, busy = false, onExport,
         </div>
 
         <div className="px-6 py-5">
-          <div className="mb-4 grid grid-cols-2 gap-2">
-            <button type="button" onClick={() => setCustom(false)} className={`${optionClass(!custom)} rounded-xl px-3 py-2`}>Month</button>
-            <button type="button" onClick={() => setCustom(true)} className={`${optionClass(custom)} rounded-xl px-3 py-2`}>Custom Dates</button>
+          <div className="mb-4 grid grid-cols-3 gap-2">
+            <button type="button" onClick={() => setMode('month')} className={`${optionClass(mode === 'month')} rounded-xl px-2 py-2`}>Month</button>
+            <button type="button" onClick={() => setMode('custom')} className={`${optionClass(custom)} rounded-xl px-2 py-2`}>Custom Dates</button>
+            <button type="button" onClick={() => setMode('lifetime')} className={`${optionClass(lifetime)} rounded-xl px-2 py-2`}>Lifetime</button>
           </div>
 
-          {custom ? (
+          {lifetime ? (
+            <div className="rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900">
+              <p className="font-bold">Every entry of this party, month by month</p>
+              <p className="mt-1 text-sky-800">
+                From the opening balance and the first entry up to today. Each month has its own entries and a total with
+                the balance at the month end, ready to share with the party.
+              </p>
+            </div>
+          ) : custom ? (
             <div className="grid grid-cols-2 gap-3">
               <label className="block">
                 <span className="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-500">From</span>
@@ -119,13 +135,13 @@ export default function PartyStatementPopup({ partyName, busy = false, onExport,
 
         <div className="border-t border-slate-100 bg-slate-50 px-6 py-4">
           <p className="mb-3 text-sm font-semibold text-slate-600">
-            {range.from && range.to && range.from <= range.to ? formatRangeLabel(range.from, range.to) : 'Select both dates'}
+            {lifetime ? 'Lifetime · month-wise, up to today' : validRange ? formatRangeLabel(range.from, range.to) : 'Select both dates'}
           </p>
           <div className="grid grid-cols-2 gap-2">
             <button
               type="button"
               disabled={!canExport}
-              onClick={() => onExport('excel', range.from, range.to)}
+              onClick={() => exportAs('excel')}
               className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40"
             >
               <FileSpreadsheet size={16} /> {busy ? 'Exporting...' : 'Excel'}
@@ -133,7 +149,7 @@ export default function PartyStatementPopup({ partyName, busy = false, onExport,
             <button
               type="button"
               disabled={!canExport}
-              onClick={() => onExport('pdf', range.from, range.to)}
+              onClick={() => exportAs('pdf')}
               className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-slate-800 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-900 disabled:cursor-not-allowed disabled:opacity-40"
             >
               <FileText size={16} /> {busy ? 'Exporting...' : 'PDF'}

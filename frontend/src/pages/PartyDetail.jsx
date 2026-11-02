@@ -180,6 +180,9 @@ const describeStatementEntry = (row) => [
   row.type === 'receipt' || row.type === 'payment' ? row.itemSummary : ''
 ].filter((part) => part && part !== '-').join(' · ');
 
+// The lifetime statement asks the server for everything from a day before any entry
+const LIFETIME_FROM = '2000-01-01';
+
 const PERIODS = [
   { key: '', label: 'All Time', shortLabel: 'All' },
   { key: 'last7Days', label: '7 Days' },
@@ -655,41 +658,90 @@ export default function PartyDetail() {
     window.location.href = whatsappUrl;
   };
 
-  // The statement of one period: balance brought forward, the period's entries and the closing balance
-  const handleExportStatement = async (format, fromDay, toDay) => {
+  // The statement of one period: balance brought forward, the period's entries and the closing balance.
+  // The lifetime statement (and any period longer than a month) is split month by month: a heading,
+  // the month's entries and a total with the balance at the month end.
+  const handleExportStatement = async (format, fromDay, toDay, { lifetime = false } = {}) => {
     setExportingStatement(true);
     try {
       const statement = await apiClient.get('/reports/party-statement', {
-        params: { partyId: id, fromDate: fromDay, toDate: toDay }
+        params: { partyId: id, fromDate: lifetime ? LIFETIME_FROM : fromDay, toDate: toDay }
       });
       const entries = Array.isArray(statement?.rows) ? statement.rows : [];
       const openingBalance = Number(statement?.openingBalance || 0);
       const closingBalance = Number(statement?.closingBalance || 0);
       const partyName = statement?.party?.name || party?.name || 'Party';
-      const rows = [
-        { kind: 'opening', date: `${fromDay}T00:00:00`, balance: openingBalance },
-        ...entries.map((row) => ({ kind: 'entry', row, ...statementSides(row), balance: Number(row.runningBalance || 0) }))
-      ];
-      const sum = (key) => rows.reduce((total, row) => total + Number(row[key] || 0), 0);
+
+      // A lifetime statement runs from the party's first entry (or the day it was added) to today
+      let periodFrom = fromDay;
+      if (lifetime) {
+        const firstDays = [entries[0]?.date, party?.createdAt]
+          .map((value) => (value ? toInputDate(value) : ''))
+          .filter(Boolean)
+          .sort();
+        periodFrom = firstDays[0] || toDay;
+      }
+
+      const monthKey = (value) => toInputDate(value).slice(0, 7);
+      const monthWise = lifetime || monthKey(`${periodFrom}T00:00:00`) !== monthKey(`${toDay}T00:00:00`);
+      const rows = [{ kind: 'opening', date: `${periodFrom}T00:00:00`, balance: openingBalance }];
+      let month = null;
+      const closeMonth = () => {
+        if (month) rows.push(month.total);
+      };
+      entries.forEach((row) => {
+        const entry = { kind: 'entry', row, ...statementSides(row), balance: Number(row.runningBalance || 0) };
+        if (monthWise && (!month || month.key !== monthKey(row.date))) {
+          closeMonth();
+          const label = new Date(row.date).toLocaleString('en-IN', { month: 'long', year: 'numeric' });
+          rows.push({ kind: 'month', label, emphasis: true });
+          month = { key: monthKey(row.date), total: { kind: 'monthTotal', label, count: 0, debit: 0, credit: 0, taxable: 0, gst: 0, balance: 0, emphasis: true } };
+        }
+        if (month) {
+          month.total.count += 1;
+          month.total.debit += entry.debit;
+          month.total.credit += entry.credit;
+          month.total.balance = entry.balance;
+          if (isGstSale(row)) {
+            month.total.taxable += Number(row.taxableAmount || 0);
+            month.total.gst += Number(row.gstAmount || 0);
+          }
+        }
+        rows.push(entry);
+      });
+      closeMonth();
+
+      const entryRows = rows.filter((row) => row.kind === 'entry');
+      const sum = (key) => entryRows.reduce((total, row) => total + Number(row[key] || 0), 0);
       // A period with a GST sale gets Taxable and GST columns next to the debit
       const gstEntries = entries.filter(isGstSale);
       const hasGst = gstEntries.length > 0;
       const gstOf = (row) => (row.kind === 'entry' && isGstSale(row.row) ? row.row : null);
       const gstSum = (key) => gstEntries.reduce((total, row) => total + Number(row[key] || 0), 0);
+      const gstCell = (row, entryKey, totalKey) => {
+        if (row.kind === 'monthTotal') return row[totalKey] || '';
+        return gstOf(row) ? Number(gstOf(row)[entryKey] || 0) : '';
+      };
+      const describeRow = (row) => {
+        if (row.kind === 'opening') return 'Opening Balance';
+        if (row.kind === 'month') return row.label;
+        if (row.kind === 'monthTotal') return `Total ${row.label} (${row.count} entr${row.count === 1 ? 'y' : 'ies'}) · balance at month end`;
+        return describeStatementEntry(row.row);
+      };
 
       const columns = [
-        { key: 'date', header: 'Date', type: 'date', width: 12, value: (row) => (row.kind === 'opening' ? row.date : row.row.date) },
-        { key: 'voucher', header: 'Voucher No', width: 14, value: (row) => (row.kind === 'opening' || row.row.refNumber === '-' ? '' : row.row.refNumber) },
-        { key: 'particulars', header: 'Particulars', width: hasGst ? 40 : 48, value: (row) => (row.kind === 'opening' ? 'Opening Balance' : describeStatementEntry(row.row)) },
+        { key: 'date', header: 'Date', type: 'date', width: 12, value: (row) => (row.kind === 'opening' ? row.date : row.kind === 'entry' ? row.row.date : '') },
+        { key: 'voucher', header: 'Voucher No', width: 14, value: (row) => (row.kind !== 'entry' || row.row.refNumber === '-' ? '' : row.row.refNumber) },
+        { key: 'particulars', header: 'Particulars', width: hasGst ? 40 : 48, value: describeRow },
         ...(hasGst
           ? [
-              { key: 'taxable', header: 'Taxable', type: 'number', format: '#,##0.00', width: 14, value: (row) => (gstOf(row) ? Number(gstOf(row).taxableAmount || 0) : '') },
-              { key: 'gst', header: 'GST', type: 'number', format: '#,##0.00', width: 12, value: (row) => (gstOf(row) ? Number(gstOf(row).gstAmount || 0) : '') }
+              { key: 'taxable', header: 'Taxable', type: 'number', format: '#,##0.00', width: 14, value: (row) => gstCell(row, 'taxableAmount', 'taxable') },
+              { key: 'gst', header: 'GST', type: 'number', format: '#,##0.00', width: 12, value: (row) => gstCell(row, 'gstAmount', 'gst') }
             ]
           : []),
         { key: 'debit', header: 'Debit', type: 'number', format: '#,##0.00', width: 14, value: (row) => row.debit || '' },
         { key: 'credit', header: 'Credit', type: 'number', format: '#,##0.00', width: 14, value: (row) => row.credit || '' },
-        { key: 'balance', header: 'Balance', width: 18, align: 'right', value: (row) => formatStatementBalance(row.balance) }
+        { key: 'balance', header: 'Balance', width: 18, align: 'right', value: (row) => (row.kind === 'month' ? '' : formatStatementBalance(row.balance)) }
       ];
       const totals = {
         date: 'Closing Balance',
@@ -704,15 +756,17 @@ export default function PartyDetail() {
       const titleLines = [
         `Party Statement: ${partyName}`,
         contact,
-        `Period: ${formatRangeLabel(fromDay, toDay)}`,
+        lifetime
+          ? `Period: Lifetime, month-wise (${formatRangeLabel(periodFrom, toDay)})`
+          : `Period: ${formatRangeLabel(fromDay, toDay)}${monthWise ? ', month-wise' : ''}`,
         `Opening: ${describeBalance(openingBalance)}  |  Closing: ${describeBalance(closingBalance)}`,
         'Dr = receivable from the party, Cr = payable to the party'
       ].filter(Boolean);
-      const baseName = `${partyName.replace(/[\\/:*?"<>|]/g, '-')} Statement`;
+      const baseName = `${partyName.replace(/[\\/:*?"<>|]/g, '-')} ${lifetime ? 'Lifetime ' : ''}Statement`;
 
       if (format === 'pdf') {
         await downloadPdf({
-          fileName: getExportFileName(baseName, fromDay, toDay, 'pdf'),
+          fileName: getExportFileName(baseName, periodFrom, toDay, 'pdf'),
           title: companyName || titleLines[0],
           subtitle: companyName ? titleLines : titleLines.slice(1),
           columns,
@@ -722,7 +776,7 @@ export default function PartyDetail() {
         });
       } else {
         await downloadExcel({
-          fileName: getExportFileName(baseName, fromDay, toDay),
+          fileName: getExportFileName(baseName, periodFrom, toDay),
           sheet: 'Statement',
           titleLines: companyName ? [companyName, ...titleLines] : titleLines,
           columns,

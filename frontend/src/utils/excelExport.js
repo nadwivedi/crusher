@@ -29,6 +29,7 @@ const toCell = (column, value, style = {}) => {
  * columns: [{ key, header, width, type: 'text' | 'number' | 'date', format, value: (row) => any }]
  * totals: { [column key]: value } for a bold last row; the first column reads "Total" unless given
  * titleLines: lines written above the table (the first in bold), e.g. the party and the period
+ * A row with emphasis: true (a group heading or subtotal) is bold on a shaded background
  */
 export const downloadExcel = async ({ fileName, sheet, columns, rows, totals, titleLines = [] }) => {
   // Loaded only when someone exports, so it stays out of the app's first load
@@ -40,7 +41,8 @@ export const downloadExcel = async ({ fileName, sheet, columns, rows, totals, ti
   const data = [
     ...titleRows,
     columns.map((column) => ({ value: column.header, ...HEADER_STYLE })),
-    ...rows.map((row) => columns.map((column) => toCell(column, column.value(row))))
+    // A row with emphasis (a group heading or subtotal) is written bold on a shaded background
+    ...rows.map((row) => columns.map((column) => toCell(column, column.value(row), row?.emphasis ? TOTAL_STYLE : undefined)))
   ];
   if (totals) {
     data.push(columns.map((column, index) => {

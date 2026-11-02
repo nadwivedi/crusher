@@ -104,7 +104,12 @@ export const downloadPdf = async ({ fileName, title, subtitle, columns, rows, to
     styles: { font: 'helvetica', fontSize: 7.5, cellPadding: 1.2, textColor: 20, lineColor: 170, lineWidth: 0.1, overflow: 'linebreak', valign: 'middle' },
     headStyles: { fillColor: HEADER_FILL, textColor: 20, fontStyle: 'bold' },
     footStyles: { fillColor: TOTAL_FILL, textColor: 20, fontStyle: 'bold' },
-    didParseCell: ({ cell, column }) => {
+    didParseCell: ({ cell, column, row, section }) => {
+      // A row with emphasis (a group heading or subtotal) is bold on a shaded background
+      if (section === 'body' && rows[row.index]?.emphasis) {
+        cell.styles.fontStyle = 'bold';
+        cell.styles.fillColor = TOTAL_FILL;
+      }
       // Numbers line up on the right, in the header and total row too
       if (pdfColumns[column.index]?.type === 'number' || pdfColumns[column.index]?.align === 'right') cell.styles.halign = 'right';
       const text = cell.text.join(' ');
