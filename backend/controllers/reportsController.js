@@ -258,6 +258,15 @@ const buildLedgerRowsForParty = ({ party, sales, purchases, receipts, payments, 
           quantity: item.pricingMode === "per_cubic_meter"
             ? toNumber(item.cubicMeterQty)
             : toNumber(item.netWeight || item.materialWeight),
+          pricingMode: item.pricingMode || "per_ton",
+          rate: toNumber(item.rate),
+          // Weight of a sale by volume that was weighed too
+          weight: toNumber(item.netWeight || item.materialWeight),
+          // A GST sale's total already holds the GST: show the taxable value and the GST apart
+          isGst: Boolean(item.isGst) && toNumber(item.gstAmount) > 0,
+          gstRate: item.isGst ? toNumber(item.gstRate) : 0,
+          gstAmount: item.isGst ? toNumber(item.gstAmount) : 0,
+          taxableAmount: Math.max(0, saleAmounts.totalAmount - (item.isGst ? toNumber(item.gstAmount) : 0)),
           amount: saleAmounts.totalAmount,
           paidAmount: saleAmounts.paidAmount,
           impact: saleImpact,
@@ -832,6 +841,14 @@ const getPartyLedgerEntryDetail = async (req, res) => {
         fields: [
           { label: "Invoice Date", value: sale.saleDate || sale.createdAt },
           { label: "Sale Type", value: getSaleTypeLabel(sale.totalAmount, sale.paidAmount) },
+          { label: "Billed By", value: sale.pricingMode === "per_cubic_meter" ? "CFT (cubic feet)" : "Ton (weight)" },
+          ...(sale.isGst && toNumber(sale.gstAmount) > 0
+            ? [
+                { label: "Taxable Amount", value: formatAmount(toNumber(sale.totalAmount) - toNumber(sale.gstAmount)) },
+                { label: `GST ${toNumber(sale.gstRate)}%`, value: formatAmount(sale.gstAmount) },
+                { label: "Total With GST", value: formatAmount(sale.totalAmount) },
+              ]
+            : []),
           { label: "Paid Amount", value: formatAmount(getSaleAmounts(sale).paidAmount) },
           { label: "Pending Amount", value: formatAmount(getSaleAmounts(sale).pendingAmount) },
           { label: "Vehicle No", value: sale.vehicleNo || "-" },

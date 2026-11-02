@@ -81,6 +81,19 @@ const formatLedgerQuantity = (row) => {
   return formatQuantity(quantity);
 };
 
+const isCftSale = (row) => row?.type === 'sale' && isPerCubicMeter(row?.pricingMode);
+
+// A GST sale's total already holds the GST, so the ledger shows the taxable value and the GST apart
+const isGstSale = (row) => row?.type === 'sale' && Boolean(row?.isGst) && Number(row?.gstAmount || 0) > 0;
+
+const formatGstRate = (value) => `${formatQuantity(value)}%`;
+
+// "@ ₹550/cft" or "@ ₹480/ton"
+const formatSaleRate = (row, currency = formatCurrency) => {
+  if (row?.type !== 'sale' || !(Number(row?.rate || 0) > 0)) return '';
+  return `@ ${currency(row.rate)}/${isCftSale(row) ? 'cft' : 'ton'}`;
+};
+
 const formatSaleSummaryQuantity = (summary) => {
   const parts = [];
 
@@ -89,7 +102,7 @@ const formatSaleSummaryQuantity = (summary) => {
   }
 
   if (Number(summary?.saleQtyM3 || 0) > 0) {
-    parts.push(`${formatQuantity(summary.saleQtyM3)} m3`);
+    parts.push(`${formatQuantity(summary.saleQtyM3)} cft`);
   }
 
   return parts.length > 0 ? parts.join(' / ') : '-';
@@ -155,12 +168,15 @@ const describeBalance = (value) => {
   return `${text} (Settled)`;
 };
 
-// "Sale · 20MM · 18,420 kg (18.42 ton) · CG04AB1234"
+const formatPlainAmount = (value) => Number(value || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+// "Sale (CFT) (GST) · 20MM · 450 cft @ Rs 55.00/cft · CG04AB1234 · Taxable 24,750.00 + GST 5% 1,237.50"
 const describeStatementEntry = (row) => [
-  getEntryTypeLabel(row),
+  `${getEntryTypeLabel(row)}${isCftSale(row) ? ' (CFT)' : ''}${isGstSale(row) ? ' (GST)' : ''}`,
   getLedgerMaterialType(row),
-  formatLedgerQuantity(row),
+  [formatLedgerQuantity(row), formatSaleRate(row, (value) => `Rs ${formatPlainAmount(value)}`)].filter((part) => part && part !== '-').join(' '),
   getLedgerVehicleNumber(row),
+  isGstSale(row) ? `Taxable ${formatPlainAmount(row.taxableAmount)} + GST ${formatGstRate(row.gstRate)} ${formatPlainAmount(row.gstAmount)}` : '',
   row.type === 'receipt' || row.type === 'payment' ? row.itemSummary : ''
 ].filter((part) => part && part !== '-').join(' · ');
 
@@ -462,6 +478,7 @@ export default function PartyDetail() {
 
       if (row.type === 'sale') {
         acc.totalSales += amount;
+        if (isGstSale(row)) acc.totalGst += Number(row.gstAmount || 0);
         if (isPerCubicMeter(row.pricingMode)) {
           acc.saleQtyM3 += quantity;
         } else {
@@ -506,6 +523,7 @@ export default function PartyDetail() {
       totalBoulderPayable: 0,
       totalPurchaseReturns: 0,
       totalSaleReturns: 0,
+      totalGst: 0,
       saleQty: 0,
       saleQtyKg: 0,
       saleQtyM3: 0,
@@ -608,7 +626,16 @@ export default function PartyDetail() {
           if (row.refNumber && row.refNumber !== '-') {
              message += `   Ref: ${row.refNumber}\n`;
           }
-          message += `   Amount: ${formatCurrencyText(row.amount)}\n`;
+          if (isCftSale(row)) {
+             message += `   Qty: ${formatLedgerQuantity(row)}${row.rate ? ` @ ${formatCurrencyText(row.rate)}/cft` : ''}\n`;
+          }
+          if (isGstSale(row)) {
+             message += `   Taxable: ${formatCurrencyText(row.taxableAmount)}\n`;
+             message += `   GST ${formatGstRate(row.gstRate)}: ${formatCurrencyText(row.gstAmount)}\n`;
+             message += `   Total: ${formatCurrencyText(row.amount)}\n`;
+          } else {
+             message += `   Amount: ${formatCurrencyText(row.amount)}\n`;
+          }
           message += `   Bal: ${formatCurrencyText(row.displayRunningBalance)}\n\n`;
        });
        
@@ -644,17 +671,29 @@ export default function PartyDetail() {
         ...entries.map((row) => ({ kind: 'entry', row, ...statementSides(row), balance: Number(row.runningBalance || 0) }))
       ];
       const sum = (key) => rows.reduce((total, row) => total + Number(row[key] || 0), 0);
+      // A period with a GST sale gets Taxable and GST columns next to the debit
+      const gstEntries = entries.filter(isGstSale);
+      const hasGst = gstEntries.length > 0;
+      const gstOf = (row) => (row.kind === 'entry' && isGstSale(row.row) ? row.row : null);
+      const gstSum = (key) => gstEntries.reduce((total, row) => total + Number(row[key] || 0), 0);
 
       const columns = [
         { key: 'date', header: 'Date', type: 'date', width: 12, value: (row) => (row.kind === 'opening' ? row.date : row.row.date) },
         { key: 'voucher', header: 'Voucher No', width: 14, value: (row) => (row.kind === 'opening' || row.row.refNumber === '-' ? '' : row.row.refNumber) },
-        { key: 'particulars', header: 'Particulars', width: 48, value: (row) => (row.kind === 'opening' ? 'Opening Balance' : describeStatementEntry(row.row)) },
+        { key: 'particulars', header: 'Particulars', width: hasGst ? 40 : 48, value: (row) => (row.kind === 'opening' ? 'Opening Balance' : describeStatementEntry(row.row)) },
+        ...(hasGst
+          ? [
+              { key: 'taxable', header: 'Taxable', type: 'number', format: '#,##0.00', width: 14, value: (row) => (gstOf(row) ? Number(gstOf(row).taxableAmount || 0) : '') },
+              { key: 'gst', header: 'GST', type: 'number', format: '#,##0.00', width: 12, value: (row) => (gstOf(row) ? Number(gstOf(row).gstAmount || 0) : '') }
+            ]
+          : []),
         { key: 'debit', header: 'Debit', type: 'number', format: '#,##0.00', width: 14, value: (row) => row.debit || '' },
         { key: 'credit', header: 'Credit', type: 'number', format: '#,##0.00', width: 14, value: (row) => row.credit || '' },
         { key: 'balance', header: 'Balance', width: 18, align: 'right', value: (row) => formatStatementBalance(row.balance) }
       ];
       const totals = {
         date: 'Closing Balance',
+        ...(hasGst ? { taxable: gstSum('taxableAmount'), gst: gstSum('gstAmount') } : {}),
         debit: sum('debit'),
         credit: sum('credit'),
         balance: formatStatementBalance(closingBalance)
@@ -714,7 +753,10 @@ export default function PartyDetail() {
       label: 'Sales',
       tone: 'amber',
       value: formatCurrency(summary.totalSales - summary.totalSaleReturns),
-      hint: formatSaleSummaryQuantity(summary)
+      hint: [
+        formatSaleSummaryQuantity(summary),
+        summary.totalGst > 0 ? `incl. GST ${formatCurrency(summary.totalGst)}` : ''
+      ].filter((part) => part && part !== '-').join(' · ') || '-'
     },
     {
       icon: ShoppingCart,
@@ -808,9 +850,21 @@ export default function PartyDetail() {
                 return (
                   <li key={`${row.refId || 'party-ledger'}-${index}`} className="px-4 py-2.5">
                     <div className="flex items-center justify-between gap-3">
-                      <span className={typeMeta.className}>{getEntryTypeLabel(row)}</span>
+                      <span className="flex items-center gap-1">
+                        <span className={typeMeta.className}>{getEntryTypeLabel(row)}</span>
+                        {isCftSale(row) && <span className="badge-blue">CFT</span>}
+                        {isGstSale(row) && <span className="badge-green">GST {formatGstRate(row.gstRate)}</span>}
+                      </span>
                       <span className="text-sm font-bold text-slate-900">{formatCurrency(row.amount)}</span>
                     </div>
+                    {(isCftSale(row) || isGstSale(row)) && (
+                      <p className="mt-0.5 text-[11px] text-slate-500">
+                        {[
+                          isCftSale(row) ? [formatLedgerQuantity(row), formatSaleRate(row)].filter(Boolean).join(' ') : '',
+                          isGstSale(row) ? `Taxable ${formatCurrency(row.taxableAmount)} + GST ${formatGstRate(row.gstRate)} ${formatCurrency(row.gstAmount)}` : ''
+                        ].filter(Boolean).join(' · ')}
+                      </p>
+                    )}
                     <div className="mt-1 flex items-center justify-between gap-3 text-xs text-slate-500">
                       <span className="min-w-0 truncate">
                         {formatDate(row.date)}
@@ -873,13 +927,32 @@ export default function PartyDetail() {
                             <span className="block text-[11px] leading-tight text-slate-400">{row.refNumber || '-'}</span>
                           )}
                         </td>
-                        <td className={TD}><span className={typeMeta.className}>{getEntryTypeLabel(row)}</span></td>
+                        <td className={TD}>
+                          <span className="flex flex-wrap items-center gap-1">
+                            <span className={typeMeta.className}>{getEntryTypeLabel(row)}</span>
+                            {isCftSale(row) && <span className="badge-blue">CFT</span>}
+                            {isGstSale(row) && <span className="badge-green">GST</span>}
+                          </span>
+                        </td>
                         <td className={TD}>
                           <p className="font-medium text-slate-800">{getLedgerMaterialType(row)}</p>
                           {getLedgerVehicleNumber(row) !== '-' && <p className="text-[11px] text-slate-500">{getLedgerVehicleNumber(row)}</p>}
                         </td>
-                        <td className={`${TD} whitespace-nowrap text-right text-slate-600`}>{formatLedgerQuantity(row)}</td>
-                        <td className={`${TD} whitespace-nowrap text-right font-semibold text-slate-900`}>{formatCurrency(row.amount)}</td>
+                        <td className={`${TD} whitespace-nowrap text-right text-slate-600`}>
+                          {formatLedgerQuantity(row)}
+                          {formatSaleRate(row) && <span className="block text-[11px] text-slate-400">{formatSaleRate(row)}</span>}
+                        </td>
+                        <td className={`${TD} whitespace-nowrap text-right`}>
+                          {isGstSale(row) ? (
+                            <>
+                              <span className="block text-[11px] text-slate-500">Taxable {formatCurrency(row.taxableAmount)}</span>
+                              <span className="block text-[11px] text-slate-500">GST {formatGstRate(row.gstRate)} {formatCurrency(row.gstAmount)}</span>
+                              <span className="block font-semibold text-slate-900">{formatCurrency(row.amount)}</span>
+                            </>
+                          ) : (
+                            <span className="font-semibold text-slate-900">{formatCurrency(row.amount)}</span>
+                          )}
+                        </td>
                         <td className={`${TD} whitespace-nowrap text-right text-emerald-700`}>{hasPaidAmount(row) ? formatCurrency(row.paidAmount) : '—'}</td>
                         <td className={`${TD} whitespace-nowrap text-right ${due > 0 ? 'text-rose-700' : due < 0 ? 'text-emerald-700' : 'text-slate-400'}`}>
                           {hasPaidAmount(row) ? formatCurrency(Math.abs(due)) : '—'}
