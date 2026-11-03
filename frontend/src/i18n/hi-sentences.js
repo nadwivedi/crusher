@@ -471,7 +471,13 @@ const SENTENCES = {
   'Pick a longer period.': 'लंबा समय चुनें।',
   'Pick another date range to see expenses.': 'खर्च देखने के लिए दूसरी तारीखें चुनें।',
   'Has an entry with no closing yet': 'एक एंट्री की बंद रीडिंग अभी बाकी है',
-  'after closing is entered': 'बंद रीडिंग डालने के बाद'
+  'after closing is entered': 'बंद रीडिंग डालने के बाद',
+  'Enter the blasting rate per ton': 'ब्लास्टिंग का प्रति टन रेट डालें',
+  'What you pay this supplier for blasting, per ton of boulder. Filled in when you pick them in the Blasting section of a boulder entry, and can be changed there.': 'ब्लास्टिंग के लिए इस सप्लायर को प्रति टन बोल्डर जो देते हैं। बोल्डर एंट्री के ब्लास्टिंग भाग में इन्हें चुनने पर अपने आप भरेगा, और वहाँ बदला जा सकता है।',
+  'Tick only if this supplier does blasting for you, paid apart from the boulder.': 'टिक तभी करें जब यह सप्लायर आपके लिए ब्लास्टिंग करता हो, जिसका पैसा बोल्डर से अलग दिया जाता है।',
+  'This supplier does blasting': 'यह सप्लायर ब्लास्टिंग करता है',
+  'Who blasted this boulder, if it was done by another supplier. It is paid to them, apart from the boulder supplier.': 'यह बोल्डर किसने ब्लास्ट किया, अगर किसी दूसरे सप्लायर ने किया हो। इसका पैसा उन्हें दिया जाता है, बोल्डर सप्लायर से अलग।',
+  'Pick the supplier who did the blasting': 'ब्लास्टिंग करने वाला सप्लायर चुनें'
 };
 
 export default SENTENCES;

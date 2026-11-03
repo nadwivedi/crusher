@@ -75,6 +75,10 @@ const isBulkEntry = (entry) => entry?.entryMode === 'bulk';
 // The boulder rate the entry was charged at: per ton (T) or per trip
 const isPerTripEntry = (entry) => entry?.boulderRateBasis === 'per_trip';
 
+// Blasting done by an outside party on this load (owed to them, not the supplier)
+const hasBlasting = (entry) => Boolean(entry?.blastingPartyId) && Number(entry?.blastingAmount || 0) > 0;
+const getBlastingPartyName = (entry) => (typeof entry?.blastingPartyId === 'object' ? entry.blastingPartyId?.name || '' : '');
+
 const getEntryTrips = (entry) => (isBulkEntry(entry) ? Number(entry.tripCount || 0) : 1);
 
 const formatTon = (kg) => formatNumber(Number(kg || 0) / 1000);
@@ -464,7 +468,15 @@ export default function BoulderLedger() {
       { key: 'amount', header: 'Amount', type: 'number', width: 14, value: (entry) => entry.amount },
       { key: 'transportRate', header: 'Transport Rate', type: 'number', width: 14, pdf: false, value: (entry) => entry.transportRate || '' },
       { key: 'transportAmount', header: 'Transport Amount', type: 'number', width: 16, value: (entry) => entry.transportAmount || '' },
-      { key: 'transportLocation', header: 'Transport Location', width: 18, pdf: false, value: (entry) => entry.transportLocation }
+      { key: 'transportLocation', header: 'Transport Location', width: 18, pdf: false, value: (entry) => entry.transportLocation },
+      // Outside blasting, only when some entry of the period has it
+      ...(rows.some(hasBlasting)
+        ? [
+            { key: 'blastingParty', header: 'Blasting By', width: 20, value: (entry) => (hasBlasting(entry) ? getBlastingPartyName(entry) : '') },
+            { key: 'blastingRate', header: 'Blasting Rate', type: 'number', width: 13, pdf: false, value: (entry) => (hasBlasting(entry) ? entry.blastingRatePerTon : '') },
+            { key: 'blastingAmount', header: 'Blasting Amount', type: 'number', width: 15, value: (entry) => (hasBlasting(entry) ? entry.blastingAmount : '') }
+          ]
+        : [])
     ];
 
     setExporting(true);
@@ -477,7 +489,8 @@ export default function BoulderLedger() {
         net: sum((entry) => entry.netWeight),
         tons: sum((entry) => entry.netWeight) / 1000,
         amount: sum((entry) => entry.amount),
-        transportAmount: sum((entry) => entry.transportAmount)
+        transportAmount: sum((entry) => entry.transportAmount),
+        blastingAmount: sum((entry) => (hasBlasting(entry) ? entry.blastingAmount : 0))
       };
       if (exportFormat === 'pdf') {
         await downloadPdf({

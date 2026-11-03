@@ -1340,7 +1340,21 @@ const SCREENS = {
   '/day': '/दिन',
   '/mo': '/महीना',
   'ton =': 'टन =',
-  'trips ×': 'ट्रिप ×'
+  'trips ×': 'ट्रिप ×',
+  // Outside blasting on boulder entries
+  'Blasting': 'ब्लास्टिंग',
+  'Blasting by': 'ब्लास्टिंग किसने की',
+  'Blasting By': 'ब्लास्टिंग किसने की',
+  'Blasting to': 'ब्लास्टिंग',
+  'No outside blasting': 'बाहर से ब्लास्टिंग नहीं',
+  'Blasting Rate': 'ब्लास्टिंग रेट',
+  'Blasting Rate Per Ton': 'ब्लास्टिंग रेट प्रति टन',
+  'Blasting Amount': 'ब्लास्टिंग रकम',
+  'Blasting Voucher': 'ब्लास्टिंग वाउचर',
+  'Purchases & Blasting': 'खरीद और ब्लास्टिंग',
+  'Blasting Suppliers': 'ब्लास्टिंग सप्लायर',
+  'Blasting Supplier': 'ब्लास्टिंग सप्लायर',
+  'Supplier · Blasting': 'सप्लायर · ब्लास्टिंग'
 };
 
 export default SCREENS;

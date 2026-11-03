@@ -132,6 +132,22 @@ const boulderSchema = new mongoose.Schema(
       default: 0,
       min: 0,
     },
+    // Blasting done by an outside party: owed to that party, apart from the supplier's amount
+    blastingPartyId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Party",
+      default: null,
+    },
+    blastingRatePerTon: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    blastingAmount: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
     // What I owe the supplier for the boulder. Transport goes to the vehicle owner as its own entry.
     amount: {
       type: Number,
@@ -176,6 +192,7 @@ const boulderSchema = new mongoose.Schema(
 
 boulderSchema.index({ userId: 1, boulderNumber: 1 }, { unique: true, sparse: true });
 boulderSchema.index({ userId: 1, boulderDate: -1, createdAt: -1 });
+boulderSchema.index({ userId: 1, blastingPartyId: 1 });
 
 // Who added and last changed each entry
 boulderSchema.plugin(require("./plugins/audit"));

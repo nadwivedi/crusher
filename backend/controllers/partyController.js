@@ -11,7 +11,7 @@ const PARTY_LINKS = [
   ["Receipt", ["party"], "receipt"],
   ["Payment", ["party"], "payment"],
   ["Expense", ["party"], "expense"],
-  ["Boulder", ["partyId", "transporterId"], "boulder entry"],
+  ["Boulder", ["partyId", "transporterId", "blastingPartyId"], "boulder entry"],
   ["Transport", ["partyId"], "transport entry"],
   ["MonthlyHire", ["partyId"], "monthly hire"],
   ["SaleReturn", ["party"], "sale return"],

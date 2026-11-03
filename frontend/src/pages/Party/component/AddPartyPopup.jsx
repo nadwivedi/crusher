@@ -207,6 +207,32 @@ function PartyForm({ editingId, loading, formData, error, handleCloseForm, handl
         </FormSection>
       )}
 
+      {formData.type === 'supplier' && (
+        <FormSection
+          number={++sectionNumber}
+          title="Blasting"
+          tone="rose"
+          hint={formData.doesBlasting
+            ? 'What you pay this supplier for blasting, per ton of boulder. Filled in when you pick them in the Blasting section of a boulder entry, and can be changed there.'
+            : 'Tick only if this supplier does blasting for you, paid apart from the boulder.'}
+        >
+          <label className="flex cursor-pointer items-center gap-2.5 text-sm font-semibold text-slate-700">
+            <input
+              type="checkbox"
+              className="h-4 w-4 rounded border-slate-300 text-primary-600 focus:ring-primary-500"
+              checked={Boolean(formData.doesBlasting)}
+              onChange={(event) => setField('doesBlasting', event.target.checked)}
+            />
+            This supplier does blasting
+          </label>
+          {formData.doesBlasting && (
+            <div className="grid grid-cols-2 gap-3">
+              <RateInput name="blastingRatePerTon" label="Blasting Rate Per Ton" value={formData.blastingRatePerTon} onChange={handleChange} />
+            </div>
+          )}
+        </FormSection>
+      )}
+
       {!isCashParty && (
         <FormSection
           number={++sectionNumber}

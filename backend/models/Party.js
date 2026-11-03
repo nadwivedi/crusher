@@ -186,6 +186,19 @@ const partySchema = new mongoose.Schema(
       min: 0,
       set: normalizeRate,
     },
+    // A supplier that does blasting: picked in the Blasting section of a boulder entry and paid per ton,
+    // apart from whoever supplied the boulder
+    doesBlasting: {
+      type: Boolean,
+      default: false,
+    },
+    // Its blasting rate, filled in on each boulder entry it blasts (can be changed on the entry)
+    blastingRatePerTon: {
+      type: Number,
+      default: 0,
+      min: 0,
+      set: normalizeRate,
+    },
   },
   {
     timestamps: true,

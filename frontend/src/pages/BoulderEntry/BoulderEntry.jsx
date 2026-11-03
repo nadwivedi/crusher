@@ -52,6 +52,9 @@ const initialFormData = {
   boulderRateBasis: '',
   // Per-trip transport with several locations: the one this load came from
   transportLocation: '',
+  // Blasting of this load by another supplier: that supplier and its rate per ton (blank rate = the supplier's own rate)
+  blastingPartyId: '',
+  blastingRatePerTon: '',
   slipImg: ''
 };
 
@@ -100,6 +103,10 @@ const describeSupplierRates = (party) => {
     rates.perTrip > 0 ? `₹${rates.perTrip.toLocaleString('en-IN')} / trip` : ''
   ].filter(Boolean).join(' · ');
 };
+
+const toPartyId = (value) => String((typeof value === 'object' ? value?._id : value) || '');
+
+const getBlastingRate = (party) => Math.max(0, Number(party?.blastingRatePerTon || 0) || 0);
 
 const formatRupees = (value) => `₹${Number(value || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
@@ -184,7 +191,19 @@ export default function BoulderEntry({ onModalFinish = null, editingEntry = null
   const payableTrips = isBulkMode ? Math.max(0, Math.floor(Number(formData.tripCount || 0)) || 0) : 1;
   const boulderAmount = (boulderRateBasis === 'per_trip' ? payableTrips : payableTons) * boulderRate;
   const transportAmount = (vehicleTransport.transportBasis === 'per_trip' ? payableTrips : payableTons) * vehicleTransport.transport;
-  const boulderTotalAmount = boulderAmount + transportAmount;
+  // Suppliers ticked "does blasting"; an entry being edited keeps its own even if that tick was taken off since
+  const blastingParties = parties.filter((party) => (party.type === 'supplier' && party.doesBlasting) || (formData.blastingPartyId && String(party._id) === String(formData.blastingPartyId)));
+  const blastingParty = formData.blastingPartyId ? parties.find((party) => String(party._id) === String(formData.blastingPartyId)) || null : null;
+  const showBlasting = blastingParties.length > 0 || Boolean(formData.blastingPartyId);
+  const blastingRate = !formData.blastingPartyId
+    ? 0
+    : String(formData.blastingRatePerTon ?? '').trim() !== ''
+      ? Math.max(0, Number(formData.blastingRatePerTon) || 0)
+      : getBlastingRate(blastingParty);
+  const blastingAmount = payableTons * blastingRate;
+  const boulderTotalAmount = boulderAmount + transportAmount + blastingAmount;
+  // Transport or blasting is paid to someone else, so the load's total is shown under them
+  const hasExtraCharges = vehicleTransport.transport > 0 || Boolean(formData.blastingPartyId);
 
   useEffect(() => {
     fetchVehicles();
@@ -259,6 +278,8 @@ export default function BoulderEntry({ onModalFinish = null, editingEntry = null
       tripCount: entryMode === 'bulk' ? String(editingEntry.tripCount || '') : '',
       boulderRateBasis: editingEntry.boulderRateBasis || 'per_ton',
       transportLocation: editingEntry.transportLocation || '',
+      blastingPartyId: toPartyId(editingEntry.blastingPartyId),
+      blastingRatePerTon: editingEntry.blastingPartyId ? String(editingEntry.blastingRatePerTon ?? '') : '',
       slipImg: editingEntry.slipImg || '',
       slipNo: editingEntry.slipNo || '',
       rstNo: editingEntry.rstNo || ''
@@ -605,6 +626,8 @@ export default function BoulderEntry({ onModalFinish = null, editingEntry = null
         exitTime: formData.exitTime,
         boulderRateBasis,
         transportLocation: formData.transportLocation,
+        blastingPartyId: formData.blastingPartyId || '',
+        blastingRatePerTon: formData.blastingPartyId ? String(formData.blastingRatePerTon ?? '').trim() : '',
         slipImg: formData.slipImg,
         ...(!isEditing && formData.weighmentId ? { weighmentId: formData.weighmentId } : {})
       };
@@ -644,6 +667,14 @@ export default function BoulderEntry({ onModalFinish = null, editingEntry = null
 
   const handleClose = () => {
     if (onModalFinish) onModalFinish();
+  };
+
+  // Picking a blasting party fills in its rate, which can then be changed for this load
+  const handleBlastingPartyChange = (event) => {
+    const partyId = event.target.value;
+    const party = parties.find((item) => String(item._id) === String(partyId));
+    const rate = getBlastingRate(party);
+    setFormData((prev) => ({ ...prev, blastingPartyId: partyId, blastingRatePerTon: partyId && rate > 0 ? String(rate) : '' }));
   };
 
   const handleSlipUploadChange = useCallback((event) => {
@@ -1017,7 +1048,67 @@ export default function BoulderEntry({ onModalFinish = null, editingEntry = null
           </FormSection>
         )}
 
-        <FormSection number={3} title="Amount" tone="indigo">
+        {showBlasting && (
+          <FormSection
+            number={3}
+            title="Blasting"
+            tone="rose"
+            hint="Who blasted this boulder, if it was done by another supplier. It is paid to them, apart from the boulder supplier."
+          >
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+              <div className="col-span-2 sm:col-span-1">
+                <label className="label" htmlFor="boulder-blasting-party">Blasting Supplier</label>
+                <select
+                  id="boulder-blasting-party"
+                  className="input"
+                  value={formData.blastingPartyId}
+                  onChange={handleBlastingPartyChange}
+                >
+                  <option value="">No outside blasting</option>
+                  {blastingParties.map((party) => (
+                    <option key={party._id} value={party._id}>
+                      {getPartyDisplayName(party)}{getBlastingRate(party) > 0 ? ` · ₹${getBlastingRate(party).toLocaleString('en-IN')}/ton` : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              {formData.blastingPartyId && (
+                <>
+                  <div>
+                    <label className="label" htmlFor="boulder-blasting-rate">Rate Per Ton</label>
+                    <div className="relative">
+                      <input
+                        id="boulder-blasting-rate"
+                        className="input pr-14 text-right font-semibold"
+                        type="number"
+                        name="blastingRatePerTon"
+                        value={formData.blastingRatePerTon}
+                        onChange={handleChange}
+                        min="0"
+                        step="0.01"
+                        placeholder="0"
+                      />
+                      <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-xs font-semibold text-slate-400">₹/ton</span>
+                    </div>
+                  </div>
+                  <div>
+                    <p className="label">Blasting Amount</p>
+                    <p className="flex min-h-[2.5rem] items-center justify-end rounded-lg bg-white px-3 text-sm font-bold text-rose-700 ring-1 ring-inset ring-rose-200">
+                      {formatRupees(blastingAmount)}
+                    </p>
+                  </div>
+                </>
+              )}
+            </div>
+            {formData.blastingPartyId && payableTons > 0 && blastingRate > 0 && (
+              <p className="text-xs text-slate-500">
+                {formatTon(payableWeight)} × ₹{blastingRate.toLocaleString('en-IN')} / ton = {formatRupees(blastingAmount)}, to {getPartyDisplayName(blastingParty)}
+              </p>
+            )}
+          </FormSection>
+        )}
+
+        <FormSection number={showBlasting ? 4 : 3} title="Amount" tone="indigo">
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_auto]">
             <div className="space-y-2">
               <div className="flex items-center gap-2">
@@ -1064,23 +1155,33 @@ export default function BoulderEntry({ onModalFinish = null, editingEntry = null
                         : <>Boulder: {formatTon(payableWeight)} × ₹{boulderRate.toLocaleString('en-IN')} / ton</>
                       : <span className="text-amber-700">{selectedParty ? `No boulder rate ${boulderRateBasis === 'per_trip' ? 'per trip' : 'per ton'} set for this supplier` : 'Pick a supplier to see the amount'}</span>}
                   </span>
-                  <span className={vehicleTransport.transport > 0 ? 'font-semibold text-slate-800' : 'text-base font-bold text-slate-900'}>{formatRupees(boulderAmount)}</span>
+                  <span className={hasExtraCharges ? 'font-semibold text-slate-800' : 'text-base font-bold text-slate-900'}>{formatRupees(boulderAmount)}</span>
                 </div>
                 {vehicleTransport.transport > 0 && (
-                  <>
-                    <div className="mt-1 flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
-                      <span className="text-slate-600">
-                        {vehicleTransport.transportBasis === 'per_trip'
-                          ? <>Transport to {transportOwnerName}: {payableTrips} trip{payableTrips === 1 ? '' : 's'} × ₹{vehicleTransport.transport.toLocaleString('en-IN')} / trip</>
-                          : <>Transport to {transportOwnerName}: {formatTon(payableWeight)} × ₹{vehicleTransport.transport.toLocaleString('en-IN')} / ton</>}
-                      </span>
-                      <span className="font-semibold text-slate-800">{formatRupees(transportAmount)}</span>
-                    </div>
-                    <div className="mt-1.5 flex items-center justify-between border-t border-slate-200 pt-1.5">
-                      <span className="font-semibold text-slate-700">Total cost of this load</span>
-                      <span className="text-base font-bold text-slate-900">{formatRupees(boulderTotalAmount)}</span>
-                    </div>
-                  </>
+                  <div className="mt-1 flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
+                    <span className="text-slate-600">
+                      {vehicleTransport.transportBasis === 'per_trip'
+                        ? <>Transport to {transportOwnerName}: {payableTrips} trip{payableTrips === 1 ? '' : 's'} × ₹{vehicleTransport.transport.toLocaleString('en-IN')} / trip</>
+                        : <>Transport to {transportOwnerName}: {formatTon(payableWeight)} × ₹{vehicleTransport.transport.toLocaleString('en-IN')} / ton</>}
+                    </span>
+                    <span className="font-semibold text-slate-800">{formatRupees(transportAmount)}</span>
+                  </div>
+                )}
+                {formData.blastingPartyId && (
+                  <div className="mt-1 flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
+                    <span className="text-slate-600">
+                      {blastingRate > 0
+                        ? <>Blasting to {getPartyDisplayName(blastingParty) || 'the blasting party'}: {formatTon(payableWeight)} × ₹{blastingRate.toLocaleString('en-IN')} / ton</>
+                        : <span className="text-amber-700">Enter the blasting rate per ton</span>}
+                    </span>
+                    <span className="font-semibold text-slate-800">{formatRupees(blastingAmount)}</span>
+                  </div>
+                )}
+                {hasExtraCharges && (
+                  <div className="mt-1.5 flex items-center justify-between border-t border-slate-200 pt-1.5">
+                    <span className="font-semibold text-slate-700">Total cost of this load</span>
+                    <span className="text-base font-bold text-slate-900">{formatRupees(boulderTotalAmount)}</span>
+                  </div>
                 )}
                 {vehicleTransport.isMonthly && (
                   <p className="mt-1 text-xs text-slate-500">This vehicle is on monthly rent, so no transport is added for this load.</p>

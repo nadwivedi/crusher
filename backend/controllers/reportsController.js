@@ -95,6 +95,11 @@ const describeBoulderRates = (boulder) => {
   return `${rate} | Transport ${formatAmount(boulder.transportRate)}/${boulder.transportRateBasis === "per_trip" ? "Trip" : "Ton"}`;
 };
 
+// "30 ton x Rs 15.00/Ton": the blasting charged on a boulder entry
+const describeBlasting = (boulder) => `${Math.round((toNumber(boulder?.netWeight) / 1000) * 1000) / 1000} ton x ${formatAmount(boulder?.blastingRatePerTon)}/Ton`;
+
+const hasBlasting = (boulder) => Boolean(boulder?.blastingPartyId) && toNumber(boulder?.blastingAmount) > 0;
+
 const getSaleTypeLabel = (total, paid) => {
   const totalAmount = toNumber(total);
   const paidAmount = toNumber(paid);
@@ -126,6 +131,7 @@ const getEntryDisplayType = (baseType, entryType = "") => {
   if (baseType === "opening") return "Opening";
   if (baseType === "expense") return "Expense";
   if (baseType === "boulder") return "Boulder";
+  if (baseType === "blasting") return "Blasting";
   if (baseType === "materialUsed") return "Material Used";
   if (baseType === "purchaseReturn") return "Purchase Return";
   if (baseType === "saleReturn") return "Sale Return";
@@ -362,6 +368,37 @@ const buildLedgerRowsForParty = ({ party, sales, purchases, receipts, payments, 
         amount: toNumber(item.amount),
         impact: -toNumber(item.amount),
       })),
+    // Blasting of a boulder load done by this party: money I owe them, apart from the supplier's boulder amount
+    ...boulders
+      .filter((item) => String(item.blastingPartyId?._id || item.blastingPartyId) === String(party._id))
+      .filter(hasBlasting)
+      .filter((item) => withinRange(item.boulderDate || item.createdAt, fromDate, toDate))
+      .map((item) => ({
+        type: "blasting",
+        displayType: getEntryDisplayType("blasting"),
+        refId: item._id,
+        partyId: party._id,
+        partyName: party.name || "-",
+        materialType: "Blasting",
+        vehicleNo: item.vehicleNo || "-",
+        date: item.boulderDate || item.createdAt,
+        entryCreatedAt: item.createdAt,
+        refNumber: item.boulderNumber || item.vehicleNo || "-",
+        itemSummary: [
+          item.vehicleNo ? `Vehicle ${item.vehicleNo}` : "",
+          item.partyName ? `Supplier ${item.partyName}` : "",
+          describeBlasting(item),
+        ].filter(Boolean).join(" | "),
+        note: "",
+        method: `Blasting ${formatAmount(item.blastingRatePerTon)}/Ton`,
+        entryMode: item.entryMode || "single",
+        tripCount: toNumber(item.tripCount),
+        averageWeight: toNumber(item.averageWeight),
+        quantity: toNumber(item.netWeight),
+        rate: toNumber(item.blastingRatePerTon),
+        amount: toNumber(item.blastingAmount),
+        impact: -toNumber(item.blastingAmount),
+      })),
     // The unpaid part of an expense is money I owe the party. Older expenses have no paidAmount and were fully paid.
     ...expenses
       .filter((item) => String(item.party?._id || item.party) === String(party._id))
@@ -540,7 +577,8 @@ const getPartyLedgerData = async ({ userId, partyId, fromDate, toDate }) => {
     Purchase.find({ userId, ...(partyId ? { party: partyId } : {}) }).populate("party", "name").sort({ purchaseDate: 1, createdAt: 1 }),
     Receipt.find({ userId, ...(partyId ? { party: partyId } : {}) }).populate("party", "name").sort({ receiptDate: 1, createdAt: 1 }),
     Payment.find({ userId, ...(partyId ? { party: partyId } : {}) }).populate("party", "name").sort({ paymentDate: 1, createdAt: 1 }),
-    Boulder.find({ userId, ...(partyId ? { partyId } : {}) }).sort({ boulderDate: 1, createdAt: 1 }),
+    // The party's own boulder entries and the ones it blasted
+    Boulder.find({ userId, ...(partyId ? { $or: [{ partyId }, { blastingPartyId: partyId }] } : {}) }).sort({ boulderDate: 1, createdAt: 1 }),
     Transport.find({ userId, ...(partyId ? { partyId } : {}) }).sort({ entryDate: 1, createdAt: 1 }),
     Expense.find({ userId, ...(partyId ? { party: partyId } : { party: { $ne: null } }) })
       .populate("expenseGroup", "name")
@@ -1022,6 +1060,9 @@ const getPartyLedgerEntryDetail = async (req, res) => {
     if (type === "boulder") {
       const boulder = await Boulder.findOne(scopedIdFilter(req, refId));
       if (!boulder) return res.status(404).json({ message: "Boulder not found" });
+      const blastingParty = hasBlasting(boulder)
+        ? await Party.findOne({ _id: boulder.blastingPartyId, userId: boulder.userId }).select("name")
+        : null;
 
       return res.json({
         type: "boulder",
@@ -1062,6 +1103,50 @@ const getPartyLedgerEntryDetail = async (req, res) => {
                 { label: "Transport Amount", value: toNumber(boulder.transportAmount) },
               ]
             : []),
+          ...(hasBlasting(boulder)
+            ? [
+                { label: "Blasting By", value: blastingParty?.name || "-" },
+                { label: "Blasting Rate Per Ton", value: toNumber(boulder.blastingRatePerTon) },
+                { label: "Blasting Amount", value: toNumber(boulder.blastingAmount) },
+              ]
+            : []),
+        ],
+        items: [],
+      });
+    }
+
+    // The blasting part of a boulder entry, opened from the blasting party's ledger
+    if (type === "blasting") {
+      const boulder = await Boulder.findOne(scopedIdFilter(req, refId)).populate("blastingPartyId", "name");
+      if (!boulder) return res.status(404).json({ message: "Boulder not found" });
+      const blastingPartyName = boulder.blastingPartyId?.name || "-";
+
+      return res.json({
+        type: "blasting",
+        title: "Blasting Voucher",
+        refNumber: boulder.boulderNumber || boulder.vehicleNo || "-",
+        partyName: blastingPartyName,
+        amount: toNumber(boulder.blastingAmount),
+        quantity: toNumber(boulder.netWeight),
+        entryMode: boulder.entryMode || "single",
+        tripCount: toNumber(boulder.tripCount),
+        averageWeight: toNumber(boulder.averageWeight),
+        method: boulder.vehicleNo || "-",
+        date: boulder.boulderDate || boulder.createdAt,
+        accountName: blastingPartyName,
+        linkedReference: boulder.boulderNumber || "",
+        notes: "",
+        fields: [
+          { label: "Boulder Date", value: boulder.boulderDate || boulder.createdAt },
+          { label: "Boulder Entry", value: boulder.boulderNumber || "-" },
+          { label: "Vehicle No", value: boulder.vehicleNo || "-" },
+          { label: "Supplier", value: boulder.partyName || "-" },
+          ...(boulder.entryMode === "bulk"
+            ? [{ label: "No. of Trips", value: toNumber(boulder.tripCount) || "-" }]
+            : []),
+          { label: "Net Weight", value: toNumber(boulder.netWeight) || "-" },
+          { label: "Blasting Rate Per Ton", value: toNumber(boulder.blastingRatePerTon) },
+          { label: "Blasting Amount", value: toNumber(boulder.blastingAmount) },
         ],
         items: [],
       });
@@ -1164,7 +1249,7 @@ const getDayBook = async (req, res) => {
       Payment.find(scopedFilter(req)).populate("party", "name").sort({ paymentDate: -1, createdAt: -1 }),
       Receipt.find(scopedFilter(req)).populate("party", "name").sort({ receiptDate: -1, createdAt: -1 }),
       Expense.find(scopedFilter(req)).populate("party", "name").populate("expenseGroup", "name").sort({ expenseDate: -1, createdAt: -1 }),
-      Boulder.find(scopedFilter(req)).sort({ boulderDate: -1, createdAt: -1 }),
+      Boulder.find(scopedFilter(req)).populate("blastingPartyId", "name").sort({ boulderDate: -1, createdAt: -1 }),
       MaterialUsed.find(scopedFilter(req)).populate("vehicle", "vehicleNo vehicleNumber").populate("materialType", "name").sort({ usedDate: -1, createdAt: -1 }),
       Transport.find(scopedFilter(req)).populate("partyId", "name").sort({ entryDate: -1, createdAt: -1 }),
       SaleReturn.find(scopedFilter(req)).populate("party", "name").populate("sale", "invoiceNumber").sort({ voucherDate: -1, createdAt: -1 }),
@@ -1299,6 +1384,24 @@ const getDayBook = async (req, res) => {
           vehicleNo: item.vehicleNo || "",
           method: `Vehicle ${item.vehicleNo || "-"}${item.entryMode === "bulk" ? ` | Trips ${Number(item.tripCount || 0)} x Avg ${Number(item.averageWeight || 0)}` : ""} | Gross ${Number(item.grossWeight || 0)} | Tare ${Number(item.tareWeight || 0)} | Net ${Number(item.netWeight || 0)} | ${describeBoulderRates(item)}`,
           amount: Number(item.amount || 0),
+          inAmount: 0,
+          outAmount: 0,
+        })),
+      // Blasting owed to the blasting party, on credit like the boulder itself
+      ...boulders
+        .filter(hasBlasting)
+        .filter((item) => withinRange(item.boulderDate || item.createdAt, fromDate, toDate))
+        .map((item) => ({
+          type: "blasting",
+          displayType: getEntryDisplayType("blasting"),
+          refId: item._id,
+          date: item.boulderDate || item.createdAt,
+          entryCreatedAt: item.createdAt,
+          voucherNumber: item.boulderNumber || item.vehicleNo || "-",
+          partyName: item.blastingPartyId?.name || "-",
+          vehicleNo: item.vehicleNo || "",
+          method: `Vehicle ${item.vehicleNo || "-"} | ${describeBlasting(item)}`,
+          amount: Number(item.blastingAmount || 0),
           inAmount: 0,
           outAmount: 0,
         })),
@@ -2147,7 +2250,7 @@ const getProfitLossReport = async (req, res) => {
   };
 
   try {
-    const [sales, expenses, purchases, transports] = await Promise.all([
+    const [sales, expenses, purchases, transports, blastedBoulders] = await Promise.all([
       Sales.find(scopedFilter(req, dateQuery("saleDate")))
         .select("stoneSize netWeight totalAmount transportMode transportCharge saleDate createdAt")
         .lean(),
@@ -2164,6 +2267,10 @@ const getProfitLossReport = async (req, res) => {
       Transport.find(scopedFilter(req, dateQuery("entryDate")))
         .populate("partyId", "name")
         .sort({ entryDate: -1, createdAt: -1 })
+        .lean(),
+      Boulder.find(scopedFilter(req, { ...dateQuery("boulderDate"), blastingPartyId: { $ne: null }, blastingAmount: { $gt: 0 } }))
+        .populate("blastingPartyId", "name")
+        .select("boulderNumber boulderDate createdAt vehicleNo netWeight blastingPartyId blastingRatePerTon blastingAmount")
         .lean(),
     ]);
 
@@ -2260,7 +2367,22 @@ const getProfitLossReport = async (req, res) => {
         notes: entry.notes || "",
       }));
 
-    const expenseEntries = [...expenseRows, ...purchaseRows, ...transportRows]
+    // What outside blasting of boulder cost
+    const blastingRows = blastedBoulders.map((boulder) => ({
+      _id: boulder._id,
+      kind: "blasting",
+      date: boulder.boulderDate || boulder.createdAt,
+      number: boulder.boulderNumber || "-",
+      category: "Blasting",
+      splits: null,
+      detail: [boulder.vehicleNo ? `Vehicle ${boulder.vehicleNo}` : "", describeBlasting(boulder)].filter(Boolean).join(" | "),
+      partyName: boulder.blastingPartyId?.name || "",
+      amount: toNumber(boulder.blastingAmount),
+      method: "credit",
+      notes: "",
+    }));
+
+    const expenseEntries = [...expenseRows, ...purchaseRows, ...transportRows, ...blastingRows]
       .sort((a, b) => new Date(b.date) - new Date(a.date));
 
     return res.json({

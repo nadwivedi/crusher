@@ -142,6 +142,27 @@ const resolveBoulderRateSnapshot = async (partyId, userId) => {
 };
 
 /**
+ * Blasting done by an outside party for this load: that party and its per-ton rate, or none. The rate typed on the
+ * entry wins; without one it is the party's own blasting rate. It is owed to the blasting party, not the supplier.
+ */
+const resolveBlasting = async (payload, userId) => {
+  const none = { blastingPartyId: null, blastingRatePerTon: 0 };
+  const blastingPartyId = `${payload.blastingPartyId || ""}`.trim();
+  if (!blastingPartyId) return none;
+  if (!mongoose.Types.ObjectId.isValid(blastingPartyId)) throw new Error("Invalid blasting party");
+
+  const party = await Party.findOne({ _id: blastingPartyId, userId }).select("_id blastingRatePerTon");
+  if (!party) throw new Error("Blasting party not found");
+
+  const typedRate = payload.blastingRatePerTon;
+  const hasTypedRate = typedRate !== undefined && typedRate !== null && `${typedRate}`.trim() !== "";
+  return {
+    blastingPartyId: party._id,
+    blastingRatePerTon: Math.max(0, toSafeNumber(hasTypedRate ? typedRate : party.blastingRatePerTon)),
+  };
+};
+
+/**
  * Transport for the load, from the vehicle's pay terms: a hired vehicle paid per ton or per trip costs that much,
  * paid to its owner. A per-trip rate is the picked location's, or the only location's. My own vehicle, a vehicle on
  * monthly rent, or one paid per km costs nothing here.
@@ -335,11 +356,14 @@ const normalizeBoulderPayload = async (payload, userId) => {
     trips
   );
   const transportAmount = calculateRateAmount(transport.transportRateBasis, transport.transportRate, normalizedPayload.netWeight, trips);
+  const blasting = await resolveBlasting(normalizedPayload, userId);
+  const blastingAmount = calculateRateAmount("per_ton", blasting.blastingRatePerTon, normalizedPayload.netWeight, trips);
 
-  Object.assign(normalizedPayload, rates, transport, {
+  Object.assign(normalizedPayload, rates, transport, blasting, {
     boulderRateBasis,
     boulderAmount,
     transportAmount,
+    blastingAmount,
     amount: boulderAmount,
   });
 
@@ -396,6 +420,7 @@ const getAllBoulders = async (req, res) => {
 
     const boulders = await Boulder.find(query)
       .populate("vehicleId")
+      .populate("blastingPartyId", "name")
       .sort({ boulderDate: -1, createdAt: -1 });
     return res.json(boulders);
   } catch (error) {
@@ -420,7 +445,7 @@ const getBoulderById = async (req, res) => {
     }
     applyCreatorFilter(req, query);
 
-    const boulder = await Boulder.findOne(query).populate("vehicleId");
+    const boulder = await Boulder.findOne(query).populate("vehicleId").populate("blastingPartyId", "name");
 
     if (!boulder) {
       return res.status(404).json({ message: "Boulder not found" });
@@ -443,11 +468,16 @@ const editBoulder = async (req, res) => {
   }
 
   try {
-    const existingBoulder = await Boulder.findOne(scopedIdFilter(req, id)).select("boulderNumber userId weighmentId grossWeight tareWeight netWeight rstNo entryTime exitTime vehicleNo");
+    const existingBoulder = await Boulder.findOne(scopedIdFilter(req, id)).select("boulderNumber userId weighmentId grossWeight tareWeight netWeight rstNo entryTime exitTime vehicleNo blastingPartyId blastingRatePerTon");
     if (!existingBoulder) {
       return res.status(404).json({ message: "Boulder not found" });
     }
     const { weighmentId: _ignoredWeighment, weightSource: _ignoredSource, ...body } = req.body || {};
+    // An edit that says nothing about blasting keeps the entry's blasting, worked out again on the new weight
+    if (!Object.prototype.hasOwnProperty.call(body, "blastingPartyId")) {
+      body.blastingPartyId = existingBoulder.blastingPartyId || "";
+      body.blastingRatePerTon = existingBoulder.blastingRatePerTon;
+    }
     let source = body;
     // Weights read from the weighbridge stay as they were; other fields can still be corrected
     if (existingBoulder.weighmentId) {

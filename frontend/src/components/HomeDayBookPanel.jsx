@@ -82,6 +82,7 @@ const TYPE_BADGE_STYLES = {
   receipt: 'bg-emerald-100 text-emerald-700',
   purchase: 'bg-amber-100 text-amber-700',
   expense: 'bg-fuchsia-100 text-fuchsia-700',
+  blasting: 'bg-rose-100 text-rose-700',
   'Cash Purchase': 'bg-emerald-100 text-emerald-700',
   'Credit Purchase': 'bg-amber-100 text-amber-700',
   'Partial Purchase': 'bg-orange-100 text-orange-700',

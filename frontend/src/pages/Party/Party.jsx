@@ -23,7 +23,9 @@ const getInitialForm = () => ({
   gsbRate: '',
   dustRate: '',
   boulderRatePerTon: '',
-  boulderRatePerTrip: ''
+  boulderRatePerTrip: '',
+  doesBlasting: false,
+  blastingRatePerTon: ''
 });
 
 const TOAST_OPTIONS = { autoClose: 1200 };
@@ -55,15 +57,19 @@ const getTypeBadgeClass = (type) => {
   return 'border border-emerald-200 bg-emerald-50 text-emerald-700';
 };
 
-const getTypeLabel = (party) => PARTY_TYPE_LABELS[party?.type] || 'Supplier';
+// A supplier that does blasting reads "Supplier · Blasting"
+const getTypeLabel = (party) => `${PARTY_TYPE_LABELS[party?.type] || 'Supplier'}${party?.type === 'supplier' && party?.doesBlasting ? ' · Blasting' : ''}`;
 
 // Old transporter parties are suppliers too (you hire their vehicles)
 const TYPE_FILTERS = [
   { value: 'all', label: 'All', matches: () => true },
   { value: 'customer', label: 'Customers', matches: (party) => party.type === 'customer' },
-  { value: 'supplier', label: 'Suppliers', matches: (party) => ['supplier', 'transporter'].includes(party.type) }
+  { value: 'supplier', label: 'Suppliers', matches: (party) => ['supplier', 'transporter'].includes(party.type) },
+  { value: 'blasting', label: 'Blasting Suppliers', matches: (party) => party.type === 'supplier' && Boolean(party.doesBlasting) }
 ];
-const getDefaultOpeningBalanceType = (partyType) => (['supplier', 'transporter'].includes(partyType) ? 'payable' : 'receivable');
+// Parties I pay: suppliers and old transporters
+const PAYABLE_TYPES = ['supplier', 'transporter'];
+const getDefaultOpeningBalanceType = (partyType) => (PAYABLE_TYPES.includes(partyType) ? 'payable' : 'receivable');
 const resolveOpeningBalanceType = (party) => {
   const explicitType = String(party?.openingBalanceType || '').trim().toLowerCase();
   if (explicitType === 'receivable' || explicitType === 'payable') return explicitType;
@@ -73,7 +79,7 @@ const resolveOpeningBalanceType = (party) => {
     return getDefaultOpeningBalanceType(party?.type);
   }
 
-  if (['supplier', 'transporter'].includes(party?.type)) {
+  if (PAYABLE_TYPES.includes(party?.type)) {
     return balance >= 0 ? 'payable' : 'receivable';
   }
 
@@ -205,7 +211,9 @@ export default function Party() {
       openingBalanceType: resolveOpeningBalanceType(party),
       ...readPartySaleRates(party),
       boulderRatePerTon: Number(party.boulderRatePerTon || 0) || '',
-      boulderRatePerTrip: Number(party.boulderRatePerTrip || 0) || ''
+      boulderRatePerTrip: Number(party.boulderRatePerTrip || 0) || '',
+      doesBlasting: Boolean(party.doesBlasting),
+      blastingRatePerTon: Number(party.blastingRatePerTon || 0) || ''
     });
     setError('');
     setShowForm(true);

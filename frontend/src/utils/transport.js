@@ -52,12 +52,16 @@ export const getVehicleOwnerIds = (vehicles = []) => new Set(vehicles
   .filter((vehicle) => vehicle.ownership === 'hired' && vehicle.partyId)
   .map((vehicle) => String(typeof vehicle.partyId === 'object' ? vehicle.partyId._id : vehicle.partyId)));
 
-// The rate fields a party form saves: a supplier's boulder rates. Transport rates belong to each vehicle.
+// The rate fields a party form saves: a supplier's boulder rates, and its blasting rate when it does blasting.
+// Transport rates belong to each vehicle.
 export const getSupplierRatesPayload = (form) => {
   const isSupplier = form?.type === 'supplier';
+  const doesBlasting = isSupplier && Boolean(form.doesBlasting);
   return {
     boulderRatePerTon: isSupplier ? Number(form.boulderRatePerTon || 0) : 0,
-    boulderRatePerTrip: isSupplier ? Number(form.boulderRatePerTrip || 0) : 0
+    boulderRatePerTrip: isSupplier ? Number(form.boulderRatePerTrip || 0) : 0,
+    doesBlasting,
+    blastingRatePerTon: doesBlasting ? Number(form.blastingRatePerTon || 0) : 0
   };
 };
 

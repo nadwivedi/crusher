@@ -71,7 +71,8 @@ const formatLedgerQuantity = (row) => {
     return isPerCubicMeter(row?.pricingMode) ? `${formatQuantity(quantity)} cft` : formatWeightWithTon(quantity);
   }
 
-  if (row?.type === 'boulder') {
+  // A blasting row is charged on the same boulder load, so it shows the same weight
+  if (row?.type === 'boulder' || row?.type === 'blasting') {
     if (row?.entryMode === 'bulk' && Number(row?.tripCount || 0) > 0) {
       return `${formatQuantity(row.tripCount)} trips x ${formatQuantity(Number(row.averageWeight || 0) / 1000)} ton = ${formatQuantity(quantity / 1000)} ton`;
     }
@@ -122,6 +123,7 @@ const TYPE_BADGES = {
   expense: { label: 'Expense', className: 'badge-red' },
   transport: { label: 'Transport', className: 'badge-orange' },
   boulder: { label: 'Boulder', className: 'badge-green' },
+  blasting: { label: 'Blasting', className: 'badge-red' },
   purchaseReturn: { label: 'Purchase Return', className: 'badge-red' },
   saleReturn: { label: 'Sale Return', className: 'badge-red' }
 };
@@ -507,6 +509,11 @@ export default function PartyDetail() {
         acc.boulderQty += quantity;
       }
 
+      if (row.type === 'blasting') {
+        acc.totalBlasting += amount;
+        acc.blastingQty += quantity;
+      }
+
       if (row.type === 'purchaseReturn') {
         acc.totalPurchaseReturns += amount;
         acc.purchaseReturnQty += quantity;
@@ -524,6 +531,7 @@ export default function PartyDetail() {
       totalReceipts: 0,
       totalPayments: 0,
       totalBoulderPayable: 0,
+      totalBlasting: 0,
       totalPurchaseReturns: 0,
       totalSaleReturns: 0,
       totalGst: 0,
@@ -532,6 +540,7 @@ export default function PartyDetail() {
       saleQtyM3: 0,
       purchaseQty: 0,
       boulderQty: 0,
+      blastingQty: 0,
       purchaseReturnQty: 0
     });
   }, [ledger]);
@@ -631,6 +640,9 @@ export default function PartyDetail() {
           }
           if (isCftSale(row)) {
              message += `   Qty: ${formatLedgerQuantity(row)}${row.rate ? ` @ ${formatCurrencyText(row.rate)}/cft` : ''}\n`;
+          }
+          if (row.type === 'blasting') {
+             message += `   Qty: ${formatLedgerQuantity(row)}${row.rate ? ` @ ${formatCurrencyText(row.rate)}/ton` : ''}\n`;
           }
           if (isGstSale(row)) {
              message += `   Taxable: ${formatCurrencyText(row.taxableAmount)}\n`;
@@ -793,7 +805,14 @@ export default function PartyDetail() {
     }
   };
 
-  const boughtTotal = summary.totalPurchases + summary.totalBoulderPayable - summary.totalPurchaseReturns;
+  const purchasedTotal = summary.totalPurchases + summary.totalBoulderPayable - summary.totalPurchaseReturns;
+  // A blasting party's charges count with what was bought from it; a party that only blasts gets its own card title
+  const boughtTotal = purchasedTotal + summary.totalBlasting;
+  const onlyBlasting = summary.totalBlasting > 0 && purchasedTotal === 0;
+  const boughtHint = [
+    summary.boulderQty > 0 ? `Boulder ${formatQuantity(summary.boulderQty / 1000)} ton` : '',
+    summary.blastingQty > 0 ? `Blasting ${formatQuantity(summary.blastingQty / 1000)} ton` : ''
+  ].filter(Boolean).join(' · ');
   const stats = [
     {
       icon: Scale,
@@ -814,10 +833,10 @@ export default function PartyDetail() {
     },
     {
       icon: ShoppingCart,
-      label: 'Purchases & Boulder',
+      label: onlyBlasting ? 'Blasting' : summary.totalBlasting > 0 ? 'Purchases & Blasting' : 'Purchases & Boulder',
       tone: 'blue',
       value: formatCurrency(boughtTotal),
-      hint: summary.boulderQty > 0 ? `Boulder ${formatQuantity(summary.boulderQty / 1000)} ton` : 'Bought from this party'
+      hint: boughtHint || 'Bought from this party'
     },
     {
       icon: ArrowDownLeft,
