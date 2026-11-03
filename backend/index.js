@@ -34,6 +34,7 @@ const transportRoutes = require("./routes/transportRoutes");
 const monthlyHireRoutes = require("./routes/monthlyHireRoutes");
 const uploadRoutes = require("./routes/uploadRoutes");
 const vehicleRoutes = require("./routes/vehicleRoutes");
+const vehicleDocumentRoutes = require("./routes/vehicleDocumentRoutes");
 const ocrRoutes = require("./routes/ocrRoutes");
 const weighbridgeRoutes = require("./routes/weighbridgeRoutes");
 
@@ -87,6 +88,7 @@ app.use("/api/transport", transportRoutes);
 app.use("/api/monthly-hires", monthlyHireRoutes);
 app.use("/api/uploads", uploadRoutes);
 app.use("/api/vehicles", vehicleRoutes);
+app.use("/api/vehicle-documents", vehicleDocumentRoutes);
 app.use("/api/ocr", ocrRoutes);
 app.use("/api/weighbridge", weighbridgeRoutes);
 

@@ -1,4 +1,5 @@
-// GST on a sale: gstRate % of material + transport, added on top. Only a sale marked as GST sale carries it.
+// GST on a sale: gstRate % of material + royalty, added on top. Transport charged to the party carries no GST.
+// Only a sale marked as GST sale carries it.
 export const getSaleGstAmount = (sale, subtotal) => {
   if (!sale?.isGst) return 0;
   const rate = Number(sale.gstRate || 0);

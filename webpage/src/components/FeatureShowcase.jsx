@@ -1,21 +1,48 @@
+import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Camera, Zap, FileText, Check, Scale, Wallet, Boxes, Users } from 'lucide-react';
 
+const tabs = [
+  {
+    icon: Scale,
+    title: 'Weighbridge Integration',
+    description: 'On the Enterprise plan, weights flow straight from your weighbridge (dharam kanta) into the slip, so every weighment becomes a sales or boulder entry without double work.',
+    color: 'bg-brand-orange/10 text-brand-orange'
+  },
+  {
+    icon: Wallet,
+    title: 'Expense Tracking',
+    description: 'Record diesel, labour, blasting, repair and other daily costs, and see how each one affects your profit.',
+    color: 'bg-brand-accent/10 text-brand-accent'
+  },
+  {
+    icon: Users,
+    title: 'Party Ledger',
+    description: 'Each party gets a running khata with sales, payments and balance. See who owes you and how much, any time.',
+    color: 'bg-green-500/10 text-green-600'
+  },
+  {
+    icon: Boxes,
+    title: 'Stock Control',
+    description: 'Track boulders, aggregate, dust and sand in real time, so you know what is in the yard without walking to the plant.',
+    color: 'bg-blue-500/10 text-blue-600'
+  },
+];
+
 const FeatureShowcase = () => {
+  const [activeTab, setActiveTab] = useState(0);
+
   return (
     <section className="py-16 sm:py-20 lg:py-24 bg-gradient-to-b from-white via-gray-50/50 to-white overflow-hidden">
       <div className="w-full max-w-5xl mx-auto px-4 sm:px-5 lg:px-6 xl:max-w-6xl">
 
         {/* Section Header */}
         <div className="text-center max-w-3xl mx-auto mb-16 sm:mb-20">
-          <div className="mb-4">
-            <span className="text-xs sm:text-sm font-semibold uppercase tracking-widest text-brand-orange">Smart Workflow</span>
-          </div>
           <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-[2.2rem] font-bold text-brand-navy mb-4 sm:mb-6 leading-tight">
-            Snap a slip. We handle the rest.
+            Snap a Slip. We Handle the Rest
           </h2>
           <p className="text-sm sm:text-base md:text-lg text-brand-slate leading-relaxed">
-            Less typing at the gate. On the Advanced plan, AI reads the weighbridge slip photo and fills the entry for you to check and save.
+            Stop typing every kanta parchi by hand. With AI-based slip entry, available on the Advanced plan, you photograph the weighbridge slip and CrusherBook fills the entry for you to check and save.
           </p>
         </div>
 
@@ -40,7 +67,7 @@ const FeatureShowcase = () => {
               <div>
                 <h3 className="text-xl font-bold text-brand-navy mb-2">1. Snap a Photo</h3>
                 <p className="text-brand-slate leading-relaxed">
-                  Driver or operator takes a quick picture of the physical weighbridge slip using our mobile app or web upload.
+                  The driver or operator takes a picture of the physical slip using the mobile app or a web upload.
                 </p>
               </div>
             </motion.div>
@@ -60,7 +87,7 @@ const FeatureShowcase = () => {
               <div>
                 <h3 className="text-xl font-bold text-brand-navy mb-2">2. Instant Processing</h3>
                 <p className="text-brand-slate leading-relaxed">
-                  AI reads the date, vehicle number, gross weight and tare weight from the photo, so staff only check and save.
+                  AI reads the date, vehicle number, gross weight and tare weight in seconds, so staff only check and save.
                 </p>
               </div>
             </motion.div>
@@ -78,9 +105,9 @@ const FeatureShowcase = () => {
                 </div>
               </div>
               <div>
-                <h3 className="text-xl font-bold text-brand-navy mb-2">3. Auto Entry & Record</h3>
+                <h3 className="text-xl font-bold text-brand-navy mb-2">3. Auto Entry and Record</h3>
                 <p className="text-brand-slate leading-relaxed">
-                  The transaction is automatically mapped to the correct party ledger, stock is updated, and the record is secured instantly.
+                  The transaction maps to the correct party ledger, stock updates and the record is saved at once. Less typing means fewer mistakes.
                 </p>
               </div>
             </motion.div>
@@ -165,39 +192,43 @@ const FeatureShowcase = () => {
 
         </div>
 
-        <div className="mt-12 sm:mt-16 grid grid-cols-1 gap-4 sm:gap-5 md:grid-cols-2 lg:grid-cols-4">
-          {[
-            {
-              icon: Scale,
-              title: 'Weighbridge Integration',
-              description: 'Weights come straight from the weighbridge into the slip on the Enterprise plan.',
-              color: 'bg-brand-orange/10 text-brand-orange'
-            },
-            {
-              icon: Wallet,
-              title: 'Expense Tracking',
-              description: 'Monitor all operational costs with daily control and clarity.',
-              color: 'bg-brand-accent/10 text-brand-accent'
-            },
-            {
-              icon: Users,
-              title: 'Party Ledger',
-              description: 'Track each customer, pending amounts, and payment history.',
-              color: 'bg-green-500/10 text-green-600'
-            },
-            {
-              icon: Boxes,
-              title: 'Stock Control',
-              description: 'Real-time visibility of incoming boulders and outgoing sales.',
-              color: 'bg-blue-500/10 text-blue-600'
-            },
-          ].map(({ icon: Icon, title, description, color }) => (
-            <div key={title} className="rounded-2xl border border-gray-200 bg-white p-5 sm:p-6 shadow-sm hover:shadow-md hover:border-gray-300 transition-all">
-              <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${color}`}>
-                <Icon className="h-5 w-5 sm:h-6 sm:w-6" />
+        {/* Feature tabs: every panel stays in the page (hidden when not chosen) so crawlers read all four */}
+        <div className="mt-12 sm:mt-16 rounded-2xl border border-gray-200 bg-white p-3 sm:p-4 shadow-sm">
+          <div role="tablist" aria-label="CrusherBook features" className="grid grid-cols-2 gap-2 lg:grid-cols-4">
+            {tabs.map(({ icon: Icon, title }, index) => (
+              <button
+                key={title}
+                type="button"
+                role="tab"
+                id={`feature-tab-${index}`}
+                aria-selected={activeTab === index}
+                aria-controls={`feature-panel-${index}`}
+                onClick={() => setActiveTab(index)}
+                className={`flex items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-xs sm:text-sm font-semibold transition-colors ${
+                  activeTab === index ? 'bg-brand-navy text-white shadow' : 'bg-gray-50 text-brand-navy hover:bg-gray-100'
+                }`}
+              >
+                <Icon className="h-4 w-4 shrink-0" />
+                <span>{title}</span>
+              </button>
+            ))}
+          </div>
+          {tabs.map(({ icon: Icon, title, description, color }, index) => (
+            <div
+              key={title}
+              role="tabpanel"
+              id={`feature-panel-${index}`}
+              aria-labelledby={`feature-tab-${index}`}
+              hidden={activeTab !== index}
+              className="flex flex-col gap-4 px-2 pb-2 pt-5 sm:flex-row sm:items-start sm:px-4 sm:pt-6"
+            >
+              <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl ${color}`}>
+                <Icon className="h-6 w-6" />
               </div>
-              <h3 className="mt-4 sm:mt-5 text-base sm:text-lg font-bold text-brand-navy">{title}</h3>
-              <p className="mt-2 sm:mt-3 text-xs sm:text-sm leading-relaxed text-brand-slate">{description}</p>
+              <div>
+                <h3 className="text-lg sm:text-xl font-bold text-brand-navy">{title}</h3>
+                <p className="mt-2 text-sm sm:text-base leading-relaxed text-brand-slate">{description}</p>
+              </div>
             </div>
           ))}
         </div>

@@ -161,6 +161,62 @@ export default function Setting() {
     }
   };
 
+  // Address and GSTIN printed on every sale invoice, under the crusher name
+  const savedBusinessAddress = String(user?.businessAddress || '');
+  const savedGstin = String(user?.gstin || '');
+  const [businessAddressInput, setBusinessAddressInput] = useState(savedBusinessAddress);
+  const [gstinInput, setGstinInput] = useState(savedGstin);
+  const [savingInvoiceDetails, setSavingInvoiceDetails] = useState(false);
+  useEffect(() => {
+    setBusinessAddressInput(savedBusinessAddress);
+    setGstinInput(savedGstin);
+  }, [savedBusinessAddress, savedGstin]);
+  const invoiceDetailsChanged = businessAddressInput.trim() !== savedBusinessAddress || gstinInput.trim().toUpperCase() !== savedGstin;
+  const saveInvoiceDetails = async (event) => {
+    event.preventDefault();
+    const gstin = gstinInput.trim().toUpperCase();
+    if (gstin && !/^[0-9A-Z]{15}$/.test(gstin)) {
+      toast.error('GSTIN must be 15 letters / digits');
+      return;
+    }
+    if (!invoiceDetailsChanged || savingInvoiceDetails) return;
+    setSavingInvoiceDetails(true);
+    try {
+      await updateUserSettings({ businessAddress: businessAddressInput.trim(), gstin });
+      toast.success('Invoice details saved');
+    } catch (error) {
+      toast.error(error?.message || 'Could not save the invoice details');
+    } finally {
+      setSavingInvoiceDetails(false);
+    }
+  };
+
+  // Royalty per ton a sale with royalty starts with
+  const savedRoyaltyRate = Number(user?.royaltyRate ?? 0);
+  const [royaltyRateInput, setRoyaltyRateInput] = useState(String(savedRoyaltyRate || ''));
+  const [savingRoyaltyRate, setSavingRoyaltyRate] = useState(false);
+  useEffect(() => {
+    setRoyaltyRateInput(String(savedRoyaltyRate || ''));
+  }, [savedRoyaltyRate]);
+  const saveRoyaltyRate = async (event) => {
+    event.preventDefault();
+    const value = royaltyRateInput === '' ? 0 : Number(royaltyRateInput);
+    if (!Number.isFinite(value) || value < 0) {
+      toast.error('Enter a valid royalty per ton');
+      return;
+    }
+    if (value === savedRoyaltyRate || savingRoyaltyRate) return;
+    setSavingRoyaltyRate(true);
+    try {
+      await updateUserSettings({ royaltyRate: value });
+      toast.success('Royalty rate saved');
+    } catch (error) {
+      toast.error(error?.message || 'Could not save the royalty rate');
+    } finally {
+      setSavingRoyaltyRate(false);
+    }
+  };
+
   const language = user?.language || 'en';
   const chooseLanguage = async (value) => {
     if (value === language) return;
@@ -435,11 +491,11 @@ export default function Setting() {
         </section>
       )}
 
-      {/* GST rate: what a GST sale charges on material + transport */}
+      {/* GST rate: what a GST sale charges on material + royalty (not on transport) */}
       {user?.role !== 'employee' && (
         <section className="card">
           <h2 className="text-sm font-bold text-slate-900">GST Rate</h2>
-          <p className="mt-0.5 text-xs text-slate-500">When you mark a sale as GST Sale, this GST is added on top of the material and transport amount. You can still change it on each sale.</p>
+          <p className="mt-0.5 text-xs text-slate-500">When you mark a sale as GST Sale, this GST is added on top of the material amount (and the royalty, if any). The transport charge is added separately, without GST. You can still change it on each sale.</p>
           <form onSubmit={saveGstRate} className="mt-3 flex items-center gap-2">
             <div className="relative w-32">
               <input
@@ -456,6 +512,70 @@ export default function Setting() {
             </div>
             <button type="submit" className="btn-primary px-4" disabled={savingGstRate || Number(gstRateInput) === savedGstRate}>
               {savingGstRate ? 'Saving...' : 'Save'}
+            </button>
+          </form>
+        </section>
+      )}
+
+      {/* Invoice details: printed at the top of every sale invoice */}
+      {user?.role !== 'employee' && (
+        <section className="card">
+          <h2 className="text-sm font-bold text-slate-900">Invoice Details</h2>
+          <p className="mt-0.5 text-xs text-slate-500">Printed at the top of every sale invoice, under your crusher name, mobile and email.</p>
+          <form onSubmit={saveInvoiceDetails} className="mt-3 space-y-3">
+            <div>
+              <label className="label" htmlFor="settings-business-address">Crusher Address</label>
+              <textarea
+                id="settings-business-address"
+                className="input min-h-[64px]"
+                value={businessAddressInput}
+                onChange={(event) => setBusinessAddressInput(event.target.value)}
+                maxLength={300}
+                placeholder="Village, road, tehsil"
+              />
+            </div>
+            <div className="flex flex-wrap items-end gap-2">
+              <div className="w-56">
+                <label className="label" htmlFor="settings-gstin">GSTIN (optional)</label>
+                <input
+                  id="settings-gstin"
+                  className="input uppercase"
+                  value={gstinInput}
+                  onChange={(event) => setGstinInput(event.target.value.toUpperCase())}
+                  maxLength={15}
+                  placeholder="22AAAAA0000A1Z5"
+                />
+              </div>
+              <button type="submit" className="btn-primary px-4" disabled={savingInvoiceDetails || !invoiceDetailsChanged}>
+                {savingInvoiceDetails ? 'Saving...' : 'Save'}
+              </button>
+            </div>
+          </form>
+        </section>
+      )}
+
+      {/* Royalty: what a sale with royalty charges per ton */}
+      {user?.role !== 'employee' && (
+        <section className="card">
+          <h2 className="text-sm font-bold text-slate-900">Royalty Per Ton</h2>
+          <p className="mt-0.5 text-xs text-slate-500">When you turn on Royalty on a sale, the tons x this rate is added to the bill (and GST, if it is a GST sale, is worked out on material + royalty). You can still change it on each sale.</p>
+          <form onSubmit={saveRoyaltyRate} className="mt-3 flex items-center gap-2">
+            <div className="relative w-36">
+              <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-sm font-semibold text-slate-400">₹</span>
+              <input
+                type="number"
+                className="input pl-7 pr-12 font-semibold"
+                value={royaltyRateInput}
+                onChange={(event) => setRoyaltyRateInput(event.target.value)}
+                min="0"
+                step="0.01"
+                placeholder="80"
+                aria-label="Royalty per ton"
+              />
+              <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-xs font-semibold text-slate-400">/ton</span>
+            </div>
+            <button type="submit" className="btn-primary px-4" disabled={savingRoyaltyRate || (royaltyRateInput === '' ? 0 : Number(royaltyRateInput)) === savedRoyaltyRate}>
+              {savingRoyaltyRate ? 'Saving...' : 'Save'}
             </button>
           </form>
         </section>

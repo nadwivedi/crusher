@@ -16,185 +16,232 @@ import {
   ChartColumnBig,
   Fuel,
   Boxes,
-  Wallet,
-  Users,
-  Gauge,
-  Smartphone,
   ArrowRight,
+  ClipboardX,
+  TrendingUp,
+  Wrench,
+  PlayCircle,
 } from 'lucide-react';
 import MarketingHero from '../components/MarketingHero';
 import FeatureShowcase from '../components/FeatureShowcase';
-import ContactActions from '../components/ContactActions';
 import TestimonialCard from '../components/TestimonialCard';
 import Seo from '../components/Seo';
 
-const testimonials = [
-  {
-    quote:
-      'Manual slip entry used to take our staff hours every evening. With CrusherBook, boulder entries and party ledger update the same minute the truck leaves the weighbridge.',
-    name: 'Rajesh Sahu',
-    role: 'Crusher Plant Owner',
-    location: 'Raipur, Chhattisgarh',
-  },
-  {
-    quote:
-      'Tracking pending payments from dozens of parties was our biggest headache. Now every ledger entry, expense, and stock number is visible on one screen.',
-    name: 'Manoj Agrawal',
-    role: 'Plant Manager',
-    location: 'Jabalpur, Madhya Pradesh',
-  },
-  {
-    quote:
-      'We run two crushers and CrusherBook gives us combined stock and profit reports instantly. No more waiting for the accountant to reconcile registers.',
-    name: 'Biswajit Patra',
-    role: 'Crusher Plant Owner',
-    location: 'Rourkela, Odisha',
-  },
-  {
-    quote:
-      'Our dispatch team loves how fast sales slips get created now. Weighbridge readings flow straight into billing without any retyping.',
-    name: 'Suresh Mahato',
-    role: 'Operations Head',
-    location: 'Dhanbad, Jharkhand',
-  },
-  {
-    quote:
-      'Employee access control was important for us since we have multiple supervisors. CrusherBook lets us control exactly who can see ledger and pricing.',
-    name: 'Deepak Verma',
-    role: 'Crusher Plant Owner',
-    location: 'Bilaspur, Chhattisgarh',
-  },
-  {
-    quote:
-      'Switching from paper registers to CrusherBook took less than a day. Support team helped us set up party ledgers and stock categories quickly.',
-    name: 'Ashok Tiwari',
-    role: 'Plant Manager',
-    location: 'Katni, Madhya Pradesh',
-  },
+const WHATSAPP_TRIAL_URL = 'https://wa.me/916264682508?text=Hello%20Crusherbook%2C%20I%20want%20to%20start%20the%20free%20trial.';
+const WHATSAPP_CHAT_URL = 'https://wa.me/916264682508?text=Hello%20Crusherbook%2C%20I%20want%20a%20demo%20for%20crusher%20software.';
+// The 3-minute product video. Until it is set, the button asks for the video on WhatsApp.
+const DEMO_VIDEO_URL = '';
+const WHATSAPP_VIDEO_URL = 'https://wa.me/916264682508?text=Hello%20Crusherbook%2C%20please%20send%20me%20the%203-minute%20video.';
+
+// Real reviews only (name, plant and city). The section shows once this has entries.
+const testimonials = [];
+
+const stats = [
+  { strong: '3+ years', rest: 'serving crusher plants' },
+  { strong: 'Automatic', rest: 'WhatsApp alerts (Advanced)' },
+  { strong: 'Automatic', rest: 'daily P&L reports' },
+  { strong: 'AI', rest: 'slip entry (Advanced)' },
 ];
 
 const audiences = [
   {
     icon: Factory,
-    title: 'Single crusher owners',
-    text: 'Sales slips, boulder entry, party dues and daily profit for one plant, on your phone, without a munshi register.',
+    title: 'Single Crusher Owners',
+    text: 'Replace the register with stone crusher software on your phone: sales slips, boulder entry, party dues and daily profit, without needing an accountant for every small thing.',
     to: '/stone-crusher-management-software',
-    linkLabel: 'Stone crusher management software',
   },
   {
     icon: Building2,
-    title: 'Owners with more than one crusher',
-    text: 'Every plant in one login, with stock and profit for each crusher and for all of them together.',
+    title: 'Owners With More Than One Crusher',
+    text: 'Manage every plant in one login, with stock, sales, expenses and profit for each crusher and for all of them together (Enterprise).',
     to: '/stone-crusher-plant-management-software',
-    linkLabel: 'Multi-crusher management',
   },
   {
     icon: Mountain,
-    title: 'Quarry + crusher operations',
-    text: 'Boulder from the mine, crushing, dispatch, hired trucks and diesel tracked as one flow.',
+    title: 'Quarry + Crusher Operations',
+    text: 'Boulders from your own mine or outside suppliers, crushing, dispatch, hired trucks and diesel are tracked as one flow.',
     to: '/quarry-crusher-management-software',
-    linkLabel: 'Quarry crusher software',
   },
   {
     icon: UserCheck,
-    title: 'Munshi, accountant and CA',
-    text: 'Party ledger with Dr / Cr, cash and bank, expenses and P&L ready to share, so the books match the weighbridge.',
+    title: 'Munshi, Accountant and CA',
+    text: 'The munshi enters data, the accountant checks the Dr/Cr party ledger and cash and bank, and your CA gets clean P&L reports so the books match the weighbridge.',
     to: '/stone-crusher-accounting-software',
-    linkLabel: 'Crusher accounting software',
   },
 ];
 
 const dayFlow = [
-  { icon: Truck, title: 'Boulder arrives', text: 'Record boulder trips from the mine or supplier, per ton or per trip, with the supplier ledger updated at once.' },
-  { icon: Scale, title: 'Weighbridge slip (kanta parchi)', text: 'Enter gross, tare and net weight, or snap the slip photo and let AI fill it in.' },
-  { icon: Receipt, title: 'Sale and bill', text: 'Bill gitti, dust and aggregate per ton or per cubic feet (cft) at each party’s rate. Stock goes down automatically.' },
-  { icon: BookOpen, title: 'Party ledger', text: 'The sale, receipt or credit lands in the party khata. Pending udhari is always visible.' },
-  { icon: MessageCircle, title: 'WhatsApp to the party', text: 'Bill and balance reminders go to customers on WhatsApp, automatically on the Advanced plan.' },
-  { icon: ChartColumnBig, title: 'Profit by evening', text: 'Sales less boulder, diesel, hire, salary and expenses gives the real profit of the day.' },
+  { icon: Truck, title: 'Boulder Arrives', text: 'Record trips from the mine or supplier, per ton or per trip. Stock and the supplier ledger update at once.' },
+  { icon: Scale, title: 'Weighbridge Slip (Kanta Parchi)', text: 'Enter gross, tare and net weight, or snap the photo and let AI fill it in (Advanced).' },
+  { icon: Receipt, title: 'Sale and Bill', text: "Bill gitti, dust and aggregate per ton or per cubic feet (cft) at each party's rate, with GST invoices in a few taps. Stock goes down automatically." },
+  { icon: BookOpen, title: 'Party Ledger', text: 'The sale, receipt or credit lands in the party khata. Pending udhari is always visible.' },
+  { icon: MessageCircle, title: 'WhatsApp to the Party', text: 'Bills and balance reminders go to customers on WhatsApp, automatically on the Advanced plan.' },
+  { icon: ChartColumnBig, title: 'Profit by Evening', text: 'Sales less boulder, diesel, hire, salary and expenses gives the real profit of the day.' },
 ];
 
-const featureLinks = [
-  { icon: Receipt, title: 'Crusher billing software', to: '/crusher-billing-software' },
-  { icon: Scale, title: 'Weighbridge software', to: '/crusher-weighbridge-software' },
-  { icon: BookOpen, title: 'Accounting & party ledger', to: '/stone-crusher-accounting-software' },
-  { icon: MessageCircle, title: 'Payment reminders', to: '/crusher-plant-payment-reminder-software' },
-  { icon: Boxes, title: 'Stock & inventory', to: '/stone-crusher-inventory-management-software' },
-  { icon: Truck, title: 'Boulder production tracking', to: '/stone-crusher-boulder-production-tracking-software' },
-  { icon: Fuel, title: 'Diesel consumption tracking', to: '/crusher-plant-diesel-consumption-tracking-software' },
-  { icon: Gauge, title: 'Machine & vehicle meter readings', to: '/crusher-plant-vehicle-mileage-tracking-software' },
-  { icon: Truck, title: 'Fleet & hired vehicles', to: '/stone-crusher-fleet-management-software' },
-  { icon: Wallet, title: 'Expense tracking', to: '/crusher-plant-expense-tracking-software' },
-  { icon: Users, title: 'Payroll & attendance', to: '/crusher-plant-payroll-software' },
-  { icon: ChartColumnBig, title: 'Production reports', to: '/crusher-plant-production-report-software' },
-  { icon: Smartphone, title: 'Mobile app for crushers', to: '/stone-crusher-management-app' },
-  { icon: Mountain, title: 'Quarry management software', to: '/quarry-management-software' },
+// Feature groups; the linked words lead to each feature's own page
+const L = ({ to, children }) => (
+  <Link to={to} className="font-medium text-brand-orange hover:underline">{children}</Link>
+);
+
+const featureGroups = [
+  {
+    icon: Receipt,
+    title: 'Billing and Accounts',
+    body: (
+      <>
+        <L to="/crusher-billing-software">Crusher billing software</L> with per ton and cft billing, GST invoices, credit and debit
+        notes, and a <L to="/stone-crusher-accounting-software">Dr/Cr party ledger</L> showing outstanding balances and payment
+        history. <L to="/crusher-plant-payment-reminder-software">WhatsApp bills and reminders</L> come with the Advanced plan.
+      </>
+    ),
+  },
+  {
+    icon: Scale,
+    title: 'Weighbridge and Slips',
+    body: (
+      <>
+        <L to="/crusher-weighbridge-software">Weighbridge software</L> for slip entry and vehicle records, with AI photo reading
+        (Advanced) and direct weighbridge integration (Enterprise).
+      </>
+    ),
+  },
+  {
+    icon: Boxes,
+    title: 'Stock and Production',
+    body: (
+      <>
+        <L to="/stone-crusher-inventory-management-software">Real-time stock</L> of{' '}
+        <L to="/stone-crusher-boulder-production-tracking-software">boulder in</L>, gitti out, dust and sand, plus{' '}
+        <L to="/crusher-plant-production-report-software">production reports</L> and{' '}
+        <L to="/quarry-management-software">quarry tracking</L> from the mine to the dispatch gate.
+      </>
+    ),
+  },
+  {
+    icon: Fuel,
+    title: 'Plant Costs',
+    body: (
+      <>
+        <L to="/crusher-plant-diesel-consumption-tracking-software">Diesel consumption</L>,{' '}
+        <L to="/crusher-plant-vehicle-mileage-tracking-software">machine hours and meter readings</L>,{' '}
+        <L to="/stone-crusher-fleet-management-software">own and hired trucks</L>,{' '}
+        <L to="/crusher-plant-expense-tracking-software">daily expenses</L>,{' '}
+        <L to="/crusher-plant-payroll-software">payroll and attendance</L>.
+      </>
+    ),
+  },
+  {
+    icon: ChartColumnBig,
+    title: 'Reports and Control',
+    body: (
+      <>
+        Automatic daily P&amp;L and monthly reports, party-wise, material-wise and vehicle-wise sales, employee logins with
+        controlled permissions, a <L to="/stone-crusher-management-app">mobile app</L>, and multi-plant support (Enterprise).
+      </>
+    ),
+  },
+];
+
+const reasons = [
+  {
+    icon: ClipboardX,
+    title: 'No More Paper Registers',
+    text: 'Stop managing crushers with paper registers and scattered notebooks. One dashboard holds slips, stock, ledger and expenses, organised, searchable and always backed up.',
+  },
+  {
+    icon: TrendingUp,
+    title: 'Daily Profit and Loss, Automatically',
+    text: 'Auto-calculated P&L reports show revenue, boulder cost, expenses and net margin every day. No guessing, no manual math, no surprises at year-end.',
+  },
+  {
+    icon: Wrench,
+    title: 'Built Around How Crushers Work',
+    text: 'Every feature solves a real problem, from weighbridge slips to party ledger tracking to employee payroll.',
+  },
 ];
 
 const comparisonRows = [
-  { label: 'Weighbridge slip to bill in one step', register: false, excel: false, generic: false, crusherbook: true },
-  { label: 'Per ton and per cubic feet (cft) billing', register: true, excel: true, generic: false, crusherbook: true },
-  { label: 'Boulder in, gitti out, live stock', register: false, excel: false, generic: false, crusherbook: true },
-  { label: 'Party ledger updates by itself', register: false, excel: false, generic: true, crusherbook: true },
-  { label: 'Automated WhatsApp bills & reminders', register: false, excel: false, generic: false, crusherbook: true },
-  { label: 'Diesel, hire and machine costs per plant', register: false, excel: false, generic: false, crusherbook: true },
-  { label: 'Owner sees everything on the phone', register: false, excel: false, generic: false, crusherbook: true },
-  { label: 'Works in English and Hindi', register: true, excel: false, generic: false, crusherbook: true },
+  { label: 'Weighbridge slip to bill in one step', values: ['No', 'No', 'No', 'Yes'] },
+  { label: 'Per ton and cft billing', values: ['Manual', 'Self-built formulas', 'Usually not available', 'Built in'] },
+  { label: 'Boulder in, gitti out, live stock', values: ['Hard', 'Error-prone', 'Limited', 'Real time'] },
+  { label: 'Party ledger updates by itself', values: ['No', 'No', 'Yes', 'Yes'] },
+  { label: 'Automatic WhatsApp bills and reminders (Advanced)', values: ['No', 'No', 'No', 'Yes'] },
+  { label: 'Diesel, hire and machine costs per plant', values: ['No', 'No', 'No', 'Yes'] },
+  { label: 'Owner sees everything on the phone', values: ['No', 'No', 'Varies', 'Yes'] },
+  { label: 'Works in English and Hindi', values: ['No', 'No', 'Varies', 'Yes'] },
 ];
 
 const planSummary = [
-  { name: 'Basic', price: 'Rs 9,999', text: 'Crusher entry, sales and boulder slips, party ledger, expenses and stock. 1 employee login.' },
-  { name: 'Advanced', price: 'Rs 11,999', text: 'Everything in Basic plus automated WhatsApp alerts, AI slip photo entry and Excel export.', popular: true },
-  { name: 'Enterprise', price: 'Rs 13,999', text: 'Everything in Advanced plus multi-crusher management and weighbridge integration.' },
+  {
+    name: 'Basic',
+    price: 'Rs 9,999',
+    forWho: 'For single crusher plants.',
+    text: 'Crusher entry, sales and boulder slips, party ledger, expenses and stock, with 1 employee login.',
+  },
+  {
+    name: 'Advanced',
+    price: 'Rs 11,999',
+    forWho: 'For growing plants.',
+    text: 'Everything in Basic plus 3 employee logins, automatic WhatsApp alerts, AI slip photo entry and Excel export.',
+    popular: true,
+  },
+  {
+    name: 'Enterprise',
+    price: 'Rs 13,999',
+    forWho: 'For multiple plants and quarry operations.',
+    text: 'Everything in Advanced plus 10 employee logins, multi-crusher management and weighbridge integration.',
+  },
 ];
 
 const faqItems = [
   {
     question: 'What is CrusherBook?',
-    answer: 'CrusherBook is stone crusher management software made in India for crusher plants and quarries. It records sales slips, boulder entry, weighbridge weights, stock, party ledger, diesel, expenses, payroll and profit in one place, on phone, tablet or laptop, in English and Hindi.',
+    answer: 'Stone crusher management software for India that brings slips, billing, stock, ledgers, expenses and profit into one software, with WhatsApp bills and reminders (some features are only available with advanced plans).',
   },
   {
     question: 'Which is the best stone crusher management software in India?',
-    answer: 'The best software is the one built around a crusher’s real day: weighbridge slips, boulder trips, per ton or cft billing, party udhari and diesel. CrusherBook is made only for stone crushers, works in English and Hindi, shows its price openly from Rs 9,999 per year, and gives a free demo on your own slips before you pay.',
+    answer: 'The best software is the one that matches how your plant works: weighbridge slips, per ton and cft billing, party ledger and daily profit. CrusherBook is built specifically for Indian crushers, so start a free trial and compare it with any other option.',
   },
   {
     question: 'How much does crusher management software cost?',
-    answer: 'CrusherBook costs Rs 9,999 per year for Basic (1 employee login), Rs 11,999 per year for Advanced with automated WhatsApp alerts, and Rs 13,999 per year for Enterprise with multi-crusher management and weighbridge integration. Every plan starts with a free demo.',
+    answer: 'Prices vary by features and number of plants. CrusherBook plans run from Rs 9,999 to Rs 13,999 per year, with no hidden setup fee. The pricing section above shows what each plan includes.',
   },
   {
     question: 'Does it support weighbridge (dharam kanta) integration?',
-    answer: 'Yes. On every plan you can enter gross, tare and net weight from the slip, or snap a slip photo on Advanced and Enterprise. Direct weighbridge integration, where weights come in without typing, is on the Enterprise plan. Tell us your weighbridge model and we will confirm it.',
+    answer: 'Yes. On the Enterprise plan, weights come straight from your weighbridge into the slip. On the Advanced plan, you can photograph a slip and let AI read it.',
   },
   {
     question: 'Can I bill per ton and per cubic feet (cft)?',
-    answer: 'Yes. Each sale can be billed per ton or per cubic feet, and you can set the default sale type for every new sale. You can also record both cubic feet and weight on the same sale.',
+    answer: 'Yes. Create bills per ton or per cft for each party and material at their own rate, with GST. This removes manual calculation and rate mistakes.',
   },
   {
     question: 'Can I manage more than one crusher plant?',
-    answer: 'Yes. The Enterprise plan manages multiple crushers from one login, with separate and combined stock and profit reports.',
+    answer: "Yes. The Enterprise plan manages several plants from one login and compares sales, stock and expenses plant by plant. Each plant's data stays separate.",
   },
   {
     question: 'Does CrusherBook send bills and payment reminders on WhatsApp?',
-    answer: 'You can share any party ledger or bill on WhatsApp on every plan. Automated WhatsApp alerts, sent without anyone pressing a button, are part of the Advanced and Enterprise plans.',
+    answer: 'Yes. Bills and payment reminders go to parties on WhatsApp straight from the software, automatically on the Advanced plan, which helps you recover outstanding payments faster.',
   },
   {
     question: 'Is the software available in Hindi?',
-    answer: 'Yes. CrusherBook can show English and Hindi together, with the Hindi under each label, so a munshi who reads Hindi and an owner who reads English can use the same screen.',
+    answer: 'Yes. CrusherBook works in Hindi and English, so your munshi, accountant and staff can use the language they are comfortable with.',
   },
   {
     question: 'Does it work on mobile?',
-    answer: 'Yes. CrusherBook works on any Android phone, tablet or laptop at app.crusherbook.com. It is cloud software, so it needs an internet connection, and mobile data is enough.',
+    answer: 'Yes. The mobile app lets you enter slips, check ledgers and view reports from your phone, and the software also works on a computer.',
   },
   {
     question: 'Is my crusher data safe?',
-    answer: 'Your data is stored on the cloud, not on one office computer, so it is not lost if a laptop breaks. The owner decides which employee can see ledgers, rates and profit.',
+    answer: 'Yes, your crusher data is safe. CrusherBook is secure, cloud-based software that protects your operational data using several layers of security.',
   },
   {
-    question: 'Can I move from registers, Excel or Tally?',
-    answer: 'Yes. Most plants start the same day. Our team helps you add products, parties and opening balances over WhatsApp or a phone call, and you can keep sharing reports with your CA.',
+    question: 'Can I move data from registers, Excel or Tally?',
+    answer: 'Yes. Our team helps you start with opening balances for parties and stock, and can import your data from Excel and Tally.',
   },
   {
     question: 'Is there a free trial?',
-    answer: 'Yes. Every plan comes with a free trial and a free demo on WhatsApp, so you can test CrusherBook on your own slips before you pay.',
+    answer: 'Yes. Start a 14-day free trial. Our team sets up your plant and you test it on your own slips.',
   },
 ];
 
@@ -208,7 +255,7 @@ const softwareAppSchema = {
   image: 'https://crusherbook.com/cruhserbook.webp',
   inLanguage: ['en-IN', 'hi-IN'],
   description:
-    'Stone crusher management software for India: weighbridge slips, sales billing per ton or cft, boulder entry, stock, party ledger, diesel, expenses, payroll and profit reports.',
+    'Stone crusher management software for India: kanta parchi, boulder entry, gitti sales per ton or cft, stock, party khata, diesel, expenses and daily profit, in English and Hindi.',
   offers: [
     { '@type': 'Offer', priceCurrency: 'INR', price: '9999', name: 'Basic' },
     { '@type': 'Offer', priceCurrency: 'INR', price: '11999', name: 'Advanced' },
@@ -232,13 +279,22 @@ const buildFaqSchema = (items) => ({
 const sectionHeading = 'text-2xl sm:text-3xl md:text-4xl lg:text-[2.2rem] font-bold text-brand-navy mb-4 sm:mb-6 leading-tight';
 const sectionLead = 'text-sm sm:text-base md:text-lg leading-relaxed text-brand-slate';
 const container = 'w-full max-w-5xl mx-auto px-0 sm:px-5 lg:px-6 xl:max-w-6xl';
+const primaryButton = 'inline-flex items-center justify-center gap-2 rounded-full bg-green-600 px-5 py-3.5 text-sm sm:text-base font-semibold text-white shadow-lg transition hover:-translate-y-0.5 hover:bg-green-700';
+const secondaryButton = 'inline-flex items-center justify-center gap-2 rounded-full border border-brand-orange bg-white px-5 py-3.5 text-sm sm:text-base font-semibold text-brand-orange transition hover:-translate-y-0.5 hover:bg-orange-50';
 
-const Mark = ({ ok }) =>
-  ok ? (
-    <CheckCircle2 className="mx-auto h-5 w-5 text-green-600" aria-label="Yes" />
-  ) : (
-    <XCircle className="mx-auto h-5 w-5 text-gray-300" aria-label="No" />
-  );
+// "Yes" / "No" get a mark beside the word; other answers ("Manual", "Real time") are shown as written
+const ComparisonCell = ({ value, highlight }) => {
+  if (value === 'Yes' || value === 'No') {
+    const yes = value === 'Yes';
+    return (
+      <span className={`inline-flex items-center gap-1.5 font-medium ${yes ? 'text-green-700' : 'text-gray-400'}`}>
+        {yes ? <CheckCircle2 className="h-4 w-4" aria-hidden /> : <XCircle className="h-4 w-4" aria-hidden />}
+        {value}
+      </span>
+    );
+  }
+  return <span className={highlight ? 'font-semibold text-brand-navy' : 'text-brand-slate'}>{value}</span>;
+};
 
 const Home = () => {
   const [expandedFAQ, setExpandedFAQ] = useState(0);
@@ -253,6 +309,7 @@ const Home = () => {
           'stone crusher management software',
           'best stone crusher management software in India',
           'stone crusher plant ERP software',
+          'crusher plant management system',
           'crusher billing software',
           'crusher weighbridge software',
           'crusher plant software',
@@ -269,15 +326,30 @@ const Home = () => {
           <div className="max-w-3xl mx-auto">
             <h2 className={`${sectionHeading} text-center`}>What Is CrusherBook?</h2>
             <p className={sectionLead}>
-              <strong className="text-brand-navy">CrusherBook is stone crusher management software made for Indian crusher plants and quarries.</strong>{' '}
-              It replaces the slip book, the munshi register and the Excel sheet with one simple app. Every truck that crosses the
-              weighbridge, every boulder trip, every litre of diesel and every rupee a party owes you is recorded the moment it happens.
-              The owner sees stock, dues and profit from the phone, anytime, in English or Hindi.
+              CrusherBook is stone crusher management software built for Indian crusher plants and quarries. This crusher plant
+              management system replaces the slip book, the munshi register and the Excel sheet with one software that handles
+              slips, stock, ledger, expenses and profit reporting. Think of it as stone crusher ERP software without the heavy
+              setup: billing, accounts, stock, diesel and payroll in one software.
             </p>
             <p className={`${sectionLead} mt-4`}>
-              Plans start at Rs 9,999 per year, and you can try it free on your own slips first.
+              Every truck that crosses the weighbridge, every boulder trip, every litre of diesel and every rupee a party owes you
+              is recorded the moment it happens. The owner sees stock, dues and profit from the phone, anytime. It suits a single
+              plant or several, and your munshi, accountant and CA can each get their own login with limited access, on plans with
+              multiple logins (see <Link to="/pricing" className="font-medium text-brand-orange hover:underline">Pricing</Link>).
+            </p>
+            <p className={`${sectionLead} mt-4`}>
+              For 3+ years, CrusherBook has grown with feedback from working plant owners, so every feature matches how crushing
+              actually happens.
             </p>
           </div>
+          <ul className="mt-8 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+            {stats.map(({ strong, rest }) => (
+              <li key={`${strong} ${rest}`} className="rounded-2xl border border-gray-200 bg-gradient-to-br from-orange-50 via-white to-white p-4 text-center shadow-sm">
+                <strong className="block text-lg sm:text-xl font-extrabold text-brand-navy">{strong}</strong>
+                <span className="mt-1 block text-xs sm:text-sm text-brand-slate">{rest}</span>
+              </li>
+            ))}
+          </ul>
         </div>
       </section>
 
@@ -293,17 +365,21 @@ const Home = () => {
             </p>
           </div>
           <div className="grid gap-4 sm:gap-5 md:grid-cols-2">
-            {audiences.map(({ icon: Icon, title, text, to, linkLabel }) => (
-              <div key={title} className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm hover:shadow-md transition-shadow">
+            {audiences.map(({ icon: Icon, title, text, to }) => (
+              <Link
+                key={title}
+                to={to}
+                className="group rounded-2xl border border-gray-200 bg-white p-6 shadow-sm hover:shadow-md hover:border-brand-orange/40 transition-all"
+              >
                 <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-orange/10 text-brand-orange mb-4">
                   <Icon className="h-5 w-5" />
                 </div>
-                <h3 className="text-lg font-bold text-brand-navy mb-2">{title}</h3>
+                <h3 className="flex items-center gap-2 text-lg font-bold text-brand-navy mb-2">
+                  {title}
+                  <ArrowRight className="h-4 w-4 text-brand-orange transition-transform group-hover:translate-x-1" />
+                </h3>
                 <p className="text-sm sm:text-base leading-relaxed text-brand-slate">{text}</p>
-                <Link to={to} className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-brand-orange hover:underline">
-                  {linkLabel} <ArrowRight className="h-4 w-4" />
-                </Link>
-              </div>
+              </Link>
             ))}
           </div>
         </div>
@@ -315,17 +391,16 @@ const Home = () => {
           <div className="max-w-3xl mx-auto text-center mb-8 sm:mb-10">
             <h2 className={sectionHeading}>How a Day at Your Crusher Runs on CrusherBook</h2>
             <p className={sectionLead}>
-              From the first boulder trip in the morning to the profit figure at night, each step updates the next by itself.
+              From the first boulder trip to the profit figure at night, each step updates the next.
             </p>
           </div>
           <ol className="grid gap-4 sm:gap-5 sm:grid-cols-2 lg:grid-cols-3">
             {dayFlow.map(({ icon: Icon, title, text }, i) => (
               <li key={title} className="relative rounded-2xl border border-gray-200 bg-gradient-to-br from-gray-50 to-white p-5 sm:p-6 shadow-sm">
-                <span className="absolute right-5 top-5 text-3xl font-extrabold text-brand-navy/10">{i + 1}</span>
                 <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-navy/10 text-brand-navy mb-4">
                   <Icon className="h-5 w-5" />
                 </div>
-                <h3 className="text-base sm:text-lg font-bold text-brand-navy mb-2">{title}</h3>
+                <h3 className="text-base sm:text-lg font-bold text-brand-navy mb-2">{i + 1}. {title}</h3>
                 <p className="text-sm leading-relaxed text-brand-slate">{text}</p>
               </li>
             ))}
@@ -333,36 +408,51 @@ const Home = () => {
         </div>
       </section>
 
-      {/* Feature links */}
+      {/* Everything in one software */}
       <section className="bg-gray-50 px-4 py-10 sm:py-12 lg:py-16">
         <div className={container}>
           <div className="max-w-3xl mx-auto text-center mb-8 sm:mb-10">
-            <h2 className={sectionHeading}>Everything a Stone Crusher Needs, in One Software</h2>
+            <h2 className={sectionHeading}>Everything a Stone Crusher Needs, in One Software!</h2>
             <p className={sectionLead}>
               Billing, weighbridge, accounts, stock, diesel, vehicles and payroll work together, so nothing is entered twice.
             </p>
           </div>
-          <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {featureLinks.map(({ icon: Icon, title, to }) => (
-              <li key={to}>
-                <Link
-                  to={to}
-                  className="group flex items-center gap-3 rounded-xl border border-gray-200 bg-white p-4 shadow-sm hover:border-brand-orange/40 hover:shadow-md transition-all"
-                >
-                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand-orange/10 text-brand-orange">
-                    <Icon className="h-4 w-4" />
-                  </span>
-                  <span className="text-sm font-semibold text-brand-navy">{title}</span>
-                  <ArrowRight className="ml-auto h-4 w-4 text-brand-slate transition-transform group-hover:translate-x-1" />
-                </Link>
-              </li>
+          <div className="grid gap-4 sm:gap-5 md:grid-cols-2 lg:grid-cols-3">
+            {featureGroups.map(({ icon: Icon, title, body }) => (
+              <div key={title} className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-orange/10 text-brand-orange mb-4">
+                  <Icon className="h-5 w-5" />
+                </div>
+                <h3 className="text-lg font-bold text-brand-navy mb-2">{title}</h3>
+                <p className="text-sm sm:text-base leading-relaxed text-brand-slate">{body}</p>
+              </div>
             ))}
-          </ul>
+          </div>
+        </div>
+      </section>
+
+      {/* Why choose */}
+      <section className="bg-white px-4 py-10 sm:py-12 lg:py-16">
+        <div className={container}>
+          <div className="max-w-3xl mx-auto text-center mb-8 sm:mb-10">
+            <h2 className={sectionHeading}>Why Crusher Plants Choose CrusherBook</h2>
+          </div>
+          <div className="grid gap-4 sm:gap-5 md:grid-cols-3">
+            {reasons.map(({ icon: Icon, title, text }) => (
+              <div key={title} className="rounded-2xl border border-gray-200 bg-gradient-to-br from-gray-50 to-white p-6 shadow-sm">
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-navy/10 text-brand-navy mb-4">
+                  <Icon className="h-5 w-5" />
+                </div>
+                <h3 className="text-lg font-bold text-brand-navy mb-2">{title}</h3>
+                <p className="text-sm sm:text-base leading-relaxed text-brand-slate">{text}</p>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 
       {/* Comparison */}
-      <section className="bg-white px-4 py-10 sm:py-12 lg:py-16">
+      <section className="bg-gray-50 px-4 py-10 sm:py-12 lg:py-16">
         <div className={container}>
           <div className="max-w-3xl mx-auto text-center mb-8 sm:mb-10">
             <h2 className={sectionHeading}>CrusherBook vs Register, Excel and Generic Accounting Software</h2>
@@ -372,24 +462,25 @@ const Home = () => {
             </p>
           </div>
           <div className="overflow-x-auto rounded-2xl border border-gray-200 shadow-sm">
-            <table className="w-full min-w-[560px] text-sm">
+            <table className="w-full min-w-[640px] text-sm">
               <thead className="bg-brand-navy text-white">
                 <tr>
-                  <th scope="col" className="p-3 sm:p-4 text-left font-semibold">What you need</th>
-                  <th scope="col" className="p-3 sm:p-4 text-center font-semibold">Paper register</th>
-                  <th scope="col" className="p-3 sm:p-4 text-center font-semibold">Excel</th>
-                  <th scope="col" className="p-3 sm:p-4 text-center font-semibold">Generic accounting</th>
-                  <th scope="col" className="p-3 sm:p-4 text-center font-semibold text-brand-orange">CrusherBook</th>
+                  <th scope="col" className="p-3 sm:p-4 text-left font-bold">What you need</th>
+                  <th scope="col" className="p-3 sm:p-4 text-center font-bold">Paper register</th>
+                  <th scope="col" className="p-3 sm:p-4 text-center font-bold">Excel</th>
+                  <th scope="col" className="p-3 sm:p-4 text-center font-bold">Generic accounting</th>
+                  <th scope="col" className="p-3 sm:p-4 text-center font-bold text-brand-orange">CrusherBook</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 bg-white">
                 {comparisonRows.map((row) => (
                   <tr key={row.label}>
                     <th scope="row" className="p-3 sm:p-4 text-left font-medium text-brand-navy">{row.label}</th>
-                    <td className="p-3 sm:p-4"><Mark ok={row.register} /></td>
-                    <td className="p-3 sm:p-4"><Mark ok={row.excel} /></td>
-                    <td className="p-3 sm:p-4"><Mark ok={row.generic} /></td>
-                    <td className="p-3 sm:p-4 bg-orange-50/60"><Mark ok={row.crusherbook} /></td>
+                    {row.values.map((value, index) => (
+                      <td key={index} className={`p-3 sm:p-4 text-center ${index === 3 ? 'bg-orange-50/60' : ''}`}>
+                        <ComparisonCell value={value} highlight={index === 3} />
+                      </td>
+                    ))}
                   </tr>
                 ))}
               </tbody>
@@ -399,11 +490,11 @@ const Home = () => {
       </section>
 
       {/* Pricing summary */}
-      <section className="bg-gray-50 px-4 py-10 sm:py-12 lg:py-16">
+      <section className="bg-white px-4 py-10 sm:py-12 lg:py-16">
         <div className={container}>
           <div className="max-w-3xl mx-auto text-center mb-8 sm:mb-10">
             <h2 className={sectionHeading}>Stone Crusher Software Price</h2>
-            <p className={sectionLead}>Simple yearly plans, with the price written openly. No hidden setup fee.</p>
+            <p className={sectionLead}>Simple yearly plans, with prices listed openly. No hidden setup fee.</p>
           </div>
           <div className="grid gap-4 sm:gap-5 lg:grid-cols-3">
             {planSummary.map((plan) => (
@@ -416,76 +507,59 @@ const Home = () => {
                 <h3 className="text-lg font-bold text-brand-navy">{plan.name}</h3>
                 <p className="mt-2">
                   <span className="text-2xl font-extrabold text-brand-navy">{plan.price}</span>
-                  <span className="text-xs font-medium text-brand-slate"> / year</span>
+                  <span className="text-xs font-medium text-brand-slate"> per year</span>
                 </p>
-                <p className="mt-2 text-sm leading-relaxed text-brand-slate">{plan.text}</p>
+                <p className="mt-2 text-sm font-semibold text-brand-navy">{plan.forWho}</p>
+                <p className="mt-1 text-sm leading-relaxed text-brand-slate">{plan.text}</p>
               </div>
             ))}
           </div>
-          <div className="mt-6 text-center">
-            <Link to="/pricing" className="inline-flex items-center gap-1 font-semibold text-brand-orange hover:underline">
-              Compare all plan features <ArrowRight className="h-4 w-4" />
-            </Link>
+          <div className="mt-8 text-center">
+            <a href={WHATSAPP_TRIAL_URL} target="_blank" rel="noreferrer" className={primaryButton}>
+              <MessageCircle className="h-4 w-4" />
+              <span>Start Free Trial</span>
+            </a>
           </div>
         </div>
       </section>
 
-      {/* Hindi */}
-      <section lang="hi" className="bg-white px-4 py-10 sm:py-12 lg:py-16">
-        <div className={container}>
-          <div className="max-w-3xl mx-auto rounded-2xl border border-gray-200 bg-gradient-to-br from-orange-50 via-white to-white p-6 sm:p-8 shadow-sm">
-            <h2 className="text-xl sm:text-2xl md:text-3xl font-bold text-brand-navy mb-4 leading-snug">
-              क्रशर प्लांट का पूरा हिसाब-किताब, एक ऐप में
-            </h2>
-            <p className="text-sm sm:text-base leading-relaxed text-brand-slate">
-              CrusherBook से कांटा पर्ची, बोल्डर की एंट्री, गिट्टी की बिक्री (टन या घन फुट में), पार्टी का खाता, उधारी, डीज़ल
-              और खर्च सब एक जगह दर्ज होता है। मालिक घर बैठे मोबाइल पर स्टॉक, बकाया और रोज़ का मुनाफ़ा देख सकता है। ऐप हिंदी और
-              अंग्रेज़ी दोनों में चलता है।
-            </p>
-            <div className="mt-5 flex flex-wrap gap-x-5 gap-y-2 text-sm font-semibold">
-              <Link to="/crusher-hisab-kitab-app" className="text-brand-orange hover:underline">क्रशर हिसाब किताब ऐप</Link>
-              <Link to="/crusher-plant-ke-liye-software" className="text-brand-orange hover:underline">क्रशर प्लांट के लिए सॉफ्टवेयर</Link>
-              <Link to="/crusher-udhari-payment-reminder-app" className="text-brand-orange hover:underline">उधारी पेमेंट रिमाइंडर</Link>
+      {/* Testimonials: shown once real reviews are added above */}
+      {testimonials.length > 0 && (
+        <section className="bg-gray-50 px-4 py-10 sm:py-12 lg:py-16">
+          <div className={container}>
+            <div className="max-w-3xl mx-auto text-center mb-8 sm:mb-10">
+              <h2 className={sectionHeading}>What Crusher Owners Say</h2>
+            </div>
+            <div className="grid gap-4 sm:gap-5 sm:grid-cols-2 lg:grid-cols-3">
+              {testimonials.map((t) => (
+                <TestimonialCard key={t.name} {...t} />
+              ))}
             </div>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
 
-      {/* Testimonials */}
-      <section className="bg-gray-50 px-4 py-10 sm:py-12 lg:py-16">
-        <div className={container}>
-          <div className="max-w-3xl mx-auto text-center mb-8 sm:mb-10">
-            <h2 className={sectionHeading}>What Crusher Owners Say</h2>
-            <p className={sectionLead}>
-              Feedback from crusher plant owners and managers in Madhya Pradesh, Chhattisgarh, Odisha and Jharkhand who moved from
-              manual registers to CrusherBook.
-            </p>
-          </div>
-          <div className="grid gap-4 sm:gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            {testimonials.map((t) => (
-              <TestimonialCard key={t.name} {...t} />
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Buyer's guide */}
+      {/* New to crusher software */}
       <section className="bg-white px-4 py-10 sm:py-12">
         <div className={container}>
-          <Link
-            to="/how-to-choose-crusher-plant-erp-software"
-            className="group flex flex-col gap-3 rounded-2xl border border-brand-navy/15 bg-gradient-to-br from-slate-50 to-white p-6 sm:p-8 shadow-sm hover:shadow-md transition-shadow sm:flex-row sm:items-center sm:justify-between"
-          >
+          <div className="flex flex-col gap-5 rounded-2xl border border-brand-navy/15 bg-gradient-to-br from-slate-50 to-white p-6 sm:p-8 shadow-sm lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <h2 className="text-lg sm:text-xl font-bold text-brand-navy">New to crusher software?</h2>
-              <p className="mt-1 text-sm sm:text-base text-brand-slate">
-                Read our beginner’s guide with a 12-point checklist and the questions to ask in every demo.
+              <h2 className="text-xl sm:text-2xl font-bold text-brand-navy">New to Crusher Software?</h2>
+              <p className="mt-2 text-sm sm:text-base text-brand-slate">
+                Not sure where to start? Watch a 3-minute video, or let our team set up your plant and move your old data for you.
               </p>
             </div>
-            <span className="inline-flex items-center gap-1 font-semibold text-brand-orange">
-              Read the guide <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
-            </span>
-          </Link>
+            <div className="flex shrink-0 flex-col gap-3 sm:flex-row">
+              <a href={DEMO_VIDEO_URL || WHATSAPP_VIDEO_URL} target="_blank" rel="noreferrer" className={secondaryButton}>
+                <PlayCircle className="h-4 w-4" />
+                <span>Watch 3-Minute Video</span>
+              </a>
+              <a href={WHATSAPP_CHAT_URL} target="_blank" rel="noreferrer" className={primaryButton}>
+                <MessageCircle className="h-4 w-4" />
+                <span>Talk to Us on WhatsApp</span>
+              </a>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -493,10 +567,7 @@ const Home = () => {
       <section className="bg-gradient-to-b from-gray-50 via-white to-gray-50/50 px-4 py-10 sm:py-12 lg:py-16">
         <div className={container}>
           <div className="text-center mb-8 sm:mb-10">
-            <h2 className={sectionHeading}>Stone Crusher Software FAQs</h2>
-            <p className="text-sm sm:text-base text-brand-slate max-w-2xl mx-auto">
-              Answers to what crusher owners ask most before they switch.
-            </p>
+            <h2 className={sectionHeading}>FAQs</h2>
           </div>
           <div className="space-y-3 sm:space-y-4">
             {faqItems.map((item, index) => {
@@ -530,10 +601,17 @@ const Home = () => {
             Run Your Crusher Without Registers
           </h2>
           <p className="text-sm sm:text-base md:text-lg leading-relaxed text-white/80 max-w-3xl mx-auto">
-            See CrusherBook on your own weighbridge slips. Free demo on WhatsApp, set up the same day.
+            Join crusher owners who see slips, stock, ledgers and profit in one place. Start today from Rs 9,999 per year.
           </p>
-          <div className="mt-8 sm:mt-10">
-            <ContactActions primaryLabel="Start Free Trial" secondaryLabel="Call for Demo" />
+          <div className="mt-8 sm:mt-10 flex flex-col items-stretch justify-center gap-3 sm:flex-row sm:items-center">
+            <a href={WHATSAPP_TRIAL_URL} target="_blank" rel="noreferrer" className={primaryButton}>
+              <MessageCircle className="h-4 w-4" />
+              <span>Start Free Trial</span>
+            </a>
+            <a href={WHATSAPP_CHAT_URL} target="_blank" rel="noreferrer" className={secondaryButton}>
+              <MessageCircle className="h-4 w-4" />
+              <span>Chat on WhatsApp</span>
+            </a>
           </div>
         </div>
       </section>

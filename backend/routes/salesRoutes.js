@@ -3,6 +3,7 @@ const {
   createSales,
   getAllSales,
   getSalesById,
+  getSaleInvoice,
   editSales,
   deleteSales,
 } = require("../controllers/salesController");
@@ -20,6 +21,7 @@ router.use(auth);
 router.use(requireSection("sales"));
 
 router.get("/", getAllSales);
+router.get("/:id/invoice", getSaleInvoice);
 router.get("/:id", getSalesById);
 router.post("/", checkPermission('add'), createSales);
 router.put("/:id", checkPermission('edit'), ownEntryOnly(Sales, "saleDate"), editSales);

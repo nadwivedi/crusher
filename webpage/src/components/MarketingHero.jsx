@@ -31,7 +31,7 @@ export default function MarketingHero() {
               transition={{ duration: 0.5, delay: 0.1 }}
               className="mb-4 text-sm font-semibold leading-snug text-brand-orange sm:text-base lg:text-lg"
             >
-              Billing, weighbridge, stock and party ledger for crusher plants
+              Billing, weighbridge, stock and party ledger for crusher plants.
             </motion.p>
 
             <motion.p
@@ -40,7 +40,7 @@ export default function MarketingHero() {
               transition={{ duration: 0.5, delay: 0.2 }}
               className="mx-auto mb-5 max-w-sm text-xs leading-relaxed text-white/75 sm:max-w-md sm:text-sm lg:mx-0"
             >
-              One app for kanta parchi, boulder entry, gitti sales per ton or cft, stock, party khata, diesel, expenses and daily profit, in English and Hindi.
+              Run your entire crusher plant with one software: kanta parchi, boulder entry, gitti sales per ton or cft, stock, party khata, diesel, expenses and daily profit. Available in English and Hindi.
             </motion.p>
 
             <motion.div
@@ -62,7 +62,7 @@ export default function MarketingHero() {
                 to="/pricing"
                 className="group flex items-center justify-center gap-1 rounded-full bg-brand-orange px-4 py-2.5 text-center text-sm font-bold leading-tight text-white shadow-lg shadow-brand-orange/30 transition-all hover:-translate-y-1 hover:bg-[#e66c00] hover:shadow-brand-orange/50 sm:w-auto sm:gap-2 sm:px-6 sm:py-3 sm:text-base"
               >
-                <span>Book Demo</span>
+                <span>See Pricing</span>
                 <ArrowRight className="h-4 w-4 shrink-0 transition-transform group-hover:translate-x-1 sm:h-5 sm:w-5" />
               </Link>
             </motion.div>
@@ -71,12 +71,13 @@ export default function MarketingHero() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ duration: 0.5, delay: 0.4 }}
-              className="mx-auto grid max-w-sm gap-2 sm:max-w-none sm:grid-cols-1 lg:mx-0"
+              className="mx-auto grid max-w-sm gap-2 sm:max-w-none sm:grid-cols-2 lg:mx-0"
             >
               {[
                 { label: 'Weighbridge slip to bill in one step' },
-                { label: 'Automated WhatsApp bills & payment reminders' },
-                { label: 'Plans starting Rs 9,999 per year' },
+                { label: 'Automatic WhatsApp bills and payment reminders (Advanced)' },
+                { label: 'Plans from Rs 9,999 per year' },
+                { label: 'Works on mobile and computer' },
               ].map((item) => (
                 <div
                   key={item.label}

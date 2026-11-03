@@ -32,6 +32,15 @@ function VehicleIcon() {
   );
 }
 
+function DocumentIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-6 w-6">
+      <path d="M3.5 7.5A2 2 0 0 1 5.5 5.5h4l2 2h7a2 2 0 0 1 2 2v7.5a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2Z" />
+      <path d="m9 13.5 2 2 4-4" />
+    </svg>
+  );
+}
+
 function StockItemIcon() {
   return <AssetIcon src="/stock item_converted.avif" />;
 }
@@ -187,6 +196,7 @@ export const SECTION_CONFIG = {
       { name: 'Manage Party', path: '/party', Icon: PartyIcon },
       { name: 'Stock Item', path: '/stock', Icon: StockItemIcon },
       { name: 'Manage Vehicle', path: '/vehicle', Icon: VehicleIcon },
+      { name: 'Vehicle Documents', path: '/documents', Icon: DocumentIcon },
       { name: 'Bank', path: '/banks', Icon: BankIcon },
       { name: 'Expense Type', path: '/expense-types', Icon: ExpenseTypeIcon }
     ]

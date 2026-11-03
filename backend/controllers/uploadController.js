@@ -39,7 +39,18 @@ const uploadInvoice = (req, res) => {
   return res.json(fileResponse);
 };
 
+const uploadDocument = (req, res) => {
+  const fileResponse = buildFileResponse(req, req.file);
+
+  if (!fileResponse) {
+    return res.status(400).json({ message: "No document uploaded" });
+  }
+
+  return res.json(fileResponse);
+};
+
 module.exports = {
   uploadSlip,
   uploadInvoice,
+  uploadDocument,
 };

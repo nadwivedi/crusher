@@ -97,7 +97,7 @@ const salesSchema = new mongoose.Schema(
       default: 0,
       min: 0,
     },
-    // GST sale: gstAmount is gstRate % of material + transport and is already included in totalAmount
+    // GST sale: gstAmount is gstRate % of material + royalty (transport carries no GST) and is already included in totalAmount
     isGst: {
       type: Boolean,
       default: false,
@@ -109,6 +109,34 @@ const salesSchema = new mongoose.Schema(
       max: 100,
     },
     gstAmount: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    // Royalty sale: royaltyAmount is royaltyQty tons x royaltyRate per ton. It is already included in
+    // totalAmount, and a GST sale charges GST on material + royalty.
+    isRoyalty: {
+      type: Boolean,
+      default: false,
+    },
+    // Royalty pass / slip number
+    royaltyNo: {
+      type: String,
+      trim: true,
+      uppercase: true,
+      default: "",
+    },
+    royaltyRate: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    royaltyQty: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    royaltyAmount: {
       type: Number,
       default: 0,
       min: 0,

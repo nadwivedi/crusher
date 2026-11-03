@@ -167,6 +167,11 @@ const getSaleAmounts = (sale) => {
   };
 };
 
+// Transport charged to the party on a sale; none when the party carried it in its own vehicle
+const getSaleTransportCharge = (sale) => (sale?.transportMode && sale.transportMode !== "party"
+  ? Math.min(Math.max(0, toNumber(sale.totalAmount)), Math.max(0, toNumber(sale.transportCharge)))
+  : 0);
+
 const getPartyOpeningImpact = (party) => {
   const openingBalance = Math.abs(toNumber(party?.openingBalance));
   if (openingBalance <= 0) return 0;
@@ -272,7 +277,13 @@ const buildLedgerRowsForParty = ({ party, sales, purchases, receipts, payments, 
           isGst: Boolean(item.isGst) && toNumber(item.gstAmount) > 0,
           gstRate: item.isGst ? toNumber(item.gstRate) : 0,
           gstAmount: item.isGst ? toNumber(item.gstAmount) : 0,
-          taxableAmount: Math.max(0, saleAmounts.totalAmount - (item.isGst ? toNumber(item.gstAmount) : 0)),
+          // Transport charged to the party carries no GST, so it stays outside the taxable value
+          transportCharge: getSaleTransportCharge(item),
+          taxableAmount: Math.max(0, saleAmounts.totalAmount - (item.isGst ? toNumber(item.gstAmount) : 0) - getSaleTransportCharge(item)),
+          // Royalty charged on the sale, already inside the amount (and inside the taxable value)
+          isRoyalty: Boolean(item.isRoyalty) && toNumber(item.royaltyAmount) > 0,
+          royaltyNo: item.isRoyalty ? item.royaltyNo || "" : "",
+          royaltyAmount: item.isRoyalty ? toNumber(item.royaltyAmount) : 0,
           amount: saleAmounts.totalAmount,
           paidAmount: saleAmounts.paidAmount,
           impact: saleImpact,
@@ -880,10 +891,17 @@ const getPartyLedgerEntryDetail = async (req, res) => {
           { label: "Invoice Date", value: sale.saleDate || sale.createdAt },
           { label: "Sale Type", value: getSaleTypeLabel(sale.totalAmount, sale.paidAmount) },
           { label: "Billed By", value: sale.pricingMode === "per_cubic_meter" ? "CFT (cubic feet)" : "Ton (weight)" },
+          ...(sale.isRoyalty && toNumber(sale.royaltyAmount) > 0
+            ? [
+                ...(sale.royaltyNo ? [{ label: "Royalty No", value: sale.royaltyNo }] : []),
+                { label: "Royalty", value: `${formatAmount(sale.royaltyAmount)} (${toNumber(sale.royaltyQty)} ton x ${formatAmount(sale.royaltyRate)})` },
+              ]
+            : []),
           ...(sale.isGst && toNumber(sale.gstAmount) > 0
             ? [
-                { label: "Taxable Amount", value: formatAmount(toNumber(sale.totalAmount) - toNumber(sale.gstAmount)) },
+                { label: "Taxable Amount", value: formatAmount(toNumber(sale.totalAmount) - toNumber(sale.gstAmount) - getSaleTransportCharge(sale)) },
                 { label: `GST ${toNumber(sale.gstRate)}%`, value: formatAmount(sale.gstAmount) },
+                ...(getSaleTransportCharge(sale) > 0 ? [{ label: "Transport (no GST)", value: formatAmount(getSaleTransportCharge(sale)) }] : []),
                 { label: "Total With GST", value: formatAmount(sale.totalAmount) },
               ]
             : []),

@@ -29,6 +29,9 @@ const sanitizeUser = (user) => ({
   defaultPricingMode: user.defaultPricingMode || "per_ton",
   recordBothQuantities: Boolean(user.recordBothQuantities),
   gstRate: user.gstRate ?? 5,
+  royaltyRate: user.royaltyRate ?? 0,
+  businessAddress: user.businessAddress || "",
+  gstin: user.gstin || "",
   // The owner's subscription, shown on the Settings page
   plan: {
     type: user.planType || "yearly",
@@ -321,6 +324,7 @@ module.exports = {
              defaultPricingMode: owner.defaultPricingMode || "per_ton",
              recordBothQuantities: Boolean(owner.recordBothQuantities),
              gstRate: owner.gstRate ?? 5,
+             royaltyRate: owner.royaltyRate ?? 0,
              permissions: req.employee.permissions,
              sections: readSections(req.employee.sections),
              historyLimitDays: req.employee.historyLimitDays,
@@ -450,6 +454,32 @@ module.exports = {
           return res.status(400).json({ success: false, message: "GST rate must be between 0 and 100" });
         }
         user.gstRate = Math.round(gstRate * 100) / 100;
+      }
+      // Crusher address and GSTIN printed on sale invoices
+      if (req.body?.businessAddress !== undefined || req.body?.gstin !== undefined) {
+        if (req.employee) {
+          return res.status(403).json({ success: false, message: "Only the owner can change the invoice details" });
+        }
+        if (req.body?.businessAddress !== undefined) {
+          user.businessAddress = String(req.body.businessAddress || "").trim().slice(0, 300);
+        }
+        if (req.body?.gstin !== undefined) {
+          const gstin = String(req.body.gstin || "").trim().toUpperCase();
+          if (gstin && !/^[0-9A-Z]{15}$/.test(gstin)) {
+            return res.status(400).json({ success: false, message: "GSTIN must be 15 letters / digits" });
+          }
+          user.gstin = gstin;
+        }
+      }
+      if (req.body?.royaltyRate !== undefined) {
+        if (req.employee) {
+          return res.status(403).json({ success: false, message: "Only the owner can change the royalty rate" });
+        }
+        const royaltyRate = Number(req.body.royaltyRate);
+        if (!Number.isFinite(royaltyRate) || royaltyRate < 0 || royaltyRate > 100000) {
+          return res.status(400).json({ success: false, message: "Enter a valid royalty rate per ton" });
+        }
+        user.royaltyRate = Math.round(royaltyRate * 100) / 100;
       }
 
       await user.save();

@@ -63,6 +63,24 @@ const userSchema = new mongoose.Schema(
       min: 0,
       max: 100,
     },
+    // Printed at the top of every sale invoice, under the crusher name
+    businessAddress: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+    gstin: {
+      type: String,
+      trim: true,
+      uppercase: true,
+      default: "",
+    },
+    // Royalty per ton a sale marked as royalty sale starts with (Rs, e.g. 80 per ton)
+    royaltyRate: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
     // When the starter expense types (Electricity, Food, ...) were added; unset means not yet
     defaultExpenseTypesAddedAt: {
       type: Date,

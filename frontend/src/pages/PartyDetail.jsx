@@ -86,6 +86,8 @@ const isCftSale = (row) => row?.type === 'sale' && isPerCubicMeter(row?.pricingM
 
 // A GST sale's total already holds the GST, so the ledger shows the taxable value and the GST apart
 const isGstSale = (row) => row?.type === 'sale' && Boolean(row?.isGst) && Number(row?.gstAmount || 0) > 0;
+// A sale with royalty: the royalty is inside the total (and inside the taxable value of a GST sale)
+const isRoyaltySale = (row) => row?.type === 'sale' && Boolean(row?.isRoyalty) && Number(row?.royaltyAmount || 0) > 0;
 
 const formatGstRate = (value) => `${formatQuantity(value)}%`;
 
@@ -178,7 +180,8 @@ const describeStatementEntry = (row) => [
   getLedgerMaterialType(row),
   [formatLedgerQuantity(row), formatSaleRate(row, (value) => `Rs ${formatPlainAmount(value)}`)].filter((part) => part && part !== '-').join(' '),
   getLedgerVehicleNumber(row),
-  isGstSale(row) ? `Taxable ${formatPlainAmount(row.taxableAmount)} + GST ${formatGstRate(row.gstRate)} ${formatPlainAmount(row.gstAmount)}` : '',
+  isRoyaltySale(row) ? `Royalty ${formatPlainAmount(row.royaltyAmount)}${row.royaltyNo ? ` (No ${row.royaltyNo})` : ''}` : '',
+  isGstSale(row) ? `Taxable ${formatPlainAmount(row.taxableAmount)} + GST ${formatGstRate(row.gstRate)} ${formatPlainAmount(row.gstAmount)}${Number(row.transportCharge || 0) > 0 ? ` + Transport ${formatPlainAmount(row.transportCharge)}` : ''}` : '',
   row.type === 'receipt' || row.type === 'payment' ? row.itemSummary : ''
 ].filter((part) => part && part !== '-').join(' · ');
 
@@ -641,12 +644,16 @@ export default function PartyDetail() {
           if (isCftSale(row)) {
              message += `   Qty: ${formatLedgerQuantity(row)}${row.rate ? ` @ ${formatCurrencyText(row.rate)}/cft` : ''}\n`;
           }
+          if (isRoyaltySale(row)) {
+             message += `   Royalty: ${formatCurrencyText(row.royaltyAmount)}${row.royaltyNo ? ` (No ${row.royaltyNo})` : ''}\n`;
+          }
           if (row.type === 'blasting') {
              message += `   Qty: ${formatLedgerQuantity(row)}${row.rate ? ` @ ${formatCurrencyText(row.rate)}/ton` : ''}\n`;
           }
           if (isGstSale(row)) {
              message += `   Taxable: ${formatCurrencyText(row.taxableAmount)}\n`;
              message += `   GST ${formatGstRate(row.gstRate)}: ${formatCurrencyText(row.gstAmount)}\n`;
+             if (Number(row.transportCharge || 0) > 0) message += `   Transport (no GST): ${formatCurrencyText(row.transportCharge)}\n`;
              message += `   Total: ${formatCurrencyText(row.amount)}\n`;
           } else {
              message += `   Amount: ${formatCurrencyText(row.amount)}\n`;
@@ -930,11 +937,12 @@ export default function PartyDetail() {
                       </span>
                       <span className="text-sm font-bold text-slate-900">{formatCurrency(row.amount)}</span>
                     </div>
-                    {(isCftSale(row) || isGstSale(row)) && (
+                    {(isCftSale(row) || isGstSale(row) || isRoyaltySale(row)) && (
                       <p className="mt-0.5 text-[11px] text-slate-500">
                         {[
                           isCftSale(row) ? [formatLedgerQuantity(row), formatSaleRate(row)].filter(Boolean).join(' ') : '',
-                          isGstSale(row) ? `Taxable ${formatCurrency(row.taxableAmount)} + GST ${formatGstRate(row.gstRate)} ${formatCurrency(row.gstAmount)}` : ''
+                          isRoyaltySale(row) ? `Royalty ${formatCurrency(row.royaltyAmount)}${row.royaltyNo ? ` (No ${row.royaltyNo})` : ''}` : '',
+                          isGstSale(row) ? `Taxable ${formatCurrency(row.taxableAmount)} + GST ${formatGstRate(row.gstRate)} ${formatCurrency(row.gstAmount)}${Number(row.transportCharge || 0) > 0 ? ` + Transport ${formatCurrency(row.transportCharge)}` : ''}` : ''
                         ].filter(Boolean).join(' · ')}
                       </p>
                     )}
@@ -1016,10 +1024,14 @@ export default function PartyDetail() {
                           {formatSaleRate(row) && <span className="block text-[11px] text-slate-400">{formatSaleRate(row)}</span>}
                         </td>
                         <td className={`${TD} whitespace-nowrap text-right`}>
+                          {isRoyaltySale(row) && (
+                            <span className="block text-[11px] text-orange-700">Royalty {formatCurrency(row.royaltyAmount)}{row.royaltyNo ? ` · No ${row.royaltyNo}` : ''}</span>
+                          )}
                           {isGstSale(row) ? (
                             <>
                               <span className="block text-[11px] text-slate-500">Taxable {formatCurrency(row.taxableAmount)}</span>
                               <span className="block text-[11px] text-slate-500">GST {formatGstRate(row.gstRate)} {formatCurrency(row.gstAmount)}</span>
+                              {Number(row.transportCharge || 0) > 0 && <span className="block text-[11px] text-slate-500">Transport {formatCurrency(row.transportCharge)}</span>}
                               <span className="block font-semibold text-slate-900">{formatCurrency(row.amount)}</span>
                             </>
                           ) : (

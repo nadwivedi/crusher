@@ -5,6 +5,7 @@ const Counter = require("../models/Counter");
 const Receipt = require("../models/Receipt");
 const Party = require("../models/Party");
 const Vehicle = require("../models/Vehicle");
+const User = require("../models/User");
 const { scopedFilter, scopedIdFilter } = require("../utils/ownership");
 const { applyCreatorFilter } = require("../middleware/staffAccess");
 const { resolveAccountId } = require("../utils/accounts");
@@ -98,6 +99,15 @@ const normalizeSalesPayload = (payload = {}) => {
     nextPayload.gstAmount = nextPayload.isGst ? Math.max(0, toNumber(nextPayload.gstAmount)) : 0;
   }
 
+  // A sale without royalty carries no royalty number or amount
+  if (Object.prototype.hasOwnProperty.call(nextPayload, "isRoyalty")) {
+    nextPayload.isRoyalty = nextPayload.isRoyalty === true || nextPayload.isRoyalty === "true";
+    nextPayload.royaltyNo = nextPayload.isRoyalty ? String(nextPayload.royaltyNo || "").trim().toUpperCase().slice(0, 40) : "";
+    nextPayload.royaltyRate = nextPayload.isRoyalty ? Math.max(0, toNumber(nextPayload.royaltyRate)) : 0;
+    nextPayload.royaltyQty = nextPayload.isRoyalty ? Math.max(0, toNumber(nextPayload.royaltyQty)) : 0;
+    nextPayload.royaltyAmount = nextPayload.isRoyalty ? Math.max(0, toNumber(nextPayload.royaltyAmount)) : 0;
+  }
+
   delete nextPayload.party;
   delete nextPayload.materialType;
   delete nextPayload.invoice;
@@ -184,6 +194,11 @@ const serializeSale = (saleDoc) => {
     isGst: Boolean(sale.isGst),
     gstRate: toNumber(sale.gstRate),
     gstAmount: toNumber(sale.gstAmount),
+    isRoyalty: Boolean(sale.isRoyalty),
+    royaltyNo: sale.royaltyNo || "",
+    royaltyRate: toNumber(sale.royaltyRate),
+    royaltyQty: toNumber(sale.royaltyQty),
+    royaltyAmount: sale.isRoyalty ? toNumber(sale.royaltyAmount) : 0,
   };
 };
 
@@ -395,11 +410,11 @@ const getAllSales = async (req, res) => {
         .limit(limit),
       Sales.countDocuments(query),
       Sales.find(statsQuery)
-        .select("totalAmount gstAmount type netWeight stoneSize pricingMode cubicMeterQty")
+        .select("totalAmount gstAmount isRoyalty royaltyAmount type netWeight stoneSize pricingMode cubicMeterQty")
         .lean(),
     ]);
 
-    const summary = { totalAmount: 0, gstAmount: 0, cashAmount: 0, creditAmount: 0, totalWeight: 0 };
+    const summary = { totalAmount: 0, gstAmount: 0, royaltyAmount: 0, royaltyCount: 0, cashAmount: 0, creditAmount: 0, totalWeight: 0 };
     const materialMap = new Map();
     statRows.forEach((row) => {
       const amount = Number(row.totalAmount || 0);
@@ -417,6 +432,10 @@ const getAllSales = async (req, res) => {
       summary.totalAmount += amount;
       summary.totalWeight += weight;
       summary.gstAmount += Number(row.gstAmount || 0);
+      if (row.isRoyalty) {
+        summary.royaltyAmount += Number(row.royaltyAmount || 0);
+        summary.royaltyCount += 1;
+      }
       if (row.type === "cash") summary.cashAmount += amount;
       else summary.creditAmount += amount;
     });
@@ -465,6 +484,61 @@ const getSalesById = async (req, res) => {
   } catch (error) {
     return res.status(500).json({
       message: "Failed to fetch sales",
+      error: error.message,
+    });
+  }
+};
+
+// Everything the invoice of one sale prints: the sale, who it was sold to, and the crusher selling it
+const getSaleInvoice = async (req, res) => {
+  const { id } = req.params;
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    return res.status(400).json({ message: "Invalid sales id" });
+  }
+
+  try {
+    const query = scopedIdFilter(req, id);
+    if (req.visibilityBoundary) {
+      query.saleDate = { $gte: req.visibilityBoundary };
+    }
+    applyCreatorFilter(req, query);
+
+    const sale = await Sales.findOne(query);
+    if (!sale) {
+      return res.status(404).json({ message: "Sales not found" });
+    }
+
+    const [party, seller] = await Promise.all([
+      Party.findOne({ _id: sale.partyId, userId: req.userId }).select("name mobile email address state pincode").lean(),
+      User.findById(req.userId).select("name mobile email state district businessAddress gstin").lean(),
+    ]);
+
+    return res.json({
+      sale: serializeSale(sale),
+      party: party
+        ? {
+            name: party.name || "",
+            mobile: party.mobile || "",
+            email: party.email || "",
+            address: party.address || "",
+            state: party.state || "",
+            pincode: party.pincode || "",
+          }
+        : null,
+      seller: {
+        name: seller?.name || "",
+        mobile: seller?.mobile || "",
+        email: seller?.email || "",
+        address: seller?.businessAddress || "",
+        district: seller?.district || "",
+        state: seller?.state || "",
+        gstin: seller?.gstin || "",
+      },
+    });
+  } catch (error) {
+    return res.status(500).json({
+      message: "Failed to load the invoice",
       error: error.message,
     });
   }
@@ -600,6 +674,7 @@ module.exports = {
   createSales,
   getAllSales,
   getSalesById,
+  getSaleInvoice,
   editSales,
   deleteSales,
 };

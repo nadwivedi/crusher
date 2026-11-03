@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Ban, CalendarClock, ClipboardList, Inbox, Pencil, Plus, RotateCcw, SlidersHorizontal, Trash2, Truck, Wallet } from 'lucide-react';
+import { ArrowLeft, Ban, CalendarClock, ClipboardList, FolderOpen, Inbox, Pencil, Plus, RotateCcw, SlidersHorizontal, Trash2, Truck, Wallet } from 'lucide-react';
 import { toast } from 'react-toastify';
 import apiClient from '../utils/api';
 import StatCard from '../components/StatCard';
@@ -274,6 +274,7 @@ export default function VehicleLedger() {
           {isHired && (
             <button type="button" className="btn-secondary" onClick={() => setPopup('entry')}><Plus size={16} /> Add Entry</button>
           )}
+          <Link to={`/documents?vehicle=${vehicle._id}`} className="btn-secondary"><FolderOpen size={16} /> Documents</Link>
           <button type="button" className="btn-secondary" onClick={() => setPopup('edit')}><Pencil size={16} /> Edit Vehicle</button>
         </div>
       </div>

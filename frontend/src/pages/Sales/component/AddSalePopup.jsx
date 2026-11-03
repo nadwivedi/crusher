@@ -18,6 +18,7 @@ import {
   getSaleTransportCharge
 } from '../../../utils/transport';
 import { formatGstRate } from '../../../utils/saleGst';
+import { getSaleRoyaltyAmount, getSaleRoyaltyQty, isRoyaltyQtyFromWeight } from '../../../utils/saleRoyalty';
 
 const SALE_BASIS_OPTIONS = [
   { value: 'per_ton', label: 'Per Ton' },
@@ -99,6 +100,8 @@ export default function AddSalePopup({
   saleTypePreview,
   // Turns GST Sale on / off
   onToggleGst,
+  // Turns Royalty on / off
+  onToggleRoyalty,
   pendingAmountPreview,
   excessAmountPreview,
   handleLeadgerFocus,
@@ -205,10 +208,22 @@ export default function AddSalePopup({
   const saleTransport = getSaleTransport(formData);
   const transportUnit = getBasisUnit(formData.transportBasis);
   const saleBalance = Number(formData.totalAmount || 0) - Number(formData.paidAmount || 0);
-  // The material on its own: the sale total less the transport charged to the party and the GST
-  const subtotalAmount = Math.max(0, Number(formData.totalAmount || 0)) / (formData.isGst ? 1 + Number(formData.gstRate || 0) / 100 : 1);
-  const gstAmount = formData.isGst ? Math.max(0, Number(formData.totalAmount || 0) - subtotalAmount) : 0;
-  const materialAmount = Math.max(0, subtotalAmount - transportCharge);
+  // Royalty: tons (the net weight, or typed when the sale is not weighed) x royalty rate per ton
+  const royaltyAmount = getSaleRoyaltyAmount(formData);
+  const royaltyQty = getSaleRoyaltyQty(formData);
+  const royaltyQtyFromWeight = isRoyaltyQtyFromWeight(formData);
+  // The sale total less the transport (which carries no GST) is material + royalty + GST on those two
+  const taxedTotal = Math.max(0, Number(formData.totalAmount || 0) - transportCharge);
+  const taxableAmount = taxedTotal / (formData.isGst ? 1 + Number(formData.gstRate || 0) / 100 : 1);
+  const gstAmount = formData.isGst ? Math.max(0, taxedTotal - taxableAmount) : 0;
+  const materialAmount = Math.max(0, taxableAmount - royaltyAmount);
+  // Material (+ royalty) (+ GST on those) + transport = total
+  const totalParts = [
+    { key: 'material', label: 'Material', value: materialAmount, className: 'text-slate-800' },
+    ...(formData.isRoyalty ? [{ key: 'royalty', label: 'Royalty', value: royaltyAmount, className: 'text-orange-700' }] : []),
+    ...(formData.isGst ? [{ key: 'gst', label: `GST ${formatGstRate(formData.gstRate)}`, value: gstAmount, className: 'text-sky-700' }] : []),
+    { key: 'transport', label: formData.isGst ? 'Transport (no GST)' : 'Transport', value: transportCharge, className: 'text-slate-800' }
+  ];
   const resolvedProductInputRef = productInputRef || localProductInputRef;
   const leadgerDropdownStyle = useFloatingDropdownPosition(leadgerSectionRef, isLeadgerSectionActive, [filteredLeadgers.length, leadgerListIndex]);
   const vehicleDropdownStyle = useFloatingDropdownPosition(vehicleSectionRef, isVehicleSectionActive, [filteredVehicles.length, vehicleListIndex]);
@@ -638,8 +653,64 @@ export default function AddSalePopup({
           </div>
         </FormSection>
 
-        <FormSection number={5} title="Final Price & Payment" tone="slate">
-          {/* GST Sale: GST % of material + transport is added on top */}
+        <FormSection
+          number={5}
+          title="Royalty"
+          tone="amber"
+          hint={formData.isRoyalty
+            ? 'Royalty tons x rate per ton is added to the bill, before GST.'
+            : 'Turn on only for a sale that carries royalty.'}
+          action={(
+            <label className="flex shrink-0 cursor-pointer items-center gap-2">
+              <input
+                id="sale-royalty-toggle"
+                type="checkbox"
+                className="h-4 w-4 accent-primary-600"
+                checked={Boolean(formData.isRoyalty)}
+                onChange={onToggleRoyalty}
+              />
+              <span className="text-sm font-semibold text-slate-800">Add Royalty</span>
+            </label>
+          )}
+        >
+          {formData.isRoyalty && (
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <div>
+                <label className="label" htmlFor="sale-royalty-no-input">Royalty No</label>
+                <input id="sale-royalty-no-input" className="input" type="text" name="royaltyNo" value={formData.royaltyNo || ''} onChange={handleInputChange} onKeyDown={handleSelectEnterMoveNext} placeholder="Royalty pass no" autoComplete="off" maxLength={40} />
+              </div>
+              <div>
+                <label className="label" htmlFor="sale-royalty-rate-input">Royalty Per Ton</label>
+                <div className="relative">
+                  <span className={PREFIX_CLASS}>₹</span>
+                  <input id="sale-royalty-rate-input" className="input pl-7 pr-12 font-semibold" type="number" name="royaltyRate" value={formData.royaltyRate || ''} onChange={handleInputChange} onKeyDown={handleSelectEnterMoveNext} placeholder="0" step="0.01" min="0" />
+                  <span className={SUFFIX_CLASS}>/ton</span>
+                </div>
+              </div>
+              <div>
+                <label className="label" htmlFor="sale-royalty-qty-input">Royalty Tons</label>
+                <div className="relative">
+                  {royaltyQtyFromWeight ? (
+                    <input id="sale-royalty-qty-input" className={`${COMPUTED_CLASS} pr-10`} type="number" value={royaltyQty || ''} readOnly placeholder="From net weight" />
+                  ) : (
+                    <input id="sale-royalty-qty-input" className="input pr-10" type="number" name="royaltyQty" value={formData.royaltyQty || ''} onChange={handleInputChange} onKeyDown={handleSelectEnterMoveNext} placeholder="0" step="0.001" min="0" />
+                  )}
+                  <span className={SUFFIX_CLASS}>ton</span>
+                </div>
+              </div>
+              <div>
+                <label className="label" htmlFor="sale-royalty-amount">Royalty Amount</label>
+                <div className="relative">
+                  <span className={PREFIX_CLASS}>₹</span>
+                  <input id="sale-royalty-amount" className={`${COMPUTED_CLASS} pl-7 text-orange-700`} type="number" value={royaltyAmount || 0} readOnly />
+                </div>
+              </div>
+            </div>
+          )}
+        </FormSection>
+
+        <FormSection number={6} title="Final Price & Payment" tone="slate">
+          {/* GST Sale: GST % of material (+ royalty) is added on top; transport carries no GST */}
           <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-white px-3 py-2 ring-1 ring-inset ring-slate-200">
             <label className="flex cursor-pointer items-center gap-2.5">
               <input
@@ -662,28 +733,22 @@ export default function AddSalePopup({
             )}
           </div>
 
-          {/* Material + transport (+ GST) = what the party pays in all */}
-          <div className={`grid ${formData.isGst ? 'grid-cols-[1fr_auto_1fr_auto_1fr_auto_1fr]' : 'grid-cols-[1fr_auto_1fr_auto_1fr]'} items-center gap-1.5 rounded-lg bg-white px-3 py-2.5 text-center ring-1 ring-inset ring-slate-200 sm:gap-3`}>
-            <div>
-              <p className="text-[11px] font-semibold uppercase text-slate-400">Material</p>
-              <p className="text-sm font-bold text-slate-800 sm:text-base">{formatAmount(materialAmount)}</p>
-            </div>
-            <span className="text-lg font-bold text-slate-400">+</span>
-            <div>
-              <p className="text-[11px] font-semibold uppercase text-slate-400">Transport</p>
-              <p className="text-sm font-bold text-slate-800 sm:text-base">{formatAmount(transportCharge)}</p>
-            </div>
-            {formData.isGst && (
-              <>
-                <span className="text-lg font-bold text-slate-400">+</span>
-                <div>
-                  <p className="text-[11px] font-semibold uppercase text-slate-400">GST {formatGstRate(formData.gstRate)}</p>
-                  <p className="text-sm font-bold text-sky-700 sm:text-base">{formatAmount(gstAmount)}</p>
+          {/* Material (+ royalty) (+ GST) + transport = what the party pays in all */}
+          <div
+            className="grid items-center gap-1.5 rounded-lg bg-white px-3 py-2.5 text-center ring-1 ring-inset ring-slate-200 sm:gap-3"
+            style={{ gridTemplateColumns: Array.from({ length: totalParts.length + 1 }, () => 'minmax(0,1fr)').join(' auto ') }}
+          >
+            {totalParts.map((part, index) => (
+              <div key={part.key} className="contents">
+                {index > 0 && <span className="text-lg font-bold text-slate-400">+</span>}
+                <div className="min-w-0">
+                  <p className="truncate text-[11px] font-semibold uppercase text-slate-400">{part.label}</p>
+                  <p className={`text-sm font-bold sm:text-base ${part.className}`}>{formatAmount(part.value)}</p>
                 </div>
-              </>
-            )}
+              </div>
+            ))}
             <span className="text-lg font-bold text-slate-400">=</span>
-            <div>
+            <div className="min-w-0">
               <p className="text-[11px] font-semibold uppercase text-slate-400">Total</p>
               <p className="text-base font-bold text-primary-700 sm:text-lg">{formatAmount(formData.totalAmount)}</p>
             </div>
