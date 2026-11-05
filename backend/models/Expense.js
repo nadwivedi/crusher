@@ -90,6 +90,12 @@ const expenseSchema = new mongoose.Schema(
       type: Date,
       default: Date.now,
     },
+    // Made by Payroll for a salary payment or advance; it is changed and deleted only from Payroll
+    payrollEntry: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "PayrollEntry",
+      default: null,
+    },
     notes: {
       type: String,
       trim: true,

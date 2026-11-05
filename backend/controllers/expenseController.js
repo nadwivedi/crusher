@@ -361,6 +361,10 @@ const editExpense = async (req, res) => {
       return res.status(404).json({ success: false, message: "Expense not found" });
     }
 
+    if (expense.payrollEntry) {
+      return res.status(400).json({ success: false, message: "This salary / advance was paid from Payroll. Change it in Payroll." });
+    }
+
     // Goods expenses move stock, so only service expenses can be edited.
     if (Array.isArray(expense.items) && expense.items.length > 0) {
       return res.status(400).json({
@@ -439,6 +443,11 @@ const deleteExpense = async (req, res) => {
     const userId = req.userId;
     if (!mongoose.isValidObjectId(id)) {
       return res.status(400).json({ success: false, message: "Invalid expense id" });
+    }
+
+    const linked = await Expense.exists({ _id: id, userId, payrollEntry: { $ne: null } });
+    if (linked) {
+      return res.status(400).json({ success: false, message: "This salary / advance was paid from Payroll. Delete it in Payroll." });
     }
 
     const expense = await Expense.findOneAndDelete({ _id: id, userId });
