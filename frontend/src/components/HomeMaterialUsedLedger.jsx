@@ -50,7 +50,7 @@ export default function HomeMaterialUsedLedger() {
         setEntries(rows);
         setError('');
       } catch (err) {
-        setError(err.message || 'Unable to load material used ledger');
+        setError(err.message || 'Unable to load material issued ledger');
       } finally {
         setLoading(false);
       }
@@ -107,7 +107,7 @@ export default function HomeMaterialUsedLedger() {
 
       <div className="overflow-hidden rounded-[24px] border border-slate-200 bg-white lg:rounded-[20px] xl:rounded-[24px]">
         {loading ? (
-          <div className="px-4 py-12 text-center text-sm font-medium text-slate-500">Loading material used ledger...</div>
+          <div className="px-4 py-12 text-center text-sm font-medium text-slate-500">Loading material issued ledger...</div>
         ) : recentEntries.length > 0 ? (
           <>
             <div className="space-y-3 p-3 lg:hidden">
@@ -161,7 +161,7 @@ export default function HomeMaterialUsedLedger() {
             <div className="rounded-full bg-slate-100 p-4">
               <Package className="h-7 w-7 text-slate-400" />
             </div>
-            <p className="mt-4 text-base font-semibold text-slate-700">No material used entries found</p>
+            <p className="mt-4 text-base font-semibold text-slate-700">No material issued entries found</p>
             <p className="mt-1 text-sm text-slate-500">New usage entries will appear here automatically.</p>
           </div>
         )}

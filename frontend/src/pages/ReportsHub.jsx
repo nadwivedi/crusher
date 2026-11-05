@@ -14,7 +14,7 @@ const REPORT_ITEMS = [
   { name: 'Purchase Report', path: '/reports/purchase-report', Icon: ShoppingCart, section: 'purchases' },
   { name: 'Money Received', hint: 'Receipts', path: '/reports/receipt-report', Icon: HandCoins, section: 'receipts' },
   { name: 'Money Paid', hint: 'Payments', path: '/reports/payment-report', Icon: Send, section: 'payments' },
-  { name: 'Material Used', path: '/reports/material-used-ledger', Icon: PackageMinus, section: 'materialUsed' },
+  { name: 'Material Issued', path: '/reports/material-used-ledger', Icon: PackageMinus, section: 'materialUsed' },
   { name: 'Meter Reading', path: '/meter-readings', Icon: Gauge, section: 'meterReadings' },
   { name: 'Stock Ledger', path: '/reports/stock-ledger', Icon: Boxes, section: 'materialUsed' },
   { name: 'Sale Return Report', path: '/reports/sale-return-report', Icon: RefreshCw, section: 'sales' },

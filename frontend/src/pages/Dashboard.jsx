@@ -62,7 +62,7 @@ const QUICK_ENTRIES = [
   { label: 'New Expense', stateKey: 'homeQuickExpense', icon: Wallet, tone: 'bg-amber-50 text-amber-700 ring-amber-100' },
   { label: 'Money Received', stateKey: 'homeQuickReceipt', icon: HandCoins, tone: 'bg-teal-50 text-teal-700 ring-teal-100' },
   { label: 'Money Paid', stateKey: 'homeQuickPayment', icon: Send, tone: 'bg-rose-50 text-rose-700 ring-rose-100' },
-  { label: 'Material Used', stateKey: 'homeQuickMaterialUsed', icon: PackageMinus, tone: 'bg-indigo-50 text-indigo-700 ring-indigo-100' },
+  { label: 'Material Issued', stateKey: 'homeQuickMaterialUsed', icon: PackageMinus, tone: 'bg-indigo-50 text-indigo-700 ring-indigo-100' },
 ];
 // Less frequent entries, in the popup behind the "More Entries" button
 const MORE_ENTRIES = [

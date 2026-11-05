@@ -52,7 +52,7 @@ const TYPES = {
   receipt: { label: 'Money Received', icon: HandCoins, tile: 'bg-teal-50 text-teal-700 ring-teal-100', value: 'text-emerald-700', sign: '+' },
   payment: { label: 'Money Paid', icon: Send, tile: 'bg-rose-50 text-rose-700 ring-rose-100', value: 'text-rose-600', sign: '-' },
   expense: { label: 'Expense', icon: Wallet, tile: 'bg-amber-50 text-amber-700 ring-amber-100', value: 'text-rose-600', sign: '-' },
-  materialUsed: { label: 'Material Used', icon: PackageMinus, tile: 'bg-indigo-50 text-indigo-700 ring-indigo-100', value: 'text-indigo-700', sign: '' },
+  materialUsed: { label: 'Material Issued', icon: PackageMinus, tile: 'bg-indigo-50 text-indigo-700 ring-indigo-100', value: 'text-indigo-700', sign: '' },
   meterReading: { label: 'Meter Reading', icon: Gauge, tile: 'bg-slate-100 text-slate-700 ring-slate-200', value: 'text-slate-800', sign: '' },
   dumpIn: { label: 'To Dump', icon: ArrowUpFromLine, tile: 'bg-orange-50 text-orange-700 ring-orange-100', value: 'text-slate-800', sign: '' },
   dumpOut: { label: 'Dump to Hopper', icon: ArrowDownToLine, tile: 'bg-sky-50 text-sky-700 ring-sky-100', value: 'text-slate-800', sign: '' },

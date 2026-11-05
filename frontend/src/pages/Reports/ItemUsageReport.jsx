@@ -81,7 +81,7 @@ const TABS = [
 const MOVEMENT_TYPES = {
   purchase: { label: 'Purchase', className: 'badge-green' },
   pump: { label: 'Pump Fill', className: 'inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-700 ring-1 ring-amber-200' },
-  used: { label: 'Material Used', className: 'badge-gray' },
+  used: { label: 'Material Issued', className: 'badge-gray' },
   purchaseReturn: { label: 'Purchase Return', className: 'badge-red' },
   adjustIn: { label: 'Adjustment +', className: 'badge-blue' },
   adjustOut: { label: 'Adjustment −', className: 'badge-orange' }

@@ -178,7 +178,7 @@ const getActivity = async (req, res) => {
         const usedFor = usedForOf(entry);
         return {
           ...base("materialUsed", entry, entry.usedDate),
-          title: entry.materialTypeName || "Material used",
+          title: entry.materialTypeName || "Material issued",
           detail: join([usedFor === "dg" ? "DG Set" : usedFor === "vehicle" ? entry.vehicleNo : "Plant / Other", entry.notes]),
           qty: toNumber(entry.usedQty),
           unit: entry.unit || "",

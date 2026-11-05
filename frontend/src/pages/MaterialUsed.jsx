@@ -83,7 +83,7 @@ function MaterialUsedForm({
       <div className="flex-shrink-0 bg-gradient-to-r from-primary-700 to-primary-500 p-3 text-white md:px-5 md:py-4">
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0">
-            <h2 className="truncate text-lg font-bold md:text-xl">{editingId ? 'Edit Material Used' : 'Add Material Used'}</h2>
+            <h2 className="truncate text-lg font-bold md:text-xl">{editingId ? 'Edit Material Issued' : 'Add Material Issued'}</h2>
             <p className="mt-0.5 text-xs text-primary-100 md:text-sm">Diesel or material given to a vehicle, DG set or the plant</p>
           </div>
           {onClose && (
@@ -410,7 +410,7 @@ export default function MaterialUsed({ modalOnly = false, onModalFinish = null, 
       const response = await apiClient.get('/material-used', { params: { search: searchValue } });
       setEntries(Array.isArray(response?.data) ? response.data : Array.isArray(response) ? response : []);
     } catch (err) {
-      setError(err.message || 'Error fetching material used entries');
+      setError(err.message || 'Error fetching material issued entries');
     } finally {
       setFetching(false);
     }
@@ -492,10 +492,10 @@ export default function MaterialUsed({ modalOnly = false, onModalFinish = null, 
       setLoading(true);
       if (editingId) {
         await apiClient.put(`/material-used/${editingId}`, payload);
-        toast.success('Material used entry updated successfully', TOAST_OPTIONS);
+        toast.success('Material issued entry updated successfully', TOAST_OPTIONS);
       } else {
         await apiClient.post('/material-used', payload);
-        toast.success('Material used entry added successfully', TOAST_OPTIONS);
+        toast.success('Material issued entry added successfully', TOAST_OPTIONS);
       }
       resetForm();
       await fetchEntries();
@@ -504,7 +504,7 @@ export default function MaterialUsed({ modalOnly = false, onModalFinish = null, 
         onModalFinish();
       }
     } catch (err) {
-      toast.error(err.message || 'Error saving material used entry', TOAST_OPTIONS);
+      toast.error(err.message || 'Error saving material issued entry', TOAST_OPTIONS);
     } finally {
       setLoading(false);
     }
@@ -645,20 +645,20 @@ export default function MaterialUsed({ modalOnly = false, onModalFinish = null, 
   };
 
   const handleDelete = async (id) => {
-    if (!window.confirm('Delete this material used entry?')) {
+    if (!window.confirm('Delete this material issued entry?')) {
       return;
     }
 
     try {
       await apiClient.delete(`/material-used/${id}`);
-      toast.success('Material used entry deleted successfully', TOAST_OPTIONS);
+      toast.success('Material issued entry deleted successfully', TOAST_OPTIONS);
       if (editingId === id) {
         resetForm();
       }
       await fetchEntries();
       await fetchOptions();
     } catch (err) {
-      toast.error(err.message || 'Error deleting material used entry', TOAST_OPTIONS);
+      toast.error(err.message || 'Error deleting material issued entry', TOAST_OPTIONS);
     }
   };
 
@@ -668,7 +668,7 @@ export default function MaterialUsed({ modalOnly = false, onModalFinish = null, 
         <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.24em] text-violet-500">Voucher</p>
-            <h1 className="mt-2 text-3xl font-bold text-slate-900">Material Used</h1>
+            <h1 className="mt-2 text-3xl font-bold text-slate-900">Material Issued</h1>
             <p className="mt-2 max-w-2xl text-sm text-slate-600">Use this voucher when purchased material is consumed. Stock reduces automatically against the selected material.</p>
           </div>
 
@@ -733,7 +733,7 @@ export default function MaterialUsed({ modalOnly = false, onModalFinish = null, 
             type="text"
             value={search}
             onChange={(event) => setSearch(event.target.value)}
-            placeholder="Search material used..."
+            placeholder="Search material issued..."
             className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none transition focus:border-violet-400 focus:ring-2 focus:ring-violet-100 md:max-w-xs"
           />
         </div>
@@ -759,11 +759,11 @@ export default function MaterialUsed({ modalOnly = false, onModalFinish = null, 
             <tbody>
               {fetching ? (
                 <tr>
-                  <td colSpan="6" className="px-4 py-10 text-center text-slate-500">Loading material used entries...</td>
+                  <td colSpan="6" className="px-4 py-10 text-center text-slate-500">Loading material issued entries...</td>
                 </tr>
               ) : entries.length === 0 ? (
                 <tr>
-                  <td colSpan="6" className="px-4 py-10 text-center text-slate-500">No material used entries found.</td>
+                  <td colSpan="6" className="px-4 py-10 text-center text-slate-500">No material issued entries found.</td>
                 </tr>
               ) : (
                 entries.map((entry) => (

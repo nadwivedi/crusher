@@ -395,7 +395,7 @@ export default function DieselAverage() {
             {rows.length === 0 ? (
               <div className="px-6 py-14 text-center">
                 <p className="font-semibold text-slate-800">No diesel or meter reading in this period</p>
-                <p className="text-sm text-slate-500">Issue diesel in Material Used and enter meter readings to see each vehicle&apos;s average.</p>
+                <p className="text-sm text-slate-500">Issue diesel in Material Issued and enter meter readings to see each vehicle&apos;s average.</p>
               </div>
             ) : (
               <>

@@ -129,7 +129,7 @@ export default function MaterialUsedLedger() {
         : [];
       setEntries(rows);
     } catch (err) {
-      setError(err.message || 'Error loading material used ledger');
+      setError(err.message || 'Error loading material issued ledger');
     } finally {
       setLoading(false);
     }
@@ -261,7 +261,7 @@ export default function MaterialUsedLedger() {
       hint: topMaterial ? `${formatNumber(topMaterial.qty)} ${topMaterial.unit} · ${entryCount(topMaterial.count)}` : 'No usage in this period'
     },
     { icon: ClipboardList, label: 'Entries', tone: 'blue', value: formatNumber(filteredRows.length), hint: periodLabel },
-    { icon: Package, label: 'Materials', tone: 'indigo', value: formatNumber(usage.length), hint: 'Different materials used' }
+    { icon: Package, label: 'Materials', tone: 'indigo', value: formatNumber(usage.length), hint: 'Different materials issued' }
   ];
 
   const qtyText = (row) => (
@@ -306,7 +306,7 @@ export default function MaterialUsedLedger() {
 
       <div className="page-header">
         <div className="min-w-0">
-          <h1 className="page-title">Material Used Ledger</h1>
+          <h1 className="page-title">Material Issued Ledger</h1>
           <p className="page-subtitle">Consumed material · {periodText}</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -315,7 +315,7 @@ export default function MaterialUsedLedger() {
             <Fuel size={18} /> Pump Fill
           </button>
           <button type="button" className="btn-primary" onClick={() => setShowAddEntry(true)}>
-            <Plus size={18} /> Add Material Used
+            <Plus size={18} /> Add Material Issued
           </button>
         </div>
       </div>
@@ -327,7 +327,7 @@ export default function MaterialUsedLedger() {
       {loading && entries.length === 0 ? (
         <div className="flex flex-col items-center gap-3 py-16">
           <div className="h-9 w-9 animate-spin rounded-full border-4 border-primary-600 border-r-transparent" />
-          <p className="text-sm text-slate-400">Loading material used ledger…</p>
+          <p className="text-sm text-slate-400">Loading material issued ledger…</p>
         </div>
       ) : (
         <div className={`space-y-4 transition-opacity md:space-y-5 ${loading ? 'pointer-events-none opacity-50' : ''}`}>
@@ -411,9 +411,9 @@ export default function MaterialUsedLedger() {
                 <span className="flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 text-slate-400">
                   <Inbox size={22} />
                 </span>
-                <p className="text-sm font-semibold text-slate-800">No material used entries found</p>
+                <p className="text-sm font-semibold text-slate-800">No material issued entries found</p>
                 <p className="text-xs text-slate-500">
-                  {entries.length === 0 ? 'Add the first entry with "Add Material Used".' : 'Try changing the search or the period.'}
+                  {entries.length === 0 ? 'Add the first entry with "Add Material Issued".' : 'Try changing the search or the period.'}
                 </p>
               </div>
             ) : (

@@ -113,7 +113,7 @@ const createMaterialUsed = async (req, res) => {
   } catch (error) {
     if (error instanceof TargetError) return res.status(error.status).json({ message: error.message });
     return res.status(400).json({
-      message: "Failed to create material used entry",
+      message: "Failed to create material issued entry",
       error: error.message,
     });
   }
@@ -143,7 +143,7 @@ const getAllMaterialUsed = async (req, res) => {
     return res.json({ data: entries });
   } catch (error) {
     return res.status(500).json({
-      message: "Failed to fetch material used entries",
+      message: "Failed to fetch material issued entries",
       error: error.message,
     });
   }
@@ -153,13 +153,13 @@ const updateMaterialUsed = async (req, res) => {
   const { id } = req.params;
 
   if (!mongoose.Types.ObjectId.isValid(id)) {
-    return res.status(400).json({ message: "Invalid material used id" });
+    return res.status(400).json({ message: "Invalid material issued id" });
   }
 
   try {
     const entry = await MaterialUsed.findOne(scopedIdFilter(req, id)).populate("purchase", "purchaseNumber");
     if (!entry) {
-      return res.status(404).json({ message: "Material used entry not found" });
+      return res.status(404).json({ message: "Material issued entry not found" });
     }
     if (entry.purchase) {
       return res.status(400).json({ message: pumpFillMessage(entry, "change") });
@@ -207,7 +207,7 @@ const updateMaterialUsed = async (req, res) => {
   } catch (error) {
     if (error instanceof TargetError) return res.status(error.status).json({ message: error.message });
     return res.status(400).json({
-      message: "Failed to update material used entry",
+      message: "Failed to update material issued entry",
       error: error.message,
     });
   }
@@ -217,13 +217,13 @@ const deleteMaterialUsed = async (req, res) => {
   const { id } = req.params;
 
   if (!mongoose.Types.ObjectId.isValid(id)) {
-    return res.status(400).json({ message: "Invalid material used id" });
+    return res.status(400).json({ message: "Invalid material issued id" });
   }
 
   try {
     const entry = await MaterialUsed.findOne(scopedIdFilter(req, id)).populate("purchase", "purchaseNumber");
     if (!entry) {
-      return res.status(404).json({ message: "Material used entry not found" });
+      return res.status(404).json({ message: "Material issued entry not found" });
     }
     if (entry.purchase) {
       return res.status(400).json({ message: pumpFillMessage(entry, "delete") });
@@ -232,10 +232,10 @@ const deleteMaterialUsed = async (req, res) => {
     await adjustStock(req.userId, entry.materialType, entry.usedQty);
     await MaterialUsed.deleteOne(scopedIdFilter(req, id));
 
-    return res.json({ message: "Material used entry deleted successfully" });
+    return res.json({ message: "Material issued entry deleted successfully" });
   } catch (error) {
     return res.status(500).json({
-      message: "Failed to delete material used entry",
+      message: "Failed to delete material issued entry",
       error: error.message,
     });
   }

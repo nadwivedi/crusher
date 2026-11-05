@@ -8,7 +8,7 @@ export const STAFF_SECTIONS = [
   { key: 'receipts', label: 'Money Received', hint: 'Money received from parties' },
   { key: 'payments', label: 'Money Paid', hint: 'Money paid to parties' },
   { key: 'expenses', label: 'Expenses', hint: 'Expense entries' },
-  { key: 'materialUsed', label: 'Material Used & Inventory', hint: 'Diesel, oil and store items given out' },
+  { key: 'materialUsed', label: 'Material Issued & Inventory', hint: 'Diesel, oil and store items given out' },
   { key: 'meterReadings', label: 'Meter Reading', hint: 'DG set and vehicle meters' },
   { key: 'masters', label: 'Masters', hint: 'Add parties, vehicles, stock items, expense types' }
 ];

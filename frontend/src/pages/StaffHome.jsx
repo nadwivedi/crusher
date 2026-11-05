@@ -19,7 +19,7 @@ const ENTRIES = [
   { label: 'Money Received', stateKey: 'homeQuickReceipt', section: 'receipts', icon: HandCoins, tone: 'bg-teal-50 text-teal-700 ring-teal-100' },
   { label: 'Money Paid', stateKey: 'homeQuickPayment', section: 'payments', icon: Send, tone: 'bg-rose-50 text-rose-700 ring-rose-100' },
   { label: 'New Expense', stateKey: 'homeQuickExpense', section: 'expenses', icon: Wallet, tone: 'bg-amber-50 text-amber-700 ring-amber-100' },
-  { label: 'Material Used', stateKey: 'homeQuickMaterialUsed', section: 'materialUsed', icon: PackageMinus, tone: 'bg-indigo-50 text-indigo-700 ring-indigo-100' },
+  { label: 'Material Issued', stateKey: 'homeQuickMaterialUsed', section: 'materialUsed', icon: PackageMinus, tone: 'bg-indigo-50 text-indigo-700 ring-indigo-100' },
   { label: 'Stock Adjustment', stateKey: 'homeQuickStockAdjustment', section: 'materialUsed', feature: 'stockAdjustment', icon: SlidersHorizontal, tone: 'bg-fuchsia-50 text-fuchsia-700 ring-fuchsia-100' },
   { label: 'Meter Reading', stateKey: 'homeQuickMeterReading', section: 'meterReadings', icon: Gauge, tone: 'bg-slate-100 text-slate-700 ring-slate-200' }
 ];
@@ -33,7 +33,7 @@ const LISTS = [
   { label: 'Money Received', to: '/reports/receipt-report', section: 'receipts', icon: HandCoins },
   { label: 'Money Paid', to: '/reports/payment-report', section: 'payments', icon: Send },
   { label: 'Expenses', to: '/reports/expense-report', section: 'expenses', icon: Wallet },
-  { label: 'Material Used', to: '/reports/material-used-ledger', section: 'materialUsed', icon: PackageMinus },
+  { label: 'Material Issued', to: '/reports/material-used-ledger', section: 'materialUsed', icon: PackageMinus },
   { label: 'Inventory', to: '/inventory', section: 'materialUsed', icon: Package },
   { label: 'Meter Reading', to: '/meter-readings', section: 'meterReadings', icon: Gauge }
 ];

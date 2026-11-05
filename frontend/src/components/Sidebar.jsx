@@ -5,7 +5,7 @@ export const homeQuickShortcuts = [
   { label: 'New Sale', hint: '', combo: '', stateKey: 'homeQuickSale', imageSrc: '/buttons/add sales.png', imageClassName: 'h-16 sm:h-auto sm:scale-58' },
   { label: 'New Payment', hint: 'Money Paid', combo: '', stateKey: 'homeQuickPayment', imageSrc: '/buttons/money paid.png', imageClassName: 'h-16 sm:h-auto sm:scale-90' },
   { label: 'New Receipt', hint: 'Money Received', combo: '', stateKey: 'homeQuickReceipt', imageSrc: '/buttons/money received.png', imageClassName: 'h-16 sm:h-auto sm:scale-100' },
-  { label: 'Material Used', hint: '', combo: '', stateKey: 'homeQuickMaterialUsed', imageSrc: '/buttons/material used.png', imageClassName: 'h-16 sm:h-auto sm:scale-100' },
+  { label: 'Material Issued', hint: '', combo: '', stateKey: 'homeQuickMaterialUsed', imageSrc: '/buttons/material used.png', imageClassName: 'h-16 sm:h-auto sm:scale-100' },
   { label: 'New Expense', hint: '', combo: 'Alt + 6', stateKey: 'homeQuickExpense', imageSrc: '/buttons/new expense.png', imageClassName: 'h-16 sm:h-auto sm:scale-58' },
   { label: 'Purchase Return', hint: '', combo: '', stateKey: 'homeQuickPurchaseReturn', accent: 'from-rose-500 to-pink-500', collapsible: true },
   { label: 'Sale Return', hint: '', combo: '', path: '/sale-return', accent: 'from-amber-500 to-orange-500', collapsible: true },

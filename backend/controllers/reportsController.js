@@ -133,7 +133,7 @@ const getEntryDisplayType = (baseType, entryType = "") => {
   if (baseType === "expense") return "Expense";
   if (baseType === "boulder") return "Boulder";
   if (baseType === "blasting") return "Blasting";
-  if (baseType === "materialUsed") return "Material Used";
+  if (baseType === "materialUsed") return "Material Issued";
   if (baseType === "purchaseReturn") return "Purchase Return";
   if (baseType === "saleReturn") return "Sale Return";
   if (baseType === "transport") return entryType === "payable" ? "Transport Hire" : "Transport Income";

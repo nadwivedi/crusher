@@ -220,7 +220,7 @@ export const SECTION_CONFIG = {
       { name: 'Purchase', path: '/purchases', Icon: PurchaseIcon },
       { name: 'Sale Return', path: '/sale-return', Icon: SaleReturnIcon },
       { name: 'Purchase Return', path: '/purchase-return', Icon: PurchaseReturnIcon },
-      { name: 'Material Used', path: '/material-used', Icon: MaterialUsedIcon },
+      { name: 'Material Issued', path: '/material-used', Icon: MaterialUsedIcon },
       { name: 'Stock Adjustment', path: '/stock-adjustment', Icon: StockAdjustmentIcon },
       { name: 'Payment', hint: 'Money paid to supplier', path: '/payments', Icon: PaymentIcon },
       { name: 'Receipt', hint: 'Money received from customer', path: '/receipts', Icon: ReceiptIcon }
@@ -259,7 +259,7 @@ export const SECTION_CONFIG = {
       { name: 'Payment Report', path: '/reports/payment-report', Icon: PaymentIcon },
       { name: 'Diesel Report', path: '/reports/diesel-consumption', Icon: MaterialUsedIcon },
       { name: 'Diesel Average', path: '/reports/diesel-average', Icon: MaterialUsedIcon },
-      { name: 'Material Used Ledger', path: '/reports/material-used-ledger', Icon: MaterialUsedLedgerIcon },
+      { name: 'Material Issued Ledger', path: '/reports/material-used-ledger', Icon: MaterialUsedLedgerIcon },
       { name: 'Settings', path: '/settings', Icon: SettingsIcon }
     ]
   }
