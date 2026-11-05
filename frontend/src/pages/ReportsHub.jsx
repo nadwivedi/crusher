@@ -1,32 +1,37 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Boxes, ChevronRight, FileBarChart, FileText, Fuel, Mountain, Package, ReceiptText, RefreshCw, ShoppingCart, Users, Wallet, Warehouse } from 'lucide-react';
+import { Boxes, ChevronRight, FileBarChart, FileText, Fuel, Gauge, HandCoins, Mountain, Package, PackageMinus, ReceiptText, RefreshCw, Send, ShoppingCart, Users, Warehouse } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { filterRestrictedItems } from '../utils/featureAccess';
+import { canUseSection, isStaff } from '../utils/staffAccess';
 
+// ownerOnly: hidden from staff; section: staff see it only when that part is given to their login
 const REPORT_ITEMS = [
-  { name: 'Party Ledger', path: '/reports/party-ledger', Icon: Users },
-  { name: 'Boulder Ledger', path: '/reports/boulder-ledger', Icon: Mountain },
-  { name: 'Dump Boulder Ledger', path: '/dump-boulder', Icon: Warehouse },
-  { name: 'Sales Report', path: '/reports/sales-report', Icon: FileText },
-  { name: 'Purchase Report', path: '/reports/purchase-report', Icon: ShoppingCart },
-  { name: 'Stock Ledger', path: '/reports/stock-ledger', Icon: Boxes },
-  { name: 'Material Used Ledger', path: '/reports/material-used-ledger', Icon: Package },
-  { name: 'Sale Return Report', path: '/reports/sale-return-report', Icon: RefreshCw },
-  { name: 'Stock Adjustment Report', path: '/reports/stock-adjustment-report', Icon: Boxes },
-  { name: 'Receipt Report', path: '/reports/receipt-report', Icon: ReceiptText },
-  { name: 'Payment Report', path: '/reports/payment-report', Icon: Wallet },
-  { name: 'Inventory', path: '/inventory', Icon: Package },
-  { name: 'Diesel Report', path: '/reports/diesel-consumption', Icon: Fuel },
-  { name: 'Expense Report', path: '/reports/expense-report', Icon: ReceiptText },
-  { name: 'Profit And Loss Report', path: '/reports/profit-loss-report', Icon: FileBarChart }
+  { name: 'Party Ledger', path: '/reports/party-ledger', Icon: Users, ownerOnly: true },
+  { name: 'Boulder Ledger', path: '/reports/boulder-ledger', Icon: Mountain, section: 'boulder' },
+  { name: 'Dump Boulder Ledger', path: '/dump-boulder', Icon: Warehouse, section: 'boulder' },
+  { name: 'Sales Report', path: '/reports/sales-report', Icon: FileText, section: 'sales' },
+  { name: 'Purchase Report', path: '/reports/purchase-report', Icon: ShoppingCart, section: 'purchases' },
+  { name: 'Money Received', hint: 'Receipts', path: '/reports/receipt-report', Icon: HandCoins, section: 'receipts' },
+  { name: 'Money Paid', hint: 'Payments', path: '/reports/payment-report', Icon: Send, section: 'payments' },
+  { name: 'Material Used', path: '/reports/material-used-ledger', Icon: PackageMinus, section: 'materialUsed' },
+  { name: 'Meter Reading', path: '/meter-readings', Icon: Gauge, section: 'meterReadings' },
+  { name: 'Stock Ledger', path: '/reports/stock-ledger', Icon: Boxes, section: 'materialUsed' },
+  { name: 'Sale Return Report', path: '/reports/sale-return-report', Icon: RefreshCw, section: 'sales' },
+  { name: 'Stock Adjustment Report', path: '/reports/stock-adjustment-report', Icon: Boxes, section: 'materialUsed' },
+  { name: 'Inventory', path: '/inventory', Icon: Package, section: 'materialUsed' },
+  { name: 'Diesel Report', path: '/reports/diesel-consumption', Icon: Fuel, section: 'materialUsed' },
+  { name: 'Expense Report', path: '/reports/expense-report', Icon: ReceiptText, section: 'expenses' },
+  { name: 'Profit And Loss Report', path: '/reports/profit-loss-report', Icon: FileBarChart, ownerOnly: true }
 ];
 
 export default function ReportsHub() {
   const { user } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
-  const items = useMemo(() => filterRestrictedItems(REPORT_ITEMS, user), [user]);
+  const items = useMemo(() => filterRestrictedItems(REPORT_ITEMS, user).filter((item) => (
+    !isStaff(user) || (!item.ownerOnly && (!item.section || canUseSection(user, item.section)))
+  )), [user]);
   const [activeIndex, setActiveIndex] = useState(0);
 
   useEffect(() => {
@@ -133,7 +138,10 @@ export default function ReportsHub() {
               >
                 <ItemIcon size={20} />
               </span>
-              <span className="min-w-0 flex-1 truncate text-sm font-semibold text-slate-800">{item.name}</span>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-sm font-semibold text-slate-800">{item.name}</span>
+                {item.hint && <span className="block truncate text-xs text-slate-500">{item.hint}</span>}
+              </span>
               <ChevronRight size={18} className={`shrink-0 ${isActive ? 'text-primary-600' : 'text-slate-300'}`} />
             </Link>
           );

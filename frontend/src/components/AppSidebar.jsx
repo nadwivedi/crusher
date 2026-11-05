@@ -2,9 +2,9 @@ import { useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import {
-  LayoutDashboard, Activity, ChartNoAxesCombined, Mountain, FileText, HandCoins, Send, Wallet,
-  PackageMinus, IdCard, ChartColumn, Users, Boxes, Truck, Landmark, Tags,
-  Settings, X, ShoppingCart, Warehouse, Package, Gauge, Scale, FolderOpen
+  LayoutDashboard, Activity, ChartNoAxesCombined, Mountain, FileText, Wallet,
+  IdCard, ChartColumn, Users, Boxes, Truck, Landmark, Tags,
+  Settings, X, ShoppingCart, Warehouse, Package, Scale, FolderOpen
 } from 'lucide-react';
 import Logo from './Logo';
 import { canUseSection, isStaff } from '../utils/staffAccess';
@@ -27,20 +27,24 @@ const navGroups = [
       { to: '/dump-boulder', icon: Warehouse, label: 'Dump Boulder', section: 'boulder' },
       { to: '/reports/sales-report', icon: FileText, label: 'Sales', section: 'sales' },
       { to: '/reports/purchase-report', icon: ShoppingCart, label: 'Purchases', section: 'purchases' },
-      { to: '/reports/receipt-report', icon: HandCoins, label: 'Money Received', section: 'receipts' },
-      { to: '/reports/payment-report', icon: Send, label: 'Money Paid', section: 'payments' },
       { to: '/reports/expense-report', icon: Wallet, label: 'Expenses', section: 'expenses' },
-      { to: '/reports/material-used-ledger', icon: PackageMinus, label: 'Material Used', section: 'materialUsed' },
       { to: '/inventory', icon: Package, label: 'Inventory', section: 'materialUsed' },
-      { to: '/meter-readings', icon: Gauge, label: 'Meter Reading', section: 'meterReadings' },
       { to: '/payroll', icon: IdCard, label: 'Payroll', ownerOnly: true },
     ]
   },
   {
     label: 'Reports',
-    // Every ledger and report is listed on the Reports page; any /reports/... page keeps this item active
+    // Every ledger and report (Money Received, Money Paid, Material Used, Meter Reading ...) is listed on the
+    // Reports page; any /reports/... page, and the pages in alsoActiveOn, keep this item active.
+    // Staff see it when they have any part that has a report; the page shows them only those reports.
     items: [
-      { to: '/reports', icon: ChartColumn, label: 'Reports', ownerOnly: true },
+      {
+        to: '/reports',
+        icon: ChartColumn,
+        label: 'Reports',
+        anySection: ['boulder', 'sales', 'purchases', 'receipts', 'payments', 'expenses', 'materialUsed', 'meterReadings'],
+        alsoActiveOn: ['/meter-readings'],
+      },
     ]
   },
   {
@@ -63,10 +67,18 @@ const matchesPath = (pathname, path) => (
   path === '/' ? pathname === '/' : pathname === path || pathname.startsWith(`${path}/`)
 );
 
+// Pages reached from another item's page (e.g. Meter Reading, opened from Reports) keep that item active
+const ALSO_ACTIVE = navGroups.flatMap((group) => group.items.flatMap((item) => (
+  (item.alsoActiveOn || []).map((path) => ({ path, to: item.to }))
+)));
+
 // Several entries share a prefix (/reports and /reports/sales-report), so only the longest match is active.
-const getActivePath = (pathname) => NAV_PATHS
-  .filter((path) => matchesPath(pathname, path))
-  .sort((a, b) => b.length - a.length)[0];
+const getActivePath = (pathname) => {
+  const direct = NAV_PATHS
+    .filter((path) => matchesPath(pathname, path))
+    .sort((a, b) => b.length - a.length)[0];
+  return direct || ALSO_ACTIVE.find((entry) => matchesPath(pathname, entry.path))?.to;
+};
 
 const NavItem = ({ to, icon: Icon, label, isActive }) => (
   <Link

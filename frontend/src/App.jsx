@@ -153,7 +153,8 @@ function App() {
           <Route path="/day-book" element={<Navigate to="/activity" replace />} />
           <Route path="/activity" element={<StaffRoute ownerOnly><ActivityCenter /></StaffRoute>} />
           <Route path="/analytics" element={<StaffRoute ownerOnly><Analytics /></StaffRoute>} />
-          <Route path="/reports" element={<StaffRoute ownerOnly><ReportsHub /></StaffRoute>} />
+          {/* Staff open it too; it lists only the reports for the parts given to their login */}
+          <Route path="/reports" element={<ReportsHub />} />
           <Route path="/reports-hub" element={<Navigate to="/reports" replace />} />
           <Route path="/reports/party-ledger" element={<StaffRoute ownerOnly><PartyLedger /></StaffRoute>} />
           <Route path="/reports/stock-ledger" element={<StaffRoute section="materialUsed"><StockLedger /></StaffRoute>} />
