@@ -1,13 +1,15 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import { CalendarDays, Factory, Gauge, Inbox, Pencil, Plus, RefreshCw, Trash2, Truck } from 'lucide-react';
+import { CalendarDays, ChevronDown, Factory, Gauge, Inbox, Pencil, Plus, RefreshCw, Search, Trash2, Truck } from 'lucide-react';
 import apiClient from '../utils/api';
 import { useAuth } from '../context/AuthContext';
 import { canDeleteEntries, canEditEntry } from '../utils/staffAccess';
 import MeterReadingPopup from '../components/MeterReadingPopup';
 import StatCard from '../components/StatCard';
 import Segmented from '../components/Segmented';
+import OptionList from '../components/OptionList';
+import { useFloatingDropdownPosition } from '../utils/useFloatingDropdownPosition';
 import { meterUnitFor, sortVehiclesForFuel } from '../utils/diesel';
 import { getVehicleCategoryLabel } from '../utils/transport';
 import {
@@ -55,6 +57,110 @@ const vehicleLabel = (vehicleNo, category) => {
   const type = getVehicleCategoryLabel(category);
   return type ? `${vehicleNo} (${type})` : vehicleNo;
 };
+
+/** DG set / vehicle picker: type to search, arrow keys move, Enter picks, Esc closes. */
+function MachinePicker({ machines, value, onPick }) {
+  const boxRef = useRef(null);
+  const [query, setQuery] = useState(null); // null: show the picked machine instead of a search
+  const [open, setOpen] = useState(false);
+  const [active, setActive] = useState(0);
+
+  const selected = machines.find((item) => item.key === value) || null;
+  const shown = useMemo(() => {
+    const needle = String(query || '').trim().toLowerCase().replace(/\s+/g, '');
+    if (!needle) return machines;
+    return machines.filter((item) => item.name.toLowerCase().replace(/\s+/g, '').includes(needle));
+  }, [machines, query]);
+  const style = useFloatingDropdownPosition(boxRef, open, [shown.length, active]);
+
+  // Keep the row picked with the arrow keys in view when the list scrolls
+  useEffect(() => {
+    if (!open) return;
+    boxRef.current?.querySelectorAll('[role="listbox"] button, .overflow-y-auto > button')[active]?.scrollIntoView({ block: 'nearest' });
+  }, [open, active, style]);
+
+  const openList = () => {
+    setOpen(true);
+    // Start on the picked machine so the arrows move from there
+    setActive(Math.max(0, machines.findIndex((item) => item.key === value)));
+  };
+
+  const close = () => {
+    setOpen(false);
+    setQuery(null);
+  };
+
+  const pick = (item) => {
+    onPick(item.key);
+    close();
+    boxRef.current?.querySelector('input')?.blur();
+  };
+
+  const onKeyDown = (event) => {
+    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+      event.preventDefault();
+      if (!open) {
+        openList();
+        return;
+      }
+      const step = event.key === 'ArrowDown' ? 1 : -1;
+      setActive((current) => Math.max(0, Math.min(shown.length - 1, current + step)));
+    } else if (event.key === 'Enter' && open && shown[active]) {
+      event.preventDefault();
+      pick(shown[active]);
+    } else if (event.key === 'Escape' && open) {
+      // Close the list only; the page's own Esc (go back home) waits for the next press
+      event.preventDefault();
+      close();
+    }
+  };
+
+  const SelectedIcon = selected?.key === DG_KEY ? Factory : Truck;
+
+  return (
+    <div
+      ref={boxRef}
+      className="relative w-full sm:w-80"
+      onBlurCapture={(event) => {
+        if (boxRef.current?.contains(event.relatedTarget)) return;
+        close();
+      }}
+    >
+      {open
+        ? <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+        : <SelectedIcon size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />}
+      <input
+        id="meter-machine"
+        className="input pl-9 pr-9 font-semibold"
+        type="text"
+        value={query ?? (selected ? selected.name : '')}
+        onChange={(event) => { setQuery(event.target.value); setOpen(true); setActive(0); }}
+        onFocus={(event) => { openList(); event.target.select(); }}
+        onClick={() => { if (!open) openList(); }}
+        onKeyDown={onKeyDown}
+        placeholder="Search vehicle number or DG"
+        autoComplete="off"
+        role="combobox"
+        aria-expanded={open}
+      />
+      <ChevronDown className={`pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 transition-transform ${open ? 'rotate-180' : ''}`} />
+      {open && style && (
+        <OptionList
+          style={style}
+          options={shown}
+          activeIndex={active}
+          emptyText="No vehicle found"
+          getKey={(item) => item.key}
+          getLabel={(item) => item.name}
+          getHint={(item) => (item.running ? 'Running: no closing yet' : '')}
+          isSelected={(item) => item.key === value}
+          onHover={setActive}
+          onPick={pick}
+        />
+      )}
+    </div>
+  );
+}
 
 export default function MeterReadings() {
   const { user } = useAuth();
@@ -227,29 +333,12 @@ export default function MeterReadings() {
       {error && <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700">{error}</div>}
 
       <section className="panel p-3 md:p-4">
-        <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Choose DG or vehicle</p>
-        <div className="flex flex-wrap gap-2">
-          {machines.map((item) => {
-            const active = item.key === machine.key;
-            const MachineIcon = item.key === DG_KEY ? Factory : Truck;
-            return (
-              <button
-                key={item.key}
-                type="button"
-                onClick={() => setMachineKey(item.key)}
-                aria-pressed={active}
-                className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm font-semibold transition ${
-                  active
-                    ? 'border-primary-600 bg-primary-600 text-white shadow-sm'
-                    : 'border-slate-200 bg-white text-slate-700 hover:border-primary-300 hover:bg-primary-50'
-                }`}
-              >
-                <MachineIcon size={15} />
-                {item.name}
-                {item.running && <span className={`h-2 w-2 rounded-full ${active ? 'bg-white' : 'bg-sky-500'}`} title="Has an entry with no closing yet" />}
-              </button>
-            );
-          })}
+        <label htmlFor="meter-machine" className="mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-500">Choose DG or vehicle</label>
+        <div className="flex flex-wrap items-center gap-2">
+          <MachinePicker machines={machines} value={machine.key} onPick={setMachineKey} />
+          {machine.running && (
+            <span className="rounded-full bg-sky-100 px-2 py-0.5 text-[11px] font-semibold text-sky-700" title="Has an entry with no closing yet">Running</span>
+          )}
         </div>
         {machines.length === 1 && (
           <p className="mt-2 text-xs text-slate-500">Add your own or hired vehicles in Vehicles to record their meters here.</p>
