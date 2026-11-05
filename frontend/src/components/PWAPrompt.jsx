@@ -2,15 +2,17 @@ import { useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { Download, X } from 'lucide-react';
 import usePwaInstall from '../hooks/usePwaInstall';
+import { useAuth } from '../context/AuthContext';
 
-// "Install CrusherBook" card at the bottom of the screen; it hides itself after 10 seconds.
-// The login page has its own install banner, so the card is not shown there.
+// "Install CrusherBook" card at the bottom of the screen, only once signed in (never on the login or signup
+// pages); it hides itself after 10 seconds. It can also be installed any time from Settings.
 export default function PWAPrompt() {
   const { installable, install } = usePwaInstall();
   const { pathname } = useLocation();
+  const { user } = useAuth();
   const [dismissed, setDismissed] = useState(false);
 
-  const visible = installable && !dismissed && pathname !== '/login';
+  const visible = installable && !dismissed && Boolean(user) && !['/login', '/signup', '/register'].includes(pathname);
 
   useEffect(() => {
     if (!visible) return undefined;

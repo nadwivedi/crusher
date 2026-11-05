@@ -92,6 +92,9 @@ const resolveVehicleParty = async (payload, userId) => {
   return createdParty._id;
 };
 
+// What an own-boulder entry (supplier N/A) is saved with in place of a supplier
+const OWN_BOULDER_PARTY = { partyId: null, partyName: "N/A" };
+
 const resolvePartySnapshot = async ({ partyId, partyName, fallbackPartyId = null }, userId) => {
   const primaryPartyId = partyId && mongoose.Types.ObjectId.isValid(partyId) ? partyId : null;
   const fallbackId = fallbackPartyId && mongoose.Types.ObjectId.isValid(fallbackPartyId) ? fallbackPartyId : null;
@@ -277,6 +280,15 @@ const normalizeBoulderPayload = async (payload, userId) => {
     normalizedPayload.boulderTime = getCurrentTime();
   }
 
+  // Own boulder: no supplier at all, not even the vehicle's owner
+  const ownBoulder = normalizedPayload.ownBoulder === true || normalizedPayload.ownBoulder === "true";
+  normalizedPayload.ownBoulder = ownBoulder;
+
+  if (ownBoulder) {
+    normalizedPayload.partyId = null;
+    normalizedPayload.partyName = "";
+  }
+
   let vehicle = null;
 
   if (hasVehicleId) {
@@ -313,7 +325,7 @@ const normalizeBoulderPayload = async (payload, userId) => {
   if (vehicle) {
     normalizedPayload.vehicleId = vehicle._id;
     normalizedPayload.vehicleNo = vehicle.vehicleNo;
-    const partySnapshot = await resolvePartySnapshot({
+    const partySnapshot = ownBoulder ? OWN_BOULDER_PARTY : await resolvePartySnapshot({
       partyId: normalizedPayload.partyId,
       partyName: normalizedPayload.partyName,
       fallbackPartyId: vehicle.partyId,
@@ -334,7 +346,7 @@ const normalizeBoulderPayload = async (payload, userId) => {
         Number(normalizedPayload.grossWeight) - Number(normalizedPayload.tareWeight);
     }
   } else {
-    const partySnapshot = await resolvePartySnapshot({
+    const partySnapshot = ownBoulder ? OWN_BOULDER_PARTY : await resolvePartySnapshot({
       partyId: normalizedPayload.partyId,
       partyName: normalizedPayload.partyName,
     }, userId);

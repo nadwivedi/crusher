@@ -34,6 +34,11 @@ const boulderSchema = new mongoose.Schema(
       trim: true,
       default: "",
     },
+    // Boulder from our own quarry / own work: no supplier, nothing owed for the boulder (supplier shown as "N/A")
+    ownBoulder: {
+      type: Boolean,
+      default: false,
+    },
     boulderNumber: {
       type: String,
       trim: true,

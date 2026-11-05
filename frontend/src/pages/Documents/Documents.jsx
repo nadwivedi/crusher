@@ -17,12 +17,14 @@ import AddDocumentPopup from './component/AddDocumentPopup';
 const TH = 'tbl-head px-3 py-2 first:pl-5 last:pr-5';
 const TD = 'tbl-cell px-3 py-2 first:pl-5 last:pr-5';
 
+// The three lists: active (valid now, starting later, or never expiring), expiring soon and expired.
+// An old copy replaced by its renewal is in none of them.
 const STATUS_VIEWS = [
-  { key: '', label: 'All' },
-  { key: 'attention', label: 'Expiring / Expired', shortLabel: 'Due' },
-  { key: 'valid', label: 'Valid' },
-  { key: 'renewed', label: 'Renewed' }
+  { key: 'active', label: 'Active', statuses: ['valid', 'none', 'upcoming'] },
+  { key: 'soon', label: 'Expiring Soon', shortLabel: 'Expiring', statuses: ['soon'] },
+  { key: 'expired', label: 'Expired', statuses: ['expired'] }
 ];
+const VIEW_STATUSES = Object.fromEntries(STATUS_VIEWS.map((view) => [view.key, view.statuses]));
 
 // The day after a document's last day: where its renewal starts
 const dayAfter = (value) => {
@@ -46,7 +48,7 @@ export default function Documents() {
   const [error, setError] = useState('');
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
-  const [statusView, setStatusView] = useState('');
+  const [statusView, setStatusView] = useState('active');
   // { document } to edit, { preset } to add (preset may be empty)
   const [popup, setPopup] = useState(null);
 
@@ -113,9 +115,7 @@ export default function Documents() {
     return rows.filter((row) => {
       if (vehicleFilter && String(row.vehicleId) !== vehicleFilter) return false;
       if (typeFilter && row.docType !== typeFilter) return false;
-      if (statusView === 'attention' && row.status.key !== 'expired' && row.status.key !== 'soon') return false;
-      if (statusView === 'valid' && !['valid', 'none', 'upcoming'].includes(row.status.key)) return false;
-      if (statusView === 'renewed' && row.status.key !== 'renewed') return false;
+      if (!VIEW_STATUSES[statusView].includes(row.status.key)) return false;
       if (!term) return true;
       return [row.vehicleNo, getDocumentName(row), row.documentNumber, row.notes]
         .some((value) => String(value || '').toLowerCase().includes(term));
@@ -125,7 +125,13 @@ export default function Documents() {
   const scoped = vehicleFilter ? rows.filter((row) => String(row.vehicleId) === vehicleFilter) : rows;
   const expiredCount = scoped.filter((row) => row.status.key === 'expired').length;
   const soonCount = scoped.filter((row) => row.status.key === 'soon').length;
-  const validCount = scoped.filter((row) => ['valid', 'none', 'upcoming'].includes(row.status.key)).length;
+  const validCount = scoped.filter((row) => VIEW_STATUSES.active.includes(row.status.key)).length;
+  const viewCounts = { active: validCount, soon: soonCount, expired: expiredCount };
+  const viewOptions = STATUS_VIEWS.map((view) => ({
+    key: view.key,
+    label: `${view.label} (${viewCounts[view.key]})`,
+    shortLabel: view.shortLabel ? `${view.shortLabel} (${viewCounts[view.key]})` : undefined
+  }));
   const vehiclesCovered = new Set(scoped.map((row) => String(row.vehicleId))).size;
   const filteredVehicle = vehicles.find((vehicle) => vehicle._id === vehicleFilter);
 
@@ -133,7 +139,7 @@ export default function Documents() {
     { label: 'Documents', value: scoped.length, icon: FolderOpen, tone: 'indigo', hint: vehicleFilter ? 'For this vehicle' : `${vehiclesCovered} of ${vehicles.length} vehicles` },
     { label: 'Expired', value: expiredCount, icon: CalendarX, tone: 'rose', hint: 'Renew these now' },
     { label: 'Expiring Soon', value: soonCount, icon: AlertTriangle, tone: 'amber', hint: `Within ${EXPIRY_SOON_DAYS} days` },
-    { label: 'Valid', value: validCount, icon: FileCheck, tone: 'emerald', hint: 'Including no-expiry papers' }
+    { label: 'Active', value: validCount, icon: FileCheck, tone: 'emerald', hint: 'Including no-expiry papers' }
   ];
 
   const setVehicleFilter = (value) => {
@@ -271,9 +277,9 @@ export default function Documents() {
         <div className="panel-header flex flex-wrap items-center justify-between gap-2.5 py-2.5">
           <div className="flex flex-wrap items-center gap-2">
             <h2 className="text-sm font-bold text-slate-800">
-              All Documents <span className="ml-1 font-medium text-slate-400">{filteredRows.length}</span>
+              Documents <span className="ml-1 font-medium text-slate-400">{filteredRows.length}</span>
             </h2>
-            <Segmented options={STATUS_VIEWS} value={statusView} onChange={setStatusView} />
+            <Segmented options={viewOptions} value={statusView} onChange={setStatusView} />
           </div>
           <div className="flex min-w-0 flex-1 basis-72 flex-wrap items-center justify-end gap-2">
             <select className="input w-auto min-w-0 flex-1 md:max-w-40" value={vehicleFilter} onChange={(event) => setVehicleFilter(event.target.value)} aria-label="Vehicle">
@@ -306,7 +312,7 @@ export default function Documents() {
             </span>
             <p className="text-sm font-semibold text-slate-800">No documents found</p>
             <p className="text-xs text-slate-500">
-              {documents.length > 0 ? 'Try a different filter or search.' : vehicles.length === 0 ? 'Add a vehicle first, then save its papers here.' : 'Save the first one with "Add Document".'}
+              {documents.length > 0 ? `No ${STATUS_VIEWS.find((view) => view.key === statusView)?.label.toLowerCase()} documents${search || typeFilter || vehicleFilter ? ' for this filter or search' : ''}.` : vehicles.length === 0 ? 'Add a vehicle first, then save its papers here.' : 'Save the first one with "Add Document".'}
             </p>
             {canAdd && documents.length === 0 && vehicles.length > 0 && (
               <button type="button" className="btn-primary mt-2" onClick={() => openAdd(vehicleFilter ? { vehicleId: vehicleFilter } : {})}>

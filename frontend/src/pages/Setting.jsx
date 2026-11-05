@@ -135,6 +135,22 @@ export default function Setting() {
     }
   };
 
+  // We manage our own boulder: a new boulder entry starts with supplier N/A
+  const ownBoulderDefault = Boolean(user?.ownBoulderDefault);
+  const [savingOwnBoulder, setSavingOwnBoulder] = useState(false);
+  const toggleOwnBoulder = async () => {
+    if (savingOwnBoulder) return;
+    setSavingOwnBoulder(true);
+    try {
+      await updateUserSettings({ ownBoulderDefault: !ownBoulderDefault });
+      toast.success('Saved');
+    } catch (error) {
+      toast.error(error?.message || 'Could not save');
+    } finally {
+      setSavingOwnBoulder(false);
+    }
+  };
+
   // GST % a sale marked as GST sale starts with
   const savedGstRate = Number(user?.gstRate ?? 5);
   const [gstRateInput, setGstRateInput] = useState(String(savedGstRate));
@@ -486,6 +502,27 @@ export default function Setting() {
             <span className="min-w-0">
               <span className="block text-sm font-semibold text-slate-800">Record both cubic feet and weight</span>
               <span className="block text-xs text-slate-500">Each sale shows the cubic feet box and the Gross / Tare / Net boxes. The bill uses the Sale Basis you pick; the other is kept as a record, and every weight counts in tons sold for your stock.</span>
+            </span>
+          </label>
+        </section>
+      )}
+
+      {/* Own boulder: new boulder entries start with supplier N/A */}
+      {user?.role !== 'employee' && (
+        <section className="card">
+          <h2 className="text-sm font-bold text-slate-900">Boulder Entry</h2>
+          <p className="mt-0.5 text-xs text-slate-500">How the supplier box of a new boulder entry starts.</p>
+          <label className="mt-3 flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 px-3 py-2.5 hover:bg-slate-50">
+            <input
+              type="checkbox"
+              className="mt-0.5 h-4 w-4 shrink-0 accent-primary-600"
+              checked={ownBoulderDefault}
+              disabled={savingOwnBoulder}
+              onChange={toggleOwnBoulder}
+            />
+            <span className="min-w-0">
+              <span className="block text-sm font-semibold text-slate-800">We manage our own boulder</span>
+              <span className="block text-xs text-slate-500">Every new boulder entry starts with Supplier N/A: no supplier and nothing to pay for the boulder. When a load does come from a supplier, just pick that supplier on the entry.</span>
             </span>
           </label>
         </section>

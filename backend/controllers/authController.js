@@ -28,6 +28,7 @@ const sanitizeUser = (user) => ({
   // How a new sale starts: "per_ton" or "per_cubic_meter" (shown as cubic feet)
   defaultPricingMode: user.defaultPricingMode || "per_ton",
   recordBothQuantities: Boolean(user.recordBothQuantities),
+  ownBoulderDefault: Boolean(user.ownBoulderDefault),
   gstRate: user.gstRate ?? 5,
   royaltyRate: user.royaltyRate ?? 0,
   businessAddress: user.businessAddress || "",
@@ -323,6 +324,7 @@ module.exports = {
              materialRates: sanitizeUser(owner).materialRates,
              defaultPricingMode: owner.defaultPricingMode || "per_ton",
              recordBothQuantities: Boolean(owner.recordBothQuantities),
+             ownBoulderDefault: Boolean(owner.ownBoulderDefault),
              gstRate: owner.gstRate ?? 5,
              royaltyRate: owner.royaltyRate ?? 0,
              permissions: req.employee.permissions,
@@ -444,6 +446,12 @@ module.exports = {
           return res.status(403).json({ success: false, message: "Only the owner can change how sales are recorded" });
         }
         user.recordBothQuantities = Boolean(req.body.recordBothQuantities);
+      }
+      if (req.body?.ownBoulderDefault !== undefined) {
+        if (req.employee) {
+          return res.status(403).json({ success: false, message: "Only the owner can change how boulder entries start" });
+        }
+        user.ownBoulderDefault = Boolean(req.body.ownBoulderDefault);
       }
       if (req.body?.gstRate !== undefined) {
         if (req.employee) {

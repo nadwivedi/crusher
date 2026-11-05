@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AlertCircle, Building2, Camera, ChevronDown, Eye, Loader2, Plus, Scale, Truck, Upload } from 'lucide-react';
 import { toast } from 'react-toastify';
 import apiClient from '../../utils/api';
+import { useAuth } from '../../context/AuthContext';
 import { handlePopupFormKeyDown } from '../../utils/popupFormKeyboard';
 import { useFloatingDropdownPosition } from '../../utils/useFloatingDropdownPosition';
 import { getSmartVehicleMatch, normalizeVehicleValue } from '../../utils/vehicleMatching';
@@ -37,6 +38,8 @@ const initialFormData = {
   partyId: '',
   vehicleNo: '',
   partyName: '',
+  // Boulder from our own quarry / own work: no supplier and nothing owed for the boulder
+  ownBoulder: false,
   boulderDate: formatDateForInput(),
   // Both optional
   slipNo: '',
@@ -104,6 +107,11 @@ const describeSupplierRates = (party) => {
   ].filter(Boolean).join(' · ');
 };
 
+// The supplier list's first choice: no supplier, for boulder from our own quarry / own work
+const NA_SUPPLIER_ID = '__na__';
+const NA_SUPPLIER = { _id: NA_SUPPLIER_ID, name: 'N/A' };
+const NA_LABEL = 'N/A';
+
 const toPartyId = (value) => String((typeof value === 'object' ? value?._id : value) || '');
 
 const getBlastingRate = (party) => Math.max(0, Number(party?.blastingRatePerTon || 0) || 0);
@@ -120,7 +128,11 @@ const sortVehiclesByTypePreference = (vehicles, preferredType) => [...vehicles].
 
 // weighment: a closed weighbridge ticket to make this entry from (weights, RST and times come from the kanta)
 export default function BoulderEntry({ onModalFinish = null, editingEntry = null, weighment = null }) {
-  const [formData, setFormData] = useState(initialFormData);
+  const { user } = useAuth();
+  // Settings → "We manage our own boulder": a new entry starts with supplier N/A
+  const ownBoulderDefault = Boolean(user?.ownBoulderDefault);
+  const startForm = useMemo(() => ({ ...initialFormData, ownBoulder: ownBoulderDefault }), [ownBoulderDefault]);
+  const [formData, setFormData] = useState(startForm);
   // Weights read from the weighbridge; every change to them is put back
   const lockedWeightsRef = useRef(null);
   const weighmentVehiclePickedRef = useRef(false);
@@ -228,7 +240,7 @@ export default function BoulderEntry({ onModalFinish = null, editingEntry = null
         lockedWeightsRef.current = weights;
         weighmentVehiclePickedRef.current = false;
         setFormData({
-          ...initialFormData,
+          ...startForm,
           ...weights,
           entryMode: 'single',
           vehicleNo: String(weighment.vehicleNo || '').toUpperCase(),
@@ -242,7 +254,7 @@ export default function BoulderEntry({ onModalFinish = null, editingEntry = null
         return;
       }
       lockedWeightsRef.current = null;
-      setFormData(initialFormData);
+      setFormData(startForm);
       setVehicleQuery('');
       setPartyQuery('');
       return;
@@ -265,9 +277,10 @@ export default function BoulderEntry({ onModalFinish = null, editingEntry = null
     setFormData({
       entryMode,
       vehicleId,
-      partyId: editingEntry.partyId || '',
+      partyId: editingEntry.ownBoulder ? '' : editingEntry.partyId || '',
       vehicleNo,
-      partyName: editingEntry.partyName || '',
+      partyName: editingEntry.ownBoulder ? '' : editingEntry.partyName || '',
+      ownBoulder: Boolean(editingEntry.ownBoulder),
       boulderDate: formatDateForInput(editingEntry.boulderDate || editingEntry.createdAt),
       entryTime: editingEntry.entryTime || formatTimeForInput(editingEntry.boulderDate || editingEntry.createdAt),
       exitTime: editingEntry.exitTime || '',
@@ -285,8 +298,8 @@ export default function BoulderEntry({ onModalFinish = null, editingEntry = null
       rstNo: editingEntry.rstNo || ''
     });
     setVehicleQuery(vehicleNo);
-    setPartyQuery(editingEntry.partyName || '');
-  }, [editingEntry, weighment]);
+    setPartyQuery(editingEntry.ownBoulder ? '' : editingEntry.partyName || '');
+  }, [editingEntry, weighment, startForm]);
 
   const filteredVehicles = useMemo(() => {
     const search = vehicleQuery.trim().toLowerCase();
@@ -312,12 +325,19 @@ export default function BoulderEntry({ onModalFinish = null, editingEntry = null
     return parties.filter((party) => String(party?.partyName || party?.name || '').trim().toLowerCase().includes(search));
   }, [parties, partyQuery, formData.partyName, isPartySectionActive]);
 
+  // N/A first while the box is empty, shows N/A, or the typed text matches it
+  const partyOptions = useMemo(() => {
+    const search = partyQuery.trim().toLowerCase();
+    const showNa = formData.ownBoulder || !search || 'n/a'.includes(search) || search === 'na';
+    return showNa ? [NA_SUPPLIER, ...filteredParties] : filteredParties;
+  }, [filteredParties, partyQuery, formData.ownBoulder]);
+
   useEffect(() => {
     setVehicleListIndex(filteredVehicles.length > 0 ? 0 : -1);
   }, [filteredVehicles]);
 
   useEffect(() => {
-    if (filteredParties.length === 0) {
+    if (partyOptions.length === 0) {
       setPartyListIndex(-1);
       return;
     }
@@ -332,7 +352,7 @@ export default function BoulderEntry({ onModalFinish = null, editingEntry = null
     );
 
     if (shouldHighlightSelectedParty) {
-      const selectedIndex = filteredParties.findIndex((party) => (
+      const selectedIndex = partyOptions.findIndex((party) => (
         String(party?.partyName || party?.name || '').trim().toLowerCase() === selectedPartyName
       ));
       setPartyListIndex(selectedIndex >= 0 ? selectedIndex : 0);
@@ -341,10 +361,10 @@ export default function BoulderEntry({ onModalFinish = null, editingEntry = null
 
     setPartyListIndex((prev) => {
       if (prev < 0) return 0;
-      if (prev >= filteredParties.length) return filteredParties.length - 1;
+      if (prev >= partyOptions.length) return partyOptions.length - 1;
       return prev;
     });
-  }, [filteredParties, formData.partyName, isPartySectionActive, partyQuery]);
+  }, [partyOptions, formData.partyName, isPartySectionActive, partyQuery]);
 
   const vehicleDropdownStyle = useFloatingDropdownPosition(
     vehicleSectionRef,
@@ -355,7 +375,7 @@ export default function BoulderEntry({ onModalFinish = null, editingEntry = null
   const partyDropdownStyle = useFloatingDropdownPosition(
     partySectionRef,
     isPartySectionActive,
-    [filteredParties.length, partyListIndex]
+    [partyOptions.length, partyListIndex]
   );
 
   const fetchVehicles = async () => {
@@ -397,7 +417,7 @@ export default function BoulderEntry({ onModalFinish = null, editingEntry = null
     // carries the load is paid its transport separately
     const ownerId = getVehiclePartyId(vehicle);
     const owner = ownerId ? parties.find((party) => String(party._id) === String(ownerId)) : null;
-    const linkedParty = owner && (vehicle.ownership !== 'hired' || owner.type === 'supplier') ? owner : null;
+    const linkedParty = !formData.ownBoulder && owner && (vehicle.ownership !== 'hired' || owner.type === 'supplier') ? owner : null;
     const linkedPartyId = linkedParty ? ownerId : '';
     const linkedPartyName = getPartyDisplayName(linkedParty);
     setFormData((prev) => updateWeights({
@@ -500,11 +520,22 @@ export default function BoulderEntry({ onModalFinish = null, editingEntry = null
     }
   };
 
+  // Supplier N/A (own boulder): no supplier, nothing to pay for the boulder
+  const setOwnBoulder = (ownBoulder) => {
+    setFormData((prev) => ({ ...prev, ownBoulder, partyId: '', partyName: '', boulderRateBasis: '' }));
+    setPartyQuery('');
+    setIsPartySectionActive(false);
+  };
+
   const selectParty = (party) => {
+    if (party?._id === NA_SUPPLIER_ID) {
+      setOwnBoulder(true);
+      return;
+    }
     const partyName = String(party?.partyName || party?.name || '').trim();
     if (!partyName) return;
     setPartyQuery(partyName);
-    setFormData((prev) => ({ ...prev, partyId: party._id || '', partyName, boulderRateBasis: getDefaultRateBasis(getSupplierRates(party)), transportLocation: '' }));
+    setFormData((prev) => ({ ...prev, ownBoulder: false, partyId: party._id || '', partyName, boulderRateBasis: getDefaultRateBasis(getSupplierRates(party)), transportLocation: '' }));
     setIsPartySectionActive(false);
   };
 
@@ -569,7 +600,8 @@ export default function BoulderEntry({ onModalFinish = null, editingEntry = null
     const value = event.target.value;
     setPartyQuery(value);
     setIsPartySectionActive(true);
-    setFormData((prev) => ({ ...prev, partyId: '', partyName: value }));
+    // Typing a name means a supplier, not N/A
+    setFormData((prev) => ({ ...prev, ownBoulder: false, partyId: '', partyName: value }));
   };
 
   const handlePartyInputKeyDown = (event) => {
@@ -577,8 +609,8 @@ export default function BoulderEntry({ onModalFinish = null, editingEntry = null
       event.preventDefault();
       setIsPartySectionActive(true);
       setPartyListIndex((prev) => {
-        if (filteredParties.length === 0) return -1;
-        return prev < filteredParties.length - 1 ? prev + 1 : 0;
+        if (partyOptions.length === 0) return -1;
+        return prev < partyOptions.length - 1 ? prev + 1 : 0;
       });
       return;
     }
@@ -586,14 +618,14 @@ export default function BoulderEntry({ onModalFinish = null, editingEntry = null
       event.preventDefault();
       setIsPartySectionActive(true);
       setPartyListIndex((prev) => {
-        if (filteredParties.length === 0) return -1;
-        return prev > 0 ? prev - 1 : filteredParties.length - 1;
+        if (partyOptions.length === 0) return -1;
+        return prev > 0 ? prev - 1 : partyOptions.length - 1;
       });
       return;
     }
-    if (event.key === 'Enter' && isPartySectionActive && filteredParties.length > 0) {
+    if (event.key === 'Enter' && isPartySectionActive && partyOptions.length > 0) {
       event.preventDefault();
-      const selectedParty = filteredParties[partyListIndex] || filteredParties[0];
+      const selectedParty = partyOptions[partyListIndex] || partyOptions[0];
       if (selectedParty) {
         selectParty(selectedParty);
       }
@@ -616,9 +648,10 @@ export default function BoulderEntry({ onModalFinish = null, editingEntry = null
       const ensuredVehicleId = await ensureVehicleExists();
       const basePayload = {
         vehicleId: ensuredVehicleId || formData.vehicleId || undefined,
-        partyId: selectedParty?._id || formData.partyId || undefined,
+        partyId: formData.ownBoulder ? undefined : selectedParty?._id || formData.partyId || undefined,
         vehicleNo: formData.vehicleNo.toUpperCase(),
-        partyName: String(formData.partyName || '').trim(),
+        partyName: formData.ownBoulder ? '' : String(formData.partyName || '').trim(),
+        ownBoulder: Boolean(formData.ownBoulder),
         boulderDate: formData.boulderDate,
         slipNo: String(formData.slipNo || '').trim().toUpperCase(),
         rstNo: String(formData.rstNo || '').trim().toUpperCase(),
@@ -653,7 +686,7 @@ export default function BoulderEntry({ onModalFinish = null, editingEntry = null
         await apiClient.post('/boulders', payload);
         toast.success('Boulder entry created successfully');
       }
-      setFormData(initialFormData);
+      setFormData(startForm);
       setVehicleQuery('');
       setPartyQuery('');
       if (onModalFinish) onModalFinish();
@@ -899,24 +932,28 @@ export default function BoulderEntry({ onModalFinish = null, editingEntry = null
                   className="input pl-9 pr-9"
                   type="text"
                   name="partyName"
-                  value={partyQuery}
-                  onFocus={handlePartyFocus}
+                  value={formData.ownBoulder ? NA_LABEL : partyQuery}
+                  onFocus={(event) => {
+                    // N/A is picked: typing replaces it with a supplier search
+                    if (formData.ownBoulder) event.target.select();
+                    handlePartyFocus();
+                  }}
                   onChange={handlePartyInputChange}
                   onKeyDown={handlePartyInputKeyDown}
-                  placeholder="Search supplier..."
+                  placeholder="Search supplier, or N/A if none"
                   autoComplete="off"
                 />
                 <ChevronDown className={`pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 transition-transform ${isPartySectionActive ? 'rotate-180' : ''}`} />
                 {isPartySectionActive && partyDropdownStyle && (
                   <OptionList
                     style={partyDropdownStyle}
-                    options={filteredParties}
+                    options={partyOptions}
                     activeIndex={partyListIndex}
                     emptyText="No matching supplier."
                     getKey={(party) => party._id}
                     getLabel={getPartyDisplayName}
-                    getHint={describeSupplierRates}
-                    isSelected={(party) => String(formData.partyId || '') === String(party._id)}
+                    getHint={(party) => (party._id === NA_SUPPLIER_ID ? 'No supplier: own boulder, nothing to pay' : describeSupplierRates(party))}
+                    isSelected={(party) => (party._id === NA_SUPPLIER_ID ? Boolean(formData.ownBoulder) : String(formData.partyId || '') === String(party._id))}
                     onHover={setPartyListIndex}
                     onPick={selectParty}
                   />
@@ -1111,6 +1148,8 @@ export default function BoulderEntry({ onModalFinish = null, editingEntry = null
         <FormSection number={showBlasting ? 4 : 3} title="Amount" tone="indigo">
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_auto]">
             <div className="space-y-2">
+              {/* No supplier on an own boulder, so no rate to choose */}
+              {!formData.ownBoulder && (
               <div className="flex items-center gap-2">
                 <span className="text-xs font-semibold text-slate-600">Boulder charged</span>
                 <div className="grid grid-cols-2 gap-1.5">
@@ -1130,6 +1169,7 @@ export default function BoulderEntry({ onModalFinish = null, editingEntry = null
                   })}
                 </div>
               </div>
+              )}
               {vehicleTransport.tripLocations.length > 1 && (
                 <div className="flex items-center gap-2">
                   <label className="text-xs font-semibold text-slate-600" htmlFor="boulder-transport-location">Transport from</label>
@@ -1153,7 +1193,9 @@ export default function BoulderEntry({ onModalFinish = null, editingEntry = null
                       ? boulderRateBasis === 'per_trip'
                         ? <>Boulder: {payableTrips} trip{payableTrips === 1 ? '' : 's'} × ₹{boulderRate.toLocaleString('en-IN')} / trip</>
                         : <>Boulder: {formatTon(payableWeight)} × ₹{boulderRate.toLocaleString('en-IN')} / ton</>
-                      : <span className="text-amber-700">{selectedParty ? `No boulder rate ${boulderRateBasis === 'per_trip' ? 'per trip' : 'per ton'} set for this supplier` : 'Pick a supplier to see the amount'}</span>}
+                      : formData.ownBoulder
+                        ? <span className="text-emerald-700">Supplier N/A (own boulder): nothing to pay for the boulder</span>
+                        : <span className="text-amber-700">{selectedParty ? `No boulder rate ${boulderRateBasis === 'per_trip' ? 'per trip' : 'per ton'} set for this supplier` : 'Pick a supplier to see the amount'}</span>}
                   </span>
                   <span className={hasExtraCharges ? 'font-semibold text-slate-800' : 'text-base font-bold text-slate-900'}>{formatRupees(boulderAmount)}</span>
                 </div>

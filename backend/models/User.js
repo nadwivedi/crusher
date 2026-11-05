@@ -52,6 +52,11 @@ const userSchema = new mongoose.Schema(
       default: "per_ton",
     },
     // Record both cubic feet and weight on a sale, whichever it is billed by: the weight counts in tons sold
+    // We quarry / manage our own boulder: a new boulder entry starts with supplier N/A
+    ownBoulderDefault: {
+      type: Boolean,
+      default: false,
+    },
     recordBothQuantities: {
       type: Boolean,
       default: false,
