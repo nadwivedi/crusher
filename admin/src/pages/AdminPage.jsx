@@ -47,6 +47,7 @@ const emptyForm = {
   password: '',
   state: '',
   district: '',
+  gstin: '',
   planType: 'yearly',
   planPrice: '',
   planStartAt: '',
@@ -353,6 +354,7 @@ function AdminPage() {
       password: '',
       state: user.state || '',
       district: user.district || '',
+      gstin: user.gstin || '',
       planType: user.planType === 'lifetime' ? 'lifetime' : 'yearly',
       planPrice: Number(user.planPrice || 0) > 0 ? String(user.planPrice) : '',
       planStartAt: toDateInput(user.planStartAt),
@@ -375,6 +377,7 @@ function AdminPage() {
         mobile: form.mobile.trim(),
         state: form.state.trim(),
         district: form.district.trim(),
+        gstin: form.gstin.trim().toUpperCase(),
         planType: form.planType,
         planPrice: Number(form.planPrice || 0),
         planStartAt: form.planStartAt || null,
@@ -417,6 +420,11 @@ function AdminPage() {
 
       if (!/^\d{10}$/.test(payload.mobile)) {
         toast.error('Mobile number must be exactly 10 digits')
+        return
+      }
+
+      if (payload.gstin && !/^[0-9A-Z]{15}$/.test(payload.gstin)) {
+        toast.error('GSTIN must be 15 letters / digits')
         return
       }
 
@@ -982,6 +990,19 @@ function AdminPage() {
                     <input name="district" value={form.district} onChange={handleChange} placeholder="District" className={`${INPUT_CLASS} pl-3`} />
                   </label>
                 </div>
+
+                <label className="grid gap-1.5">
+                  {renderFieldLabel('GSTIN (optional)')}
+                  <input
+                    name="gstin"
+                    value={form.gstin}
+                    onChange={(event) => setForm((current) => ({ ...current, gstin: event.target.value.toUpperCase().replace(/[^0-9A-Z]/g, '') }))}
+                    placeholder="15-character GST number, printed on sale invoices"
+                    maxLength={15}
+                    autoCapitalize="characters"
+                    className={`${INPUT_CLASS} pl-3 uppercase`}
+                  />
+                </label>
 
                 <div className="grid gap-1.5">
                   {renderFieldLabel('Plan')}

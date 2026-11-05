@@ -13,6 +13,7 @@ const USER_FIELDS = [
   { key: "email", label: "Email" },
   { key: "state", label: "State" },
   { key: "district", label: "District" },
+  { key: "gstin", label: "GSTIN" },
   { key: "planType", label: "Plan" },
   { key: "planPrice", label: "Plan Price" },
   { key: "planStartAt", label: "Plan Start" },
@@ -31,6 +32,7 @@ const sanitizeAdminUser = (user) => ({
   mobile: user.mobile,
   state: user.state || "",
   district: user.district || "",
+  gstin: user.gstin || "",
   lastLoginAt: user.lastLoginAt || null,
   lastActivityAt: user.lastActivityAt || null,
   planType: user.planType || "yearly",
@@ -45,6 +47,10 @@ const sanitizeAdminUser = (user) => ({
 });
 
 const validateMobile = (mobile = "") => /^\d{10}$/.test(String(mobile).trim());
+
+// GSTIN is optional; when given it must be 15 letters / digits (printed on the user's sale invoices)
+const readGstin = (value) => String(value || "").trim().toUpperCase();
+const validGstin = (gstin) => !gstin || /^[0-9A-Z]{15}$/.test(gstin);
 
 const PLAN_TYPES = ["yearly", "lifetime"];
 
@@ -80,7 +86,7 @@ const getUsers = async (_req, res) => {
   try {
     const users = await User.find({})
       .sort({ createdAt: -1 })
-      .select("name email mobile state district lastLoginAt lastActivityAt planType planPrice planStartAt planEndAt featureAccess isActive deactivatedAt createdAt updatedAt");
+      .select("name email mobile state district gstin lastLoginAt lastActivityAt planType planPrice planStartAt planEndAt featureAccess isActive deactivatedAt createdAt updatedAt");
 
     return res.json({
       success: true,
@@ -114,6 +120,11 @@ const createUser = async (req, res) => {
       return res.status(400).json({ success: false, message: plan.error });
     }
 
+    const gstin = readGstin(req.body.gstin);
+    if (!validGstin(gstin)) {
+      return res.status(400).json({ success: false, message: "GSTIN must be 15 letters / digits" });
+    }
+
     const normalizedMobile = mobile.trim();
     const normalizedEmail = email?.trim() ? email.trim().toLowerCase() : "";
 
@@ -135,6 +146,7 @@ const createUser = async (req, res) => {
       password: await hashPassword(password),
       state: state?.trim() || "",
       district: district?.trim() || "",
+      gstin,
       planType: plan.planType,
       planPrice: plan.planPrice,
       planStartAt: plan.planStartAt,
@@ -224,6 +236,13 @@ const updateUser = async (req, res) => {
     if (name !== undefined) user.name = name.trim();
     if (state !== undefined) user.state = state.trim();
     if (district !== undefined) user.district = district.trim();
+    if (req.body.gstin !== undefined) {
+      const gstin = readGstin(req.body.gstin);
+      if (!validGstin(gstin)) {
+        return res.status(400).json({ success: false, message: "GSTIN must be 15 letters / digits" });
+      }
+      user.gstin = gstin;
+    }
 
     const passwordChanged = password !== undefined && password !== "";
     if (passwordChanged) {
