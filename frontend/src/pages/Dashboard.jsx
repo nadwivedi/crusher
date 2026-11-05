@@ -13,6 +13,7 @@ import apiClient from '../utils/api';
 import StatCard from '../components/StatCard';
 import Segmented from '../components/Segmented';
 import MoreEntriesPopup from '../components/MoreEntriesPopup';
+import HomeDocumentAlerts from '../components/HomeDocumentAlerts';
 
 const fmt = (n) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(n || 0);
 const fmtNum = (n) => new Intl.NumberFormat('en-IN', { maximumFractionDigits: 2 }).format(n || 0);
@@ -427,6 +428,9 @@ export default function Dashboard() {
         </div>
 
       </section>
+
+      {/* Alerts: vehicle papers expired or ending soon (hidden when no documents are recorded) */}
+      <HomeDocumentAlerts />
 
       {/* Cash flow */}
       <section className="panel">
