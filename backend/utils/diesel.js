@@ -4,11 +4,14 @@ const User = require("../models/User");
 const DIESEL_NAME = "Diesel";
 const DIESEL_UNIT = "ltr";
 
-// Vehicles whose meter counts hours (JCB, loader, PC, tractor); the rest count KM. The DG set always counts hours.
+// The DG set counts hours. A vehicle counts what was picked for it (KM or hours); one saved before that
+// was asked goes by its type: JCB, loader, PC and tractor count hours, the rest KM.
 const HOUR_METER_CATEGORIES = ["jcb", "loader", "pc", "tractor"];
-const meterUnitFor = (usedFor, category) => (
-  usedFor === "dg" || HOUR_METER_CATEGORIES.includes(category) ? "hr" : "km"
-);
+const meterUnitFor = (usedFor, category, meterUnit) => {
+  if (usedFor === "dg") return "hr";
+  if (meterUnit === "km" || meterUnit === "hr") return meterUnit;
+  return HOUR_METER_CATEGORIES.includes(category) ? "hr" : "km";
+};
 
 // Where a material used entry went; older entries have no usedFor and went to their vehicle, if any
 const usedForOf = (entry) => entry.usedFor || (entry.vehicle ? "vehicle" : "other");

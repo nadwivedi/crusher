@@ -13,7 +13,6 @@ import {
   VEHICLE_OWNERSHIP_OPTIONS,
   getBasisLabel,
   getBasisUnit,
-  getOwnershipLabel,
   getSaleTransport,
   getSaleTransportCharge
 } from '../../../utils/transport';
@@ -315,35 +314,7 @@ export default function AddSalePopup({
             </div>
           </div>
 
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-            <div>
-              <div className="mb-1 flex items-center justify-between">
-                <label className="label mb-0" htmlFor="sale-vehicle-input">Vehicle No <span className="text-rose-500">*</span></label>
-                <button type="button" onClick={onOpenNewVehicle} className="text-xs font-semibold text-primary-600 hover:underline">+ New Vehicle</button>
-              </div>
-              <div ref={vehicleSectionRef} className="relative" onBlurCapture={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) setIsVehicleSectionActive(false); }}>
-                <input id="sale-vehicle-input" ref={vehicleInputRef} className="input pr-10 uppercase placeholder:normal-case" type="text" name="vehicleNo" value={vehicleQuery} onFocus={handleVehicleFocus} onChange={handleVehicleInputChange} onKeyDown={handleVehicleInputKeyDown} autoComplete="off" placeholder="Type vehicle no..." />
-                <ChevronDown className={`pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 transition-transform ${isVehicleSectionActive ? 'rotate-180' : ''}`} />
-                {isVehicleSectionActive && vehicleDropdownStyle && (
-                  <OptionList
-                    style={vehicleDropdownStyle}
-                    options={filteredVehicles}
-                    activeIndex={vehicleListIndex}
-                    emptyText="No vehicle found. It is added when you save."
-                    getKey={(vehicle) => vehicle._id}
-                    getLabel={getVehicleDisplayName}
-                    getHint={(vehicle) => (vehicle.ownership && vehicle.ownership !== 'party' ? getOwnershipLabel(vehicle.ownership) : '')}
-                    isSelected={(vehicle) => String(formData.vehicleId || '') === String(vehicle._id)}
-                    onHover={setVehicleListIndex}
-                    onPick={(vehicle) => {
-                      selectVehicle(vehicle);
-                      setIsVehicleSectionActive(false);
-                    }}
-                  />
-                )}
-              </div>
-            </div>
-
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div>
               <div className="mb-1 flex items-center justify-between">
                 <label className="label mb-0" htmlFor="sale-party-input">Party Name <span className="text-rose-500">*</span></label>
@@ -416,104 +387,12 @@ export default function AddSalePopup({
           )}
         </FormSection>
 
-        <FormSection number={2} title="Material & Weight" tone="emerald">
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <div>
-              <label className="label" htmlFor="sale-material-input">Material Type <span className="text-rose-500">*</span></label>
-              <div ref={materialSectionRef} className="relative" onBlurCapture={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) setIsMaterialSectionActive(false); }}>
-                <input id="sale-material-input" ref={materialInputRef} className="input pr-10" type="text" value={materialQuery} onFocus={handleMaterialFocus} onChange={handleMaterialInputChange} onKeyDown={handleMaterialInputKeyDown} placeholder="Search material..." autoComplete="off" />
-                <ChevronDown className={`pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 transition-transform ${isMaterialSectionActive ? 'rotate-180' : ''}`} />
-                {isMaterialSectionActive && materialDropdownStyle && (
-                  <OptionList
-                    style={materialDropdownStyle}
-                    options={filteredMaterialTypes}
-                    activeIndex={materialListIndex}
-                    emptyText="No matching material found."
-                    getKey={(material) => material.value}
-                    getLabel={getMaterialDisplayName}
-                    isSelected={(material) => formData.materialType === material.value}
-                    onHover={setMaterialListIndex}
-                    onPick={(material) => {
-                      handleMaterialInputChange({ target: { value: getMaterialDisplayName(material) } });
-                      setIsMaterialSectionActive(false);
-                    }}
-                  />
-                )}
-              </div>
-            </div>
-
-            <div>
-              <label className="label" htmlFor="sale-basis-input">Sale Basis</label>
-              <div ref={basisSectionRef} className="relative">
-                <input id="sale-basis-input" ref={basisInputRef} className="input cursor-pointer pr-10" type="text" value={getSaleBasisDisplayName(formData.pricingMode || 'per_ton')} onFocus={handleBasisFocus} onClick={handleBasisFocus} onKeyDown={handleBasisInputKeyDown} readOnly />
-                <ChevronDown className={`pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 transition-transform ${isBasisSectionActive ? 'rotate-180' : ''}`} />
-                {isBasisSectionActive && (
-                  <div className="absolute z-50 mt-1 w-full overflow-hidden rounded-lg bg-white py-1 shadow-xl ring-1 ring-slate-200">
-                    {SALE_BASIS_OPTIONS.map((option, index) => (
-                      <button
-                        key={option.value}
-                        type="button"
-                        onMouseDown={(event) => event.preventDefault()}
-                        onMouseEnter={() => setBasisListIndex(index)}
-                        onClick={() => { selectPricingMode(option.value); setIsBasisSectionActive(false); }}
-                        className={`w-full px-3 py-2 text-left text-sm font-medium transition ${index === basisListIndex ? 'bg-primary-50 text-primary-900' : 'text-slate-700'}`}
-                      >
-                        {option.label}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {showWeight && weightsLocked && (
-            <p className="rounded-lg bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-800 ring-1 ring-inset ring-emerald-200">
-              Weights from weighbridge RST {formData.rstNo}: they cannot be changed here.
-            </p>
-          )}
-          {showWeight && (
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-              <div>
-                <label className="label" htmlFor="sale-gross-input">Gross Weight{byCubic && <span className="ml-1 font-normal text-slate-400">(for stock)</span>}</label>
-                <div className="relative">
-                  <input id="sale-gross-input" className={weightsLocked ? `${COMPUTED_CLASS} pr-10` : 'input pr-10'} type="number" name="grossWeight" value={formData.grossWeight || ''} onChange={handleInputChange} onKeyDown={handleSelectEnterMoveNext} placeholder="0" step="0.01" readOnly={weightsLocked} />
-                  <span className={SUFFIX_CLASS}>kg</span>
-                </div>
-              </div>
-              <div>
-                <label className="label" htmlFor="sale-tare-input">Tare Weight</label>
-                <div className="relative">
-                  <input id="sale-tare-input" className={weightsLocked ? `${COMPUTED_CLASS} pr-10` : 'input pr-10'} type="number" name="tareWeight" value={formData.tareWeight || ''} onChange={handleInputChange} onKeyDown={handleSelectEnterMoveNext} placeholder="0" step="0.01" readOnly={weightsLocked} />
-                  <span className={SUFFIX_CLASS}>kg</span>
-                </div>
-              </div>
-              <div>
-                <label className="label" htmlFor="sale-net-input">Net Weight</label>
-                <div className="relative">
-                  <input id="sale-net-input" className={`${COMPUTED_CLASS} pr-10 text-emerald-700`} type="number" name="netWeight" value={formData.netWeight || ''} readOnly placeholder="0" />
-                  <span className={SUFFIX_CLASS}>kg</span>
-                </div>
-              </div>
-            </div>
-          )}
-          {showCubic && (
-            <div>
-              <label className="label" htmlFor="sale-cubic-input">Cubic Feet Qty{!byCubic && <span className="ml-1 font-normal text-slate-400">(record only)</span>}</label>
-              <div className="relative sm:max-w-xs">
-                <input id="sale-cubic-input" className="input pr-10" type="number" name="cubicMeterQty" value={formData.cubicMeterQty || ''} onChange={handleInputChange} onKeyDown={handleSelectEnterMoveNext} placeholder="0" step="0.01" />
-                <span className={SUFFIX_CLASS}>cft</span>
-              </div>
-            </div>
-          )}
-        </FormSection>
-
         <FormSection
-          number={3}
+          number={2}
           title="Transport"
           tone="amber"
           hint={transportMode === 'party'
-            ? 'The party takes the material in their own vehicle, so there is no transport charge.'
+            ? 'The party takes the material in their own vehicle: just type its number. It is not added to your vehicles, and there is no transport charge.'
             : transportMode === 'own'
               ? 'This charge is added to the sale total and billed to the party.'
               : undefined}
@@ -534,6 +413,46 @@ export default function AddSalePopup({
                 </button>
               );
             })}
+          </div>
+
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div>
+              <div className="mb-1 flex items-center justify-between">
+                <label className="label mb-0" htmlFor="sale-vehicle-input">Vehicle No <span className="text-rose-500">*</span></label>
+                {transportMode !== 'party' && (
+                  <button type="button" onClick={onOpenNewVehicle} className="text-xs font-semibold text-primary-600 hover:underline">+ New Vehicle</button>
+                )}
+              </div>
+              {transportMode === 'party' ? (
+                <input id="sale-vehicle-input" ref={vehicleInputRef} className="input uppercase placeholder:normal-case" type="text" name="vehicleNo" value={vehicleQuery} onChange={handleVehicleInputChange} onKeyDown={handleVehicleInputKeyDown} autoComplete="off" placeholder="Type the party's vehicle no" />
+              ) : (
+                <div ref={vehicleSectionRef} className="relative" onBlurCapture={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) setIsVehicleSectionActive(false); }}>
+                  <input id="sale-vehicle-input" ref={vehicleInputRef} className="input pr-10 uppercase placeholder:normal-case" type="text" name="vehicleNo" value={vehicleQuery} onFocus={handleVehicleFocus} onChange={handleVehicleInputChange} onKeyDown={handleVehicleInputKeyDown} autoComplete="off" placeholder={transportMode === 'own' ? 'Search my vehicle...' : 'Search hired vehicle...'} />
+                  <ChevronDown className={`pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 transition-transform ${isVehicleSectionActive ? 'rotate-180' : ''}`} />
+                  {isVehicleSectionActive && vehicleDropdownStyle && (
+                    <OptionList
+                      style={vehicleDropdownStyle}
+                      options={filteredVehicles}
+                      activeIndex={vehicleListIndex}
+                      emptyText={transportMode === 'own' ? 'No vehicle of yours found. It is added to your vehicles when you save.' : 'No hired vehicle found. It is added under the transporter when you save.'}
+                      getKey={(vehicle) => vehicle._id}
+                      getLabel={getVehicleDisplayName}
+                      getHint={(vehicle) => vehicle.vehicleType || ''}
+                      isSelected={(vehicle) => String(formData.vehicleId || '') === String(vehicle._id)}
+                      onHover={setVehicleListIndex}
+                      onPick={(vehicle) => {
+                        selectVehicle(vehicle);
+                        setIsVehicleSectionActive(false);
+                      }}
+                    />
+                  )}
+                </div>
+              )}
+            </div>
+            <div>
+              <label className="label" htmlFor="sale-driver-input">Driver Name</label>
+              <input id="sale-driver-input" className="input" type="text" name="driverName" value={formData.driverName || ''} onChange={handleInputChange} onKeyDown={handleSelectEnterMoveNext} maxLength={60} autoComplete="off" placeholder="Optional" />
+            </div>
           </div>
 
           {transportMode !== 'party' && (
@@ -630,6 +549,98 @@ export default function AddSalePopup({
               {transportMode === 'hired' && saleTransport.isPeriod && (
                 <p className="mt-1">This vehicle is on <span className="font-semibold text-slate-800">{getBasisLabel(formData.transportBasis).toLowerCase()}</span> rent, so nothing is owed to the transporter for this trip.</p>
               )}
+            </div>
+          )}
+        </FormSection>
+
+        <FormSection number={3} title="Material & Weight" tone="emerald">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div>
+              <label className="label" htmlFor="sale-material-input">Material Type <span className="text-rose-500">*</span></label>
+              <div ref={materialSectionRef} className="relative" onBlurCapture={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) setIsMaterialSectionActive(false); }}>
+                <input id="sale-material-input" ref={materialInputRef} className="input pr-10" type="text" value={materialQuery} onFocus={handleMaterialFocus} onChange={handleMaterialInputChange} onKeyDown={handleMaterialInputKeyDown} placeholder="Search material..." autoComplete="off" />
+                <ChevronDown className={`pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 transition-transform ${isMaterialSectionActive ? 'rotate-180' : ''}`} />
+                {isMaterialSectionActive && materialDropdownStyle && (
+                  <OptionList
+                    style={materialDropdownStyle}
+                    options={filteredMaterialTypes}
+                    activeIndex={materialListIndex}
+                    emptyText="No matching material found."
+                    getKey={(material) => material.value}
+                    getLabel={getMaterialDisplayName}
+                    isSelected={(material) => formData.materialType === material.value}
+                    onHover={setMaterialListIndex}
+                    onPick={(material) => {
+                      handleMaterialInputChange({ target: { value: getMaterialDisplayName(material) } });
+                      setIsMaterialSectionActive(false);
+                    }}
+                  />
+                )}
+              </div>
+            </div>
+
+            <div>
+              <label className="label" htmlFor="sale-basis-input">Sale Basis</label>
+              <div ref={basisSectionRef} className="relative">
+                <input id="sale-basis-input" ref={basisInputRef} className="input cursor-pointer pr-10" type="text" value={getSaleBasisDisplayName(formData.pricingMode || 'per_ton')} onFocus={handleBasisFocus} onClick={handleBasisFocus} onKeyDown={handleBasisInputKeyDown} readOnly />
+                <ChevronDown className={`pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 transition-transform ${isBasisSectionActive ? 'rotate-180' : ''}`} />
+                {isBasisSectionActive && (
+                  <div className="absolute z-50 mt-1 w-full overflow-hidden rounded-lg bg-white py-1 shadow-xl ring-1 ring-slate-200">
+                    {SALE_BASIS_OPTIONS.map((option, index) => (
+                      <button
+                        key={option.value}
+                        type="button"
+                        onMouseDown={(event) => event.preventDefault()}
+                        onMouseEnter={() => setBasisListIndex(index)}
+                        onClick={() => { selectPricingMode(option.value); setIsBasisSectionActive(false); }}
+                        className={`w-full px-3 py-2 text-left text-sm font-medium transition ${index === basisListIndex ? 'bg-primary-50 text-primary-900' : 'text-slate-700'}`}
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {showWeight && weightsLocked && (
+            <p className="rounded-lg bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-800 ring-1 ring-inset ring-emerald-200">
+              Weights from weighbridge RST {formData.rstNo}: they cannot be changed here.
+            </p>
+          )}
+          {showWeight && (
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <div>
+                <label className="label" htmlFor="sale-gross-input">Gross Weight{byCubic && <span className="ml-1 font-normal text-slate-400">(for stock)</span>}</label>
+                <div className="relative">
+                  <input id="sale-gross-input" className={weightsLocked ? `${COMPUTED_CLASS} pr-10` : 'input pr-10'} type="number" name="grossWeight" value={formData.grossWeight || ''} onChange={handleInputChange} onKeyDown={handleSelectEnterMoveNext} placeholder="0" step="0.01" readOnly={weightsLocked} />
+                  <span className={SUFFIX_CLASS}>kg</span>
+                </div>
+              </div>
+              <div>
+                <label className="label" htmlFor="sale-tare-input">Tare Weight</label>
+                <div className="relative">
+                  <input id="sale-tare-input" className={weightsLocked ? `${COMPUTED_CLASS} pr-10` : 'input pr-10'} type="number" name="tareWeight" value={formData.tareWeight || ''} onChange={handleInputChange} onKeyDown={handleSelectEnterMoveNext} placeholder="0" step="0.01" readOnly={weightsLocked} />
+                  <span className={SUFFIX_CLASS}>kg</span>
+                </div>
+              </div>
+              <div>
+                <label className="label" htmlFor="sale-net-input">Net Weight</label>
+                <div className="relative">
+                  <input id="sale-net-input" className={`${COMPUTED_CLASS} pr-10 text-emerald-700`} type="number" name="netWeight" value={formData.netWeight || ''} readOnly placeholder="0" />
+                  <span className={SUFFIX_CLASS}>kg</span>
+                </div>
+              </div>
+            </div>
+          )}
+          {showCubic && (
+            <div>
+              <label className="label" htmlFor="sale-cubic-input">Cubic Feet Qty{!byCubic && <span className="ml-1 font-normal text-slate-400">(record only)</span>}</label>
+              <div className="relative sm:max-w-xs">
+                <input id="sale-cubic-input" className="input pr-10" type="number" name="cubicMeterQty" value={formData.cubicMeterQty || ''} onChange={handleInputChange} onKeyDown={handleSelectEnterMoveNext} placeholder="0" step="0.01" />
+                <span className={SUFFIX_CLASS}>cft</span>
+              </div>
             </div>
           )}
         </FormSection>

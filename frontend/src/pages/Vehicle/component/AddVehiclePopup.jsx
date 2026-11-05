@@ -11,11 +11,14 @@ import { useFloatingDropdownPosition } from '../../../utils/useFloatingDropdownP
 import { VEHICLE_CATEGORY_OPTIONS, VEHICLE_OWNERSHIP_OPTIONS, getFilledTripRates, getSupplierRatesPayload, getTripRatesError } from '../../../utils/transport';
 import { formatHireDate, toDayInput, todayInput } from '../../../utils/monthlyHire';
 import { getPartySaleRatesPayload } from '../../../utils/partyRates';
+import { METER_UNIT_OPTIONS, meterUnitFor } from '../../../utils/diesel';
 
 const initialFormData = {
   partyId: '',
   vehicleNo: '',
   category: 'truck',
+  // New vehicles count KM unless Hours is picked
+  meterUnit: 'km',
   vehicleType: 'sales',
   ownership: 'own',
   // A hired vehicle's pay terms: none, a fixed rate, or a monthly rent from a date
@@ -29,6 +32,8 @@ const initialFormData = {
 const buildVehicleForm = (vehicle, defaultVehicleType) => (vehicle
   ? {
     ...vehicle,
+    // A vehicle saved before this was asked shows what its type counts
+    meterUnit: meterUnitFor('vehicle', vehicle.category, vehicle.meterUnit),
     hireRate: Number(vehicle.hireRate || 0) > 0 ? String(vehicle.hireRate) : '',
     tripRates: (vehicle.tripRates || []).map((row) => ({ location: row.location, rate: String(row.rate ?? '') })),
     monthlyFrom: toDayInput(vehicle.monthlyHire?.startDate) || todayInput()
@@ -333,6 +338,7 @@ export default function AddVehiclePopup({ vehicle, onClose, onSave, onVehicleSav
         partyId: isHiredVehicle ? formData.partyId : '',
         vehicleNo: String(formData.vehicleNo || '').trim().toUpperCase(),
         category: formData.category || 'truck',
+        meterUnit: formData.meterUnit === 'hr' ? 'hr' : 'km',
         ownership,
         // Pay terms: a fixed rate (per trip with a rate per location, per ton, per km) or a monthly rent from a date
         hireBasis: isHiredVehicle ? formData.hireBasis || '' : '',
@@ -404,6 +410,27 @@ export default function AddVehiclePopup({ vehicle, onClose, onSave, onVehicleSav
                 </button>
               ))}
             </div>
+          </div>
+          <div>
+            <span className="label">Meter Reading In</span>
+            <div className="grid grid-cols-2 gap-2 sm:max-w-sm">
+              {METER_UNIT_OPTIONS.map((option) => {
+                const active = (formData.meterUnit || 'km') === option.value;
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() => setFormData((prev) => ({ ...prev, meterUnit: option.value }))}
+                    aria-pressed={active}
+                    className={`rounded-lg border px-3 py-2 text-left transition ${active ? ACTIVE_OPTION_CLASS : INACTIVE_OPTION_CLASS}`}
+                  >
+                    <span className="block text-sm font-semibold">{option.label}</span>
+                    <span className={`block text-[11px] ${active ? 'opacity-80' : 'text-slate-400'}`}>{option.hint}</span>
+                  </button>
+                );
+              })}
+            </div>
+            <p className="mt-1 text-xs text-slate-500">KM for trucks and hyva; Hours for a JCB, loader, PC or tractor that runs on an hour meter.</p>
           </div>
         </FormSection>
 

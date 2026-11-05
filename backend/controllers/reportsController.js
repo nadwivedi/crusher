@@ -17,6 +17,7 @@ const Stock = require("../models/Stock");
 const StockAdjustment = require("../models/StockAdjustment");
 const Transport = require("../models/Transport");
 const Vehicle = require("../models/Vehicle");
+const MeterReading = require("../models/MeterReading");
 const { ensureDieselStock, usedForOf } = require("../utils/diesel");
 const { scopedFilter, scopedIdFilter } = require("../utils/ownership");
 const { isBilledInSale } = require("../utils/transport");
@@ -2117,6 +2118,72 @@ const getDieselConsumptionReport = async (req, res) => {
   }
 };
 
+// Diesel average: every diesel issue to a vehicle or the DG set, and every meter reading, lifetime.
+// The page matches them per machine for the period picked (KM per litre, or litres per hour).
+const getDieselAverageReport = async (req, res) => {
+  try {
+    const diesel = await ensureDieselStock(req.userId);
+    const [issues, readings, vehicles, purchases] = await Promise.all([
+      MaterialUsed.find({ userId: req.userId, materialType: diesel._id })
+        .select("usedDate createdAt usedQty usedFor vehicle vehicleNo purchase")
+        .lean(),
+      MeterReading.find({ userId: req.userId })
+        .select("machine vehicle vehicleNo meterUnit readingDate openingReading closingReading createdAt")
+        .lean(),
+      Vehicle.find({ userId: req.userId }).select("vehicleNo category ownership meterUnit").sort({ vehicleNo: 1 }).lean(),
+      Purchase.find({ userId: req.userId, "items.product": diesel._id }).select("items").lean(),
+    ]);
+
+    // Average price paid per litre, to put a cost on what each machine burns
+    let boughtQty = 0;
+    let boughtAmount = 0;
+    purchases.forEach((purchase) => (purchase.items || [])
+      .filter((line) => String(line.product) === String(diesel._id))
+      .forEach((line) => {
+        boughtQty += toNumber(line.quantity);
+        boughtAmount += toNumber(line.total);
+      }));
+
+    return res.json({
+      unit: diesel.unit || "ltr",
+      avgRate: boughtQty > 0 ? boughtAmount / boughtQty : 0,
+      vehicles: vehicles.map((vehicle) => ({
+        _id: vehicle._id,
+        vehicleNo: vehicle.vehicleNo,
+        category: vehicle.category || "",
+        ownership: vehicle.ownership || "party",
+        meterUnit: vehicle.meterUnit || "",
+      })),
+      issues: issues
+        .map((entry) => ({ ...entry, usedFor: usedForOf(entry) }))
+        .filter((entry) => entry.usedFor === "vehicle" || entry.usedFor === "dg")
+        .map((entry) => ({
+          _id: entry._id,
+          date: entry.usedDate || entry.createdAt,
+          createdAt: entry.createdAt,
+          qty: toNumber(entry.usedQty),
+          machine: entry.usedFor,
+          vehicleId: entry.usedFor === "vehicle" ? String(entry.vehicle || "") : "",
+          vehicleNo: entry.usedFor === "vehicle" ? entry.vehicleNo || "" : "",
+          source: entry.purchase ? "pump" : "stock",
+        })),
+      readings: readings.map((reading) => ({
+        _id: reading._id,
+        date: reading.readingDate,
+        createdAt: reading.createdAt,
+        machine: reading.machine,
+        vehicleId: reading.machine === "vehicle" ? String(reading.vehicle || "") : "",
+        vehicleNo: reading.vehicleNo || "",
+        unit: reading.meterUnit,
+        opening: toNumber(reading.openingReading),
+        closing: reading.closingReading === null || reading.closingReading === undefined ? null : toNumber(reading.closingReading),
+      })),
+    });
+  } catch (error) {
+    return res.status(500).json({ message: "Failed to load the diesel average report", error: error.message });
+  }
+};
+
 // Same report for any stock item
 const getItemConsumptionReport = async (req, res) => {
   const { id } = req.params;
@@ -2433,6 +2500,7 @@ module.exports = {
   getDashboardAnalytics,
   getDashboardSummary,
   getDieselConsumptionReport,
+  getDieselAverageReport,
   getItemConsumptionReport,
   getInventorySummary,
   getPaymentReport,

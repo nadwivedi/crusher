@@ -9,6 +9,7 @@ const {
   getDashboardAnalytics,
   getDashboardSummary,
   getDieselConsumptionReport,
+  getDieselAverageReport,
   getItemConsumptionReport,
   getInventorySummary,
   getPaymentReport,
@@ -33,6 +34,7 @@ router.get("/stock-ledger", requireSection("materialUsed"), getStockLedger);
 router.get("/dashboard-analytics", ownerOnly, getDashboardAnalytics);
 router.get("/dashboard-summary", ownerOnly, getDashboardSummary);
 router.get("/diesel-consumption", requireSection("materialUsed"), getDieselConsumptionReport);
+router.get("/diesel-average", requireSection("materialUsed"), requireSection("meterReadings"), getDieselAverageReport);
 router.get("/inventory", requireSection("materialUsed"), getInventorySummary);
 router.get("/activity", ownerOnly, getActivity);
 router.get("/item-consumption/:id", requireSection("materialUsed"), getItemConsumptionReport);

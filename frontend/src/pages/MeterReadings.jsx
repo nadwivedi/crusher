@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import { CalendarDays, ChevronDown, Factory, Gauge, Inbox, Pencil, Plus, RefreshCw, Search, Trash2, Truck } from 'lucide-react';
+import { CalendarDays, ChevronDown, Factory, Fuel, Gauge, Inbox, Pencil, Plus, RefreshCw, Search, Trash2, Truck } from 'lucide-react';
 import apiClient from '../utils/api';
 import { useAuth } from '../context/AuthContext';
 import { canDeleteEntries, canEditEntry } from '../utils/staffAccess';
@@ -226,7 +226,7 @@ export default function MeterReadings() {
     vehicles.forEach((vehicle) => {
       const key = String(vehicle._id);
       if (vehicle.ownership === 'party' && !withReadings.has(key)) return;
-      list.push({ key, name: vehicleLabel(vehicle.vehicleNo, vehicle.category), unit: meterUnitFor('vehicle', vehicle.category) });
+      list.push({ key, name: vehicleLabel(vehicle.vehicleNo, vehicle.category), unit: meterUnitFor('vehicle', vehicle.category, vehicle.meterUnit) });
       listed.add(key);
     });
     // Readings of a vehicle that was deleted since
@@ -323,6 +323,9 @@ export default function MeterReadings() {
         <div className="flex flex-wrap items-center gap-2">
           <button type="button" className="icon-btn" title="Refresh" aria-label="Refresh" onClick={loadData}>
             <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
+          </button>
+          <button type="button" className="btn-secondary" onClick={() => navigate('/reports/diesel-average')} title="Diesel issued against the meter of each vehicle">
+            <Fuel size={16} /> Diesel Average
           </button>
           <button type="button" className="btn-primary" onClick={() => setPopup({})}>
             <Plus size={18} /> Add Reading

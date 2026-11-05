@@ -46,6 +46,12 @@ const vehicleSchema = new mongoose.Schema(
       enum: ["", "truck", "hyva", "jcb", "loader", "tractor", "pc", "other"],
       default: "",
     },
+    // Its meter counts KM or hours. Empty on vehicles saved before this was asked: those go by their type (utils/diesel).
+    meterUnit: {
+      type: String,
+      enum: ["", "km", "hr"],
+      default: "",
+    },
     vehicleType: {
       type: String,
       enum: ["boulder", "sales"],

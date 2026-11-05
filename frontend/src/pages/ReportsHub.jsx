@@ -21,6 +21,7 @@ const REPORT_ITEMS = [
   { name: 'Stock Adjustment Report', path: '/reports/stock-adjustment-report', Icon: Boxes, section: 'materialUsed' },
   { name: 'Inventory', path: '/inventory', Icon: Package, section: 'materialUsed' },
   { name: 'Diesel Report', path: '/reports/diesel-consumption', Icon: Fuel, section: 'materialUsed' },
+  { name: 'Diesel Average', hint: 'KM / hour per litre', path: '/reports/diesel-average', Icon: Gauge, section: 'meterReadings' },
   { name: 'Expense Report', path: '/reports/expense-report', Icon: ReceiptText, section: 'expenses' },
   { name: 'Profit And Loss Report', path: '/reports/profit-loss-report', Icon: FileBarChart, ownerOnly: true }
 ];

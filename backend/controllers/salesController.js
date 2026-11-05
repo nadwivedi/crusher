@@ -117,12 +117,20 @@ const normalizeSalesPayload = (payload = {}) => {
   return nextPayload;
 };
 
-const resolveSalesVehicle = async (payload = {}, userId) => {
+// fallbackMode is the saved sale's transport mode, for an update that does not send one
+const resolveSalesVehicle = async (payload = {}, userId, fallbackMode = "party") => {
   const normalizedVehicleId = `${payload.vehicleId || ""}`.trim();
   const normalizedVehicleNo = normalizeVehicleNo(payload.vehicleNo);
 
   if (!normalizedVehicleId && !normalizedVehicleNo) {
     return payload;
+  }
+
+  // The party's own vehicle is just a typed number: it is linked when already in Vehicles, never added there
+  const mode = payload.transportMode || fallbackMode || "party";
+  if (!normalizedVehicleId && mode === "party") {
+    const known = await Vehicle.findOne({ userId, vehicleNo: normalizedVehicleNo }).select("_id vehicleNo");
+    return { ...payload, vehicleId: known ? known._id : null, vehicleNo: normalizedVehicleNo };
   }
 
   let vehicle = null;
@@ -567,7 +575,8 @@ const editSales = async (req, res) => {
     const { weighmentId: _ignoredWeighment, weightSource: _ignoredSource, ...editBody } = req.body || {};
     const updatePayload = await resolveSalesVehicle(
       normalizeSalesPayload(sales.weighmentId ? stripLockedFields(editBody) : editBody),
-      req.userId
+      req.userId,
+      sales.transportMode
     );
     if (sales.weighmentId) {
       delete updatePayload.tareWeight;

@@ -176,7 +176,7 @@ export default function PumpFillPopup({ editing = null, presetVehicle = '', onCl
 
   const selectedParty = parties.find((party) => String(party._id) === form.party) || null;
   const selectedVehicle = vehicles.find((vehicle) => String(vehicle._id) === form.vehicle) || null;
-  const meterUnit = meterUnitFor('vehicle', selectedVehicle?.category);
+  const meterUnit = meterUnitFor('vehicle', selectedVehicle?.category, selectedVehicle?.meterUnit);
   const unit = diesel?.unit || 'ltr';
   const amount = Number(form.amount || 0);
   const cashParty = isCash(selectedParty);

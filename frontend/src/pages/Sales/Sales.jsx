@@ -167,6 +167,7 @@ const getInitialFormData = (pricingMode = 'per_ton') => ({
   customerPhone: '',
   customerAddress: '',
   vehicleNo: '',
+  driverName: '',
   materialType: '',
   tareWeight: '',
   grossWeight: '',
@@ -806,7 +807,13 @@ export default function Sales({ modalOnly = false, onModalFinish = null, weighme
     () => leadgers.find((leadger) => String(leadger._id) === String(formData.party || '')) || null,
     [leadgers, formData.party]
   );
+  // The picker lists only vehicles of the chosen kind (mine / hired). A party's vehicle is just typed.
+  const isPartyVehicleMode = (formData.transportMode || 'party') === 'party';
+  const modeVehicles = useMemo(() => (
+    isPartyVehicleMode ? [] : vehicles.filter((vehicle) => (vehicle.ownership || 'party') === formData.transportMode)
+  ), [vehicles, isPartyVehicleMode, formData.transportMode]);
   const filteredVehicles = useMemo(() => {
+    const vehicles = modeVehicles;
     const normalizedQuery = normalizeText(vehicleQuery);
     const normalizedSelectedVehicle = normalizeText(formData.vehicleNo);
     const exactVehicle = vehicles.find((vehicle) => (
@@ -836,7 +843,7 @@ export default function Sales({ modalOnly = false, onModalFinish = null, weighme
     ));
 
     return [...startsWith, ...includes];
-  }, [vehicles, vehicleQuery, isVehicleSectionActive, formData.vehicleNo]);
+  }, [modeVehicles, vehicleQuery, isVehicleSectionActive, formData.vehicleNo]);
   const filteredMaterialTypes = useMemo(() => {
     const normalizedQuery = normalizeText(materialQuery);
     const selectedMaterial = MATERIAL_TYPE_OPTIONS.find((item) => item.value === formData.materialType) || null;
@@ -1051,15 +1058,15 @@ export default function Sales({ modalOnly = false, onModalFinish = null, weighme
   const findExactVehicle = (value) => {
     const normalized = normalizeText(value);
     if (!normalized) return null;
-    return vehicles.find((vehicle) => normalizeText(getVehicleDisplayName(vehicle)) === normalized) || null;
+    return modeVehicles.find((vehicle) => normalizeText(getVehicleDisplayName(vehicle)) === normalized) || null;
   };
 
   const findBestVehicleMatch = (value) => {
     const normalized = normalizeText(value);
     if (!normalized) return null;
     if (isCompleteVehicleNumber(value)) return null;
-    return vehicles.find((vehicle) => normalizeText(getVehicleDisplayName(vehicle)).startsWith(normalized))
-      || vehicles.find((vehicle) => normalizeText(getVehicleDisplayName(vehicle)).includes(normalized))
+    return modeVehicles.find((vehicle) => normalizeText(getVehicleDisplayName(vehicle)).startsWith(normalized))
+      || modeVehicles.find((vehicle) => normalizeText(getVehicleDisplayName(vehicle)).includes(normalized))
       || null;
   };
 
@@ -1258,6 +1265,8 @@ export default function Sales({ modalOnly = false, onModalFinish = null, weighme
   };
 
   const ensureVehicleExists = async () => {
+    // A party's vehicle is saved on the sale as typed, not added to Vehicles
+    if ((formData.transportMode || 'party') === 'party') return formData.vehicleId || '';
     const normalizedVehicleNo = normalizeVehicleValue(formData.vehicleNo);
     const partyId = String(formData.party || '').trim();
 
@@ -1314,6 +1323,11 @@ export default function Sales({ modalOnly = false, onModalFinish = null, weighme
     const value = String(e.target.value || '').toUpperCase();
     setVehicleQuery(value);
     setOcrVehicleMismatch(null);
+
+    if (isPartyVehicleMode) {
+      setFormData((prev) => ({ ...prev, vehicleId: '', vehicleNo: value }));
+      return;
+    }
 
     if (!normalizeText(value)) {
       selectVehicle(null);
@@ -1574,6 +1588,15 @@ export default function Sales({ modalOnly = false, onModalFinish = null, weighme
   const handleVehicleInputKeyDown = (e) => {
     const key = e.key?.toLowerCase();
 
+    if (isPartyVehicleMode) {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        e.stopPropagation();
+        focusNextPopupField(e.currentTarget);
+      }
+      return;
+    }
+
     if (key === 'control' && !e.altKey && !e.metaKey) {
       e.preventDefault();
       e.stopPropagation();
@@ -1710,6 +1733,7 @@ export default function Sales({ modalOnly = false, onModalFinish = null, weighme
         ? getVehicleTransportDefaults(selectedVehicle, prev.transportCharge)
         : { ...NO_SALE_TRANSPORT, transportMode: mode, transportCharge: mode === 'party' ? '' : prev.transportCharge };
       const nextState = { ...prev, ...vehicleDefaults };
+      if (selectedVehicle && (selectedVehicle.ownership || 'party') !== mode) nextState.vehicleId = '';
 
       return { ...nextState, totalAmount: recalculateSaleAmount(nextState) };
     });
@@ -2364,6 +2388,7 @@ export default function Sales({ modalOnly = false, onModalFinish = null, weighme
         partyId: formData.party,
         vehicleId: ensuredVehicleId || formData.vehicleId || undefined,
         vehicleNo: String(formData.vehicleNo || '').trim().toUpperCase(),
+        driverName: String(formData.driverName || '').trim(),
         invoiceNumber: String(formData.invoiceNumber || '').trim().toUpperCase(),
         rstNo: String(formData.rstNo || '').trim().toUpperCase(),
         stoneSize: formData.materialType,
@@ -2456,6 +2481,7 @@ export default function Sales({ modalOnly = false, onModalFinish = null, weighme
       customerAddress: sale.customerAddress || '',
           materialType: sale.materialType || sale.stoneSize || '',
           vehicleNo: sale.vehicleNo || '',
+          driverName: sale.driverName || '',
           tareWeight: sale.tareWeight || sale.vehicleWeight || '',
           grossWeight: sale.grossWeight || sale.netWeight || '',
           netWeight: sale.netWeight || sale.materialWeight || '',

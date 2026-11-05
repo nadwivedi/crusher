@@ -17,11 +17,19 @@ export const usedForName = (entry) => {
   return usedFor === 'vehicle' ? entry?.vehicleNo || '' : '';
 };
 
-// Same rule as backend/utils/diesel.js: JCB, loader, PC and tractor run on an hour meter, other vehicles on KM. The DG set counts hours.
+// Same rule as backend/utils/diesel.js: the DG set counts hours; a vehicle counts what was picked for it (KM or hours),
+// and one saved before that was asked goes by its type (JCB, loader, PC and tractor count hours, the rest KM)
 const HOUR_METER_CATEGORIES = ['jcb', 'loader', 'pc', 'tractor'];
-export const meterUnitFor = (usedFor, category) => (
-  usedFor === 'dg' || HOUR_METER_CATEGORIES.includes(category) ? 'hr' : 'km'
-);
+export const meterUnitFor = (usedFor, category, meterUnit) => {
+  if (usedFor === 'dg') return 'hr';
+  if (meterUnit === 'km' || meterUnit === 'hr') return meterUnit;
+  return HOUR_METER_CATEGORIES.includes(category) ? 'hr' : 'km';
+};
+
+export const METER_UNIT_OPTIONS = [
+  { value: 'km', label: 'KM', hint: 'Odometer' },
+  { value: 'hr', label: 'Hours', hint: 'Hour meter' }
+];
 export const meterLabel = (unit) => (unit === 'hr' ? 'Hour Meter' : 'KM Reading');
 
 // My vehicles first, then hired, then party vehicles; each group by number

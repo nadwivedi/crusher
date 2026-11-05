@@ -33,6 +33,7 @@ import BoulderLedger from './pages/BoulderLedger';
 import DumpBoulder from './pages/DumpBoulder';
 import MaterialUsedLedger from './pages/MaterialUsedLedger';
 import ItemUsageReport from './pages/Reports/ItemUsageReport';
+import DieselAverage from './pages/Reports/DieselAverage';
 import Inventory from './pages/Inventory';
 import ActivityCenter from './pages/ActivityCenter';
 import MeterReadings from './pages/MeterReadings';
@@ -162,6 +163,7 @@ function App() {
           <Route path="/dump-boulder" element={<StaffRoute section="boulder"><DumpBoulder /></StaffRoute>} />
           <Route path="/reports/material-used-ledger" element={<StaffRoute section="materialUsed"><MaterialUsedLedger /></StaffRoute>} />
           <Route path="/reports/diesel-consumption" element={<StaffRoute section="materialUsed"><ItemUsageReport /></StaffRoute>} />
+          <Route path="/reports/diesel-average" element={<StaffRoute section="materialUsed"><StaffRoute section="meterReadings"><DieselAverage /></StaffRoute></StaffRoute>} />
           <Route path="/inventory" element={<StaffRoute section="materialUsed"><Inventory /></StaffRoute>} />
           <Route path="/inventory/:id" element={<StaffRoute section="materialUsed"><ItemUsageReport /></StaffRoute>} />
           <Route path="/meter-readings" element={<StaffRoute section="meterReadings"><MeterReadings /></StaffRoute>} />

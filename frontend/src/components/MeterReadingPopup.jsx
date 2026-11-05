@@ -65,7 +65,7 @@ export default function MeterReadingPopup({ readings: givenReadings, vehicles: g
   const [saving, setSaving] = useState(false);
 
   const selectedVehicle = vehicles.find((vehicle) => String(vehicle._id) === form.vehicle);
-  const unit = meterUnitFor(form.machine, selectedVehicle?.category);
+  const unit = meterUnitFor(form.machine, selectedVehicle?.category, selectedVehicle?.meterUnit);
   const machineKey = form.machine === 'dg' ? DG_KEY : form.vehicle;
 
   // The last entry of this machine on or before the chosen date (this entry itself left out)

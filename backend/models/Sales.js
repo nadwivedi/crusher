@@ -24,6 +24,12 @@ const salesSchema = new mongoose.Schema(
       trim: true,
       uppercase: true,
     },
+    // Driver of the vehicle for this trip, typed on the sale
+    driverName: {
+      type: String,
+      trim: true,
+      default: "",
+    },
     invoiceNumber: {
       type: String,
       sparse: true,

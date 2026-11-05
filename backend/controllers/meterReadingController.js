@@ -32,7 +32,7 @@ const readBody = async (req) => {
     if (!req.body.vehicle || !mongoose.Types.ObjectId.isValid(req.body.vehicle)) {
       throw new ReadingError(400, "Select the vehicle");
     }
-    vehicle = await Vehicle.findOne({ _id: req.body.vehicle, userId: req.userId }).select("vehicleNo category");
+    vehicle = await Vehicle.findOne({ _id: req.body.vehicle, userId: req.userId }).select("vehicleNo category meterUnit");
     if (!vehicle) throw new ReadingError(404, "Vehicle not found");
   }
 
@@ -52,7 +52,7 @@ const readBody = async (req) => {
     machine,
     vehicle: vehicle?._id || null,
     vehicleNo: vehicle?.vehicleNo || "",
-    meterUnit: meterUnitFor(machine, vehicle?.category),
+    meterUnit: meterUnitFor(machine, vehicle?.category, vehicle?.meterUnit),
     readingDate,
     openingReading,
     closingReading,

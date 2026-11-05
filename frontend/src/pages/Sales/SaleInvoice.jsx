@@ -150,6 +150,7 @@ export default function SaleInvoice() {
     { label: 'Invoice No', value: sale.invoiceNumber || '-' },
     { label: 'Date', value: formatDate(sale.saleDate || sale.createdAt) },
     { label: 'Vehicle No', value: sale.vehicleNo || '-' },
+    ...(sale.driverName ? [{ label: 'Driver', value: sale.driverName }] : []),
     ...(sale.rstNo ? [{ label: 'RST No', value: sale.rstNo }] : []),
     ...(royaltyAmount > 0 && sale.royaltyNo ? [{ label: 'Royalty No', value: sale.royaltyNo }] : [])
   ];
