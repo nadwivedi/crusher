@@ -98,7 +98,9 @@
 .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
 
 .page-fade-in { animation: pageFadeIn 0.2s ease-in-out; }
-@keyframes pageFadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+/* Opacity only: a transform here makes every fixed dropdown inside the page (popup lists) sit relative to the
+   page instead of the screen while it runs, so a list that opens with its popup shows up far below its field */
+@keyframes pageFadeIn { from { opacity: 0; } to { opacity: 1; } }
 
 :root {
   --darkish-table-border: rgba(100, 116, 139, 0.24);

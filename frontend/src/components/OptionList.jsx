@@ -6,8 +6,9 @@ import { Check } from 'lucide-react';
  */
 export default function OptionList({ style, options, activeIndex, emptyText, getKey, getLabel, getHint, isSelected, onHover, onPick, footer }) {
   return (
-    <div className="fixed z-[80] overflow-hidden rounded-lg bg-white shadow-xl ring-1 ring-slate-200" style={style} onClick={(event) => event.stopPropagation()}>
-      <div className="overflow-y-auto py-1" style={{ maxHeight: style.maxHeight }}>
+    <div className="fixed z-[80] flex flex-col overflow-hidden rounded-lg bg-white shadow-xl ring-1 ring-slate-200" style={style} onClick={(event) => event.stopPropagation()}>
+      {/* The list scrolls and gives up room to the footer, which always stays in view */}
+      <div className="min-h-0 flex-1 overflow-y-auto py-1">
         {options.length === 0 ? (
           <p className="px-3 py-2.5 text-sm text-slate-500">{emptyText}</p>
         ) : options.map((option, index) => {
@@ -30,7 +31,7 @@ export default function OptionList({ style, options, activeIndex, emptyText, get
           );
         })}
       </div>
-      {footer}
+      {footer && <div className="shrink-0">{footer}</div>}
     </div>
   );
 }
