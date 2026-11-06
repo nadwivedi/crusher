@@ -210,12 +210,12 @@ export default function ActivityCenter() {
 
       {error && <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700">{error}</div>}
 
-      <section className="grid grid-cols-2 gap-2.5 md:gap-4 lg:grid-cols-3 xl:grid-cols-5">
-        <StatCard icon={FileText} tone="emerald" label="Sales" value={fmtMoney(totals.sales)} hint={totals.salesKg ? fmtTons(totals.salesKg) : undefined} />
-        <StatCard icon={Mountain} tone="blue" label="Boulder In" value={fmtTons(totals.boulderKg)} />
-        <StatCard icon={HandCoins} tone="teal" label="Money Received" value={fmtMoney(totals.received)} />
-        <StatCard icon={Send} tone="rose" label="Money Paid" value={fmtMoney(totals.paid)} hint={totals.purchases ? `Purchases ${fmtMoney(totals.purchases)}` : undefined} />
-        <StatCard icon={Wallet} tone="amber" label="Expenses" value={fmtMoney(totals.expenses)} />
+      <section className="grid grid-cols-3 gap-2 md:gap-3 xl:grid-cols-5">
+        <StatCard compact icon={FileText} tone="emerald" label="Sales" value={fmtMoney(totals.sales)} hint={totals.salesKg ? fmtTons(totals.salesKg) : undefined} />
+        <StatCard compact icon={Mountain} tone="blue" label="Boulder In" value={fmtTons(totals.boulderKg)} />
+        <StatCard compact icon={HandCoins} tone="teal" label="Money Received" value={fmtMoney(totals.received)} />
+        <StatCard compact icon={Send} tone="rose" label="Money Paid" value={fmtMoney(totals.paid)} hint={totals.purchases ? `Purchases ${fmtMoney(totals.purchases)}` : undefined} />
+        <StatCard compact icon={Wallet} tone="amber" label="Expenses" value={fmtMoney(totals.expenses)} />
       </section>
 
       <section className="panel">
