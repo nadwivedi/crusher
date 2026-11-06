@@ -1,0 +1,61 @@
+# CrusherBook
+
+> CrusherBook is stone crusher management software for Indian crusher plants and quarries. It brings weighbridge slips (kanta parchi), billing, stock, party ledger (khata), diesel, expenses, payroll and daily profit and loss into one cloud-based software. It works on mobile and computer, and is available in English and Hindi.
+
+CrusherBook replaces the slip book, the munshi register and Excel sheets. It has been serving crusher plants for 3+ years and is built around how crushing actually works: boulder in, gitti out, per ton and per cft (cubic feet) billing, party-wise credit (udhari) and daily profit. Owners can see stock, dues and profit from their phone at any time.
+
+## Key facts
+
+- Product type: Stone crusher management software (crusher plant management system, crusher billing software, weighbridge software, stone crusher ERP without heavy setup)
+- Country and market: India
+- Languages: English and Hindi
+- Platforms: Mobile app and web (computer)
+- Pricing: Yearly plans from Rs 9,999 per year, listed openly, no hidden setup fee
+- Free trial: 14 days; the team sets up the plant and the customer tests it on their own slips
+- Data migration: The team helps with opening balances for parties and stock, and can import data from Excel and Tally
+- Security: Secure cloud-based software with several layers of security
+
+## Features
+
+- Weighbridge slips (kanta parchi): Enter gross, tare and net weight; weighbridge slip to bill in one step
+- AI slip entry (Advanced plan): Photograph the weighbridge slip and AI reads date, vehicle number, gross weight and tare weight for the user to check and save
+- Weighbridge integration (Enterprise plan): Weights flow directly from the weighbridge (dharam kanta) into the slip
+- Billing and accounts: Per ton and per cft billing at each party's rate, GST invoices, credit and debit notes, Dr/Cr party ledger with outstanding balances and payment history
+- WhatsApp: Automatic WhatsApp bills and payment reminders to parties (Advanced plan)
+- Stock and production: Real-time stock of boulders, gitti (aggregate), dust and sand; production reports and quarry tracking
+- Plant costs: Diesel consumption, machine hours and meter readings, own and hired trucks, daily expenses, payroll and attendance
+- Reports: Automatic daily P&L, monthly reports, party-wise, material-wise and vehicle-wise sales reports
+- Access control: Separate employee logins with limited permissions for munshi, accountant and CA
+- Multi-plant management (Enterprise plan): Manage several crushers from one login, with each plant's data kept separate
+
+## Plans
+
+- Basic, Rs 9,999 per year: For single crusher plants. Crusher entry, sales and boulder slips, party ledger, expenses and stock, with 1 employee login.
+- Advanced, Rs 11,999 per year: Everything in Basic plus 3 employee logins, automatic WhatsApp alerts, AI slip photo entry and Excel export.
+- Enterprise, Rs 13,999 per year: Everything in Advanced plus 10 employee logins, multi-crusher management and weighbridge integration.
+
+## Who it is for
+
+- Single crusher owners replacing paper registers
+- Owners with more than one crusher plant
+- Quarry plus crusher operations (own mine or outside boulder suppliers, crushing, dispatch, hired trucks, diesel)
+- Munshis, accountants and CAs who need clean records that match the weighbridge
+
+## Pages
+
+- [CrusherBook Home Page](https://crusherbook.com/): Product overview, features, comparison with registers, Excel and generic accounting software, pricing, and FAQs
+- [Sitemap](https://crusherbook.com/sitemap.xml): Full list of site pages
+
+## Frequently asked questions
+
+- Does it support per ton and per cft billing? Yes, for each party and material at its own rate, with GST.
+- Does it support weighbridge integration? Yes, on the Enterprise plan. On the Advanced plan, slips can be read from a photo with AI.
+- Can it manage more than one plant? Yes, on the Enterprise plan.
+- Does it send WhatsApp bills and reminders? Yes, automatically on the Advanced plan.
+- Is it available in Hindi? Yes, in Hindi and English.
+- Is there a free trial? Yes, 14 days.
+
+## Contact
+
+- Website: https://crusherbook.com/
+- WhatsApp: Available through the "Talk to Us on WhatsApp" and "Chat on WhatsApp" buttons on the website
