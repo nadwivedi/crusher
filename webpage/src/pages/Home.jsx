@@ -302,8 +302,8 @@ const Home = () => {
   return (
     <div className="w-full">
       <Seo
-        title="India's Best Stone Crusher Management Software"
-        description="CrusherBook is stone crusher management software for India: weighbridge slips, per ton or cft billing, boulder, stock, party ledger and WhatsApp. From Rs 9,999/yr."
+        title="Stone Crusher Management Software India"
+        description="Stone crusher management software for India: weighbridge slips, per ton/cft billing, stock, party ledger & WhatsApp. From Rs 9,999/yr. Free demo."
         path="/"
         keywords={[
           'stone crusher management software',
