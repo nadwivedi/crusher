@@ -3424,7 +3424,7 @@ export default function Sales({ modalOnly = false, onModalFinish = null, weighme
                           </div>
                           {view.royaltyAmount > 0 && (
                             <p className="truncate text-[11px] font-medium text-orange-700">
-                              {[`Royalty ${formatRupees(view.royaltyAmount)}`, sale.royaltyNo ? `No ${sale.royaltyNo}` : ''].filter(Boolean).join(' · ')}
+                              Royalty {formatRupees(view.royaltyAmount)}
                             </p>
                           )}
                           {view.transportMode !== 'party' && (
@@ -3533,9 +3533,6 @@ export default function Sales({ modalOnly = false, onModalFinish = null, weighme
                                       view.royaltyAmount > 0 ? `${formatRupees(view.royaltyAmount)} royalty` : ''
                                     ].filter(Boolean).join(' + ')}
                                   </span>
-                                )}
-                                {view.royaltyAmount > 0 && sale.royaltyNo && (
-                                  <span className="block text-[11px] leading-tight text-orange-700">Royalty No {sale.royaltyNo}</span>
                                 )}
                                 {view.gstAmount > 0 && (
                                   <span className="block text-[11px] leading-tight text-sky-600">
