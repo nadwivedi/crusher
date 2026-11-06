@@ -383,6 +383,9 @@ const getAllSales = async (req, res) => {
     // ?gst=gst for GST sales only, ?gst=non_gst for the rest
     if (req.query.gst === "gst") query.isGst = true;
     else if (req.query.gst === "non_gst") query.isGst = { $ne: true };
+    // ?royalty=royalty for royalty sales only, ?royalty=non_royalty for the rest
+    if (req.query.royalty === "royalty") query.isRoyalty = true;
+    else if (req.query.royalty === "non_royalty") query.isRoyalty = { $ne: true };
 
     // Without ?page the full list (of the ?from/?to period, if given) is returned: other screens and the Excel export use this
     if (req.query.page === undefined) {

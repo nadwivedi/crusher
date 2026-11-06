@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Banknote, ClipboardList, CreditCard, Eye, FileSpreadsheet, FileText, Inbox, IndianRupee, Layers, Pencil, Plus, RefreshCw, Scale, Search, Trash2, X } from 'lucide-react';
+import { Banknote, ClipboardList, CreditCard, Eye, FileSpreadsheet, FileText, Filter, Inbox, IndianRupee, Layers, Pencil, Plus, RefreshCw, Scale, Search, Trash2, X } from 'lucide-react';
 import { toast } from 'react-toastify';
 import apiClient from '../../utils/api';
 import { useAuth } from '../../context/AuthContext';
@@ -376,6 +376,119 @@ const GST_FILTER_OPTIONS = [
   { key: 'non_gst', label: 'Non-GST' }
 ];
 
+const ROYALTY_FILTER_OPTIONS = [
+  { key: 'all', label: 'All' },
+  { key: 'royalty', label: 'Royalty' },
+  { key: 'non_royalty', label: 'Non-Royalty' }
+];
+
+/** One row of choice chips in the filter menu. */
+function FilterChips({ label, options, value, onChange }) {
+  return (
+    <div>
+      <p className="mb-1.5 text-[11px] font-bold uppercase tracking-wide text-slate-400">{label}</p>
+      <div className="flex flex-wrap gap-1.5">
+        {options.map((option) => (
+          <button
+            key={option.key}
+            type="button"
+            onClick={() => onChange(option.key)}
+            className={`rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset transition ${
+              value === option.key
+                ? 'bg-primary-600 text-white ring-primary-600'
+                : 'bg-white text-slate-600 ring-slate-200 hover:bg-slate-50'
+            }`}
+          >
+            {option.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Filter icon with a drop-down: period, GST / non-GST, royalty / non-royalty and material.
+ * The badge counts the filters that are not "All". Esc or a click outside closes it.
+ */
+function SalesFilterMenu({ rangeOptions, range, onRangeChange, gst, onGstChange, royalty, onRoyaltyChange, materials, material, onMaterialChange, onClear }) {
+  const [open, setOpen] = useState(false);
+  const wrapRef = useRef(null);
+  const activeCount = [range !== 'lifetime', gst !== 'all', royalty !== 'all', Boolean(material)].filter(Boolean).length;
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const handlePointer = (event) => {
+      if (wrapRef.current && !wrapRef.current.contains(event.target)) setOpen(false);
+    };
+    // Capture phase, so this Esc closes the menu before the page's own Esc handler sees it
+    const handleKey = (event) => {
+      if (event.key !== 'Escape') return;
+      event.preventDefault();
+      event.stopPropagation();
+      setOpen(false);
+    };
+    document.addEventListener('mousedown', handlePointer);
+    document.addEventListener('touchstart', handlePointer);
+    document.addEventListener('keydown', handleKey, true);
+    return () => {
+      document.removeEventListener('mousedown', handlePointer);
+      document.removeEventListener('touchstart', handlePointer);
+      document.removeEventListener('keydown', handleKey, true);
+    };
+  }, [open]);
+
+  // Month and Custom open their own popups, so the menu steps aside
+  const pickRange = (key) => {
+    if (key === 'month' || key === 'custom') setOpen(false);
+    onRangeChange(key);
+  };
+
+  return (
+    <div ref={wrapRef} className="relative shrink-0">
+      <button
+        type="button"
+        onClick={() => setOpen((prev) => !prev)}
+        title="Filter sales"
+        aria-label="Filter sales"
+        aria-expanded={open}
+        className={`icon-btn relative ${activeCount ? 'bg-primary-50 text-primary-700 ring-1 ring-primary-200' : ''}`}
+      >
+        <Filter size={16} />
+        {activeCount > 0 && (
+          <span className="absolute -right-1.5 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary-600 px-1 text-[10px] font-bold leading-none text-white">
+            {activeCount}
+          </span>
+        )}
+      </button>
+      {open && (
+        <div className="absolute right-0 top-full z-40 mt-2 w-[min(22rem,calc(100vw-2rem))] space-y-3.5 rounded-xl bg-white p-4 shadow-xl ring-1 ring-slate-200">
+          <div className="flex items-center justify-between">
+            <p className="text-sm font-bold text-slate-800">Filter Sales</p>
+            {activeCount > 0 && (
+              <button type="button" onClick={onClear} className="text-xs font-semibold text-primary-700 hover:underline">
+                Clear all
+              </button>
+            )}
+          </div>
+          <FilterChips label="Time period" options={rangeOptions} value={range} onChange={pickRange} />
+          <FilterChips label="GST" options={GST_FILTER_OPTIONS} value={gst} onChange={onGstChange} />
+          <FilterChips label="Royalty" options={ROYALTY_FILTER_OPTIONS} value={royalty} onChange={onRoyaltyChange} />
+          <FilterChips
+            label="Material"
+            options={[{ key: '', label: 'All' }, ...materials]}
+            value={material.toLowerCase()}
+            onChange={onMaterialChange}
+          />
+          <button type="button" className="btn-primary w-full justify-center" onClick={() => setOpen(false)}>
+            Done
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // Table cells a little tighter than the app default, so every column fits without scrolling
 const TH = 'tbl-head px-3 py-2 first:pl-5 last:pr-5';
 const TD = 'tbl-cell px-3 py-2 first:pl-5 last:pr-5';
@@ -503,6 +616,8 @@ export default function Sales({ modalOnly = false, onModalFinish = null, weighme
   const [materialFilter, setMaterialFilter] = useState('');
   // 'all', 'gst' or 'non_gst'
   const [gstFilter, setGstFilter] = useState('all');
+  // 'all', 'royalty' or 'non_royalty'
+  const [royaltyFilter, setRoyaltyFilter] = useState('all');
   const [tab, setTab] = useState('entries');
   const [summary, setSummary] = useState({ totalAmount: 0, cashAmount: 0, creditAmount: 0, totalWeight: 0, count: 0 });
   const [debouncedSearch, setDebouncedSearch] = useState('');
@@ -558,11 +673,11 @@ export default function Sales({ modalOnly = false, onModalFinish = null, weighme
 
   useEffect(() => {
     setPage(1);
-  }, [debouncedSearch, tableRange, customFrom, customTo, selectedMonth, selectedYear, materialFilter, gstFilter]);
+  }, [debouncedSearch, tableRange, customFrom, customTo, selectedMonth, selectedYear, materialFilter, gstFilter, royaltyFilter]);
 
   useEffect(() => {
     fetchSales();
-  }, [page, debouncedSearch, tableRange, customFrom, customTo, selectedMonth, selectedYear, materialFilter, gstFilter]);
+  }, [page, debouncedSearch, tableRange, customFrom, customTo, selectedMonth, selectedYear, materialFilter, gstFilter, royaltyFilter]);
 
   useEffect(() => {
     const handleKeyDown = (event) => {
@@ -695,6 +810,7 @@ export default function Sales({ modalOnly = false, onModalFinish = null, weighme
       if (debouncedSearch) params.search = debouncedSearch;
       if (materialFilter) params.material = materialFilter;
       if (gstFilter !== 'all') params.gst = gstFilter;
+      if (royaltyFilter !== 'all') params.royalty = royaltyFilter;
 
       const response = await apiClient.get('/sales', { params });
       if (requestId !== salesRequestRef.current) return;
@@ -2762,7 +2878,31 @@ export default function Sales({ modalOnly = false, onModalFinish = null, weighme
   // The popup shares `loading` while it saves; the list behind it should not react to that
   const listLoading = loading && !showForm;
   const initialLoading = listLoading && sales.length === 0;
-  const hasFilters = Boolean(debouncedSearch || materialFilter || gstFilter !== 'all' || tableRange !== 'lifetime');
+  const hasFilters = Boolean(debouncedSearch || materialFilter || gstFilter !== 'all' || royaltyFilter !== 'all' || tableRange !== 'lifetime');
+
+  // Material choices in the filter: the usual sizes, plus any other material sold in this period
+  const materialFilterOptions = (() => {
+    const known = MATERIAL_TYPE_OPTIONS.map((item) => ({ key: item.value, label: item.label }));
+    const extra = materialStats
+      .map((row) => row.materialType)
+      .filter((key) => key && key !== 'unknown' && !known.some((item) => item.key === key))
+      .map((key) => ({ key, label: key.toUpperCase() }));
+    return [...known, ...extra];
+  })();
+
+  const clearAllFilters = () => {
+    handleRangeChange('lifetime');
+    setGstFilter('all');
+    setRoyaltyFilter('all');
+    setMaterialFilter('');
+  };
+
+  // Chips beside the tabs show what is applied; tapping one removes it
+  const activeFilterChips = [
+    gstFilter !== 'all' && { key: 'gst', label: GST_FILTER_OPTIONS.find((o) => o.key === gstFilter)?.label, clear: () => setGstFilter('all') },
+    royaltyFilter !== 'all' && { key: 'royalty', label: ROYALTY_FILTER_OPTIONS.find((o) => o.key === royaltyFilter)?.label, clear: () => setRoyaltyFilter('all') },
+    materialFilter && { key: 'material', label: materialFilter.toUpperCase(), clear: () => setMaterialFilter('') }
+  ].filter(Boolean);
 
   const periodLabel = (() => {
     if (tableRange === 'month') return formatMonthLabel(selectedMonth, selectedYear);
@@ -2873,7 +3013,8 @@ export default function Sales({ modalOnly = false, onModalFinish = null, weighme
         params: {
           from: new Date(`${fromDay}T00:00:00`).toISOString(),
           to: new Date(`${toDay}T23:59:59.999`).toISOString(),
-          ...(gstFilter !== 'all' ? { gst: gstFilter } : {})
+          ...(gstFilter !== 'all' ? { gst: gstFilter } : {}),
+          ...(royaltyFilter !== 'all' ? { royalty: royaltyFilter } : {})
         }
       });
       const rows = (Array.isArray(response) ? response : [])
@@ -3187,20 +3328,20 @@ export default function Sales({ modalOnly = false, onModalFinish = null, weighme
         <div className="panel-header py-2.5 flex flex-wrap items-center justify-between gap-2.5">
           <div className="flex flex-wrap items-center gap-2">
             <Segmented options={TABS} value={tab} onChange={setTab} />
-            <Segmented options={GST_FILTER_OPTIONS} value={gstFilter} onChange={setGstFilter} />
-          </div>
-          <div className="flex min-w-0 flex-1 basis-56 items-center justify-end gap-2">
-            {tab === 'entries' && materialFilter && (
+            {activeFilterChips.map((chip) => (
               <button
+                key={chip.key}
                 type="button"
-                onClick={() => setMaterialFilter('')}
-                title="Show all materials"
-                className="inline-flex shrink-0 items-center gap-1 rounded-full bg-primary-600 px-2.5 py-1 text-xs font-semibold uppercase text-white transition hover:bg-primary-700"
+                onClick={chip.clear}
+                title="Remove this filter"
+                className="inline-flex shrink-0 items-center gap-1 rounded-full bg-primary-600 px-2.5 py-1 text-xs font-semibold text-white transition hover:bg-primary-700"
               >
-                {materialFilter}
+                {chip.label}
                 <X size={14} />
               </button>
-            )}
+            ))}
+          </div>
+          <div className="flex min-w-0 flex-1 basis-56 items-center justify-end gap-2">
             {tab === 'entries' && (
               <div className="relative min-w-0 flex-1 md:max-w-64">
                 <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -3213,6 +3354,19 @@ export default function Sales({ modalOnly = false, onModalFinish = null, weighme
                 />
               </div>
             )}
+            <SalesFilterMenu
+              rangeOptions={SALES_RANGE_OPTIONS}
+              range={tableRange}
+              onRangeChange={handleRangeChange}
+              gst={gstFilter}
+              onGstChange={setGstFilter}
+              royalty={royaltyFilter}
+              onRoyaltyChange={setRoyaltyFilter}
+              materials={materialFilterOptions}
+              material={materialFilter}
+              onMaterialChange={(key) => { setMaterialFilter(key); if (key) setTab('entries'); }}
+              onClear={clearAllFilters}
+            />
             <button type="button" className="icon-btn shrink-0" title="Refresh" aria-label="Refresh" onClick={fetchSales}>
               <RefreshCw size={16} className={listLoading ? 'animate-spin' : ''} />
             </button>
