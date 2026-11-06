@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { X } from 'lucide-react';
 
 /**
@@ -6,8 +7,21 @@ import { X } from 'lucide-react';
  * Uses the app's popup conventions ("fixed inset-0 z-50" + a "Close popup" button) so Esc closes it.
  */
 export default function FormPopup({ title, subtitle, submitLabel = 'Save', submitDisabled = false, onSubmit, onClose, onKeyDown, maxWidth = 'max-w-md', formId, headerActions, children }) {
+  // The page behind does not scroll while the popup is open
+  useEffect(() => {
+    const { body, documentElement } = document;
+    const prevBody = body.style.overflow;
+    const prevHtml = documentElement.style.overflow;
+    body.style.overflow = 'hidden';
+    documentElement.style.overflow = 'hidden';
+    return () => {
+      body.style.overflow = prevBody;
+      documentElement.style.overflow = prevHtml;
+    };
+  }, []);
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-2 md:p-4" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center overscroll-contain bg-black/60 p-2 md:p-4" onClick={onClose}>
       <form
         id={formId}
         className={`flex max-h-[95vh] w-full ${maxWidth} flex-col overflow-hidden rounded-xl bg-white shadow-2xl md:rounded-2xl`}
@@ -32,7 +46,7 @@ export default function FormPopup({ title, subtitle, submitLabel = 'Save', submi
           </div>
         </div>
 
-        <div className="flex-1 space-y-3 overflow-y-auto p-3 md:space-y-4 md:p-6">{children}</div>
+        <div className="flex-1 space-y-3 overflow-y-auto overscroll-contain p-3 md:space-y-4 md:p-6">{children}</div>
 
         <div className="flex flex-shrink-0 justify-end gap-2 border-t border-slate-200 bg-slate-50 p-3 md:gap-3 md:p-4 [&>button]:flex-1 md:[&>button]:flex-none">
           <button type="button" className="btn-secondary" onClick={onClose}>Cancel</button>
