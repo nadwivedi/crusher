@@ -15,7 +15,7 @@ const {
   getPaymentReport,
   getProfitLossReport,
 } = require("../controllers/reportsController");
-const { getActivity } = require("../controllers/activityController");
+const { getActivity, getActivityEntry } = require("../controllers/activityController");
 const auth = require("../middleware/auth");
 const { requireSection, ownerOnly } = require("../middleware/staffAccess");
 const { syncMonthlyHiresMiddleware } = require("../utils/monthlyHire");
@@ -37,6 +37,7 @@ router.get("/diesel-consumption", requireSection("materialUsed"), getDieselConsu
 router.get("/diesel-average", requireSection("materialUsed"), requireSection("meterReadings"), getDieselAverageReport);
 router.get("/inventory", requireSection("materialUsed"), getInventorySummary);
 router.get("/activity", ownerOnly, getActivity);
+router.get("/activity/:type/:id", ownerOnly, getActivityEntry);
 router.get("/item-consumption/:id", requireSection("materialUsed"), getItemConsumptionReport);
 router.get("/payment-report", ownerOnly, getPaymentReport);
 router.get("/profit-loss", ownerOnly, getProfitLossReport);

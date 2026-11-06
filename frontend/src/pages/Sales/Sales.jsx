@@ -567,7 +567,7 @@ const formatClock = (value) => {
 };
 
 // weighment: a closed weighbridge ticket to make this sale from (opens the form filled in)
-export default function Sales({ modalOnly = false, onModalFinish = null, weighment = null }) {
+export default function Sales({ modalOnly = false, onModalFinish = null, weighment = null, editRecord = null }) {
   const toastOptions = { autoClose: 1200 };
   const location = useLocation();
   const navigate = useNavigate();
@@ -713,8 +713,16 @@ export default function Sales({ modalOnly = false, onModalFinish = null, weighme
     navigate(location.pathname, { replace: true, state: {} });
   }, [location.pathname, location.state, navigate, showForm]);
 
+  // editRecord (Activity Center): the form opens once on that saved entry instead of a new one
+  const editOpenedRef = useRef(false);
   useEffect(() => {
     if (!modalOnly || showForm) return;
+    if (editRecord) {
+      if (editOpenedRef.current) return;
+      editOpenedRef.current = true;
+      handleEdit(editRecord);
+      return;
+    }
     handleOpenForm();
   }, [modalOnly, showForm]);
 
@@ -2597,7 +2605,9 @@ export default function Sales({ modalOnly = false, onModalFinish = null, weighme
     const normalizedPartyId = typeof (sale.partyId || sale.party) === 'object'
       ? (sale.partyId || sale.party)?._id || ''
       : (sale.partyId || sale.party || '');
-    const resolvedLeadgerName = resolveLeadgerNameById(normalizedPartyId) || sale.customerName || '';
+    const resolvedLeadgerName = resolveLeadgerNameById(normalizedPartyId)
+      || (typeof (sale.partyId || sale.party) === 'object' ? (sale.partyId || sale.party)?.name : '')
+      || sale.customerName || '';
 
       setFormData({
         ...getInitialFormData(),

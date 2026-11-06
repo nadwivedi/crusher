@@ -101,7 +101,7 @@ const formatPaymentNumber = (value) => {
   return `Pay-${String(parsed).padStart(2, '0')}`;
 };
 
-export default function Payments({ modalOnly = false, onModalFinish = null }) {
+export default function Payments({ modalOnly = false, onModalFinish = null, editRecord = null }) {
   const location = useLocation();
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -162,8 +162,16 @@ export default function Payments({ modalOnly = false, onModalFinish = null }) {
     navigate(location.pathname, { replace: true, state: {} });
   }, [location.pathname, location.state, navigate, showForm]);
 
+  // editRecord (Activity Center): the form opens once on that saved entry instead of a new one
+  const editOpenedRef = useRef(false);
   useEffect(() => {
     if (!modalOnly || showForm) return;
+    if (editRecord) {
+      if (editOpenedRef.current) return;
+      editOpenedRef.current = true;
+      handleEdit(editRecord);
+      return;
+    }
     handleOpenForm();
   }, [modalOnly, showForm]);
 
@@ -750,8 +758,9 @@ export default function Payments({ modalOnly = false, onModalFinish = null }) {
   };
 
   // Opens the form on a saved payment. One made by a purchase is changed through it instead.
-  const handleEdit = (id) => {
-    const entry = payments.find((item) => item._id === id);
+  // Takes an id from the list, or the entry itself (Activity Center)
+  const handleEdit = (idOrEntry) => {
+    const entry = typeof idOrEntry === 'object' ? idOrEntry : payments.find((item) => item._id === idOrEntry);
     if (!entry) return;
     setEditingId(entry._id);
     setFormData({

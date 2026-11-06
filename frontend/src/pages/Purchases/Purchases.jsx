@@ -57,7 +57,7 @@ const purchaseCount = (count) => `${count.toLocaleString('en-IN')} purchase${cou
 // The backend keeps one default "Cash" party per account; it is preselected for new purchases.
 const CASH_PARTY = { name: 'Cash' };
 
-export default function Purchases({ modalOnly = false, onModalFinish = null }) {
+export default function Purchases({ modalOnly = false, onModalFinish = null, editRecord = null }) {
   const { user } = useAuth();
   const toastOptions = { autoClose: 1200 };
   const location = useLocation();
@@ -231,8 +231,16 @@ export default function Purchases({ modalOnly = false, onModalFinish = null }) {
     navigate(location.pathname, { replace: true, state: {} });
   }, [location.pathname, location.state, navigate, showForm]);
 
+  // editRecord (Activity Center): the form opens once on that saved entry instead of a new one
+  const editOpenedRef = useRef(false);
   useEffect(() => {
     if (!modalOnly || showForm) return;
+    if (editRecord) {
+      if (editOpenedRef.current) return;
+      editOpenedRef.current = true;
+      handleEdit(editRecord);
+      return;
+    }
     handleOpenForm();
   }, [modalOnly, showForm]);
 
@@ -1063,7 +1071,9 @@ export default function Purchases({ modalOnly = false, onModalFinish = null }) {
     }));
 
     const normalizedPartyId = purchase.party?._id || purchase.party || '';
-    const resolvedLeadgerName = resolveLeadgerNameById(normalizedPartyId);
+    // The party list may still be loading: fall back to the name that came with the purchase
+    const listedName = resolveLeadgerNameById(normalizedPartyId);
+    const resolvedLeadgerName = (listedName && listedName !== '-') ? listedName : (purchase.party?.name || listedName);
 
     setFormData({
       party: normalizedPartyId,

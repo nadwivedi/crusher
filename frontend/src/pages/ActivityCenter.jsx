@@ -1,10 +1,23 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Activity, ArrowDownToLine, ArrowLeftRight, ArrowUpFromLine, FileText, Gauge, HandCoins, Mountain,
-  PackageMinus, RefreshCw, RotateCcw, Search, Send, ShoppingCart, SlidersHorizontal, Truck, Undo2, Wallet
+  Activity, ArrowDownToLine, ArrowLeftRight, ArrowUpFromLine, Eye, FileText, Gauge, HandCoins, Mountain,
+  PackageMinus, Pencil, RefreshCw, RotateCcw, Search, Send, ShoppingCart, SlidersHorizontal, Truck, Undo2, Wallet
 } from 'lucide-react';
+import { toast } from 'react-toastify';
 import apiClient from '../utils/api';
+import ActivityEntryPopup from '../components/ActivityEntryPopup';
+import MeterReadingPopup from '../components/MeterReadingPopup';
+import Sales from './Sales/Sales';
+import Purchases from './Purchases/Purchases';
+import Receipts from './Receipts/Receipts';
+import Payments from './Payments/Payments';
+import Expenses from './Expenses/Expenses';
+import MaterialUsed from './MaterialUsed';
+import StockAdjustment from './StockAdjustment';
+import BoulderEntry from './BoulderEntry/BoulderEntry';
+import DumpSiteEntry from './BoulderEntry/DumpSiteEntry';
+import DumpToHopper from './BoulderEntry/DumpToHopper';
 import { describePerson } from '../utils/staffAccess';
 import StatCard from '../components/StatCard';
 import Segmented from '../components/Segmented';
@@ -63,6 +76,23 @@ const TYPES = {
   transport: { label: 'Transport', icon: Truck, tile: 'bg-lime-50 text-lime-700 ring-lime-100', value: 'text-slate-800', sign: '' }
 };
 
+// Kinds whose own edit form can open here. Returns, transfers and transport entries cannot be edited after saving.
+const EDITABLE_TYPES = new Set([
+  'sale', 'boulder', 'purchase', 'receipt', 'payment', 'expense', 'materialUsed',
+  'meterReading', 'dumpIn', 'dumpOut', 'stockAdjustment'
+]);
+
+// Names the server uses when an entry has no party or vehicle: no need to repeat them in brackets
+const GENERIC_TITLES = new Set([
+  'sale', 'boulder', 'purchase', 'money received', 'money paid', 'expense', 'material issued', 'vehicle',
+  'boulder to dump', 'dump to hopper', 'sale return', 'purchase return', 'stock adjustment', 'transport'
+]);
+const subjectOf = (item) => {
+  const title = String(item.title || '').trim();
+  if (!title || GENERIC_TITLES.has(title.toLowerCase()) || title.toLowerCase() === TYPES[item.type]?.label.toLowerCase()) return '';
+  return title;
+};
+
 const valueText = (item) => {
   const type = TYPES[item.type];
   if (item.amount !== undefined) {
@@ -93,6 +123,10 @@ export default function ActivityCenter() {
   const [reloadKey, setReloadKey] = useState(0);
   // "" = everyone, "owner", or "staff:<id>"
   const [person, setPerson] = useState('');
+  // The entry open in the details popup, and the one open in its own edit form ({ type, record })
+  const [viewItem, setViewItem] = useState(null);
+  const [editing, setEditing] = useState(null);
+  const [editLoading, setEditLoading] = useState('');
 
   useEffect(() => {
     let live = true;
@@ -109,16 +143,60 @@ export default function ActivityCenter() {
 
   useEffect(() => {
     const handleKeyDown = (event) => {
-      if (event.defaultPrevented || event.key !== 'Escape') return;
+      if (event.defaultPrevented || event.key !== 'Escape' || editing) return;
       navigate('/');
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [navigate]);
+  }, [navigate, editing]);
 
   const reload = () => {
     setLoading(true);
     setReloadKey((key) => key + 1);
+  };
+
+  // Loads the entry, then opens its own edit form; a locked entry (made by a sale, payroll...) opens its details instead
+  const openEdit = async (item) => {
+    const key = `${item.type}-${item.id}`;
+    setEditLoading(key);
+    try {
+      const entry = await apiClient.get(`/reports/activity/${item.type}/${item.id}`);
+      if (entry.editable && entry.record) {
+        setViewItem(null);
+        setEditing({ type: item.type, record: entry.record });
+      } else {
+        setViewItem(item);
+      }
+    } catch (err) {
+      toast.error(err.message || 'Could not open this entry');
+    } finally {
+      setEditLoading('');
+    }
+  };
+
+  const finishEdit = () => {
+    setEditing(null);
+    reload();
+  };
+
+  // Each kind's own edit form, the same one its page uses
+  const renderEditor = () => {
+    if (!editing) return null;
+    const { type, record } = editing;
+    switch (type) {
+      case 'sale': return <Sales modalOnly editRecord={record} onModalFinish={finishEdit} />;
+      case 'purchase': return <Purchases modalOnly editRecord={record} onModalFinish={finishEdit} />;
+      case 'receipt': return <Receipts modalOnly editRecord={record} onModalFinish={finishEdit} />;
+      case 'payment': return <Payments modalOnly editRecord={record} onModalFinish={finishEdit} />;
+      case 'expense': return <Expenses modalOnly editRecord={record} onModalFinish={finishEdit} />;
+      case 'stockAdjustment': return <StockAdjustment modalOnly editRecord={record} onModalFinish={finishEdit} />;
+      case 'materialUsed': return <MaterialUsed modalOnly editEntry={record} onModalFinish={finishEdit} />;
+      case 'boulder': return <BoulderEntry editingEntry={record} onModalFinish={finishEdit} />;
+      case 'dumpIn': return <DumpSiteEntry editingEntry={record} onModalFinish={finishEdit} />;
+      case 'dumpOut': return <DumpToHopper editingEntry={record} onModalFinish={finishEdit} />;
+      case 'meterReading': return <MeterReadingPopup editing={record} onClose={() => setEditing(null)} onSaved={finishEdit} />;
+      default: return null;
+    }
   };
 
   const selectRange = (key) => {
@@ -169,6 +247,18 @@ export default function ActivityCenter() {
 
   return (
     <div className="page-fade-in space-y-4 px-3 pb-8 pt-4 md:space-y-5 lg:px-6 lg:pt-5">
+      {viewItem && (
+        <ActivityEntryPopup
+          item={viewItem}
+          label={TYPES[viewItem.type]?.label || 'Entry'}
+          icon={(() => { const ViewIcon = TYPES[viewItem.type]?.icon || Activity; return <ViewIcon size={20} />; })()}
+          tile={TYPES[viewItem.type]?.tile || 'bg-slate-100 text-slate-700 ring-slate-200'}
+          onClose={() => setViewItem(null)}
+          onEdit={(entry) => { setViewItem(null); setEditing({ type: viewItem.type, record: entry.record }); }}
+        />
+      )}
+      {/* Only the edit popup shows: the rest of a page that renders around its form stays out of sight */}
+      {editing && <div className="h-0 overflow-hidden">{renderEditor()}</div>}
       <div className="page-header">
         <div className="min-w-0">
           <h1 className="page-title">Activity Center</h1>
@@ -270,15 +360,18 @@ export default function ActivityCenter() {
                   {day.items.map((item) => {
                     const type = TYPES[item.type];
                     const TypeIcon = type.icon;
+                    const subject = subjectOf(item);
+                    const rowKey = `${item.type}-${item.id}`;
                     return (
-                      <li key={`${item.type}-${item.id}`} className="flex items-center gap-3 px-4 py-3 transition hover:bg-slate-50 md:px-5">
+                      <li key={rowKey} className="group flex cursor-pointer items-center gap-3 py-3 pl-4 pr-2 transition hover:bg-slate-50 md:pl-5 md:pr-3" onClick={() => setViewItem(item)}>
                         <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ring-1 ring-inset ${type.tile}`}>
                           <TypeIcon size={18} />
                         </span>
                         <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-semibold text-slate-800">
-                            {item.title}
-                            <span className="ml-2 text-xs font-medium text-slate-400">{type.label}</span>
+                          {/* What was done first, then whose: "Sale (Sharma Construction)", "Meter Reading (CG04 AB 1234)" */}
+                          <p className="truncate text-sm text-slate-800">
+                            <span className="font-semibold">{type.label}</span>
+                            {subject && <span className="font-medium text-slate-500"> ({subject})</span>}
                           </p>
                           <p className="truncate text-xs text-slate-500" title={item.detail}>{item.detail || '—'}</p>
                           {(item.by || item.editedBy) && (
@@ -299,6 +392,29 @@ export default function ActivityCenter() {
                         <div className="shrink-0 text-right">
                           <p className={`whitespace-nowrap text-sm font-bold ${type.value}`}>{valueText(item)}</p>
                           <p className="text-[11px] text-slate-400">{formatTime(item.createdAt)}</p>
+                        </div>
+                        <div className="flex shrink-0 flex-col items-center gap-0.5 md:flex-row" onClick={(event) => event.stopPropagation()}>
+                          <button
+                            type="button"
+                            title="View details"
+                            aria-label="View details"
+                            className="icon-btn p-1.5 text-slate-400 hover:bg-emerald-50 hover:text-emerald-600"
+                            onClick={() => setViewItem(item)}
+                          >
+                            <Eye size={16} />
+                          </button>
+                          {EDITABLE_TYPES.has(item.type) && (
+                            <button
+                              type="button"
+                              title="Edit"
+                              aria-label="Edit"
+                              disabled={editLoading === rowKey}
+                              className="icon-btn p-1.5 text-slate-400 hover:bg-blue-50 hover:text-blue-600 disabled:opacity-50"
+                              onClick={() => openEdit(item)}
+                            >
+                              {editLoading === rowKey ? <RefreshCw size={16} className="animate-spin" /> : <Pencil size={16} />}
+                            </button>
+                          )}
                         </div>
                       </li>
                     );

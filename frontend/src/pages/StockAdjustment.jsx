@@ -67,7 +67,7 @@ const parseVoucherDateValue = (value) => {
   return null;
 };
 
-export default function StockAdjustment({ modalOnly = false, onModalFinish = null }) {
+export default function StockAdjustment({ modalOnly = false, onModalFinish = null, editRecord = null }) {
   const [entries, setEntries] = useState([]);
   const [products, setProducts] = useState([]);
   const [formData, setFormData] = useState(buildInitialForm());
@@ -98,8 +98,16 @@ export default function StockAdjustment({ modalOnly = false, onModalFinish = nul
   const stockAfter = Math.round((inStock + (isIncrease ? quantityValue : -quantityValue)) * 1e6) / 1e6;
   const exceedsStock = Boolean(selectedProduct) && stockAfter < 0;
 
+  // editRecord (Activity Center): the form opens once on that saved entry instead of a new one
+  const editOpenedRef = useRef(false);
   useEffect(() => {
     if (!modalOnly || showForm) return;
+    if (editRecord) {
+      if (editOpenedRef.current) return;
+      editOpenedRef.current = true;
+      handleEdit(editRecord);
+      return;
+    }
     setShowForm(true);
   }, [modalOnly, showForm]);
 

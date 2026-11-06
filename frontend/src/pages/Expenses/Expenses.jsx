@@ -175,7 +175,7 @@ const TD = 'tbl-cell px-3 py-2.5 first:pl-5 last:pr-5';
 // "₹12,500" or "−₹800" for an overdrawn account
 const formatAccountBalance = (value) => `${value < 0 ? '−' : ''}₹${Math.abs(Number(value || 0)).toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
 
-export default function Expenses({ modalOnly = false, onModalFinish = null }) {
+export default function Expenses({ modalOnly = false, onModalFinish = null, editRecord = null }) {
   const navigate = useNavigate();
   const [expenses, setExpenses] = useState([]);
   const [expenseGroups, setExpenseGroups] = useState([]);
@@ -322,10 +322,18 @@ export default function Expenses({ modalOnly = false, onModalFinish = null }) {
     setPartyQuery((prev) => prev || CASH_PARTY.name);
   }, [showForm, cashPartyId]);
 
+  // editRecord (Activity Center): the form opens once on that saved entry instead of a new one
+  const editOpenedRef = useRef(false);
   useEffect(() => {
     if (!modalOnly || showForm) return;
+    if (editRecord) {
+      if (editOpenedRef.current || accountOptions.length === 0) return;
+      editOpenedRef.current = true;
+      handleEdit(editRecord);
+      return;
+    }
     handleOpenForm();
-  }, [modalOnly, showForm]);
+  }, [modalOnly, showForm, accountOptions.length]);
 
   const fetchExpenses = async () => {
     try {

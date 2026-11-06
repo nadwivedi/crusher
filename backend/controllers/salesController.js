@@ -691,6 +691,8 @@ const deleteSales = async (req, res) => {
 };
 
 module.exports = {
+  // The Activity Center returns a sale in the same shape as this list
+  serializeSale,
   createSales,
   getAllSales,
   getSalesById,
