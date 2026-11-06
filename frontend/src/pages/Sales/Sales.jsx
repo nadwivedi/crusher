@@ -8,7 +8,7 @@ import { canDeleteEntries, canEditEntry } from '../../utils/staffAccess';
 import { getSmartVehicleMatch, normalizeVehicleValue } from '../../utils/vehicleMatching';
 import useAccounts from '../../utils/useAccounts';
 import { getPartyMaterialRate, getPartySaleRatesPayload } from '../../utils/partyRates';
-import { formatGstRate, getSaleGstAmount, getSavedSaleGst } from '../../utils/saleGst';
+import { getSaleGstAmount, getSavedSaleGst } from '../../utils/saleGst';
 import { getSaleRoyaltyAmount, getSaleRoyaltyQty, getSavedSaleRoyalty } from '../../utils/saleRoyalty';
 import { PERIOD_BASES, getBasisUnit, getOwnershipLabel, getSaleTransport, getSaleTransportCharge, getTripRate, getSupplierRatesPayload, getVehicleHireRates, getVehicleOwnerIds } from '../../utils/transport';
 import AddPartyPopup from '../Party/component/AddPartyPopup';
@@ -310,6 +310,21 @@ const formatDate = (value) => {
   return date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 };
 
+const formatTons = (kg) => (Number(kg || 0) / 1000).toLocaleString('en-IN', { minimumFractionDigits: 3, maximumFractionDigits: 3 });
+
+// What a sale row shows as its quantity: net weight in tons, or the cubic feet of a volume sale that was not weighed
+const formatSaleQty = (sale, view) => (
+  view.isCubic && !view.netWeight ? `${formatQty(sale.cubicMeterQty)} cft` : view.netWeight ? `${formatTons(view.netWeight)} T` : '—'
+);
+
+// "06 Nov" for this year, "06 Nov 25" for an older sale
+const formatShortDate = (value) => {
+  const date = value ? new Date(value) : null;
+  if (!date || Number.isNaN(date.getTime())) return '-';
+  const sameYear = date.getFullYear() === new Date().getFullYear();
+  return date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', ...(sameYear ? {} : { year: '2-digit' }) });
+};
+
 const entryCount = (count) => `${formatQty(count)} entr${count === 1 ? 'y' : 'ies'}`;
 
 // Tons sold of a material (every sale with a weight), and the cubic feet of its sales billed by volume.
@@ -490,7 +505,14 @@ function SalesFilterMenu({ rangeOptions, range, onRangeChange, gst, onGstChange,
 const TH = 'tbl-head px-3 py-2 first:pl-5 last:pr-5';
 const TD = 'tbl-cell px-3 py-2 first:pl-5 last:pr-5';
 
+// The entries table is a size smaller still, with even-width digits so the amount columns line up
+const ETH = `${TH} text-[11px]`;
+const ETD = `${TD} text-[13px] tabular-nums`;
+
 const SALES_PAGE_SIZE = 50;
+
+// An amount without the ₹, for the table's money columns: 13,007 or 549.50
+const formatAmount = (value) => Number(value || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 });
 
 const formatRupees = (value) => `₹${Number(value || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
 
@@ -529,15 +551,6 @@ const getRangeBounds = (range, customFrom = '', customTo = '', month = '', year 
 
   return {};
 };
-
-/** Vehicle number as a small monospace chip. */
-function Plate({ children }) {
-  return (
-    <span className="inline-block max-w-full truncate rounded-md bg-slate-100 px-2 py-0.5 align-middle font-mono text-xs font-semibold tracking-wide text-slate-800 ring-1 ring-inset ring-slate-200">
-      {children}
-    </span>
-  );
-}
 
 // Weights of a sale made from a weighbridge ticket (RST); the form cannot change them
 const ticketWeights = (source) => ({
@@ -2638,15 +2651,17 @@ export default function Sales({ modalOnly = false, onModalFinish = null, weighme
     setShowForm(true);
   };
 
+  // Resolves true when the sale was deleted
   const handleDelete = async (id) => {
-    if (window.confirm('Are you sure you want to delete this sale?')) {
-      try {
-        await apiClient.delete(`/sales/${id}`);
-        toast.success('Sale deleted successfully', toastOptions);
-        fetchSales();
-      } catch (err) {
-        setError(err.message || 'Error deleting sale');
-      }
+    if (!window.confirm('Are you sure you want to delete this sale?')) return false;
+    try {
+      await apiClient.delete(`/sales/${id}`);
+      toast.success('Sale deleted successfully', toastOptions);
+      fetchSales();
+      return true;
+    } catch (err) {
+      setError(err.message || 'Error deleting sale');
+      return false;
     }
   };
 
@@ -2924,6 +2939,11 @@ export default function Sales({ modalOnly = false, onModalFinish = null, weighme
     ? Number(materialStats.find((row) => row.materialType === materialFilter.toLowerCase())?.totalCubicMeter || 0)
     : materialTotals.totalCubicMeter;
 
+  // Royalty / GST / Transport columns show only when the period has such a sale
+  const showRoyaltyColumn = Number(summary.royaltyAmount || 0) > 0 || sales.some((sale) => getSavedSaleRoyalty(sale) > 0);
+  const showGstColumn = Number(summary.gstAmount || 0) > 0 || sales.some((sale) => getSavedSaleGst(sale) > 0);
+  const showTransportColumn = Number(summary.transportCharge || 0) > 0 || sales.some((sale) => getSaleTransportCharge(sale) > 0);
+
   const shareOfSales = (amount) => (
     summary.totalAmount > 0 ? `${((amount / summary.totalAmount) * 100).toFixed(0)}% of sales` : 'No sales'
   );
@@ -3092,22 +3112,33 @@ export default function Sales({ modalOnly = false, onModalFinish = null, weighme
     }
   };
 
+  // Under the total: Cash, Credit, or the balance left on a part-paid sale
+  const getPaymentNote = (sale, view) => {
+    if (sale.type === 'cash') return { label: 'Cash', tone: 'text-emerald-600' };
+    if (sale.type === 'partial' && view.balance > 0) return { label: `Bal ${formatAmount(view.balance)}`, tone: 'text-rose-600' };
+    return { label: 'Credit', tone: 'text-rose-500' };
+  };
+
+  // A royalty / GST / transport cell: the amount, or a faint dash when the sale has none
+  // tone: GST is blue and royalty orange, so the two read apart at a glance
+  const renderCharge = (amount, tone = '') => (amount > 0 ? <span className={tone}>{formatAmount(amount)}</span> : <span className="text-slate-300">—</span>);
+
   const renderMaterial = (material) => (material
     ? <span className={`inline-flex shrink-0 rounded-full px-2 py-0.5 text-[11px] font-bold uppercase ${getMaterialBadgeClass(material)}`}>{material}</span>
     : <span className="text-slate-400">—</span>);
 
   const renderActions = (sale) => (
-    <div className="flex items-center justify-end">
-      <button type="button" title="View details" aria-label="View details" className="icon-btn p-1.5 hover:bg-emerald-50 hover:text-emerald-600" onClick={() => setDetailSale(sale)}>
+    <div className="flex items-center justify-end" onClick={(event) => event.stopPropagation()}>
+      <button type="button" title="View details" aria-label="View details" className="icon-btn p-1.5 text-slate-300 group-hover:text-slate-500 hover:bg-emerald-50 hover:text-emerald-600" onClick={() => setDetailSale(sale)}>
         <Eye size={16} />
       </button>
       {canEditEntry(user, sale) && (
-        <button type="button" title="Edit" aria-label="Edit" className="icon-btn p-1.5 hover:bg-blue-50 hover:text-blue-600" onClick={() => handleEdit(sale)}>
+        <button type="button" title="Edit" aria-label="Edit" className="icon-btn p-1.5 text-slate-300 group-hover:text-slate-500 hover:bg-blue-50 hover:text-blue-600" onClick={() => handleEdit(sale)}>
           <Pencil size={16} />
         </button>
       )}
       {canDeleteSales && (
-        <button type="button" title="Delete" aria-label="Delete" className="icon-btn p-1.5 hover:bg-rose-50 hover:text-rose-600" onClick={() => handleDelete(sale._id)}>
+        <button type="button" title="Delete" aria-label="Delete" className="icon-btn p-1.5 text-slate-300 group-hover:text-slate-500 hover:bg-rose-50 hover:text-rose-600" onClick={() => handleDelete(sale._id)}>
           <Trash2 size={16} />
         </button>
       )}
@@ -3276,6 +3307,7 @@ export default function Sales({ modalOnly = false, onModalFinish = null, weighme
           onClose={() => setDetailSale(null)}
           onOpenInvoice={() => handleOpenInvoicePdf(detailSale._id)}
           onEdit={canEditEntry(user, detailSale) ? () => { const sale = detailSale; setDetailSale(null); handleEdit(sale); } : null}
+          onDelete={canDeleteSales ? async () => { if (await handleDelete(detailSale._id)) setDetailSale(null); } : null}
         />
       )}
       {showCustomPicker && (
@@ -3391,189 +3423,124 @@ export default function Sales({ modalOnly = false, onModalFinish = null, weighme
               ? renderEmpty('No sales found', hasFilters ? 'Try changing the search or the period.' : 'Add the first sale with "New Sale".')
               : (
                 <>
-                  {/* Phone: three short lines per sale */}
+                  {/* Phone: three short lines per sale (a fourth, small, for royalty / GST / transport); tap for details, edit and delete */}
                   <ul className="divide-y divide-slate-100 md:hidden">
                     {sales.map((sale) => {
                       const view = describeSale(sale);
+                      const charges = [
+                        view.royaltyAmount > 0 && { key: 'royalty', label: `Royalty ${formatAmount(view.royaltyAmount)}`, tone: 'text-orange-600' },
+                        view.gstAmount > 0 && { key: 'gst', label: `GST ${formatAmount(view.gstAmount)}`, tone: 'text-sky-600' },
+                        view.transportCharge > 0 && { key: 'transport', label: `Transport ${formatAmount(view.transportCharge)}`, tone: '' }
+                      ].filter(Boolean);
+                      const payment = getPaymentNote(sale, view);
                       return (
-                        <li key={sale._id} className="px-4 py-2.5">
+                        <li key={sale._id} className="cursor-pointer px-4 py-2.5 active:bg-slate-50" onClick={() => setDetailSale(sale)}>
                           <div className="flex items-baseline justify-between gap-3">
-                            <p className="min-w-0 truncate text-sm font-semibold text-slate-800">
-                              {view.party}
-                              {sale.dispatchLocation && <span className="font-normal text-slate-500"> · to {sale.dispatchLocation}</span>}
-                            </p>
-                            <p className="shrink-0 text-sm font-bold text-slate-900">{formatRupees(sale.totalAmount)}</p>
+                            <p className="min-w-0 truncate text-[13px] font-semibold text-slate-800">{view.party}</p>
+                            <p className="shrink-0 text-[13px] font-bold tabular-nums text-slate-900">{formatRupees(sale.totalAmount)}</p>
                           </div>
-                          <div className="mt-1 flex items-center justify-between gap-3">
-                            <div className="flex min-w-0 items-center gap-2">
-                              <Plate>{sale.vehicleNo || '-'}</Plate>
-                              {renderMaterial(view.material)}
-                              {Number(sale.rate || 0) > 0 && (
-                                <span className="shrink-0 text-xs font-semibold text-slate-700">
-                                  @ {formatRupees(sale.rate)}<span className="font-normal text-slate-400">/{view.isCubic ? 'cft' : 'ton'}</span>
-                                </span>
-                              )}
-                              <span className="shrink-0 text-xs text-slate-500">{formatDate(sale.saleDate)}</span>
-                            </div>
-                            <p className="shrink-0 text-sm font-bold text-emerald-700">
-                              {[
-                                view.isCubic ? `${formatQty(sale.cubicMeterQty)} cft` : `${formatQty(view.netWeight / 1000)} T`,
-                                view.isCubic && view.netWeight > 0 ? `${formatQty(view.netWeight / 1000)} T` : '',
-                                view.extraCubic > 0 ? `${formatQty(view.extraCubic)} cft` : ''
-                              ].filter(Boolean).join(' · ')}
-                            </p>
+                          <div className="mt-1 flex min-w-0 items-center gap-1.5 text-xs text-slate-600">
+                            <span className="shrink-0 font-mono text-[11px] font-medium text-slate-700">{sale.vehicleNo || '-'}</span>
+                            <span className="text-slate-300">·</span>
+                            {renderMaterial(view.material)}
+                            <span className="truncate tabular-nums">
+                              {formatSaleQty(sale, view)}
+                              {Number(sale.rate || 0) > 0 && <span className="text-slate-400"> @ ₹{formatAmount(sale.rate)}/{view.isCubic ? 'cft' : 't'}</span>}
+                            </span>
                           </div>
-                          {view.royaltyAmount > 0 && (
-                            <p className="truncate text-[11px] font-medium text-orange-700">
-                              Royalty {formatRupees(view.royaltyAmount)}
-                            </p>
-                          )}
-                          {view.transportMode !== 'party' && (
-                            <p className="truncate text-[11px] font-medium text-amber-700">
-                              {[view.transportNote, view.transportRate, view.transportCharge > 0 ? `Transport ${formatRupees(view.transportCharge)}` : ''].filter(Boolean).join(' · ')}
-                            </p>
-                          )}
-                          <div className="flex items-center justify-between gap-2">
-                            <div className="flex min-w-0 items-center gap-1.5 text-[11px] text-slate-400">
-                              <span className={`${SALE_TYPE_BADGE[sale.type] || 'badge-red'} shrink-0`}>{formatSaleTypeLabel(sale.type)}</span>
-                              {sale.isGst && <span className="badge-blue shrink-0">GST</span>}
-                              {view.royaltyAmount > 0 && <span className="badge-orange shrink-0">Royalty</span>}
-                              <button type="button" onClick={() => handleOpenInvoicePdf(sale._id)} className="shrink-0 font-semibold text-primary-600">
-                                {sale.invoiceNumber}
-                              </button>
-                              {view.balance > 0 && <span className="truncate">Bal {formatRupees(view.balance)}</span>}
-                            </div>
-                            {renderActions(sale)}
+                          <div className="mt-1 flex items-center justify-between gap-2 text-[11px] text-slate-400">
+                            <span className="min-w-0 truncate">
+                              {formatShortDate(sale.saleDate)} · {sale.invoiceNumber}
+                              {charges.map((charge) => (
+                                <span key={charge.key}> · <span className={`font-medium ${charge.tone}`}>{charge.label}</span></span>
+                              ))}
+                            </span>
+                            <span className={`shrink-0 font-semibold ${payment.tone}`}>{payment.label}</span>
                           </div>
                         </li>
                       );
                     })}
                   </ul>
 
+                  {/* Desktop: one plain number per column; only the total is bold, colour only on the material and payment */}
                   <div className="hidden overflow-x-auto md:block">
-                    <table className="w-full min-w-[960px] text-left">
+                    <table className="w-full min-w-[980px] text-left">
                       <thead>
                         <tr>
-                          <th className={TH}>Date</th>
-                          <th className={TH}>Party</th>
-                          <th className={TH}>Vehicle / Transport</th>
-                          <th className={TH}>Material</th>
-                          <th className={`${TH} text-right`}>Rate</th>
-                          <th className={`${TH} text-right`}>Net (kg)</th>
-                          <th className={`${TH} text-right`}>Amount</th>
-                          <th className={TH}>Payment</th>
-                          <th className={TH} />
+                          <th className={ETH}>Date</th>
+                          <th className={ETH}>Party</th>
+                          <th className={ETH}>Vehicle</th>
+                          <th className={ETH}>Material</th>
+                          <th className={`${ETH} text-right`}>Net Wt</th>
+                          <th className={`${ETH} text-right`}>Rate</th>
+                          <th className={`${ETH} text-right`}>Mat Amt</th>
+                          {showRoyaltyColumn && <th className={`${ETH} text-right text-orange-600/80`}>Royalty</th>}
+                          {showGstColumn && <th className={`${ETH} text-right text-sky-600/80`}>GST</th>}
+                          {showTransportColumn && <th className={`${ETH} text-right`}>Transport</th>}
+                          <th className={`${ETH} text-right`}>Total</th>
+                          <th className={ETH}><span className="sr-only">Actions</span></th>
                         </tr>
                       </thead>
                       <tbody>
                         {sales.map((sale) => {
                           const view = describeSale(sale);
+                          const payment = getPaymentNote(sale, view);
+                          const vehicleTag = view.transportMode === 'hired' ? 'Hired' : view.transportMode !== 'party' ? 'Own' : '';
                           return (
-                            <tr key={sale._id} className="tbl-row">
-                              <td className={`${TD} whitespace-nowrap`}>
-                                {formatDate(sale.saleDate)}
+                            <tr key={sale._id} className="tbl-row group cursor-pointer" onClick={() => setDetailSale(sale)} title="Click to see full details">
+                              <td className={`${ETD} whitespace-nowrap`}>
+                                <span className="text-slate-800">{formatShortDate(sale.saleDate)}</span>
                                 <button
                                   type="button"
-                                  onClick={() => handleOpenInvoicePdf(sale._id)}
+                                  onClick={(event) => { event.stopPropagation(); handleOpenInvoicePdf(sale._id); }}
                                   title="Open invoice PDF"
-                                  className="block text-[11px] font-semibold leading-tight text-primary-600 hover:underline"
+                                  className="block text-[11px] leading-tight text-slate-400 hover:text-primary-600 hover:underline"
                                 >
                                   {sale.invoiceNumber}
                                 </button>
-                                {(sale.entryTime || sale.exitTime) && (
-                                  <span className="block text-[11px] leading-tight text-slate-400">{sale.entryTime || '--'} → {sale.exitTime || '--'}</span>
-                                )}
                               </td>
-                              <td className={TD}>
-                                <p className="max-w-[14rem] truncate font-semibold text-slate-800" title={view.party}>{view.party}</p>
+                              <td className={ETD}>
+                                <p className="max-w-[13rem] truncate font-medium text-slate-800" title={view.party}>{view.party}</p>
                                 {sale.dispatchLocation && (
-                                  <span className="block max-w-[14rem] truncate text-[11px] text-slate-500" title={`Dispatched to ${sale.dispatchLocation}`}>To {sale.dispatchLocation}</span>
+                                  <span className="block max-w-[13rem] truncate text-[11px] leading-tight text-slate-400" title={`Dispatched to ${sale.dispatchLocation}`}>to {sale.dispatchLocation}</span>
                                 )}
                               </td>
-                              <td className={TD}>
-                                <Plate>{sale.vehicleNo || '-'}</Plate>
-                                <span className="block max-w-[14rem] truncate text-[11px] font-medium text-amber-700" title={view.transportNote || 'Party vehicle'}>
-                                  {view.transportMode === 'party' ? 'Party vehicle' : view.transportNote}
+                              <td className={`${ETD} whitespace-nowrap`}>
+                                <span className="font-mono text-xs font-medium text-slate-700">{sale.vehicleNo || '-'}</span>
+                                {vehicleTag && (
+                                  <span className="block text-[11px] leading-tight text-slate-400" title={view.transportNote}>{vehicleTag}</span>
+                                )}
+                              </td>
+                              <td className={`${ETD} whitespace-nowrap`}>{renderMaterial(view.material)}</td>
+                              <td className={`${ETD} whitespace-nowrap text-right text-slate-800`}>
+                                {formatSaleQty(sale, view)}
+                                {view.isCubic && view.netWeight > 0 && (
+                                  <span className="block text-[11px] leading-tight text-slate-400">{formatQty(sale.cubicMeterQty)} cft billed</span>
+                                )}
+                                {view.extraCubic > 0 && (
+                                  <span className="block text-[11px] leading-tight text-slate-400">{formatQty(view.extraCubic)} cft</span>
+                                )}
+                              </td>
+                              <td className={`${ETD} whitespace-nowrap text-right`}>
+                                {Number(sale.rate || 0) > 0
+                                  ? <>₹{formatAmount(sale.rate)}<span className="text-slate-400">/{view.isCubic ? 'cft' : 't'}</span></>
+                                  : <span className="text-slate-300">—</span>}
+                              </td>
+                              <td className={`${ETD} whitespace-nowrap text-right`}>{formatAmount(view.materialAmount)}</td>
+                              {showRoyaltyColumn && <td className={`${ETD} whitespace-nowrap text-right`}>{renderCharge(view.royaltyAmount, 'font-medium text-orange-600')}</td>}
+                              {showGstColumn && <td className={`${ETD} whitespace-nowrap text-right`}>{renderCharge(view.gstAmount, 'font-medium text-sky-600')}</td>}
+                              {showTransportColumn && <td className={`${ETD} whitespace-nowrap text-right`}>{renderCharge(view.transportCharge)}</td>}
+                              <td className={`${ETD} whitespace-nowrap text-right`}>
+                                <span className="font-semibold text-slate-900">{formatAmount(sale.totalAmount)}</span>
+                                <span className={`block text-[11px] font-medium leading-tight ${payment.tone}`} title={view.paid > 0 ? `Paid ${formatRupees(view.paid)}` : undefined}>
+                                  {payment.label}
                                 </span>
-                                {view.transportRate && (
-                                  <span className="block text-[11px] leading-tight text-slate-500">
-                                    Pay {view.transportRate}{view.transportCost > 0 ? ` = ${formatRupees(view.transportCost)}` : ''}
-                                  </span>
-                                )}
                               </td>
-                              <td className={`${TD} whitespace-nowrap`}>
-                                {renderMaterial(view.material)}
-                              </td>
-                              <td className={`${TD} whitespace-nowrap text-right`}>
-                                {Number(sale.rate || 0) > 0 ? (
-                                  <>
-                                    <span className="font-semibold text-slate-800">{formatRupees(sale.rate)}</span>
-                                    <span className="block text-[11px] leading-tight text-slate-400">per {view.isCubic ? 'cft' : 'ton'}</span>
-                                  </>
-                                ) : <span className="text-slate-400">—</span>}
-                              </td>
-                              {view.isCubic && !view.netWeight ? (
-                                // A sale by volume with no weighbridge weights: its quantity goes in the net column
-                                <td className={`${TD} whitespace-nowrap text-right font-bold text-emerald-700`}>
-                                  {formatQty(sale.cubicMeterQty)} cft
-                                  <span className="block text-[11px] font-normal text-slate-400">Sold by volume</span>
-                                </td>
-                              ) : (
-                                <td className={`${TD} text-right font-bold text-emerald-700`}>
-                                  {view.netWeight ? formatQty(view.netWeight) : '—'}
-                                  {/* Weighed and also measured: the cubic feet show under the net weight */}
-                                  {(view.isCubic || view.extraCubic > 0) && (
-                                    <span className="block text-[11px] font-semibold text-slate-500">
-                                      {formatQty(view.isCubic ? sale.cubicMeterQty : view.extraCubic)} cft{view.isCubic ? ' billed' : ''}
-                                    </span>
-                                  )}
-                                </td>
-                              )}
-                              <td className={`${TD} whitespace-nowrap text-right`}>
-                                <span className="font-bold text-slate-900">{formatRupees(sale.totalAmount)}</span>
-                                {(view.transportCharge > 0 || view.royaltyAmount > 0) && (
-                                  <span className="block text-[11px] leading-tight text-slate-400">
-                                    {[
-                                      formatRupees(view.materialAmount),
-                                      view.transportCharge > 0 ? `${formatRupees(view.transportCharge)} transport` : '',
-                                      view.royaltyAmount > 0 ? `${formatRupees(view.royaltyAmount)} royalty` : ''
-                                    ].filter(Boolean).join(' + ')}
-                                  </span>
-                                )}
-                                {view.gstAmount > 0 && (
-                                  <span className="block text-[11px] leading-tight text-sky-600">
-                                    incl. GST {formatRupees(view.gstAmount)} ({formatGstRate(sale.gstRate)})
-                                  </span>
-                                )}
-                              </td>
-                              <td className={`${TD} whitespace-nowrap`}>
-                                <span className={SALE_TYPE_BADGE[sale.type] || 'badge-red'}>{formatSaleTypeLabel(sale.type)}</span>
-                                {sale.isGst && <span className="badge-blue ml-1">GST</span>}
-                                {view.royaltyAmount > 0 && <span className="badge-orange ml-1">Royalty</span>}
-                                {view.balance > 0 && (
-                                  <span className="mt-0.5 block text-[11px] leading-tight text-rose-600" title={`Paid ${formatRupees(view.paid)}`}>
-                                    Bal {formatRupees(view.balance)}
-                                  </span>
-                                )}
-                              </td>
-                              <td className={`${TD} py-1!`}>{renderActions(sale)}</td>
+                              <td className={`${ETD} py-1! text-slate-300`}>{renderActions(sale)}</td>
                             </tr>
                           );
                         })}
                       </tbody>
-                      <tfoot>
-                        <tr className="border-t border-slate-200 bg-slate-50">
-                          <td className={`${TD} font-bold text-slate-900`} colSpan={5}>
-                            Total
-                            <span className="ml-2 text-xs font-medium text-slate-500">
-                              {entryCount(summary.count)} · {formatQty(summary.totalWeight / 1000)} T
-                            </span>
-                          </td>
-                          <td className={`${TD} text-right font-bold text-emerald-700`}>{formatQty(summary.totalWeight)}</td>
-                          <td className={`${TD} whitespace-nowrap text-right font-bold text-slate-900`}>{formatRupees(summary.totalAmount)}</td>
-                          <td className={TD} colSpan={2} />
-                        </tr>
-                      </tfoot>
                     </table>
                   </div>
 
@@ -3581,7 +3548,7 @@ export default function Sales({ modalOnly = false, onModalFinish = null, weighme
                     <span>
                       Showing {(page - 1) * SALES_PAGE_SIZE + 1}–{(page - 1) * SALES_PAGE_SIZE + sales.length} of {entryCount(pagination.total)}
                     </span>
-                    {/* The table has its own total row; phones get the totals here */}
+                    {/* Phones also get the period's totals here; the cards above the list show them too */}
                     <span className="font-semibold text-slate-700 md:hidden">
                       {formatQty(summary.totalWeight / 1000)} T · {formatRupees(summary.totalAmount)}
                     </span>

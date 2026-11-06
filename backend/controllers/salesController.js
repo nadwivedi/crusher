@@ -421,11 +421,11 @@ const getAllSales = async (req, res) => {
         .limit(limit),
       Sales.countDocuments(query),
       Sales.find(statsQuery)
-        .select("totalAmount gstAmount isRoyalty royaltyAmount type netWeight stoneSize pricingMode cubicMeterQty")
+        .select("totalAmount gstAmount isGst isRoyalty royaltyAmount transportMode transportCharge type netWeight stoneSize pricingMode cubicMeterQty")
         .lean(),
     ]);
 
-    const summary = { totalAmount: 0, gstAmount: 0, royaltyAmount: 0, royaltyCount: 0, cashAmount: 0, creditAmount: 0, totalWeight: 0 };
+    const summary = { totalAmount: 0, gstAmount: 0, gstCount: 0, royaltyAmount: 0, royaltyCount: 0, transportCharge: 0, transportCount: 0, cashAmount: 0, creditAmount: 0, totalWeight: 0 };
     const materialMap = new Map();
     statRows.forEach((row) => {
       const amount = Number(row.totalAmount || 0);
@@ -442,7 +442,15 @@ const getAllSales = async (req, res) => {
       if (material && key !== material.toLowerCase()) return;
       summary.totalAmount += amount;
       summary.totalWeight += weight;
-      summary.gstAmount += Number(row.gstAmount || 0);
+      if (row.isGst) {
+        summary.gstAmount += Number(row.gstAmount || 0);
+        summary.gstCount += 1;
+      }
+      // Transport charged to the party: only on a sale carried in my / a hired vehicle
+      if (row.transportMode && row.transportMode !== "party" && Number(row.transportCharge || 0) > 0) {
+        summary.transportCharge += Number(row.transportCharge || 0);
+        summary.transportCount += 1;
+      }
       if (row.isRoyalty) {
         summary.royaltyAmount += Number(row.royaltyAmount || 0);
         summary.royaltyCount += 1;

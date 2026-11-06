@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { FileText, ImageIcon, Pencil, X } from 'lucide-react';
+import { FileText, ImageIcon, Pencil, Trash2, X } from 'lucide-react';
 import { getOwnershipLabel } from '../../../utils/transport';
 
 const rupees = (value) => `₹${Number(value || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
@@ -46,7 +46,7 @@ function Section({ title, rows }) {
  * payment, slip photo and who added it.
  * view: the row values the Sales page works out for the sale (party name, material amount, transport...).
  */
-export default function SaleDetailsPopup({ sale, view, accountName, onClose, onOpenInvoice, onEdit }) {
+export default function SaleDetailsPopup({ sale, view, accountName, onClose, onOpenInvoice, onEdit, onDelete }) {
   const onCloseRef = useRef(onClose);
   useEffect(() => { onCloseRef.current = onClose; }, [onClose]);
 
@@ -228,6 +228,11 @@ export default function SaleDetailsPopup({ sale, view, accountName, onClose, onO
         </div>
 
         <div className="flex flex-shrink-0 justify-end gap-2 border-t border-slate-200 bg-white p-3 md:gap-3 md:p-4 [&>button]:flex-1 md:[&>button]:flex-none">
+          {onDelete && (
+            <button type="button" className="btn-secondary text-rose-600 hover:bg-rose-50 md:mr-auto" onClick={onDelete}>
+              <Trash2 size={16} /> Delete
+            </button>
+          )}
           <button type="button" className="btn-secondary" onClick={onClose}>Close</button>
           <button type="button" className="btn-secondary" onClick={onOpenInvoice}>
             <FileText size={16} /> Invoice
