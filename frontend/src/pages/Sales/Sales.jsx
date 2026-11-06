@@ -312,10 +312,6 @@ const formatDate = (value) => {
 
 const entryCount = (count) => `${formatQty(count)} entr${count === 1 ? 'y' : 'ies'}`;
 
-const getSaleRateLabel = (sale) => (
-  `₹${formatQty(sale?.rate)}/${sale?.pricingMode === 'per_cubic_meter' ? 'cft' : 'T'}`
-);
-
 // Tons sold of a material (every sale with a weight), and the cubic feet of its sales billed by volume.
 // A sale can have both, so the two are shown side by side, not added.
 const getMaterialQtyLabel = (row) => {
@@ -3412,6 +3408,11 @@ export default function Sales({ modalOnly = false, onModalFinish = null, weighme
                             <div className="flex min-w-0 items-center gap-2">
                               <Plate>{sale.vehicleNo || '-'}</Plate>
                               {renderMaterial(view.material)}
+                              {Number(sale.rate || 0) > 0 && (
+                                <span className="shrink-0 text-xs font-semibold text-slate-700">
+                                  @ {formatRupees(sale.rate)}<span className="font-normal text-slate-400">/{view.isCubic ? 'cft' : 'ton'}</span>
+                                </span>
+                              )}
                               <span className="shrink-0 text-xs text-slate-500">{formatDate(sale.saleDate)}</span>
                             </div>
                             <p className="shrink-0 text-sm font-bold text-emerald-700">
@@ -3440,10 +3441,7 @@ export default function Sales({ modalOnly = false, onModalFinish = null, weighme
                               <button type="button" onClick={() => handleOpenInvoicePdf(sale._id)} className="shrink-0 font-semibold text-primary-600">
                                 {sale.invoiceNumber}
                               </button>
-                              <span className="truncate">
-                                {getSaleRateLabel(sale)}
-                                {view.balance > 0 && ` · Bal ${formatRupees(view.balance)}`}
-                              </span>
+                              {view.balance > 0 && <span className="truncate">Bal {formatRupees(view.balance)}</span>}
                             </div>
                             {renderActions(sale)}
                           </div>
@@ -3453,13 +3451,14 @@ export default function Sales({ modalOnly = false, onModalFinish = null, weighme
                   </ul>
 
                   <div className="hidden overflow-x-auto md:block">
-                    <table className="w-full min-w-[880px] text-left">
+                    <table className="w-full min-w-[960px] text-left">
                       <thead>
                         <tr>
                           <th className={TH}>Date</th>
                           <th className={TH}>Party</th>
                           <th className={TH}>Vehicle / Transport</th>
                           <th className={TH}>Material</th>
+                          <th className={`${TH} text-right`}>Rate</th>
                           <th className={`${TH} text-right`}>Net (kg)</th>
                           <th className={`${TH} text-right`}>Amount</th>
                           <th className={TH}>Payment</th>
@@ -3504,7 +3503,14 @@ export default function Sales({ modalOnly = false, onModalFinish = null, weighme
                               </td>
                               <td className={`${TD} whitespace-nowrap`}>
                                 {renderMaterial(view.material)}
-                                <span className="mt-0.5 block text-[11px] leading-tight text-slate-500">{getSaleRateLabel(sale)}</span>
+                              </td>
+                              <td className={`${TD} whitespace-nowrap text-right`}>
+                                {Number(sale.rate || 0) > 0 ? (
+                                  <>
+                                    <span className="font-semibold text-slate-800">{formatRupees(sale.rate)}</span>
+                                    <span className="block text-[11px] leading-tight text-slate-400">per {view.isCubic ? 'cft' : 'ton'}</span>
+                                  </>
+                                ) : <span className="text-slate-400">—</span>}
                               </td>
                               {view.isCubic && !view.netWeight ? (
                                 // A sale by volume with no weighbridge weights: its quantity goes in the net column
@@ -3557,7 +3563,7 @@ export default function Sales({ modalOnly = false, onModalFinish = null, weighme
                       </tbody>
                       <tfoot>
                         <tr className="border-t border-slate-200 bg-slate-50">
-                          <td className={`${TD} font-bold text-slate-900`} colSpan={4}>
+                          <td className={`${TD} font-bold text-slate-900`} colSpan={5}>
                             Total
                             <span className="ml-2 text-xs font-medium text-slate-500">
                               {entryCount(summary.count)} · {formatQty(summary.totalWeight / 1000)} T
