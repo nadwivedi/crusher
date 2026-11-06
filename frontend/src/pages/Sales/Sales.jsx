@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Banknote, ClipboardList, CreditCard, Eye, FileSpreadsheet, FileText, Filter, Inbox, IndianRupee, Layers, Pencil, Plus, RefreshCw, Scale, Search, Trash2, X } from 'lucide-react';
+import { Banknote, ClipboardList, CreditCard, Eye, FileSpreadsheet, FileText, Filter, Inbox, IndianRupee, Layers, MoreVertical, Pencil, Plus, RefreshCw, Scale, Search, Trash2, X } from 'lucide-react';
 import { toast } from 'react-toastify';
 import apiClient from '../../utils/api';
 import { useAuth } from '../../context/AuthContext';
@@ -16,6 +16,7 @@ import AddProductPopup from '../Products/component/AddProductPopup';
 import AddVehiclePopup from '../Vehicle/component/AddVehiclePopup';
 import AddSalePopup from './component/AddSalePopup';
 import SaleDetailsPopup from './component/SaleDetailsPopup';
+import SaleActionSheet from './component/SaleActionSheet';
 import StatCard from '../../components/StatCard';
 import Segmented from '../../components/Segmented';
 import CustomRangePopup, { formatRangeLabel, toLocalDateInput } from '../../components/CustomRangePopup';
@@ -630,6 +631,8 @@ export default function Sales({ modalOnly = false, onModalFinish = null, weighme
   const [royaltyFilter, setRoyaltyFilter] = useState('all');
   // The sale open in the details popup (eye icon)
   const [detailSale, setDetailSale] = useState(null);
+  // Phones: the sale whose ⋮ menu is open
+  const [actionSale, setActionSale] = useState(null);
   const [tab, setTab] = useState('entries');
   const [summary, setSummary] = useState({ totalAmount: 0, cashAmount: 0, creditAmount: 0, totalWeight: 0, count: 0 });
   const [debouncedSearch, setDebouncedSearch] = useState('');
@@ -3162,7 +3165,7 @@ export default function Sales({ modalOnly = false, onModalFinish = null, weighme
   );
 
   return (
-    <div className="page-fade-in space-y-3.5 px-3 pb-6 pt-3.5 md:space-y-4 lg:px-6 lg:pt-4">
+    <div className="page-fade-in space-y-3.5 px-3 pb-24 pt-3.5 md:space-y-4 md:pb-6 lg:px-6 lg:pt-4">
       <AddSalePopup
         showWeight={showsWeight(formData)}
           weightsLocked={Boolean(lockedWeights)}
@@ -3299,6 +3302,17 @@ export default function Sales({ modalOnly = false, onModalFinish = null, weighme
         }}
       />
       )}
+      {actionSale && (
+        <SaleActionSheet
+          title={describeSale(actionSale).party}
+          subtitle={[actionSale.invoiceNumber, formatShortDate(actionSale.saleDate), formatRupees(actionSale.totalAmount)].filter(Boolean).join(' · ')}
+          onClose={() => setActionSale(null)}
+          onView={() => { setDetailSale(actionSale); setActionSale(null); }}
+          onEdit={canEditEntry(user, actionSale) ? () => { const sale = actionSale; setActionSale(null); handleEdit(sale); } : null}
+          onInvoice={() => { handleOpenInvoicePdf(actionSale._id); setActionSale(null); }}
+          onDelete={canDeleteSales ? async () => { const sale = actionSale; setActionSale(null); await handleDelete(sale._id); } : null}
+        />
+      )}
       {detailSale && (
         <SaleDetailsPopup
           sale={detailSale}
@@ -3334,21 +3348,24 @@ export default function Sales({ modalOnly = false, onModalFinish = null, weighme
         />
       )}
       {/* The page is three blocks, like the Boulder Ledger: period filter, the period's totals, then one panel with the data */}
-      <div className="page-header gap-2.5">
+      {/* Phones: title and two icon buttons on one row; the period is picked from the filter icon, New Sale floats at the bottom */}
+      <div className="page-header flex-row items-center justify-between gap-2.5">
         <div className="min-w-0">
           <h1 className="page-title">Sales Report</h1>
-          <p className="page-subtitle">Crushed material sold · {periodLabel}</p>
+          <p className="page-subtitle truncate">Crushed material sold · {periodLabel}</p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <Segmented options={SALES_RANGE_OPTIONS} value={tableRange} onChange={handleRangeChange} />
-          <button type="button" className="btn-secondary" onClick={() => setExportFormat('excel')} title="Export sales of a period to Excel">
-            <FileSpreadsheet size={18} /> Excel
+        <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+          <div className="hidden md:block">
+            <Segmented options={SALES_RANGE_OPTIONS} value={tableRange} onChange={handleRangeChange} />
+          </div>
+          <button type="button" className="btn-secondary px-2.5 md:px-4" onClick={() => setExportFormat('excel')} title="Export sales of a period to Excel" aria-label="Export to Excel">
+            <FileSpreadsheet size={18} /> <span className="hidden md:inline">Excel</span>
           </button>
-          <button type="button" className="btn-secondary" onClick={() => setExportFormat('pdf')} title="Export sales of a period to PDF, ready to print">
-            <FileText size={18} /> PDF
+          <button type="button" className="btn-secondary px-2.5 md:px-4" onClick={() => setExportFormat('pdf')} title="Export sales of a period to PDF, ready to print" aria-label="Export to PDF">
+            <FileText size={18} /> <span className="hidden md:inline">PDF</span>
           </button>
           {canCreateSales && (
-            <button type="button" className="btn-primary" onClick={handleOpenForm}>
+            <button type="button" className="btn-primary hidden md:inline-flex" onClick={handleOpenForm}>
               <Plus size={18} /> New Sale
             </button>
           )}
@@ -3423,7 +3440,7 @@ export default function Sales({ modalOnly = false, onModalFinish = null, weighme
               ? renderEmpty('No sales found', hasFilters ? 'Try changing the search or the period.' : 'Add the first sale with "New Sale".')
               : (
                 <>
-                  {/* Phone: three short lines per sale (a fourth, small, for royalty / GST / transport); tap for details, edit and delete */}
+                  {/* Phone: sale on the left, money on the right; tap for the details, ⋮ for view / edit / invoice / delete */}
                   <ul className="divide-y divide-slate-100 md:hidden">
                     {sales.map((sale) => {
                       const view = describeSale(sale);
@@ -3434,29 +3451,38 @@ export default function Sales({ modalOnly = false, onModalFinish = null, weighme
                       ].filter(Boolean);
                       const payment = getPaymentNote(sale, view);
                       return (
-                        <li key={sale._id} className="cursor-pointer px-4 py-2.5 active:bg-slate-50" onClick={() => setDetailSale(sale)}>
-                          <div className="flex items-baseline justify-between gap-3">
-                            <p className="min-w-0 truncate text-[13px] font-semibold text-slate-800">{view.party}</p>
-                            <p className="shrink-0 text-[13px] font-bold tabular-nums text-slate-900">{formatRupees(sale.totalAmount)}</p>
+                        <li key={sale._id} className="flex items-start gap-1 py-3 pl-4 pr-1.5 active:bg-slate-50" onClick={() => setDetailSale(sale)}>
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-[13px] font-semibold text-slate-800">{view.party}</p>
+                            <div className="mt-1 flex min-w-0 items-center gap-1.5 text-xs text-slate-700">
+                              {renderMaterial(view.material)}
+                              <span className="truncate tabular-nums">
+                                {formatSaleQty(sale, view)}
+                                {Number(sale.rate || 0) > 0 && <span className="text-slate-400"> @ ₹{formatAmount(sale.rate)}/{view.isCubic ? 'cft' : 't'}</span>}
+                              </span>
+                            </div>
+                            <p className="mt-1 truncate text-[11px] text-slate-400">
+                              <span className="font-mono text-slate-500">{sale.vehicleNo || '-'}</span> · {formatShortDate(sale.saleDate)} · {sale.invoiceNumber}
+                            </p>
+                            {charges.length > 0 && (
+                              <p className="mt-0.5 flex flex-wrap gap-x-2.5 text-[11px] font-medium">
+                                {charges.map((charge) => <span key={charge.key} className={charge.tone || 'text-slate-500'}>{charge.label}</span>)}
+                              </p>
+                            )}
                           </div>
-                          <div className="mt-1 flex min-w-0 items-center gap-1.5 text-xs text-slate-600">
-                            <span className="shrink-0 font-mono text-[11px] font-medium text-slate-700">{sale.vehicleNo || '-'}</span>
-                            <span className="text-slate-300">·</span>
-                            {renderMaterial(view.material)}
-                            <span className="truncate tabular-nums">
-                              {formatSaleQty(sale, view)}
-                              {Number(sale.rate || 0) > 0 && <span className="text-slate-400"> @ ₹{formatAmount(sale.rate)}/{view.isCubic ? 'cft' : 't'}</span>}
-                            </span>
+                          <div className="shrink-0 text-right">
+                            <p className="text-[13px] font-bold tabular-nums text-slate-900">{formatRupees(sale.totalAmount)}</p>
+                            <p className={`mt-1 text-[11px] font-semibold tabular-nums ${payment.tone}`}>{payment.label}</p>
                           </div>
-                          <div className="mt-1 flex items-center justify-between gap-2 text-[11px] text-slate-400">
-                            <span className="min-w-0 truncate">
-                              {formatShortDate(sale.saleDate)} · {sale.invoiceNumber}
-                              {charges.map((charge) => (
-                                <span key={charge.key}> · <span className={`font-medium ${charge.tone}`}>{charge.label}</span></span>
-                              ))}
-                            </span>
-                            <span className={`shrink-0 font-semibold ${payment.tone}`}>{payment.label}</span>
-                          </div>
+                          <button
+                            type="button"
+                            aria-label="Sale actions"
+                            aria-haspopup="dialog"
+                            className="-mt-1 flex h-9 w-8 shrink-0 items-center justify-center rounded-lg text-slate-400 active:bg-slate-100 active:text-slate-700"
+                            onClick={(event) => { event.stopPropagation(); setActionSale(sale); }}
+                          >
+                            <MoreVertical size={18} />
+                          </button>
                         </li>
                       );
                     })}
@@ -3650,6 +3676,17 @@ export default function Sales({ modalOnly = false, onModalFinish = null, weighme
           </div>
         )}
       </section>
+
+      {/* Phones: New Sale always in reach */}
+      {canCreateSales && !showForm && (
+        <button
+          type="button"
+          onClick={handleOpenForm}
+          className="fixed bottom-5 right-4 z-40 flex items-center gap-2 rounded-full bg-primary-600 px-5 py-3.5 text-sm font-bold text-white shadow-xl shadow-primary-600/30 transition hover:bg-primary-700 md:hidden"
+        >
+          <Plus size={20} /> New Sale
+        </button>
+      )}
     </div>
   );
 }
