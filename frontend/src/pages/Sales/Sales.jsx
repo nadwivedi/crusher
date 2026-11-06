@@ -15,6 +15,7 @@ import AddPartyPopup from '../Party/component/AddPartyPopup';
 import AddProductPopup from '../Products/component/AddProductPopup';
 import AddVehiclePopup from '../Vehicle/component/AddVehiclePopup';
 import AddSalePopup from './component/AddSalePopup';
+import SaleDetailsPopup from './component/SaleDetailsPopup';
 import StatCard from '../../components/StatCard';
 import Segmented from '../../components/Segmented';
 import CustomRangePopup, { formatRangeLabel, toLocalDateInput } from '../../components/CustomRangePopup';
@@ -618,6 +619,8 @@ export default function Sales({ modalOnly = false, onModalFinish = null, weighme
   const [gstFilter, setGstFilter] = useState('all');
   // 'all', 'royalty' or 'non_royalty'
   const [royaltyFilter, setRoyaltyFilter] = useState('all');
+  // The sale open in the details popup (eye icon)
+  const [detailSale, setDetailSale] = useState(null);
   const [tab, setTab] = useState('entries');
   const [summary, setSummary] = useState({ totalAmount: 0, cashAmount: 0, creditAmount: 0, totalWeight: 0, count: 0 });
   const [debouncedSearch, setDebouncedSearch] = useState('');
@@ -3099,11 +3102,9 @@ export default function Sales({ modalOnly = false, onModalFinish = null, weighme
 
   const renderActions = (sale) => (
     <div className="flex items-center justify-end">
-      {sale.slipImg && (
-        <a href={sale.slipImg} target="_blank" rel="noreferrer" title="View slip" aria-label="View slip" className="icon-btn inline-flex p-1.5 hover:bg-blue-50 hover:text-blue-600">
-          <Eye size={16} />
-        </a>
-      )}
+      <button type="button" title="View details" aria-label="View details" className="icon-btn p-1.5 hover:bg-emerald-50 hover:text-emerald-600" onClick={() => setDetailSale(sale)}>
+        <Eye size={16} />
+      </button>
       {canEditEntry(user, sale) && (
         <button type="button" title="Edit" aria-label="Edit" className="icon-btn p-1.5 hover:bg-blue-50 hover:text-blue-600" onClick={() => handleEdit(sale)}>
           <Pencil size={16} />
@@ -3270,6 +3271,16 @@ export default function Sales({ modalOnly = false, onModalFinish = null, weighme
           closeInlineVehicleForm(true);
         }}
       />
+      )}
+      {detailSale && (
+        <SaleDetailsPopup
+          sale={detailSale}
+          view={describeSale(detailSale)}
+          accountName={accounts.find((account) => String(account._id) === String(detailSale.account))?.name || ''}
+          onClose={() => setDetailSale(null)}
+          onOpenInvoice={() => handleOpenInvoicePdf(detailSale._id)}
+          onEdit={canEditEntry(user, detailSale) ? () => { const sale = detailSale; setDetailSale(null); handleEdit(sale); } : null}
+        />
       )}
       {showCustomPicker && (
         <CustomRangePopup from={customFrom} to={customTo} onApply={applyCustomPicker} onClose={closeCustomPicker} />
@@ -3442,15 +3453,13 @@ export default function Sales({ modalOnly = false, onModalFinish = null, weighme
                   </ul>
 
                   <div className="hidden overflow-x-auto md:block">
-                    <table className="w-full min-w-[1040px] text-left">
+                    <table className="w-full min-w-[880px] text-left">
                       <thead>
                         <tr>
                           <th className={TH}>Date</th>
                           <th className={TH}>Party</th>
                           <th className={TH}>Vehicle / Transport</th>
                           <th className={TH}>Material</th>
-                          <th className={`${TH} text-right`}>Gross (kg)</th>
-                          <th className={`${TH} text-right`}>Tare (kg)</th>
                           <th className={`${TH} text-right`}>Net (kg)</th>
                           <th className={`${TH} text-right`}>Amount</th>
                           <th className={TH}>Payment</th>
@@ -3499,24 +3508,20 @@ export default function Sales({ modalOnly = false, onModalFinish = null, weighme
                               </td>
                               {view.isCubic && !view.netWeight ? (
                                 // A sale by volume with no weighbridge weights: its quantity goes in the net column
-                                <>
-                                  <td className={`${TD} text-right text-xs text-slate-400`} colSpan={2}>Sold by volume</td>
-                                  <td className={`${TD} whitespace-nowrap text-right font-bold text-emerald-700`}>{formatQty(sale.cubicMeterQty)} cft</td>
-                                </>
+                                <td className={`${TD} whitespace-nowrap text-right font-bold text-emerald-700`}>
+                                  {formatQty(sale.cubicMeterQty)} cft
+                                  <span className="block text-[11px] font-normal text-slate-400">Sold by volume</span>
+                                </td>
                               ) : (
-                                <>
-                                  <td className={`${TD} text-right`}>{sale.grossWeight ? formatQty(sale.grossWeight) : '—'}</td>
-                                  <td className={`${TD} text-right`}>{sale.tareWeight ? formatQty(sale.tareWeight) : '—'}</td>
-                                  <td className={`${TD} text-right font-bold text-emerald-700`}>
-                                    {view.netWeight ? formatQty(view.netWeight) : '—'}
-                                    {/* Weighed and also measured: the cubic feet show under the net weight */}
-                                    {(view.isCubic || view.extraCubic > 0) && (
-                                      <span className="block text-[11px] font-semibold text-slate-500">
-                                        {formatQty(view.isCubic ? sale.cubicMeterQty : view.extraCubic)} cft{view.isCubic ? ' billed' : ''}
-                                      </span>
-                                    )}
-                                  </td>
-                                </>
+                                <td className={`${TD} text-right font-bold text-emerald-700`}>
+                                  {view.netWeight ? formatQty(view.netWeight) : '—'}
+                                  {/* Weighed and also measured: the cubic feet show under the net weight */}
+                                  {(view.isCubic || view.extraCubic > 0) && (
+                                    <span className="block text-[11px] font-semibold text-slate-500">
+                                      {formatQty(view.isCubic ? sale.cubicMeterQty : view.extraCubic)} cft{view.isCubic ? ' billed' : ''}
+                                    </span>
+                                  )}
+                                </td>
                               )}
                               <td className={`${TD} whitespace-nowrap text-right`}>
                                 <span className="font-bold text-slate-900">{formatRupees(sale.totalAmount)}</span>
@@ -3555,7 +3560,7 @@ export default function Sales({ modalOnly = false, onModalFinish = null, weighme
                       </tbody>
                       <tfoot>
                         <tr className="border-t border-slate-200 bg-slate-50">
-                          <td className={`${TD} font-bold text-slate-900`} colSpan={6}>
+                          <td className={`${TD} font-bold text-slate-900`} colSpan={4}>
                             Total
                             <span className="ml-2 text-xs font-medium text-slate-500">
                               {entryCount(summary.count)} · {formatQty(summary.totalWeight / 1000)} T
