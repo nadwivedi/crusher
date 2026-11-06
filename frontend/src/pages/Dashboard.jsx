@@ -63,6 +63,9 @@ const QUICK_ENTRIES = [
   { label: 'Money Received', stateKey: 'homeQuickReceipt', icon: HandCoins, tone: 'bg-teal-50 text-teal-700 ring-teal-100' },
   { label: 'Money Paid', stateKey: 'homeQuickPayment', icon: Send, tone: 'bg-rose-50 text-rose-700 ring-rose-100' },
   { label: 'Material Issued', stateKey: 'homeQuickMaterialUsed', icon: PackageMinus, tone: 'bg-indigo-50 text-indigo-700 ring-indigo-100' },
+  // Phones only: tiles here instead of items in More Entries (larger screens keep them in More Entries)
+  { label: 'Stock Adjustment', stateKey: 'homeQuickStockAdjustment', icon: SlidersHorizontal, tone: 'bg-fuchsia-50 text-fuchsia-700 ring-fuchsia-100', phoneOnly: true },
+  { label: 'Meter Reading', stateKey: 'homeQuickMeterReading', icon: Gauge, tone: 'bg-slate-100 text-slate-700 ring-slate-200', phoneOnly: true },
 ];
 // Less frequent entries, in the popup behind the "More Entries" button
 const MORE_ENTRIES = [
@@ -70,8 +73,8 @@ const MORE_ENTRIES = [
   { label: 'Dump Boulder to Hopper', hint: 'Feed boulder from the dump', stateKey: 'homeQuickDumpOut', icon: ArrowDownToLine, tone: 'from-sky-400 to-blue-600' },
   { label: 'Purchase Return', hint: 'Goods sent back to a supplier', stateKey: 'homeQuickPurchaseReturn', icon: Undo2, tone: 'from-rose-400 to-pink-600' },
   { label: 'Sale Return', hint: 'Material a customer sent back', stateKey: 'homeQuickSaleReturn', icon: RotateCcw, tone: 'from-emerald-400 to-teal-600' },
-  { label: 'Stock Adjustment', hint: 'Correct stock after counting', stateKey: 'homeQuickStockAdjustment', icon: SlidersHorizontal, tone: 'from-violet-400 to-fuchsia-600' },
-  { label: 'Meter Reading', hint: 'Opening / closing of DG or a vehicle', stateKey: 'homeQuickMeterReading', icon: Gauge, tone: 'from-slate-500 to-slate-700' },
+  { label: 'Stock Adjustment', hint: 'Correct stock after counting', stateKey: 'homeQuickStockAdjustment', icon: SlidersHorizontal, tone: 'from-violet-400 to-fuchsia-600', notOnPhone: true },
+  { label: 'Meter Reading', hint: 'Opening / closing of DG or a vehicle', stateKey: 'homeQuickMeterReading', icon: Gauge, tone: 'from-slate-500 to-slate-700', notOnPhone: true },
 ];
 const QUICK_STATE_KEYS = [
   'homeQuickBoulder', 'homeQuickSale', 'homeQuickPurchase', 'homeQuickPayment',
@@ -189,6 +192,14 @@ export default function Dashboard() {
   const [range, setRange] = useState(() => ({ from: toInputDate(new Date()), to: toInputDate(new Date()) }));
   const [custom, setCustom] = useState(range);
   const [showMoreEntries, setShowMoreEntries] = useState(false);
+  // Below the md breakpoint: Stock Adjustment and Meter Reading are Quick Entry tiles, so More Entries leaves them out
+  const [isPhone, setIsPhone] = useState(() => typeof window !== 'undefined' && window.matchMedia('(max-width: 767px)').matches);
+  useEffect(() => {
+    const query = window.matchMedia('(max-width: 767px)');
+    const handleChange = (event) => setIsPhone(event.matches);
+    query.addEventListener('change', handleChange);
+    return () => query.removeEventListener('change', handleChange);
+  }, []);
 
   const entryPopupOpen = QUICK_STATE_KEYS.some((key) => location.state?.[key]);
 
@@ -374,7 +385,7 @@ export default function Dashboard() {
 
       {showMoreEntries && (
         <MoreEntriesPopup
-          entries={MORE_ENTRIES}
+          entries={isPhone ? MORE_ENTRIES.filter((entry) => !entry.notOnPhone) : MORE_ENTRIES}
           onClose={() => setShowMoreEntries(false)}
           onPick={(entry) => {
             setShowMoreEntries(false);
@@ -410,19 +421,20 @@ export default function Dashboard() {
           Columns follow the panel's own width (not the screen's), so a tile is always wide enough for its label.
           Laptops and desktops get all seven in one row: compact tiles (icon above the label) while the row is tight,
           the normal side-by-side tiles once it is wide enough. Tablets and small laptops wrap onto more rows.
+          Phones get three small tiles a row, the icon above the label.
         */}
-        <div className="grid grid-cols-2 gap-2 p-2.5 @xl:grid-cols-3 @3xl:grid-cols-4 @4xl:grid-cols-7 md:gap-2.5 md:p-3">
+        <div className="grid grid-cols-3 gap-1.5 p-2 @xl:grid-cols-3 @xl:gap-2 @xl:p-2.5 @3xl:grid-cols-4 @4xl:grid-cols-7 md:gap-2.5 md:p-3">
           {QUICK_ENTRIES.map(({ icon: Icon, ...entry }) => (
             <button
               key={entry.stateKey}
               type="button"
               onClick={() => openQuickEntry(entry)}
-              className="group flex items-center gap-2 rounded-xl bg-white p-2 text-left shadow-sm transition hover:bg-primary-50 hover:shadow-md @4xl:flex-col @4xl:gap-1 @4xl:px-1 @4xl:text-center @[84rem]:flex-row @[84rem]:gap-2 @[84rem]:px-2 @[84rem]:text-left"
+              className={`group flex flex-col items-center gap-1 rounded-lg bg-white px-1 py-2 text-center shadow-sm transition hover:bg-primary-50 hover:shadow-md ${entry.phoneOnly ? 'md:hidden' : ''} @xl:flex-row @xl:gap-2 @xl:rounded-xl @xl:p-2 @xl:text-left @4xl:flex-col @4xl:gap-1 @4xl:px-1 @4xl:text-center @[84rem]:flex-row @[84rem]:gap-2 @[84rem]:px-2 @[84rem]:text-left`}
             >
-              <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ring-1 ring-inset ${entry.tone}`}>
-                <Icon size={17} />
+              <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg ring-1 ring-inset @xl:h-8 @xl:w-8 ${entry.tone}`}>
+                <Icon className="h-4 w-4 @xl:h-[17px] @xl:w-[17px]" />
               </span>
-              <span className="min-w-0 text-[13.65px] font-semibold leading-tight text-slate-700 group-hover:text-slate-900 @4xl:text-[12.6px] @[84rem]:text-[13.65px]">{entry.label}</span>
+              <span className="min-w-0 text-[11px] font-semibold leading-tight text-slate-700 group-hover:text-slate-900 @xl:text-[13.65px] @4xl:text-[12.6px] @[84rem]:text-[13.65px]">{entry.label}</span>
             </button>
           ))}
         </div>
