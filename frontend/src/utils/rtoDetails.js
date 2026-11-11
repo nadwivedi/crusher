@@ -66,12 +66,12 @@ export const formatDocDay = (value) => {
  * Each vehicle's current copy of each paper (the latest, not renewed), with where it stands today:
  * Map(vehicleId -> { insurance: { doc, status }, puc: ..., ... }).
  */
-export const getCurrentPapers = (documents) => {
+export const getCurrentPapers = (documents, types = VALIDITY_TYPES) => {
   const list = Array.isArray(documents) ? documents : [];
   const renewedIds = getRenewedIds(list);
   const byVehicle = new Map();
   list.forEach((doc) => {
-    if (!VALIDITY_TYPES.some((type) => type.docType === doc.docType) || renewedIds.has(doc._id)) return;
+    if (!types.some((type) => type.docType === doc.docType) || renewedIds.has(doc._id)) return;
     const key = String(doc.vehicleId);
     if (!byVehicle.has(key)) byVehicle.set(key, {});
     const papers = byVehicle.get(key);

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { AlertTriangle, CalendarX, FileCheck, FileText, FolderOpen, Inbox, Paperclip, Pencil, Plus, RefreshCw, RotateCcw, Search, Trash2, Truck } from 'lucide-react';
+import { AlertTriangle, CalendarX, FileCheck, FileText, FolderOpen, Inbox, LayoutGrid, List, Paperclip, Pencil, Plus, RefreshCw, RotateCcw, Search, Trash2, Truck } from 'lucide-react';
 import { toast } from 'react-toastify';
 import apiClient from '../../utils/api';
 import { useAuth } from '../../context/AuthContext';
@@ -13,6 +13,7 @@ import {
   DOCUMENT_TYPES, EXPIRY_SOON_DAYS, describeDaysLeft, getDocumentName, getExpiryStatus, getRenewedIds
 } from '../../utils/vehicleDocuments';
 import AddDocumentPopup from './component/AddDocumentPopup';
+import VehiclePapersView from './component/VehiclePapersView';
 
 const TH = 'tbl-head px-3 py-2 first:pl-5 last:pr-5';
 const TD = 'tbl-cell px-3 py-2 first:pl-5 last:pr-5';
@@ -25,6 +26,20 @@ const STATUS_VIEWS = [
   { key: 'expired', label: 'Expired', statuses: ['expired'] }
 ];
 const VIEW_STATUSES = Object.fromEntries(STATUS_VIEWS.map((view) => [view.key, view.statuses]));
+
+// By Vehicle: one strip per vehicle with all its papers side by side. All Papers: one row per document.
+const LAYOUTS = [
+  { key: 'vehicles', label: 'By Vehicle', icon: LayoutGrid },
+  { key: 'list', label: 'All Papers', icon: List }
+];
+const LAYOUT_STORAGE_KEY = 'documents-layout';
+const readLayout = () => {
+  try {
+    return window.localStorage.getItem(LAYOUT_STORAGE_KEY) === 'list' ? 'list' : 'vehicles';
+  } catch {
+    return 'vehicles';
+  }
+};
 
 // The day after a document's last day: where its renewal starts
 const dayAfter = (value) => {
@@ -49,6 +64,11 @@ export default function Documents() {
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
   const [statusView, setStatusView] = useState('active');
+  const [layout, setLayoutState] = useState(readLayout);
+  const setLayout = (value) => {
+    setLayoutState(value);
+    try { window.localStorage.setItem(LAYOUT_STORAGE_KEY, value); } catch { /* remembered for this visit only */ }
+  };
   // { document } to edit, { preset } to add (preset may be empty)
   const [popup, setPopup] = useState(null);
 
@@ -276,23 +296,23 @@ export default function Documents() {
       <section className="panel">
         <div className="panel-header flex flex-wrap items-center justify-between gap-2.5 py-2.5">
           <div className="flex flex-wrap items-center gap-2">
-            <h2 className="text-sm font-bold text-slate-800">
-              Documents <span className="ml-1 font-medium text-slate-400">{filteredRows.length}</span>
-            </h2>
-            <Segmented options={viewOptions} value={statusView} onChange={setStatusView} />
+            <Segmented options={LAYOUTS} value={layout} onChange={setLayout} />
+            {layout === 'list' && <Segmented options={viewOptions} value={statusView} onChange={setStatusView} />}
           </div>
           <div className="flex min-w-0 flex-1 basis-72 flex-wrap items-center justify-end gap-2">
             <select className="input w-auto min-w-0 flex-1 md:max-w-40" value={vehicleFilter} onChange={(event) => setVehicleFilter(event.target.value)} aria-label="Vehicle">
               <option value="">All vehicles</option>
               {vehicles.map((vehicle) => <option key={vehicle._id} value={vehicle._id}>{vehicle.vehicleNo}</option>)}
             </select>
-            <select className="input w-auto min-w-0 flex-1 md:max-w-40" value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)} aria-label="Document type">
-              <option value="">All documents</option>
-              {DOCUMENT_TYPES.map((type) => <option key={type.value} value={type.value}>{type.label}</option>)}
-            </select>
+            {layout === 'list' && (
+              <select className="input w-auto min-w-0 flex-1 md:max-w-40" value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)} aria-label="Document type">
+                <option value="">All documents</option>
+                {DOCUMENT_TYPES.map((type) => <option key={type.value} value={type.value}>{type.label}</option>)}
+              </select>
+            )}
             <div className="relative min-w-0 flex-1 basis-40 md:max-w-56">
               <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-              <input type="search" className="input pl-9" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search vehicle, number" />
+              <input type="search" className="input pl-9" value={search} onChange={(event) => setSearch(event.target.value)} placeholder={layout === 'vehicles' ? 'Search vehicle' : 'Search vehicle, number'} />
             </div>
             <button type="button" className="icon-btn shrink-0" title="Refresh" aria-label="Refresh" onClick={load}>
               <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
@@ -304,6 +324,23 @@ export default function Documents() {
           <div className="flex flex-col items-center gap-3 py-16">
             <div className="h-9 w-9 animate-spin rounded-full border-4 border-primary-600 border-r-transparent" />
             <p className="text-sm text-slate-400">Loading documents…</p>
+          </div>
+        ) : layout === 'vehicles' ? (
+          <div className={`transition-opacity ${loading ? 'pointer-events-none opacity-50' : ''}`}>
+            <VehiclePapersView
+              documents={documents}
+              vehicles={vehicles}
+              vehicleFilter={vehicleFilter}
+              search={search}
+              user={user}
+              canAdd={canAdd}
+              onAdd={openAdd}
+              onEdit={(doc) => setPopup({ document: doc })}
+              onShowList={(vehicleId) => {
+                setVehicleFilter(vehicleId);
+                setLayout('list');
+              }}
+            />
           </div>
         ) : filteredRows.length === 0 ? (
           <div className="flex flex-col items-center gap-2 px-6 py-10 text-center">
