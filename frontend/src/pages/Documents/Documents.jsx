@@ -330,6 +330,7 @@ export default function Documents() {
                     <div className="flex items-center gap-2">
                       <p className="truncate text-sm font-semibold text-slate-800">{getDocumentName(doc)}</p>
                       <span className={`${doc.status.className} shrink-0`}>{doc.status.label}</span>
+                      {doc.source === 'rto' && <span className="badge-blue shrink-0 text-[10px]" title="Filled from the RTO record">RTO</span>}
                     </div>
                     <p className="mt-0.5 flex items-center gap-1 truncate text-xs text-slate-500">
                       <Truck size={12} className="shrink-0" /> <span className="font-mono">{doc.vehicleNo}</span>
@@ -369,7 +370,7 @@ export default function Documents() {
                         {doc.vehicleMissing ? doc.vehicleNo : <Link to={`/vehicle/${doc.vehicleId}`} className="hover:text-primary-700 hover:underline">{doc.vehicleNo}</Link>}
                       </td>
                       <td className={TD}>
-                        <p className="flex items-center gap-1.5 font-medium text-slate-700"><FileText size={14} className="text-slate-400" /> {getDocumentName(doc)}</p>
+                        <p className="flex items-center gap-1.5 font-medium text-slate-700"><FileText size={14} className="text-slate-400" /> {getDocumentName(doc)}{doc.source === 'rto' && <span className="badge-blue text-[10px]" title="Filled from the RTO record">RTO</span>}</p>
                         {doc.notes && <p className="max-w-56 truncate text-xs text-slate-500" title={doc.notes}>{doc.notes}</p>}
                       </td>
                       <td className={`${TD} text-sm text-slate-600`}>{doc.documentNumber || '—'}</td>

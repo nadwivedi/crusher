@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Ban, CalendarClock, ChevronRight, Eye, Inbox, MoreVertical, Pencil, Plus, RefreshCw, RotateCcw, Search, SlidersHorizontal, Trash2, Truck, Users, Wallet } from 'lucide-react';
+import { Ban, CalendarClock, ChevronRight, Eye, Inbox, MoreVertical, Pencil, Plus, RefreshCw, RotateCcw, Search, ShieldCheck, SlidersHorizontal, Trash2, Truck, Users, Wallet } from 'lucide-react';
 import { toast } from 'react-toastify';
 import apiClient from '../utils/api';
 import { canDeleteEntries, canEditEntry } from '../utils/staffAccess';
@@ -14,11 +14,19 @@ import StatCard from '../components/StatCard';
 import { getBasisLabel, getVehicleCategoryLabel, getVehicleHireRates, getVehicleOwnerIds } from '../utils/transport';
 import { formatHireDate, formatRupees, getHireStatus, toDayInput } from '../utils/monthlyHire';
 import { toLocalDateInput } from '../components/CustomRangePopup';
+import { VALIDITY_TYPES, fetchRtoDetails, getCurrentPapers, isRtoPending, needsRtoFetch } from '../utils/rtoDetails';
 
 const TOAST_OPTIONS = { autoClose: 1200 };
 
 const TH = 'tbl-head px-3 py-2 first:pl-5 last:pr-5';
 const TD = 'tbl-cell px-3 py-2 first:pl-5 last:pr-5';
+
+// "12 Mar 27": short enough for a chip
+const formatChipDay = (key) => {
+  if (!key) return '';
+  const [year, month, day] = key.split('-').map(Number);
+  return new Date(year, month - 1, day).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: '2-digit' });
+};
 
 const getTypeBadgeClass = (type) => (type === 'boulder' ? 'badge-blue' : 'badge-orange');
 
@@ -44,11 +52,35 @@ export default function Vehicle() {
   const [menu, setMenu] = useState(null);
   // Hire money for the summary cards: this month's hire entries and what is owed to vehicle owners today
   const [hireSummary, setHireSummary] = useState({ entries: [], balances: [] });
+  // Vehicle papers (insurance, PUC, fitness, tax, permit), for the validity shown on my own vehicles
+  const [documents, setDocuments] = useState([]);
+  // Ids of vehicles whose RTO details are being fetched
+  const [rtoBusy, setRtoBusy] = useState(() => new Set());
 
   useEffect(() => {
     fetchVehicles();
     fetchParties();
   }, [search]);
+
+  // A new own vehicle's RTO details come in on the server in the background: look again every few seconds until
+  // they are in, then say how it went
+  const pendingRtoIds = useRef(new Set());
+  useEffect(() => {
+    const pending = vehicles.filter(isRtoPending);
+    vehicles.forEach((vehicle) => {
+      if (!pendingRtoIds.current.has(vehicle._id) || isRtoPending(vehicle)) return;
+      pendingRtoIds.current.delete(vehicle._id);
+      if (vehicle.rcFetchStatus === 'failed') {
+        toast.error(`${vehicle.vehicleNo}: ${vehicle.rcFetchError || 'Could not fetch RTO details'}`, { autoClose: 5000 });
+      } else if (vehicle.rcFetchedAt) {
+        toast.success(`${vehicle.vehicleNo}: RTO details saved · insurance, PUC, fitness and tax added to Documents`, { autoClose: 4000 });
+      }
+    });
+    pending.forEach((vehicle) => pendingRtoIds.current.add(vehicle._id));
+    if (pending.length === 0) return undefined;
+    const timer = setTimeout(() => fetchVehicles({ quiet: true }), 4000);
+    return () => clearTimeout(timer);
+  }, [vehicles]);
 
   useEffect(() => {
     const handleKeyDown = (event) => {
@@ -96,16 +128,19 @@ export default function Vehicle() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [navigate]);
 
-  const fetchVehicles = async () => {
+  // quiet: a background re-check while a new vehicle's RTO details come in, without dimming the list
+  const fetchVehicles = async ({ quiet = false } = {}) => {
     try {
-      setLoading(true);
-      const [response, entryResponse, outstandingResponse] = await Promise.all([
+      if (!quiet) setLoading(true);
+      const [response, entryResponse, outstandingResponse, documentResponse] = await Promise.all([
         apiClient.get('/vehicles', { params: { search } }),
         apiClient.get('/transport'),
         // Owner-only balances; staff see the vehicles without them
-        apiClient.get('/reports/outstanding').catch(() => ({}))
+        apiClient.get('/reports/outstanding').catch(() => ({})),
+        apiClient.get('/vehicle-documents').catch(() => [])
       ]);
       setVehicles(Array.isArray(response) ? response : []);
+      setDocuments(Array.isArray(documentResponse) ? documentResponse : []);
       setHireSummary({
         entries: Array.isArray(entryResponse) ? entryResponse : [],
         balances: Array.isArray(outstandingResponse?.partyOutstanding) ? outstandingResponse.partyOutstanding : []
@@ -152,6 +187,28 @@ export default function Vehicle() {
     }
   };
 
+  // One RTO Sarthi call per vehicle, one after another so a used-up limit stops the rest; the list reloads after
+  const runRtoFetch = async (list) => {
+    setRtoBusy((prev) => new Set([...prev, ...list.map((vehicle) => vehicle._id)]));
+    let fetched = 0;
+    for (const vehicle of list) {
+      const result = await fetchRtoDetails(vehicle);
+      if (!result) break;
+      fetched += 1;
+    }
+    setRtoBusy((prev) => {
+      const next = new Set(prev);
+      list.forEach((vehicle) => next.delete(vehicle._id));
+      return next;
+    });
+    if (fetched > 0) fetchVehicles();
+  };
+
+  const refreshFromRto = (vehicle) => {
+    if (!needsRtoFetch(vehicle) && !window.confirm(`Fetch ${vehicle.vehicleNo} again from the RTO? This uses one RTO Sarthi call.`)) return;
+    runRtoFetch([vehicle]);
+  };
+
   const getPartyName = (partyId) => {
     const party = parties.find(p => p._id === partyId);
     return party?.partyName || party?.name || '-';
@@ -179,6 +236,73 @@ export default function Vehicle() {
     { label: 'Hire Cost This Month', value: formatRupees(hireCostThisMonth), icon: Wallet, tone: 'amber', hint: 'Trips, extra charges and rent so far' },
     { label: 'To Pay Owners', value: formatRupees(toPayOwners), icon: Users, tone: 'rose', hint: 'What vehicle owners are owed today' },
   ];
+
+  const papersByVehicle = useMemo(() => getCurrentPapers(documents), [documents]);
+  // My own vehicles not looked up at the RTO yet (added before this, or the number changed)
+  const unfetchedOwn = vehicles.filter((vehicle) => needsRtoFetch(vehicle) && canEditEntry(user, vehicle));
+
+  const fetchAllFromRto = () => {
+    const count = unfetchedOwn.length;
+    if (!count) return;
+    const plural = count === 1 ? '' : 's';
+    if (!window.confirm(`Fetch RC, insurance, PUC, fitness and tax details of ${count} of your vehicle${plural} from the RTO? This uses ${count} RTO Sarthi call${plural}.`)) return;
+    runRtoFetch(unfetchedOwn);
+  };
+
+  // My own vehicle's papers as small chips: green valid, orange ending within 30 days, red expired
+  // An older vehicle (or one whose lookup failed) is fetched only with this button, never on its own
+  const renderFetchButton = (vehicle, label) => canEditEntry(user, vehicle) && (
+    <button
+      type="button"
+      className="inline-flex items-center gap-1 rounded-full bg-primary-50 px-2 py-0.5 text-[11px] font-semibold text-primary-700 ring-1 ring-inset ring-primary-200 transition hover:bg-primary-100"
+      title="Fetch RC, insurance, PUC, fitness and tax from the RTO (uses one RTO Sarthi call)"
+      onClick={(event) => {
+        event.stopPropagation();
+        runRtoFetch([vehicle]);
+      }}
+    >
+      <ShieldCheck size={12} /> {label}
+    </button>
+  );
+
+  const renderPapers = (vehicle) => {
+    if (vehicle.ownership !== 'own') return <span className="text-slate-400">—</span>;
+    if (rtoBusy.has(vehicle._id) || isRtoPending(vehicle)) {
+      return <span className="text-xs font-medium text-primary-600 animate-pulse">Fetching from RTO…</span>;
+    }
+    if (vehicle.rcFetchStatus === 'failed' && needsRtoFetch(vehicle)) {
+      return (
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="text-xs text-rose-600" title={vehicle.rcFetchError}>{vehicle.rcFetchError || 'RTO fetch failed'}</span>
+          {renderFetchButton(vehicle, 'Try again')}
+        </div>
+      );
+    }
+    const papers = papersByVehicle.get(String(vehicle._id)) || {};
+    const shown = VALIDITY_TYPES.filter((type) => papers[type.docType]);
+    if (shown.length === 0) {
+      return needsRtoFetch(vehicle)
+        ? renderFetchButton(vehicle, 'Fetch RTO') || <span className="text-xs text-slate-400">RTO details not fetched</span>
+        : <span className="text-xs text-slate-400">No papers</span>;
+    }
+    return (
+      <div className="flex flex-wrap gap-1">
+        {shown.map((type) => {
+          const { doc, status } = papers[type.docType];
+          const day = toDayInput(doc.validTo);
+          return (
+            <span
+              key={type.docType}
+              className={`${status.className} whitespace-nowrap text-[10px]`}
+              title={`${type.label}: ${status.label}${day ? ` · up to ${formatChipDay(day)}` : ''}`}
+            >
+              {type.shortLabel} {day ? formatChipDay(day) : doc.title || 'Lifetime'}
+            </span>
+          );
+        })}
+      </div>
+    );
+  };
 
   const getOwnerName = (vehicle) => (vehicle.ownership === 'own' ? 'My Vehicle' : getPartyName(vehicle.partyId));
 
@@ -252,6 +376,19 @@ export default function Vehicle() {
       <button type="button" title="View ledger" aria-label="View ledger" className="icon-btn p-1.5 hover:bg-emerald-50 hover:text-emerald-600" onClick={() => navigate(`/vehicle/${vehicle._id}`)}>
         <Eye size={16} />
       </button>
+      {/* Already fetched: look it up again (first-time fetches use the Fetch RTO button in the Papers column) */}
+      {vehicle.ownership === 'own' && vehicle.rcFetchedAt && !needsRtoFetch(vehicle) && !isRtoPending(vehicle) && canEditEntry(user, vehicle) && (
+        <button
+          type="button"
+          title="Refresh from RTO (uses one RTO Sarthi call)"
+          aria-label="Refresh from RTO"
+          disabled={rtoBusy.has(vehicle._id)}
+          className="icon-btn p-1.5 hover:bg-primary-50 hover:text-primary-600"
+          onClick={() => refreshFromRto(vehicle)}
+        >
+          <ShieldCheck size={16} className={rtoBusy.has(vehicle._id) ? 'animate-pulse' : ''} />
+        </button>
+      )}
       {canEditEntry(user, vehicle) && (
         <button type="button" title="Edit" aria-label="Edit" className="icon-btn p-1.5 hover:bg-blue-50 hover:text-blue-600" onClick={() => handleOpenForm(vehicle)}>
           <Pencil size={16} />
@@ -277,9 +414,16 @@ export default function Vehicle() {
           <h1 className="page-title">Vehicles</h1>
           <p className="page-subtitle">Trucks used for sales and boulder loads</p>
         </div>
-        <button type="button" className="btn-primary" onClick={() => handleOpenForm()} title="Add vehicle (Alt + N)">
-          <Plus size={18} /> Add Vehicle
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          {unfetchedOwn.length > 0 && (
+            <button type="button" className="btn-secondary" onClick={fetchAllFromRto} disabled={rtoBusy.size > 0} title="Fetch RC, insurance, PUC, fitness and tax from the RTO for my vehicles not fetched yet">
+              <ShieldCheck size={18} /> Fetch RTO Details ({unfetchedOwn.length})
+            </button>
+          )}
+          <button type="button" className="btn-primary" onClick={() => handleOpenForm()} title="Add vehicle (Alt + N)">
+            <Plus size={18} /> Add Vehicle
+          </button>
+        </div>
       </div>
 
       {error && !showForm && (
@@ -342,6 +486,7 @@ export default function Vehicle() {
                       {getOwnerName(vehicle)}
                     </p>
                     {getHireNote(vehicle) && <p className="truncate text-[11px] font-medium text-amber-700">{getHireNote(vehicle)}</p>}
+                    {vehicle.ownership === 'own' && <div className="mt-1">{renderPapers(vehicle)}</div>}
                     {getHirePeriod(vehicle) && (
                       <p className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[11px] text-slate-500">
                         <span>{getHirePeriod(vehicle).range}</span>
@@ -355,11 +500,12 @@ export default function Vehicle() {
             </ul>
 
             <div className="hidden overflow-x-auto md:block">
-              <table className="w-full min-w-[820px] text-left">
+              <table className="w-full min-w-[960px] text-left">
                 <thead>
                   <tr>
                     <th className={TH}>Vehicle No.</th>
                     <th className={TH}>Owner / Party</th>
+                    <th className={TH}>Papers (RTO)</th>
                     <th className={TH}>Hire Period</th>
                     <th className={TH}>Status</th>
                     <th className={TH}>Type</th>
@@ -374,6 +520,7 @@ export default function Vehicle() {
                         <p className="font-medium text-slate-700">{getOwnerName(vehicle)}</p>
                         {getHireNote(vehicle) && <p className="text-xs font-medium text-amber-700">{getHireNote(vehicle)}</p>}
                       </td>
+                      <td className={`${TD} max-w-[18rem]`}>{renderPapers(vehicle)}</td>
                       <td className={`${TD} whitespace-nowrap text-sm text-slate-600`}>{getHirePeriod(vehicle)?.range || '—'}</td>
                       <td className={TD}>
                         {getHirePeriod(vehicle)

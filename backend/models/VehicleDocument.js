@@ -65,6 +65,12 @@ const vehicleDocumentSchema = new mongoose.Schema(
       trim: true,
       default: "",
     },
+    // "rto" when it was filled from the RTO record of the vehicle, "" when entered by hand
+    source: {
+      type: String,
+      trim: true,
+      default: "",
+    },
   },
   { timestamps: true }
 );

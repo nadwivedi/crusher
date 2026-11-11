@@ -12,6 +12,7 @@ import { VEHICLE_CATEGORY_OPTIONS, VEHICLE_OWNERSHIP_OPTIONS, getFilledTripRates
 import { formatHireDate, toDayInput, todayInput } from '../../../utils/monthlyHire';
 import { getPartySaleRatesPayload } from '../../../utils/partyRates';
 import { METER_UNIT_OPTIONS, meterUnitFor } from '../../../utils/diesel';
+import { needsRtoFetch } from '../../../utils/rtoDetails';
 
 const initialFormData = {
   partyId: '',
@@ -353,6 +354,11 @@ export default function AddVehiclePopup({ vehicle, onClose, onSave, onVehicleSav
         : await apiClient.post('/vehicles', payload);
       toast.success(isEditing ? 'Vehicle updated successfully' : 'Vehicle created successfully');
 
+      // A new own vehicle: the server fetches its RC, insurance, PUC, fitness and tax from the RTO in the background
+      if (!isEditing && savedVehicle?.rcFetchStatus === 'pending') {
+        toast.info(`Fetching RTO details of ${savedVehicle.vehicleNo} in the background`, { autoClose: 3000 });
+      }
+
       if (typeof onVehicleSaved === 'function') onVehicleSaved(savedVehicle);
       if (onSave) onSave();
       if (onClose) onClose();
@@ -454,7 +460,12 @@ export default function AddVehiclePopup({ vehicle, onClose, onSave, onVehicleSav
               })}
             </div>
             {isOwnVehicle && (
-              <p className="mt-1.5 text-xs text-slate-500">Your own vehicle. Add a transport charge on a sale, or give it on rent from the Transport page.</p>
+              <p className="mt-1.5 text-xs text-slate-500">
+                Your own vehicle. Add a transport charge on a sale, or give it on rent from the Transport page.
+                {isEditing
+                  ? needsRtoFetch({ ...vehicle, ...formData, ownership: 'own' }) && ' Its RTO details are not fetched yet: use Fetch RTO on the Vehicles page.'
+                  : ' After saving, its RC, insurance, PUC, fitness and tax validity are fetched from the RTO in the background.'}
+              </p>
             )}
           </div>
 

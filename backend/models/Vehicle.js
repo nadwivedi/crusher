@@ -79,6 +79,30 @@ const vehicleSchema = new mongoose.Schema(
     rcImg: {
       type: String,
     },
+    // RC details fetched from the RTO (RTO Sarthi) for my own vehicle: owner, model, chassis, validity dates...
+    // Keys are the RTO's field names (OWNER_NAME, MAKER_MODEL, INSURANCE_UPTO...). rcFetchedFor is the number looked up.
+    rcDetails: {
+      type: mongoose.Schema.Types.Mixed,
+      default: undefined,
+    },
+    rcFetchedAt: {
+      type: Date,
+      default: null,
+    },
+    rcFetchedFor: {
+      type: String,
+      default: "",
+    },
+    // pending: a new own vehicle's background RTO lookup has not finished; failed: it did not work (rcFetchError says why)
+    rcFetchStatus: {
+      type: String,
+      enum: ["", "pending", "failed"],
+      default: "",
+    },
+    rcFetchError: {
+      type: String,
+      default: "",
+    },
   },
   {
     timestamps: true,
