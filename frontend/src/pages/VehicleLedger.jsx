@@ -14,7 +14,6 @@ import MonthlyHireDetail from './MonthlyHire/component/MonthlyHireDetail';
 import MonthlyHireForm from './MonthlyHire/component/MonthlyHireForm';
 import AdjustmentPopup from './MonthlyHire/component/AdjustmentPopup';
 import CancelHirePopup from './MonthlyHire/component/CancelHirePopup';
-import RtoDetailsPanel from './Vehicle/component/RtoDetailsPanel';
 
 const TH = 'tbl-head px-3 py-2 first:pl-5 last:pr-5';
 const TD = 'tbl-cell px-3 py-2 first:pl-5 last:pr-5';
@@ -275,7 +274,7 @@ export default function VehicleLedger() {
           {isHired && (
             <button type="button" className="btn-secondary" onClick={() => setPopup('entry')}><Plus size={16} /> Add Entry</button>
           )}
-          <Link to={`/documents?vehicle=${vehicle._id}`} className="btn-secondary"><FolderOpen size={16} /> Documents</Link>
+          <Link to={`/documents/vehicle/${vehicle._id}`} className="btn-secondary"><FolderOpen size={16} /> Documents</Link>
           <button type="button" className="btn-secondary" onClick={() => setPopup('edit')}><Pencil size={16} /> Edit Vehicle</button>
         </div>
       </div>
@@ -295,9 +294,6 @@ export default function VehicleLedger() {
         <StatCard compact icon={ClipboardList} tone="indigo" label="Months Booked" value={String(monthsBooked)} hint={`${hires.length} monthly hire(s)`} />
         <StatCard compact icon={Truck} tone="blue" label="Loads Carried" value={String(loads)} hint={`${data.sales.length} sale · ${data.boulders.length} boulder`} />
       </section>
-
-      {/* My own vehicle: its RC details and paper validity from the RTO */}
-      {vehicle.ownership === 'own' && <RtoDetailsPanel key={vehicle.rcFetchedAt || 'none'} vehicle={vehicle} onFetched={load} />}
 
       {hires.length > 0 && (
         <section className="panel">

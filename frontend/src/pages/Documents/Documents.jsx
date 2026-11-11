@@ -236,7 +236,7 @@ export default function Documents() {
           <h1 className="page-title">Documents</h1>
           <p className="page-subtitle">
             {filteredVehicle
-              ? <>Papers of <Link to={`/vehicle/${filteredVehicle._id}`} className="font-mono font-semibold text-primary-700 hover:underline">{filteredVehicle.vehicleNo}</Link></>
+              ? <>Papers of <Link to={`/documents/vehicle/${filteredVehicle._id}`} className="font-mono font-semibold text-primary-700 hover:underline">{filteredVehicle.vehicleNo}</Link></>
               : 'RC, tax, fitness, permit and insurance of your vehicles'}
           </p>
         </div>
@@ -337,10 +337,6 @@ export default function Documents() {
               onAdd={openAdd}
               onEdit={(doc) => setPopup({ document: doc })}
               onChanged={load}
-              onShowList={(vehicleId) => {
-                setVehicleFilter(vehicleId);
-                setLayout('list');
-              }}
             />
           </div>
         ) : filteredRows.length === 0 ? (
@@ -405,7 +401,7 @@ export default function Documents() {
                   {filteredRows.map((doc) => (
                     <tr key={doc._id} className="tbl-row">
                       <td className={`${TD} whitespace-nowrap font-mono font-semibold text-slate-800`}>
-                        {doc.vehicleMissing ? doc.vehicleNo : <Link to={`/vehicle/${doc.vehicleId}`} className="hover:text-primary-700 hover:underline">{doc.vehicleNo}</Link>}
+                        <Link to={`/documents/vehicle/${doc.vehicleId}`} className="hover:text-primary-700 hover:underline">{doc.vehicleNo}</Link>
                       </td>
                       <td className={TD}>
                         <p className="flex items-center gap-1.5 font-medium text-slate-700"><FileText size={14} className="text-slate-400" /> {getDocumentName(doc)}{doc.source === 'rto' && <span className="badge-blue text-[10px]" title="Filled from the RTO record">RTO</span>}</p>

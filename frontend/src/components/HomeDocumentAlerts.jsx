@@ -107,7 +107,7 @@ export default function HomeDocumentAlerts() {
         {shown.map((vehicle) => (
           <li key={vehicle.key}>
             <Link
-              to={`/documents?vehicle=${vehicle.vehicleId}`}
+              to={`/documents/vehicle/${vehicle.vehicleId}`}
               className="flex items-start gap-3 px-4 py-3 transition hover:bg-slate-50 md:px-5"
             >
               <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-600">

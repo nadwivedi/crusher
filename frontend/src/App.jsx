@@ -9,6 +9,7 @@ import StockGroups from './pages/StockGroups';
 import Vehicle from './pages/Vehicle';
 import VehicleLedger from './pages/VehicleLedger';
 import Documents from './pages/Documents/Documents';
+import VehicleDocuments from './pages/Documents/VehicleDocuments';
 import Sales from './pages/Sales/Sales';
 import SaleInvoice from './pages/Sales/SaleInvoice';
 import Purchases from './pages/Purchases/Purchases';
@@ -123,6 +124,7 @@ function App() {
           <Route path="/vehicle" element={<StaffRoute section="masters"><Vehicle /></StaffRoute>} />
           <Route path="/vehicle/:id" element={<StaffRoute section="masters"><VehicleLedger /></StaffRoute>} />
           <Route path="/documents" element={<StaffRoute section="masters"><Documents /></StaffRoute>} />
+          <Route path="/documents/vehicle/:id" element={<StaffRoute section="masters"><VehicleDocuments /></StaffRoute>} />
           <Route path="/banks" element={<Navigate to="/accounts" replace />} />
           <Route path="/expense-types" element={<StaffRoute section="masters"><ExpenseTypes /></StaffRoute>} />
           <Route path="/expense-groups" element={<Navigate to="/expense-types" replace />} />
