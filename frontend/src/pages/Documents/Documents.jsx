@@ -336,6 +336,7 @@ export default function Documents() {
               canAdd={canAdd}
               onAdd={openAdd}
               onEdit={(doc) => setPopup({ document: doc })}
+              onChanged={load}
               onShowList={(vehicleId) => {
                 setVehicleFilter(vehicleId);
                 setLayout('list');

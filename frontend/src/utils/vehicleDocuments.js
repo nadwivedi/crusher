@@ -1,4 +1,43 @@
+import apiClient from './api';
 import { toDayInput, todayInput } from './monthlyHire';
+
+// Files a document can keep: photos or PDFs up to 5 MB each
+export const MAX_DOCUMENT_FILE_BYTES = 5 * 1024 * 1024;
+export const DOCUMENT_FILE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
+
+// Why these files cannot be saved, or '' when they can
+export const checkDocumentFiles = (files) => {
+  const wrong = files.find((file) => !DOCUMENT_FILE_TYPES.includes(file.type));
+  if (wrong) return `${wrong.name}: only JPG, PNG, WEBP or PDF files can be saved`;
+  const tooBig = files.find((file) => file.size > MAX_DOCUMENT_FILE_BYTES);
+  if (tooBig) return `${tooBig.name} is larger than 5 MB`;
+  return '';
+};
+
+// Uploads the files one by one: [{ url, name, mimeType }]
+export const uploadDocumentFiles = async (files) => {
+  const uploaded = [];
+  for (const file of files) {
+    const body = new FormData();
+    body.append('document', file);
+    const response = await apiClient.post('/uploads/document', body, { headers: { 'Content-Type': 'multipart/form-data' } });
+    const url = response?.url || response?.relativePath;
+    if (url) uploaded.push({ url, name: file.name, mimeType: file.type });
+  }
+  return uploaded;
+};
+
+// Adds uploaded files to a saved document, keeping its dates, number and notes; returns the saved document
+export const attachFilesToDocument = async (doc, files) => apiClient.put(`/vehicle-documents/${doc._id}`, {
+  vehicleId: String(doc.vehicleId),
+  docType: doc.docType,
+  title: doc.title || '',
+  documentNumber: doc.documentNumber || '',
+  validFrom: toDayInput(doc.validFrom) || null,
+  validTo: toDayInput(doc.validTo) || null,
+  notes: doc.notes || '',
+  files: [...(doc.files || []), ...files]
+});
 
 // A document whose last day is this close (or nearer) is "expiring soon"
 export const EXPIRY_SOON_DAYS = 30;

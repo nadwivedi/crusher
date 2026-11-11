@@ -1,45 +1,48 @@
-import { useMemo } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Inbox, List, Plus, ShieldCheck } from 'lucide-react';
+import { toast } from 'react-toastify';
+import { Inbox, List, Paperclip, Plus, UploadCloud } from 'lucide-react';
 import { canEditEntry } from '../../../utils/staffAccess';
-import { describeDaysLeft } from '../../../utils/vehicleDocuments';
+import {
+  DOCUMENT_FILE_TYPES, attachFilesToDocument, checkDocumentFiles, describeDaysLeft, uploadDocumentFiles
+} from '../../../utils/vehicleDocuments';
 import { VALIDITY_TYPES, formatDocDay, getCurrentPapers } from '../../../utils/rtoDetails';
 import { getVehicleCategoryLabel } from '../../../utils/transport';
 
-// The papers each vehicle's strip shows, in this order
-const PAPER_COLUMNS = [...VALIDITY_TYPES, { docType: 'rc', label: 'RC', shortLabel: 'RC' }];
-
-const TH = 'tbl-head px-3 py-2 first:pl-5 last:pr-5';
-const TD = 'tbl-cell px-3 py-2 align-top first:pl-5 last:pr-5';
+// The papers each vehicle's card shows, in this order
+const PAPER_COLUMNS = [...VALIDITY_TYPES, { docType: 'rc', label: 'RC' }];
 
 // How urgent a vehicle is: expired papers first, then those ending soonest; no papers at all last
 const urgencyOf = (papers) => {
+  if (Object.keys(papers).length === 0) return Number.POSITIVE_INFINITY;
   const days = Object.values(papers)
     .map((paper) => paper.status.daysLeft)
     .filter((value) => value !== null && value !== undefined);
-  if (Object.keys(papers).length === 0) return Number.POSITIVE_INFINITY;
   return days.length ? Math.min(...days) : Number.MAX_SAFE_INTEGER;
 };
 
-const DOT_CLASS = {
-  expired: 'bg-rose-500',
-  soon: 'bg-amber-500',
-  valid: 'bg-emerald-500',
-  none: 'bg-slate-400',
-  upcoming: 'bg-sky-500'
+// Only a paper that needs attention gets a colour: red once expired, amber when it ends within 30 days
+const TILE_TONE = {
+  expired: { tile: 'border-rose-200 bg-rose-50/60', to: 'text-rose-700', note: 'text-rose-600' },
+  soon: { tile: 'border-amber-200 bg-amber-50/60', to: 'text-amber-800', note: 'text-amber-700' }
 };
+const PLAIN_TONE = { tile: 'border-slate-200 bg-white', to: 'text-slate-800', note: '' };
 
 /**
- * Documents by vehicle: one strip per vehicle with its current insurance, PUC, fitness, tax, permit and RC
- * side by side (date, status, days left). A paper opens for editing; an empty one can be added from its cell.
+ * Documents by vehicle: a card per vehicle with a tile per paper (insurance, PUC, fitness, tax, permit, RC).
+ * Each tile reads the paper's name, then Valid From and Valid To, then its files with an Upload button.
+ * Tapping a tile opens the paper; a missing one can be added from its empty tile.
  */
-export default function VehiclePapersView({ documents, vehicles, vehicleFilter, search, user, canAdd, onAdd, onEdit, onShowList }) {
+export default function VehiclePapersView({ documents, vehicles, vehicleFilter, search, user, canAdd, onAdd, onEdit, onShowList, onChanged }) {
   const papersByVehicle = useMemo(() => getCurrentPapers(documents, PAPER_COLUMNS), [documents]);
+  const fileInputRef = useRef(null);
+  const uploadTarget = useRef(null);
+  const [uploadingId, setUploadingId] = useState('');
 
-  const strips = useMemo(() => {
+  const cards = useMemo(() => {
     const term = search.trim().toLowerCase();
     const known = new Set(vehicles.map((vehicle) => String(vehicle._id)));
-    // A document whose vehicle was deleted still gets its strip
+    // A document whose vehicle was deleted still gets its card
     const orphans = documents
       .filter((doc) => !known.has(String(doc.vehicleId)))
       .reduce((list, doc) => (list.some((item) => item._id === String(doc.vehicleId))
@@ -55,7 +58,36 @@ export default function VehiclePapersView({ documents, vehicles, vehicleFilter, 
       .sort((a, b) => a.urgency - b.urgency || String(a.vehicle.vehicleNo).localeCompare(String(b.vehicle.vehicleNo)));
   }, [documents, vehicles, vehicleFilter, search, papersByVehicle]);
 
-  if (strips.length === 0) {
+  // Upload: pick files for one paper, then they are added to it (its dates stay as they are)
+  const startUpload = (doc) => {
+    uploadTarget.current = doc;
+    fileInputRef.current?.click();
+  };
+
+  const handleFiles = async (event) => {
+    const picked = Array.from(event.target.files || []);
+    event.target.value = '';
+    const doc = uploadTarget.current;
+    if (!doc || picked.length === 0) return;
+    const fileError = checkDocumentFiles(picked);
+    if (fileError) {
+      toast.error(fileError);
+      return;
+    }
+    setUploadingId(doc._id);
+    try {
+      const uploaded = await uploadDocumentFiles(picked);
+      await attachFilesToDocument(doc, uploaded);
+      toast.success(`${uploaded.length === 1 ? 'File' : `${uploaded.length} files`} added to ${doc.vehicleNo}`, { autoClose: 1500 });
+      if (onChanged) onChanged();
+    } catch (error) {
+      toast.error(error?.message || 'Could not upload the file');
+    } finally {
+      setUploadingId('');
+    }
+  };
+
+  if (cards.length === 0) {
     return (
       <div className="flex flex-col items-center gap-2 px-6 py-10 text-center">
         <span className="flex h-11 w-11 items-center justify-center rounded-full bg-slate-100 text-slate-400"><Inbox size={20} /></span>
@@ -65,127 +97,124 @@ export default function VehiclePapersView({ documents, vehicles, vehicleFilter, 
     );
   }
 
-  const canEditDoc = (doc) => canEditEntry(user, doc);
-
-  // One paper of a vehicle: its last day and where it stands, or an Add button when there is none
-  const renderPaper = (vehicle, column, paper, { compact = false } = {}) => {
-    if (!paper) {
-      if (!canAdd || vehicle.missing) return <span className="text-xs text-slate-300">—</span>;
-      return (
-        <button
-          type="button"
-          onClick={() => onAdd({ vehicleId: String(vehicle._id), docType: column.docType })}
-          className="inline-flex items-center gap-0.5 text-xs font-semibold text-slate-400 transition hover:text-primary-600"
-          title={`Add ${column.label}`}
-        >
-          <Plus size={12} /> Add
-        </button>
-      );
-    }
-    const { doc, status } = paper;
-    const day = formatDocDay(doc.validTo);
-    const urgent = status.key === 'expired' || status.key === 'soon';
-    const body = (
-      <>
-        <span className={`block whitespace-nowrap font-semibold text-slate-800 ${compact ? 'text-xs' : 'text-sm'}`}>
-          {day || (column.docType === 'rc' ? 'On file' : doc.title || 'No expiry')}
+  const renderEmptyTile = (vehicle, column) => {
+    const canCreate = canAdd && !vehicle.missing;
+    return (
+      <button
+        key={column.docType}
+        type="button"
+        disabled={!canCreate}
+        onClick={() => onAdd({ vehicleId: String(vehicle._id), docType: column.docType })}
+        className="flex min-h-[7.25rem] flex-col rounded-xl border border-dashed border-slate-300 p-3 text-left transition enabled:hover:border-primary-400 enabled:hover:bg-primary-50/40 disabled:cursor-default"
+      >
+        <span className="text-xs font-bold text-slate-500">{column.label}</span>
+        <span className="mt-auto inline-flex items-center gap-1 text-xs font-semibold text-slate-400">
+          {canCreate ? <><Plus size={14} /> Add {column.label}</> : 'Not added'}
         </span>
-        <span className="mt-0.5 flex flex-wrap items-center gap-1">
-          <span className={`${status.className} text-[10px]`}>{status.label}</span>
-          {doc.source === 'rto' && !compact && <span className="badge-blue text-[10px]" title="Filled from the RTO record">RTO</span>}
-        </span>
-        {urgent && (
-          <span className={`mt-0.5 block text-[11px] font-semibold ${status.key === 'expired' ? 'text-rose-600' : 'text-amber-700'}`}>
-            {describeDaysLeft(status.daysLeft)}
-          </span>
-        )}
-      </>
-    );
-    return canEditDoc(doc) ? (
-      <button type="button" onClick={() => onEdit(doc)} className="-mx-1.5 -my-1 block rounded-md px-1.5 py-1 text-left transition hover:bg-slate-100" title={`Open ${column.label}${doc.documentNumber ? ` · ${doc.documentNumber}` : ''}`}>
-        {body}
       </button>
-    ) : <div>{body}</div>;
+    );
   };
 
-  const renderVehicle = (vehicle) => (
-    <div className="min-w-0">
-      {vehicle.missing
-        ? <p className="font-mono text-sm font-semibold text-slate-500">{vehicle.vehicleNo}</p>
-        : <Link to={`/vehicle/${vehicle._id}`} className="font-mono text-sm font-semibold text-slate-800 hover:text-primary-700 hover:underline">{vehicle.vehicleNo}</Link>}
-      <p className="flex items-center gap-1 text-[11px] text-slate-500">
-        {vehicle.missing
-          ? 'Vehicle deleted'
-          : [getVehicleCategoryLabel(vehicle.category), vehicle.ownership === 'own' ? 'My vehicle' : vehicle.ownership === 'hired' ? 'Hired' : ''].filter(Boolean).join(' · ')}
-        {vehicle.rcFetchedAt && <span title="Details fetched from the RTO"><ShieldCheck size={12} className="text-primary-500" /></span>}
-      </p>
-    </div>
-  );
+  const renderTile = (vehicle, column, paper) => {
+    if (!paper) return renderEmptyTile(vehicle, column);
+    const { doc, status } = paper;
+    const tone = TILE_TONE[status.key] || PLAIN_TONE;
+    const editable = canEditEntry(user, doc);
+    const files = doc.files || [];
+    const lifetime = !doc.validTo;
+    const toText = lifetime ? (column.docType === 'rc' ? 'Permanent' : doc.title || 'No expiry') : formatDocDay(doc.validTo);
+    const uploading = uploadingId === doc._id;
 
-  const renderRowActions = (vehicle) => (
-    <div className="flex items-center justify-end gap-1">
-      <button type="button" className="icon-btn p-1.5 hover:bg-slate-100" title="All papers of this vehicle (with old copies)" aria-label="All papers of this vehicle" onClick={() => onShowList(String(vehicle._id))}>
-        <List size={16} />
-      </button>
-      {canAdd && !vehicle.missing && (
-        <button type="button" className="icon-btn p-1.5 hover:bg-primary-50 hover:text-primary-600" title="Add a document" aria-label="Add a document" onClick={() => onAdd({ vehicleId: String(vehicle._id) })}>
-          <Plus size={16} />
-        </button>
-      )}
-    </div>
-  );
+    return (
+      <div
+        key={column.docType}
+        role={editable ? 'button' : undefined}
+        tabIndex={editable ? 0 : undefined}
+        onClick={editable ? () => onEdit(doc) : undefined}
+        onKeyDown={editable ? (event) => { if (event.key === 'Enter') onEdit(doc); } : undefined}
+        title={editable ? `Open ${column.label}` : undefined}
+        className={`flex min-h-[7.25rem] flex-col rounded-xl border p-3 transition ${tone.tile} ${editable ? 'cursor-pointer hover:border-primary-300 hover:shadow-sm' : ''}`}
+      >
+        <p className="text-xs font-bold text-slate-800">{column.label}</p>
+
+        <dl className="mt-1.5 space-y-0.5 text-xs">
+          <div className="flex items-baseline justify-between gap-2">
+            <dt className="text-slate-400">From</dt>
+            <dd className="font-medium tabular-nums text-slate-600">{formatDocDay(doc.validFrom) || '—'}</dd>
+          </div>
+          <div className="flex items-baseline justify-between gap-2">
+            <dt className="text-slate-400">To</dt>
+            <dd className={`font-semibold tabular-nums ${tone.to}`}>{toText}</dd>
+          </div>
+        </dl>
+        {tone.note && <p className={`mt-1 text-[11px] font-semibold ${tone.note}`}>{describeDaysLeft(status.daysLeft)}</p>}
+
+        {/* Files: open each one, or upload more */}
+        <div className="mt-auto flex items-center justify-between gap-1 pt-2" onClick={(event) => event.stopPropagation()}>
+          <div className="flex min-w-0 flex-wrap items-center gap-1">
+            {files.map((file, index) => (
+              <a
+                key={file.url}
+                href={file.url}
+                target="_blank"
+                rel="noreferrer"
+                title={file.name || `File ${index + 1}`}
+                className="inline-flex items-center gap-0.5 rounded-md bg-slate-100 px-1.5 py-0.5 text-[11px] font-semibold text-slate-600 hover:bg-primary-50 hover:text-primary-700"
+              >
+                <Paperclip size={11} /> {files.length > 1 ? index + 1 : 'View'}
+              </a>
+            ))}
+          </div>
+          {editable && (
+            <button
+              type="button"
+              onClick={() => startUpload(doc)}
+              disabled={uploading}
+              className="inline-flex shrink-0 items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-semibold text-primary-600 transition hover:bg-primary-50 disabled:opacity-60"
+              title={`Upload a photo or PDF of the ${column.label}`}
+            >
+              <UploadCloud size={13} /> {uploading ? 'Uploading…' : 'Upload'}
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  };
 
   return (
-    <>
-      {/* Phone: a card per vehicle with its papers in a grid */}
-      <ul className="divide-y divide-slate-100 md:hidden">
-        {strips.map(({ vehicle, papers }) => (
-          <li key={vehicle._id} className="px-4 py-3">
-            <div className="flex items-start justify-between gap-2">
-              {renderVehicle(vehicle)}
-              {renderRowActions(vehicle)}
-            </div>
-            <div className="mt-2 grid grid-cols-3 gap-1.5">
-              {PAPER_COLUMNS.map((column) => {
-                const paper = papers[column.docType];
-                return (
-                  <div key={column.docType} className="rounded-lg border border-slate-200 px-2 py-1.5">
-                    <p className="mb-0.5 flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide text-slate-400">
-                      {paper && <span className={`h-1.5 w-1.5 rounded-full ${DOT_CLASS[paper.status.key] || 'bg-slate-400'}`} />}
-                      {column.label}
-                    </p>
-                    {renderPaper(vehicle, column, paper, { compact: true })}
-                  </div>
-                );
-              })}
-            </div>
-          </li>
-        ))}
-      </ul>
+    <div className="space-y-3 p-3 md:p-4">
+      <input ref={fileInputRef} type="file" accept={DOCUMENT_FILE_TYPES.join(',')} multiple hidden onChange={handleFiles} />
 
-      {/* Larger screens: one row per vehicle, one column per paper */}
-      <div className="hidden overflow-x-auto md:block">
-        <table className="w-full min-w-[980px] text-left">
-          <thead>
-            <tr>
-              <th className={TH}>Vehicle</th>
-              {PAPER_COLUMNS.map((column) => <th key={column.docType} className={TH}>{column.label}</th>)}
-              <th className={TH} />
-            </tr>
-          </thead>
-          <tbody>
-            {strips.map(({ vehicle, papers }) => (
-              <tr key={vehicle._id} className="tbl-row">
-                <td className={TD}>{renderVehicle(vehicle)}</td>
-                {PAPER_COLUMNS.map((column) => (
-                  <td key={column.docType} className={TD}>{renderPaper(vehicle, column, papers[column.docType])}</td>
-                ))}
-                <td className={`${TD} py-1!`}>{renderRowActions(vehicle)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </>
+      {cards.map(({ vehicle, papers }) => (
+        <article key={vehicle._id} className="rounded-2xl border border-slate-200 bg-slate-50/50 p-3 md:p-4">
+          <header className="mb-3 flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              {vehicle.missing
+                ? <p className="font-mono text-base font-bold text-slate-500">{vehicle.vehicleNo}</p>
+                : <Link to={`/vehicle/${vehicle._id}`} className="font-mono text-base font-bold text-slate-900 hover:text-primary-700">{vehicle.vehicleNo}</Link>}
+              <p className="text-xs text-slate-500">
+                {vehicle.missing
+                  ? 'Vehicle deleted'
+                  : [getVehicleCategoryLabel(vehicle.category), vehicle.ownership === 'own' ? 'My vehicle' : vehicle.ownership === 'hired' ? 'Hired' : ''].filter(Boolean).join(' · ')}
+              </p>
+            </div>
+            <div className="flex shrink-0 items-center gap-1">
+              <button type="button" className="icon-btn p-1.5 hover:bg-white" title="All papers of this vehicle, with old copies" aria-label="All papers of this vehicle" onClick={() => onShowList(String(vehicle._id))}>
+                <List size={16} />
+              </button>
+              {canAdd && !vehicle.missing && (
+                <button type="button" className="btn-secondary px-2.5 py-1.5 text-xs" onClick={() => onAdd({ vehicleId: String(vehicle._id) })}>
+                  <Plus size={14} /> Add
+                </button>
+              )}
+            </div>
+          </header>
+
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-6">
+            {PAPER_COLUMNS.map((column) => renderTile(vehicle, column, papers[column.docType]))}
+          </div>
+        </article>
+      ))}
+    </div>
   );
 }

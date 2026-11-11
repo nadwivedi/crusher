@@ -8,11 +8,8 @@ import OptionList from '../../../components/OptionList';
 import { handlePopupFormKeyDown } from '../../../utils/popupFormKeyboard';
 import { useFloatingDropdownPosition } from '../../../utils/useFloatingDropdownPosition';
 import { formatDayInput, toDayInput } from '../../../utils/monthlyHire';
-import { DOCUMENT_TYPES, describeDaysLeft, getExpiryStatus, isImageFile } from '../../../utils/vehicleDocuments';
+import { DOCUMENT_TYPES, checkDocumentFiles, describeDaysLeft, getExpiryStatus, isImageFile, uploadDocumentFiles } from '../../../utils/vehicleDocuments';
 import { getVehicleCategoryLabel } from '../../../utils/transport';
-
-const MAX_FILE_BYTES = 5 * 1024 * 1024;
-const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
 
 // Quick lengths for Valid To; a new document starts on 1 year
 const PERIODS = [
@@ -224,28 +221,16 @@ export default function AddDocumentPopup({ document = null, preset = null, vehic
   const uploadFiles = async (picked) => {
     if (picked.length === 0) return;
 
-    const wrong = picked.find((file) => !ALLOWED_TYPES.includes(file.type));
-    if (wrong) {
-      setError(`${wrong.name}: only JPG, PNG, WEBP or PDF files can be saved`);
-      return;
-    }
-    const tooBig = picked.find((file) => file.size > MAX_FILE_BYTES);
-    if (tooBig) {
-      setError(`${tooBig.name} is larger than 5 MB`);
+    const fileError = checkDocumentFiles(picked);
+    if (fileError) {
+      setError(fileError);
       return;
     }
 
     setUploading(true);
     setError('');
     try {
-      const uploaded = [];
-      for (const file of picked) {
-        const body = new FormData();
-        body.append('document', file);
-        const response = await apiClient.post('/uploads/document', body, { headers: { 'Content-Type': 'multipart/form-data' } });
-        const url = response?.url || response?.relativePath;
-        if (url) uploaded.push({ url, name: file.name, mimeType: file.type });
-      }
+      const uploaded = await uploadDocumentFiles(picked);
       setFormData((prev) => ({ ...prev, files: [...prev.files, ...uploaded] }));
     } catch (uploadError) {
       setError(uploadError?.message || 'Could not upload the file');
