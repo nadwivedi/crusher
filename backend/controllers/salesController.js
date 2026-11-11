@@ -387,8 +387,13 @@ const getAllSales = async (req, res) => {
     if (req.query.royalty === "royalty") query.isRoyalty = true;
     else if (req.query.royalty === "non_royalty") query.isRoyalty = { $ne: true };
 
+    // ?material=20mm for one material only (any case)
+    const material = String(req.query.material || "").trim();
+    const materialMatch = material ? { $regex: `^${material.replace(/[^a-z0-9]/gi, "\\$&")}$`, $options: "i" } : null;
+
     // Without ?page the full list (of the ?from/?to period, if given) is returned: other screens and the Excel export use this
     if (req.query.page === undefined) {
+      if (materialMatch) query.stoneSize = materialMatch;
       const sales = await Sales.find(query).sort({ createdAt: -1 });
       return res.json(sales.map(serializeSale));
     }
@@ -408,9 +413,9 @@ const getAllSales = async (req, res) => {
       ];
     }
 
-    const material = String(req.query.material || "").trim();
+    // The stats cover every material of the period (for the material-wise list); the entries follow ?material
     const statsQuery = { ...query };
-    if (material) query.stoneSize = { $regex: `^${material.replace(/[^a-z0-9]/gi, "\\$&")}$`, $options: "i" };
+    if (materialMatch) query.stoneSize = materialMatch;
 
     const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 50, 1), 200);
     const page = Math.max(parseInt(req.query.page, 10) || 1, 1);

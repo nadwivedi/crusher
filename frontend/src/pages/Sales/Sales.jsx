@@ -2924,12 +2924,28 @@ export default function Sales({ modalOnly = false, onModalFinish = null, weighme
     setMaterialFilter('');
   };
 
-  // Chips beside the tabs show what is applied; tapping one removes it
+  // Chips beside the tabs show what is applied; tapping one removes it (the material shows in its own row of chips)
   const activeFilterChips = [
     gstFilter !== 'all' && { key: 'gst', label: GST_FILTER_OPTIONS.find((o) => o.key === gstFilter)?.label, clear: () => setGstFilter('all') },
     royaltyFilter !== 'all' && { key: 'royalty', label: ROYALTY_FILTER_OPTIONS.find((o) => o.key === royaltyFilter)?.label, clear: () => setRoyaltyFilter('all') },
-    materialFilter && { key: 'material', label: materialFilter.toUpperCase(), clear: () => setMaterialFilter('') }
+    materialFilter && tab !== 'entries' && { key: 'material', label: materialFilter.toUpperCase(), clear: () => setMaterialFilter('') }
   ].filter(Boolean);
+
+  // The material chips above the entries: each material sold in the period with its count, in the usual size order,
+  // plus the picked material even when the period has none of it
+  const materialChipRows = (() => {
+    const order = MATERIAL_TYPE_OPTIONS.map((item) => item.value);
+    const rank = (key) => (order.includes(key) ? order.indexOf(key) : order.length);
+    const rows = materialStats
+      .filter((row) => row.materialType && row.materialType !== 'unknown')
+      .map((row) => ({ key: row.materialType, count: Number(row.count || 0) }));
+    const picked = materialFilter.toLowerCase();
+    if (picked && !rows.some((row) => row.key === picked)) rows.push({ key: picked, count: 0 });
+    return rows
+      .sort((a, b) => rank(a.key) - rank(b.key) || a.key.localeCompare(b.key))
+      .map((row) => ({ ...row, label: MATERIAL_TYPE_OPTIONS.find((item) => item.value === row.key)?.label || row.key.toUpperCase() }));
+  })();
+  const allMaterialCount = materialStats.reduce((total, row) => total + Number(row.count || 0), 0);
 
   const periodLabel = (() => {
     if (tableRange === 'month') return formatMonthLabel(selectedMonth, selectedYear);
@@ -3046,7 +3062,8 @@ export default function Sales({ modalOnly = false, onModalFinish = null, weighme
           from: new Date(`${fromDay}T00:00:00`).toISOString(),
           to: new Date(`${toDay}T23:59:59.999`).toISOString(),
           ...(gstFilter !== 'all' ? { gst: gstFilter } : {}),
-          ...(royaltyFilter !== 'all' ? { royalty: royaltyFilter } : {})
+          ...(royaltyFilter !== 'all' ? { royalty: royaltyFilter } : {}),
+          ...(materialFilter ? { material: materialFilter } : {})
         }
       });
       const rows = (Array.isArray(response) ? response : [])
@@ -3056,9 +3073,11 @@ export default function Sales({ modalOnly = false, onModalFinish = null, weighme
           || new Date(a.sale.createdAt) - new Date(b.sale.createdAt)
         ));
       if (rows.length === 0) {
-        toast.info('No sales in this period');
+        toast.info(materialFilter ? `No ${materialFilter.toUpperCase()} sales in this period` : 'No sales in this period');
         return;
       }
+      // A material picked on screen names the file: "Sales 20MM 01-11-2026 to 11-11-2026.xlsx"
+      const exportName = materialFilter ? `Sales ${materialFilter.toUpperCase()}` : 'Sales';
 
       const balanceOf = ({ sale }) => Math.max(0, Number(sale.totalAmount || 0) - Number(sale.paidAmount || 0));
       const sum = (getValue) => rows.reduce((total, row) => total + Number(getValue(row) || 0), 0);
@@ -3106,15 +3125,15 @@ export default function Sales({ modalOnly = false, onModalFinish = null, weighme
       };
       if (exportFormat === 'pdf') {
         await downloadPdf({
-          fileName: getExportFileName('Sales', fromDay, toDay, 'pdf'),
-          title: `${companyName ? `${companyName} - ` : ''}Sales Report`,
+          fileName: getExportFileName(exportName, fromDay, toDay, 'pdf'),
+          title: `${companyName ? `${companyName} - ` : ''}${materialFilter ? `${materialFilter.toUpperCase()} ` : ''}Sales Report`,
           subtitle: `${formatRangeLabel(fromDay, toDay)} · ${entryCount(rows.length)}`,
           columns,
           rows,
           totals
         });
       } else {
-        await downloadExcel({ fileName: getExportFileName('Sales', fromDay, toDay), sheet: 'Sales', columns, rows, totals });
+        await downloadExcel({ fileName: getExportFileName(exportName, fromDay, toDay), sheet: 'Sales', columns, rows, totals });
       }
       setExportFormat(null);
       toast.success(`Exported ${entryCount(rows.length)}`, toastOptions);
@@ -3438,6 +3457,32 @@ export default function Sales({ modalOnly = false, onModalFinish = null, weighme
             </button>
           </div>
         </div>
+
+        {/* Material chips: one tap shows only that material's sales (the totals above follow it); scrolls sideways on phones */}
+        {tab === 'entries' && materialChipRows.length > 0 && (
+          <div className="flex items-center gap-1.5 overflow-x-auto border-b border-slate-100 px-4 py-2 md:px-5">
+            <span className="mr-1 shrink-0 text-[11px] font-bold uppercase tracking-wide text-slate-400">Material</span>
+            {[{ key: '', label: 'All', count: allMaterialCount }, ...materialChipRows].map((chip) => {
+              const active = materialFilter.toLowerCase() === chip.key;
+              return (
+                <button
+                  key={chip.key || 'all'}
+                  type="button"
+                  onClick={() => setMaterialFilter(chip.key)}
+                  aria-pressed={active}
+                  className={`inline-flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset transition ${
+                    active
+                      ? 'bg-primary-600 text-white ring-primary-600'
+                      : 'bg-white text-slate-600 ring-slate-200 hover:bg-slate-50'
+                  }`}
+                >
+                  {chip.label}
+                  <span className={`tabular-nums ${active ? 'text-primary-100' : 'text-slate-400'}`}>{chip.count}</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
 
         {initialLoading ? (
           <div className="flex flex-col items-center gap-3 py-16">
