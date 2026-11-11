@@ -1243,6 +1243,7 @@ const SCREENS = {
   'Auto if left blank': 'खाली छोड़ें तो अपने आप',
   'Entry correction': 'एंट्री सुधार',
   'Theft loss': 'चोरी का नुकसान',
+  'Used without entry': 'बिना एंट्री के उपयोग हुआ',
   'Other losses': 'दूसरे नुकसान',
   'Other additions': 'दूसरी बढ़ोतरी',
   'Loss due to expiry date': 'एक्सपायरी से नुकसान',

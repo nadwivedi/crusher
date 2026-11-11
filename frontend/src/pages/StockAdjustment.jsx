@@ -21,6 +21,7 @@ const REASON_OPTIONS = {
   subtract: [
     'Loss due to expiry date',
     'Theft loss',
+    'Used without entry',
     'Other losses'
   ]
 };
