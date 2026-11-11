@@ -1495,7 +1495,18 @@ const getDashboardAnalytics = async (req, res) => {
     startOf90DaysAgo.setDate(startOf90DaysAgo.getDate() - 89); // 90 days inclusive
     
     const startOfYear = new Date(now.getFullYear(), 0, 1);
-    
+
+    // ?fromDate=2026-10-01&toDate=2026-10-15 adds a "custom" period: its totals, trend and breakdowns
+    let custom = null;
+    if (req.query.fromDate || req.query.toDate) {
+      const from = toDateBoundary(req.query.fromDate);
+      const to = toDateBoundary(req.query.toDate, true);
+      if (!from || !to) return res.status(400).json({ message: "Pick both a from date and a to date" });
+      if (from > to) return res.status(400).json({ message: "From date must be on or before to date" });
+      custom = { from, to, groupBy: Math.round((to - from) / (24 * 60 * 60 * 1000)) > 62 ? "month" : "day" };
+    }
+    const inCustom = (date) => Boolean(custom) && date >= custom.from && date <= custom.to;
+
     const [boulders, expenses, sales, parties, purchases, receipts, payments] = await Promise.all([
       Boulder.find(scopedFilter(req)).select("netWeight boulderDate createdAt partyId amount").lean(),
       Expense.find(scopedFilter(req)).select("amount expenseDate createdAt expenseGroup").populate("expenseGroup", "name").lean(),
@@ -1523,14 +1534,33 @@ const getDashboardAnalytics = async (req, res) => {
     const d90 = getDaysMap(90);
     const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
+    // The custom period's trend points: every day of it, or every month ("2026 Jan") once it is longer than ~2 months
+    const customKeyOf = (date) => (custom?.groupBy === "month"
+      ? `${date.getFullYear()} ${months[date.getMonth()]}`
+      : new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime());
+    const customOrder = [];
+    if (custom) {
+      const cursor = new Date(custom.from);
+      if (custom.groupBy === "month") cursor.setDate(1);
+      while (cursor <= custom.to) {
+        customOrder.push(customKeyOf(cursor));
+        if (custom.groupBy === "month") cursor.setMonth(cursor.getMonth() + 1);
+        else cursor.setDate(cursor.getDate() + 1);
+      }
+    }
+    const customLabel = (key) => (custom?.groupBy === "month"
+      ? key
+      : new Date(key).toLocaleDateString("en-GB", { day: "2-digit", month: "short" }));
+
     const computeTrendAndStats = (items, dateField, valueField, fallbackValueField) => {
-      const stats = { today: 0, last3Days: 0, last7Days: 0, last30Days: 0, last90Days: 0, thisYear: 0, lifetime: 0 };
-      
+      const stats = { today: 0, last3Days: 0, last7Days: 0, last30Days: 0, last90Days: 0, thisYear: 0, lifetime: 0, ...(custom ? { custom: 0 } : {}) };
+
       const map7d = new Map(d7.map);
       const map30d = new Map(d30.map);
       const map90d = new Map(d90.map);
       const mapYear = new Map(months.map(m => [m, 0]));
       const mapLifetime = new Map();
+      const mapCustom = new Map(customOrder.map((key) => [key, 0]));
 
       for (const item of items) {
         const itemDate = new Date(item[dateField] || item.createdAt);
@@ -1543,6 +1573,11 @@ const getDashboardAnalytics = async (req, res) => {
         if (itemDate >= startOf30DaysAgo) stats.last30Days += value;
         if (itemDate >= startOf90DaysAgo) stats.last90Days += value;
         if (itemDate >= startOfYear) stats.thisYear += value;
+        if (inCustom(itemDate)) {
+          stats.custom += value;
+          const customKey = customKeyOf(itemDate);
+          if (mapCustom.has(customKey)) mapCustom.set(customKey, mapCustom.get(customKey) + value);
+        }
 
         const dayTimestamp = new Date(itemDate.getFullYear(), itemDate.getMonth(), itemDate.getDate()).getTime();
         
@@ -1580,7 +1615,8 @@ const getDashboardAnalytics = async (req, res) => {
            '30d': toTrend(map30d, d30.order),
            '90d': toTrend(map90d, d90.order),
            'thisYear': Array.from(mapYear.entries()).map(([date, amount]) => ({ date, amount })),
-           'lifetime': trendLifetime
+           'lifetime': trendLifetime,
+           ...(custom ? { custom: customOrder.map((key) => ({ date: customLabel(key), amount: mapCustom.get(key) })) } : {})
          }
       };
     };
@@ -1591,7 +1627,7 @@ const getDashboardAnalytics = async (req, res) => {
     const salesRevenueData = computeTrendAndStats(sales, "saleDate", "totalAmount");
 
     const generateBreakdowns = (items, dateField, categoryField, valField1, valField2) => {
-      const res = { '3d': new Map(), '7d': new Map(), '30d': new Map(), '90d': new Map(), 'thisYear': new Map(), 'lifetime': new Map() };
+      const res = { '3d': new Map(), '7d': new Map(), '30d': new Map(), '90d': new Map(), 'thisYear': new Map(), 'lifetime': new Map(), 'custom': new Map() };
       
       for (const item of items) {
          let category = item[categoryField];
@@ -1621,6 +1657,7 @@ const getDashboardAnalytics = async (req, res) => {
          if (date >= startOf30DaysAgo) add('30d');
          if (date >= startOf90DaysAgo) add('90d');
          if (date >= startOfYear) add('thisYear');
+         if (inCustom(date)) add('custom');
       }
 
       const format = (tfMap, sortField) => Array.from(tfMap.values())
@@ -1633,7 +1670,8 @@ const getDashboardAnalytics = async (req, res) => {
          '30d': format(res['30d'], valField2 ? 'quantity' : 'amount'),
          '90d': format(res['90d'], valField2 ? 'quantity' : 'amount'),
          'thisYear': format(res['thisYear'], valField2 ? 'quantity' : 'amount'),
-         'lifetime': format(res['lifetime'], valField2 ? 'quantity' : 'amount')
+         'lifetime': format(res['lifetime'], valField2 ? 'quantity' : 'amount'),
+         ...(custom ? { custom: format(res['custom'], valField2 ? 'quantity' : 'amount') } : {})
       };
     };
 
@@ -1641,7 +1679,7 @@ const getDashboardAnalytics = async (req, res) => {
     
     // For sales, val1=netWeight (or materialWeight fallback internally, let's just use netWeight. Wait, computeTrend uses fallback. Let's build a custom map for sales to be perfect)
     
-    const salesRes = { '3d': new Map(), '7d': new Map(), '30d': new Map(), '90d': new Map(), 'thisYear': new Map(), 'lifetime': new Map() };
+    const salesRes = { '3d': new Map(), '7d': new Map(), '30d': new Map(), '90d': new Map(), 'thisYear': new Map(), 'lifetime': new Map(), 'custom': new Map() };
     for (const sale of sales) {
       const material = String(sale.stoneSize || "Uncategorized").trim();
       if (!material || material === "-") continue;
@@ -1664,6 +1702,7 @@ const getDashboardAnalytics = async (req, res) => {
       if (date >= startOf30DaysAgo) addSale('30d');
       if (date >= startOf90DaysAgo) addSale('90d');
       if (date >= startOfYear) addSale('thisYear');
+      if (inCustom(date)) addSale('custom');
     }
     
     const formatSales = (tfMap) => Array.from(tfMap.values())
@@ -1677,6 +1716,7 @@ const getDashboardAnalytics = async (req, res) => {
        '90d': formatSales(salesRes['90d']),
        'thisYear': formatSales(salesRes['thisYear']),
        'lifetime': formatSales(salesRes['lifetime']),
+       ...(custom ? { custom: formatSales(salesRes['custom']) } : {})
     };
 
     // Outstanding Calculation
@@ -1727,6 +1767,7 @@ const getDashboardAnalytics = async (req, res) => {
     const topCreditors = allBalances.filter(b => b.balance < 0).sort((a,b) => a.balance - b.balance).slice(0, 5).map(b => ({...b, balance: Math.abs(b.balance)}));
 
     return res.json({
+      ...(custom ? { custom: { fromDate: toDayKey(custom.from), toDate: toDayKey(custom.to), groupBy: custom.groupBy } } : {}),
       boulders: {
         ...boulderData.stats,
         trends: boulderData.trends

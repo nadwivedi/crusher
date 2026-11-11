@@ -30,7 +30,21 @@ const PERIODS = [
   { key: 'thisYear', stat: 'thisYear', label: 'This Year', shortLabel: 'Year' },
   { key: 'lifetime', stat: 'lifetime', label: 'All Time', shortLabel: 'All' },
 ];
-const COMPARE_COLUMNS = [{ stat: 'today', label: 'Today' }, ...PERIODS];
+// The period picker: the fixed periods, then Custom (any from / to dates)
+const PERIOD_OPTIONS = [...PERIODS, { key: 'custom', label: 'Custom' }];
+
+// "2026-11-01" for a date input, in local time
+const toInputDate = (date) => [
+  date.getFullYear(),
+  String(date.getMonth() + 1).padStart(2, '0'),
+  String(date.getDate()).padStart(2, '0'),
+].join('-');
+const formatDate = (value, options) => new Date(`${value}T00:00:00`).toLocaleDateString('en-GB', options);
+const FULL_DATE = { day: 'numeric', month: 'short', year: 'numeric' };
+// "1 Nov 2026 – 11 Nov 2026", or one date when from and to are the same day
+const rangeLabel = (from, to, options = FULL_DATE) => (from === to
+  ? formatDate(from, options)
+  : `${formatDate(from, options)} – ${formatDate(to, options)}`);
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 // "2026 Jan" -> a running month number, so all-time points can be put in order
@@ -146,16 +160,50 @@ export default function Analytics() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [periodKey, setPeriodKey] = useState('30d');
+  // Custom: the dates being picked, and the dates applied (the API adds a "custom" period for them)
+  const [showCustom, setShowCustom] = useState(false);
+  const [customDraft, setCustomDraft] = useState({ from: '', to: '' });
+  const [customRange, setCustomRange] = useState(null);
 
   useEffect(() => {
-    apiClient.get('/reports/dashboard-analytics')
+    let ignore = false;
+    setLoading(true);
+    apiClient.get('/reports/dashboard-analytics', { params: customRange ? { fromDate: customRange.from, toDate: customRange.to } : {} })
       .then((response) => {
+        if (ignore) return;
         setData(response || {});
         setError('');
+        // The page switches to the custom period once its numbers have arrived
+        if (customRange) setPeriodKey('custom');
       })
-      .catch((err) => setError(err?.message || 'Unable to load analytics'))
-      .finally(() => setLoading(false));
-  }, []);
+      .catch((err) => { if (!ignore) setError(err?.message || 'Unable to load analytics'); })
+      .finally(() => { if (!ignore) setLoading(false); });
+    return () => { ignore = true; };
+  }, [customRange]);
+
+  const selectPeriod = (key) => {
+    if (key !== 'custom') {
+      setShowCustom(false);
+      setPeriodKey(key);
+      return;
+    }
+    setShowCustom(true);
+    if (customRange) {
+      setPeriodKey('custom');
+      setCustomDraft(customRange);
+    } else {
+      // Starts at this month so far
+      const today = new Date();
+      setCustomDraft({ from: toInputDate(new Date(today.getFullYear(), today.getMonth(), 1)), to: toInputDate(today) });
+    }
+  };
+
+  const customValid = Boolean(customDraft.from && customDraft.to && customDraft.from <= customDraft.to);
+  const applyCustom = () => {
+    if (!customValid) return;
+    if (customRange && customRange.from === customDraft.from && customRange.to === customDraft.to) setPeriodKey('custom');
+    else setCustomRange({ ...customDraft });
+  };
 
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -167,12 +215,26 @@ export default function Analytics() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [navigate]);
 
-  const period = PERIODS.find((p) => p.key === periodKey);
-  const byMonth = periodKey === 'thisYear' || periodKey === 'lifetime';
+  const customInfo = data?.custom;
+  const customPeriod = customInfo && {
+    key: 'custom', stat: 'custom',
+    label: rangeLabel(customInfo.fromDate, customInfo.toDate),
+    shortLabel: rangeLabel(customInfo.fromDate, customInfo.toDate, { day: 'numeric', month: 'short' }),
+  };
+  const period = (periodKey === 'custom' && customPeriod) || PERIODS.find((p) => p.key === periodKey) || PERIODS[1];
+  const shownKey = period.key;
+  const customByMonth = shownKey === 'custom' && customInfo?.groupBy === 'month';
+  const byMonth = shownKey === 'thisYear' || shownKey === 'lifetime' || customByMonth;
   const trendText = byMonth ? 'by month' : 'by day';
-  const trend = buildTrend(data, periodKey);
-  // All-time labels arrive as "2026 Jan"
-  const dateLabel = (label) => (periodKey === 'lifetime' ? String(label).split(' ').reverse().join(' ') : label);
+  const trend = buildTrend(data, shownKey);
+  // All-time (and long custom) labels arrive as "2026 Jan"
+  const dateLabel = (label) => (shownKey === 'lifetime' || customByMonth ? String(label).split(' ').reverse().join(' ') : label);
+  // The comparison table gets a column for the custom dates once they are applied
+  const compareColumns = [
+    { stat: 'today', label: 'Today' },
+    ...PERIODS,
+    ...(customPeriod ? [{ stat: 'custom', label: customPeriod.shortLabel }] : []),
+  ];
   const lineDot = trend.length <= 31 ? { r: 3 } : false;
 
   const salesAmountFor = (stat) => data?.sales?.revenue?.[stat] || 0;
@@ -207,7 +269,7 @@ export default function Analytics() {
     },
   ];
 
-  const materialRows = [...(data?.sales?.breakdowns?.[periodKey] || [])]
+  const materialRows = [...(data?.sales?.breakdowns?.[shownKey] || [])]
     .sort((a, b) => b.amount - a.amount)
     .map((row) => {
       const share = percentOf(row.amount, salesAmount);
@@ -220,7 +282,7 @@ export default function Analytics() {
       };
     });
 
-  const expenseRows = (data?.expenses?.breakdowns?.[periodKey] || []).map((row) => {
+  const expenseRows = (data?.expenses?.breakdowns?.[shownKey] || []).map((row) => {
     const share = percentOf(row.amount, expenseAmount);
     return {
       key: row.name,
@@ -263,8 +325,27 @@ export default function Analytics() {
           <h1 className="page-title">Analytics</h1>
           <p className="page-subtitle">Production, sales and expenses · {period.label}</p>
         </div>
-        <Segmented options={PERIODS} value={periodKey} onChange={setPeriodKey} />
+        <Segmented options={PERIOD_OPTIONS} value={showCustom ? 'custom' : periodKey} onChange={selectPeriod} />
       </div>
+
+      {showCustom && (
+        <div className="card flex flex-wrap items-end gap-3 p-3.5 md:p-4">
+          <div>
+            <label className="label">From</label>
+            <input type="date" className="input" value={customDraft.from} max={customDraft.to || undefined}
+              onChange={(e) => setCustomDraft({ ...customDraft, from: e.target.value })} />
+          </div>
+          <div>
+            <label className="label">To</label>
+            <input type="date" className="input" value={customDraft.to} min={customDraft.from || undefined}
+              onChange={(e) => setCustomDraft({ ...customDraft, to: e.target.value })} />
+          </div>
+          <button type="button" className="btn-primary" onClick={applyCustom} disabled={!customValid || loading}>
+            {loading && customRange ? 'Loading…' : 'Apply'}
+          </button>
+          {!customValid && <p className="pb-2 text-xs font-medium text-rose-600">"From" date must be on or before "To" date</p>}
+        </div>
+      )}
 
       {error && (
         <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700">
@@ -272,13 +353,14 @@ export default function Analytics() {
         </div>
       )}
 
-      {loading ? (
+      {/* First load shows a spinner; picking new custom dates keeps the page and dims it while it reloads */}
+      {loading && !data ? (
         <div className="flex flex-col items-center gap-3 py-16">
           <div className="h-9 w-9 animate-spin rounded-full border-4 border-primary-600 border-r-transparent" />
           <p className="text-sm text-slate-400">Loading analytics…</p>
         </div>
       ) : data && (
-        <>
+        <div className={`space-y-4 transition-opacity md:space-y-5 ${loading ? 'pointer-events-none opacity-50' : ''}`}>
           {/* KPI cards */}
           <section className="grid grid-cols-2 gap-2.5 md:gap-4 xl:grid-cols-4">
             {kpis.map((kpi) => <StatCard key={kpi.label} {...kpi} />)}
@@ -390,7 +472,7 @@ export default function Analytics() {
                   <tr>
                     {/* First column stays put while the periods scroll sideways on phones */}
                     <th className="tbl-head sticky left-0" />
-                    {COMPARE_COLUMNS.map((column) => (
+                    {compareColumns.map((column) => (
                       <th key={column.stat} className={`tbl-head text-right ${column.stat === period.stat ? 'bg-primary-50 text-primary-700' : ''}`}>
                         {column.label}
                       </th>
@@ -401,7 +483,7 @@ export default function Analytics() {
                   {comparisonRows.map((row) => (
                     <tr key={row.label} className={row.strong ? 'border-t border-slate-200 bg-slate-50' : 'tbl-row bg-white'}>
                       <td className={`tbl-cell sticky left-0 whitespace-nowrap bg-inherit ${row.strong ? 'font-bold text-slate-900' : 'font-semibold text-slate-800'}`}>{row.label}</td>
-                      {COMPARE_COLUMNS.map((column) => (
+                      {compareColumns.map((column) => (
                         <td
                           key={column.stat}
                           className={`tbl-cell whitespace-nowrap text-right ${row.strong ? 'font-bold' : ''} ${row.tone ? row.tone(column.stat) : ''} ${column.stat === period.stat ? 'bg-primary-50/60' : ''}`}
@@ -415,7 +497,7 @@ export default function Analytics() {
               </table>
             </div>
           </section>
-        </>
+        </div>
       )}
     </div>
   );
