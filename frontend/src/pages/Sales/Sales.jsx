@@ -4,6 +4,7 @@ import { Banknote, ClipboardList, CreditCard, Eye, FileSpreadsheet, FileText, Fi
 import { toast } from 'react-toastify';
 import apiClient from '../../utils/api';
 import { useAuth } from '../../context/AuthContext';
+import { getCustomMaterialRate, getMaterialOptions } from '../../utils/materials';
 import { canDeleteEntries, canEditEntry } from '../../utils/staffAccess';
 import { getSmartVehicleMatch, normalizeVehicleValue } from '../../utils/vehicleMatching';
 import useAccounts from '../../utils/useAccounts';
@@ -25,18 +26,6 @@ import { downloadPdf } from '../../utils/pdfExport';
 import MonthPickerPopup, { formatMonthLabel } from '../../components/MonthPickerPopup';
 
 const isCompleteVehicleNumber = (value) => normalizeVehicleValue(value).length >= 9;
-
-const MATERIAL_TYPE_OPTIONS = [
-  { value: '60mm', label: '60mm' },
-  { value: '40mm', label: '40mm' },
-  { value: '20mm', label: '20mm' },
-  { value: '10mm', label: '10mm' },
-  { value: '6mm', label: '6mm' },
-  { value: '4mm', label: '4mm' },
-  { value: 'wmm', label: 'WMM' },
-  { value: 'gsb', label: 'GSB' },
-  { value: 'dust', label: 'Dust' }
-];
 
 const SALE_BASIS_OPTIONS = [
   { value: 'per_ton', label: 'Per Ton' },
@@ -262,7 +251,8 @@ const getSafeNetWeight = (grossWeight, tareWeight) => {
 const getCrusherMaterialRate = (user, materialType, pricingMode = 'per_ton') => {
   const rates = user?.materialRates || {};
   const rateKey = getCrusherRateKey(materialType, pricingMode);
-  return rateKey ? Number(rates[rateKey] || 0) : 0;
+  // A material the owner added in Material Types carries its own rates
+  return rateKey ? Number(rates[rateKey] || 0) : getCustomMaterialRate(user, materialType, pricingMode);
 };
 
 const getSaleRateForParty = (user, party, materialType, pricingMode = 'per_ton') => {
@@ -572,6 +562,8 @@ export default function Sales({ modalOnly = false, onModalFinish = null, weighme
   const location = useLocation();
   const navigate = useNavigate();
   const { user } = useAuth();
+  // The usual sizes plus the materials the owner added in Masters -> Material Types
+  const MATERIAL_TYPE_OPTIONS = useMemo(() => getMaterialOptions(user), [user]);
   const { accounts, defaultAccountId } = useAccounts();
   // Staff edit only the sales they added; deleting is for the owner
   const canDeleteSales = canDeleteEntries(user);
@@ -1005,7 +997,7 @@ export default function Sales({ modalOnly = false, onModalFinish = null, weighme
     ));
 
     return [...startsWith, ...includes];
-  }, [materialQuery, isMaterialSectionActive, formData.materialType]);
+  }, [materialQuery, isMaterialSectionActive, formData.materialType, MATERIAL_TYPE_OPTIONS]);
   const isCashParty = String(selectedLeadger?.type || '').trim().toLowerCase() === 'cash-in-hand';
   // Who a vehicle can be hired from: transporters first, never the cash party
   // Locations with a trip rate on the picked vehicle, for a per-trip hire
@@ -1119,7 +1111,7 @@ export default function Sales({ modalOnly = false, onModalFinish = null, weighme
       if (prev >= filteredMaterialTypes.length) return filteredMaterialTypes.length - 1;
       return prev;
     });
-  }, [showForm, filteredMaterialTypes, isMaterialSectionActive, materialQuery, formData.materialType]);
+  }, [showForm, filteredMaterialTypes, isMaterialSectionActive, materialQuery, formData.materialType, MATERIAL_TYPE_OPTIONS]);
 
   const handleLeadgerFocus = () => {
     setIsLeadgerSectionActive(true);

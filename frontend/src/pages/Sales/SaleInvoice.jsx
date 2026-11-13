@@ -16,7 +16,9 @@ const getMaterialName = (stoneSize) => {
   const value = String(stoneSize || '').trim().toLowerCase();
   if (!value) return 'Material';
   if (MATERIAL_NAMES[value]) return MATERIAL_NAMES[value];
-  return `Stone Aggregate ${value.toUpperCase()}`;
+  // A size such as 20mm is an aggregate; a material the owner added (Murrum, Sand...) prints as its own name
+  if (/^\d+(\.\d+)?\s*mm$/.test(value)) return `Stone Aggregate ${value.toUpperCase()}`;
+  return value.toUpperCase();
 };
 
 const formatMoney = (value) => Number(value || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });

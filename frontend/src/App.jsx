@@ -20,6 +20,7 @@ import Party from './pages/Party/Party';
 import PartyDetail from './pages/PartyDetail';
 import Expenses from './pages/Expenses/Expenses';
 import ExpenseTypes from './pages/ExpenseGroups';
+import MaterialTypes from './pages/MaterialTypes';
 import BoulderEntry from './pages/BoulderEntry/BoulderEntry';
 import DumpSiteEntry from './pages/BoulderEntry/DumpSiteEntry';
 import DumpToHopper from './pages/BoulderEntry/DumpToHopper';
@@ -121,6 +122,7 @@ function App() {
           <Route path="/stock/:id" element={<StaffRoute section="masters"><StockDetail /></StaffRoute>} />
           <Route path="/products" element={<Navigate to="/stock" replace />} />
           <Route path="/stock-groups" element={<StaffRoute section="masters"><StockGroups /></StaffRoute>} />
+          <Route path="/material-types" element={<StaffRoute section="masters"><MaterialTypes /></StaffRoute>} />
           <Route path="/vehicle" element={<StaffRoute section="masters"><Vehicle /></StaffRoute>} />
           <Route path="/vehicle/:id" element={<StaffRoute section="masters"><VehicleLedger /></StaffRoute>} />
           <Route path="/documents" element={<StaffRoute section="masters"><Documents /></StaffRoute>} />

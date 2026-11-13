@@ -639,7 +639,10 @@ export default function Setting() {
       <section className="panel">
         <div className="panel-header">
           <h2 className="text-sm font-bold text-slate-900">Material Rates</h2>
-          <p className="text-xs text-slate-500">Your usual selling rates. They fill in automatically when you add a sale.</p>
+          <p className="text-xs text-slate-500">
+            Your usual selling rates. They fill in automatically when you add a sale. Sell other materials too?{' '}
+            <button type="button" className="font-semibold text-primary-700 hover:underline" onClick={() => navigate('/material-types')}>Add them in Material Types</button>
+          </p>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-left">

@@ -71,6 +71,15 @@ function ExpenseIcon() {
   );
 }
 
+function MaterialTypeIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-6 w-6">
+      <path d="M12 3 4 7.5l8 4.5 8-4.5L12 3Z" />
+      <path d="m4 12 8 4.5 8-4.5M4 16.5 12 21l8-4.5" />
+    </svg>
+  );
+}
+
 function ExpenseTypeIcon() {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-6 w-6">
@@ -195,6 +204,7 @@ export const SECTION_CONFIG = {
     items: [
       { name: 'Manage Party', path: '/party', Icon: PartyIcon },
       { name: 'Stock Item', path: '/stock', Icon: StockItemIcon },
+      { name: 'Material Type', path: '/material-types', Icon: MaterialTypeIcon },
       { name: 'Manage Vehicle', path: '/vehicle', Icon: VehicleIcon },
       { name: 'Vehicle Documents', path: '/documents', Icon: DocumentIcon },
       { name: 'Bank', path: '/banks', Icon: BankIcon },

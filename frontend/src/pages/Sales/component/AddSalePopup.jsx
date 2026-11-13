@@ -1,5 +1,8 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { Camera, ChevronDown, Eye, Loader2, Upload } from 'lucide-react';
+import { Camera, ChevronDown, Eye, Loader2, Plus, Upload } from 'lucide-react';
+import { toast } from 'react-toastify';
+import { useAuth } from '../../../context/AuthContext';
+import { DEFAULT_MATERIAL_VALUES, getCustomMaterials, toMaterialValue } from '../../../utils/materials';
 import apiClient from '../../../utils/api';
 import { handlePopupFormKeyDown } from '../../../utils/popupFormKeyboard';
 import { useFloatingDropdownPosition } from '../../../utils/useFloatingDropdownPosition';
@@ -141,6 +144,37 @@ export default function AddSalePopup({
   const ocrFileInputRef = useRef(null);
   const ocrCameraInputRef = useRef(null);
   const [isItemEntryClosed, setIsItemEntryClosed] = useState(false);
+
+  // A material not in the list is added to Masters -> Material Types right from here, then picked
+  const { user, updateUserSettings } = useAuth();
+  const [addingMaterial, setAddingMaterial] = useState(false);
+  const [pendingMaterial, setPendingMaterial] = useState('');
+  const typedMaterial = String(materialQuery || '').replace(/\s+/g, ' ').trim();
+  const canAddTypedMaterial = Boolean(typedMaterial)
+    && !(filteredMaterialTypes || []).some((material) => toMaterialValue(getMaterialDisplayName(material)) === toMaterialValue(typedMaterial))
+    && !DEFAULT_MATERIAL_VALUES.includes(toMaterialValue(typedMaterial));
+  const addTypedMaterial = async () => {
+    if (!canAddTypedMaterial || addingMaterial) return;
+    setAddingMaterial(true);
+    try {
+      const current = getCustomMaterials(user).map((item) => ({ name: item.name, rate: Number(item.rate || 0), ratePerCubicMeter: Number(item.ratePerCubicMeter || 0) }));
+      await updateUserSettings({ customMaterials: [...current, { name: typedMaterial.slice(0, 40), rate: 0, ratePerCubicMeter: 0 }] });
+      setPendingMaterial(typedMaterial.slice(0, 40));
+      toast.success(`${typedMaterial} added to Material Types`, { autoClose: 1200 });
+    } catch (addError) {
+      toast.error(addError?.message || 'Could not add the material');
+    } finally {
+      setAddingMaterial(false);
+    }
+  };
+  // Picked once the new material is in the list (the sale page re-reads the account's materials)
+  useEffect(() => {
+    if (!pendingMaterial) return;
+    if (!getCustomMaterials(user).some((item) => toMaterialValue(item.name) === toMaterialValue(pendingMaterial))) return;
+    handleMaterialInputChange({ target: { value: pendingMaterial } });
+    setIsMaterialSectionActive(false);
+    setPendingMaterial('');
+  }, [pendingMaterial, user, handleMaterialInputChange, setIsMaterialSectionActive]);
   const [isOcrLoading, setIsOcrLoading] = useState(false);
   const [ocrMode, setOcrMode] = useState(''); // 'camera' | 'upload'
   const [scannerFile, setScannerFile] = useState(null);
@@ -574,6 +608,18 @@ export default function AddSalePopup({
                       handleMaterialInputChange({ target: { value: getMaterialDisplayName(material) } });
                       setIsMaterialSectionActive(false);
                     }}
+                    footer={canAddTypedMaterial ? (
+                      <button
+                        type="button"
+                        onMouseDown={(event) => event.preventDefault()}
+                        onClick={addTypedMaterial}
+                        disabled={addingMaterial}
+                        className="flex w-full items-center gap-2 border-t border-slate-100 px-3 py-2.5 text-left text-sm font-semibold text-primary-700 hover:bg-primary-50 disabled:opacity-60"
+                      >
+                        {addingMaterial ? <Loader2 size={15} className="animate-spin" /> : <Plus size={15} />}
+                        Add "{typedMaterial}" as new material
+                      </button>
+                    ) : null}
                   />
                 )}
               </div>

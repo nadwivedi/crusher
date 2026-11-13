@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext';
 const homeNavigationEntries = [
   { section: 'Masters', path: '/party' },
   { section: 'Masters', path: '/stock' },
+  { section: 'Masters', path: '/material-types' },
   { section: 'Masters', path: '/vehicle' },
   { section: 'Masters', path: '/documents' },
   { section: 'Masters', path: '/banks' },

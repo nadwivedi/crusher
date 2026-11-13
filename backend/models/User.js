@@ -139,6 +139,18 @@ const userSchema = new mongoose.Schema(
         default: false,
       },
     },
+    // Materials the crusher sells beyond the usual sizes (60mm, 40mm, ... dust), each with its own rates
+    customMaterials: {
+      type: [
+        {
+          _id: false,
+          name: { type: String, trim: true, maxlength: 40, required: true },
+          rate: { type: Number, default: 0, min: 0 },
+          ratePerCubicMeter: { type: Number, default: 0, min: 0 },
+        },
+      ],
+      default: [],
+    },
     materialRates: {
       tenMmRate: {
         type: Number,

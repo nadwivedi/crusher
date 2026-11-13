@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import {
   LayoutDashboard, Activity, ChartNoAxesCombined, Mountain, FileText, Wallet,
   IdCard, ChartColumn, Users, Boxes, Truck, Landmark, Tags,
-  Settings, X, ShoppingCart, Warehouse, Package, Scale, FolderOpen
+  Settings, X, ShoppingCart, Warehouse, Package, Scale, FolderOpen, Gem
 } from 'lucide-react';
 import Logo from './Logo';
 import { canUseSection, isStaff } from '../utils/staffAccess';
@@ -52,6 +52,7 @@ const navGroups = [
     items: [
       { to: '/party', icon: Users, label: 'Party', section: 'masters' },
       { to: '/stock', icon: Boxes, label: 'Stock Items', section: 'masters' },
+      { to: '/material-types', icon: Gem, label: 'Material Types', section: 'masters' },
       { to: '/vehicle', icon: Truck, label: 'Vehicles', section: 'masters' },
       { to: '/documents', icon: FolderOpen, label: 'Documents', section: 'masters' },
       { to: '/accounts', icon: Landmark, label: 'Cash & Bank', ownerOnly: true },

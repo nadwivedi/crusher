@@ -64,6 +64,11 @@ const sanitizeUser = (user) => ({
     dustRate: Number(user.materialRates?.dustRate || 0),
     dustRatePerCubicMeter: Number(user.materialRates?.dustRatePerCubicMeter || 0),
   },
+  customMaterials: (user.customMaterials || []).map((item) => ({
+    name: item.name,
+    rate: Number(item.rate || 0),
+    ratePerCubicMeter: Number(item.ratePerCubicMeter || 0),
+  })),
 });
 
 const generateToken = (id) => (
@@ -106,6 +111,27 @@ const normalizeRateValue = (value) => {
   const numericValue = Number(value || 0);
   if (!Number.isFinite(numericValue) || numericValue < 0) return 0;
   return numericValue;
+};
+
+const DEFAULT_MATERIALS = ["60mm", "40mm", "20mm", "10mm", "6mm", "4mm", "dust", "wmm", "gsb"];
+const MAX_CUSTOM_MATERIALS = 50;
+
+// The owner's own materials: named, no repeats (any case), none that is already a usual size
+const normalizeCustomMaterials = (list) => {
+  const seen = new Set(DEFAULT_MATERIALS);
+  const result = [];
+  (Array.isArray(list) ? list : []).forEach((item) => {
+    const name = String(item?.name || "").replace(/\s+/g, " ").trim().slice(0, 40);
+    const key = name.toLowerCase();
+    if (!name || seen.has(key) || result.length >= MAX_CUSTOM_MATERIALS) return;
+    seen.add(key);
+    result.push({
+      name,
+      rate: normalizeRateValue(item?.rate),
+      ratePerCubicMeter: normalizeRateValue(item?.ratePerCubicMeter),
+    });
+  });
+  return result;
 };
 
 const signupUser = async (req, res) => {
@@ -322,6 +348,7 @@ module.exports = {
                weighbridge: Boolean(owner.featureAccess?.weighbridge),
              },
              materialRates: sanitizeUser(owner).materialRates,
+             customMaterials: sanitizeUser(owner).customMaterials,
              defaultPricingMode: owner.defaultPricingMode || "per_ton",
              recordBothQuantities: Boolean(owner.recordBothQuantities),
              ownBoulderDefault: Boolean(owner.ownBoulderDefault),
@@ -431,6 +458,9 @@ module.exports = {
           dustRate: normalizeRateValue(req.body?.materialRates?.dustRate),
           dustRatePerCubicMeter: normalizeRateValue(req.body?.materialRates?.dustRatePerCubicMeter),
         };
+      }
+      if (req.body?.customMaterials !== undefined) {
+        user.customMaterials = normalizeCustomMaterials(req.body.customMaterials);
       }
       if (req.body?.defaultPricingMode !== undefined) {
         if (req.employee) {
