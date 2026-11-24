@@ -24,6 +24,7 @@ import {
   UserPlus,
   UserX,
   LogIn,
+  Copy,
 } from 'lucide-react'
 import Sidebar from '../components/Sidebar'
 import StatCard from '../components/StatCard'
@@ -649,6 +650,42 @@ function AdminPage() {
     </p>
   )
 
+  // User ID under the name, with a button that copies it
+  const copyUserId = async (id) => {
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(id)
+      } else {
+        const textarea = document.createElement('textarea')
+        textarea.value = id
+        textarea.style.position = 'fixed'
+        textarea.style.opacity = '0'
+        document.body.appendChild(textarea)
+        textarea.select()
+        document.execCommand('copy')
+        document.body.removeChild(textarea)
+      }
+      toast.success('User ID copied')
+    } catch {
+      toast.error('Could not copy the user ID')
+    }
+  }
+
+  const renderUserId = (user) => user.id && (
+    <p className="flex min-w-0 items-center gap-1 text-[11px] text-stone-400">
+      <span className="truncate font-mono" title={user.id}>ID: {user.id}</span>
+      <button
+        type="button"
+        onClick={() => copyUserId(user.id)}
+        title="Copy user ID"
+        aria-label={`Copy user ID of ${user.name}`}
+        className="shrink-0 rounded p-0.5 text-stone-400 transition hover:bg-stone-100 hover:text-stone-700"
+      >
+        <Copy className="h-3.5 w-3.5" />
+      </button>
+    </p>
+  )
+
   // "9876543210 · Raipur, Chhattisgarh"
   const renderContactLine = (user) => [user.mobile, [user.district, user.state].filter(Boolean).join(', ')].filter(Boolean).join(' · ')
 
@@ -829,6 +866,7 @@ function AdminPage() {
                             {renderAvatar(user)}
                             <div className="min-w-0">
                               {renderName(user)}
+                              {renderUserId(user)}
                               <p className="truncate text-xs text-stone-500" title={user.email || undefined}>{user.mobile}</p>
                             </div>
                           </div>
@@ -867,6 +905,7 @@ function AdminPage() {
                     {renderAvatar(user)}
                     <div className="min-w-0 flex-1 space-y-1">
                       {renderName(user)}
+                      {renderUserId(user)}
                       <p className="truncate text-xs text-stone-500">{renderContactLine(user)}</p>
                       <div className="flex flex-wrap gap-x-4 gap-y-1">
                         {renderPlan(user)}
