@@ -216,6 +216,20 @@ export default function SaleDetailsPopup({ sale, view, accountName, onClose, onO
             </section>
           )}
 
+          {sale.importSource?.file && (
+            <div className="md:col-span-2">
+              <Section
+                title="Source (imported from old report)"
+                rows={[
+                  { label: 'File', value: sale.importSource.file },
+                  { label: 'Sheet / Page', value: sale.importSource.sheet },
+                  { label: 'Row', value: Number(sale.importSource.row || 0) ? String(sale.importSource.row) : '' },
+                  { label: 'Payment written as', value: sale.importSource.paymentNote }
+                ]}
+              />
+            </div>
+          )}
+
           <div className="md:col-span-2">
             <Section
               title="Entry"

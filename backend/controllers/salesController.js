@@ -39,6 +39,8 @@ const normalizeVehicleNo = (value) => String(value || "").trim().toUpperCase();
 
 const normalizeSalesPayload = (payload = {}) => {
   const nextPayload = { ...payload };
+  // Where an imported sale came from is fixed at import, never typed in
+  delete nextPayload.importSource;
 
   if (Object.prototype.hasOwnProperty.call(nextPayload, "party") && !Object.prototype.hasOwnProperty.call(nextPayload, "partyId")) {
     nextPayload.partyId = nextPayload.party;

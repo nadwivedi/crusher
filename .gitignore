@@ -2,3 +2,6 @@
 .deploy/
 */dist-next/
 */dist-old/
+
+# Imported sales data (customer records), kept out of git
+backend/scripts/ramraj/*.json

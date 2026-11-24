@@ -231,6 +231,21 @@ const salesSchema = new mongoose.Schema(
       trim: true,
       default: "",
     },
+    // Set only on sales brought in from old Excel / PDF sales reports: where the entry came from.
+    // Never set or changed from the app.
+    importSource: {
+      type: new mongoose.Schema(
+        {
+          file: { type: String, trim: true, default: "" },
+          sheet: { type: String, trim: true, default: "" },
+          row: { type: Number, default: 0 },
+          // The payment column as written in the report, e.g. "cash deewan", "borrow", "1500 banki"
+          paymentNote: { type: String, trim: true, default: "" },
+        },
+        { _id: false }
+      ),
+      default: undefined,
+    },
   },
   {
     timestamps: true,
